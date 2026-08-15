@@ -31,6 +31,7 @@ public class AdventureGameDirector : MonoBehaviour
     string _prompt = "";
 
     Text _questText;
+    Text _guideText;
     Text _promptText;
     Text _dialogueText;
     GameObject _dialoguePanel;
@@ -38,7 +39,8 @@ public class AdventureGameDirector : MonoBehaviour
     void Start()
     {
         BuildHud();
-        ShowDialogue("幻想の森。猫と犬が迷子。Mで島マップ。WASD / E話す / R戻る", 6.5f);
+        SetupSearchAids();
+        ShowDialogue("幻想の森。猫と犬が迷子。黄色い看板と距離表示を頼って。M=マップ / WASD / E / R", 7f);
     }
 
     void Update()
@@ -46,11 +48,22 @@ public class AdventureGameDirector : MonoBehaviour
         if (player == null)
             return;
 
-        AdventureNpc near = NearestNpc();
-        _prompt = near == null ? "" : "E  話す  —  " + near.displayName;
+        AdventureNpc nearNpc = NearestNpc();
+        AdventureHintSign nearHint = nearNpc == null ? NearestHintSign() : null;
+        if (nearNpc != null)
+            _prompt = "E  話す  —  " + nearNpc.displayName;
+        else if (nearHint != null)
+            _prompt = "E  読む  —  " + nearHint.displayName;
+        else
+            _prompt = "";
 
-        if (player.InteractPressed && near != null)
-            Talk(near);
+        if (player.InteractPressed)
+        {
+            if (nearNpc != null)
+                Talk(nearNpc);
+            else if (nearHint != null)
+                ReadHint(nearHint);
+        }
 
         if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame && Time.unscaledTime > _dialogueUntil)
             _dialogue = "";
@@ -76,6 +89,92 @@ public class AdventureGameDirector : MonoBehaviour
             }
         }
         return best;
+    }
+
+    AdventureHintSign NearestHintSign()
+    {
+        AdventureHintSign best = null;
+        float bestDist = float.MaxValue;
+        Vector3 p = player.transform.position;
+        foreach (var hint in Object.FindObjectsByType<AdventureHintSign>(FindObjectsInactive.Exclude))
+        {
+            if (hint == null || !hint.IsInRange(p))
+                continue;
+            float d = (hint.transform.position - p).sqrMagnitude;
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = hint;
+            }
+        }
+        return best;
+    }
+
+    void ReadHint(AdventureHintSign hint)
+    {
+        _started = true;
+        ShowDialogue(hint.message, 6f);
+    }
+
+    void SetupSearchAids()
+    {
+        if (cat != null)
+            cat.radius = 6f;
+        if (dog != null)
+            dog.radius = 6f;
+
+        SpawnHintSign(new Vector3(176f, 0f, 162f), "迷子メモ", "猫→東の丘 X198 Z128　犬→北東の草地 X214 Z198。Mでマップ。");
+        SpawnHintSign(new Vector3(186f, 0f, 142f), "猫の足跡", "この先、東の高い丘へ。池から離れた上の方。黄色い光を探して。");
+        SpawnHintSign(new Vector3(204f, 0f, 176f), "犬の足跡", "北東の平らな草地へ。Z198 付近。池の北側。");
+
+        if (cat != null)
+            AttachMarker(cat.transform, "猫?", new Color(1f, 0.78f, 0.35f));
+        if (dog != null)
+            AttachMarker(dog.transform, "犬?", new Color(0.55f, 0.85f, 1f));
+    }
+
+    void SpawnHintSign(Vector3 worldPos, string title, string message)
+    {
+        var terrain = Terrain.activeTerrain;
+        if (terrain != null)
+            worldPos.y = terrain.SampleHeight(worldPos) + terrain.transform.position.y;
+
+        var go = new GameObject("Hint_" + title);
+        go.transform.position = worldPos;
+        var sign = go.AddComponent<AdventureHintSign>();
+        sign.displayName = title;
+        sign.message = title + "「" + message + "」";
+
+        var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        post.transform.SetParent(go.transform, false);
+        post.transform.localScale = new Vector3(0.4f, 1.1f, 0.4f);
+        post.transform.localPosition = new Vector3(0f, 1.1f, 0f);
+        Object.Destroy(post.GetComponent<Collider>());
+        post.GetComponent<Renderer>().material.color = new Color(0.95f, 0.82f, 0.25f, 1f);
+
+        var board = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        board.transform.SetParent(go.transform, false);
+        board.transform.localScale = new Vector3(0.9f, 0.55f, 0.08f);
+        board.transform.localPosition = new Vector3(0f, 2.35f, 0f);
+        Object.Destroy(board.GetComponent<Collider>());
+        board.GetComponent<Renderer>().material.color = new Color(0.92f, 0.88f, 0.72f, 1f);
+
+        var trigger = go.AddComponent<CapsuleCollider>();
+        trigger.isTrigger = true;
+        trigger.radius = 4.5f;
+        trigger.height = 3f;
+        trigger.center = new Vector3(0f, 1.5f, 0f);
+    }
+
+    static void AttachMarker(Transform target, string label, Color color)
+    {
+        var go = new GameObject("SearchMarker");
+        go.transform.SetParent(target, false);
+        go.transform.localPosition = Vector3.zero;
+        var marker = go.AddComponent<AdventureTargetMarker>();
+        marker.label = label;
+        marker.color = color;
+        marker.Build();
     }
 
     void Talk(AdventureNpc npc)
@@ -261,6 +360,8 @@ public class AdventureGameDirector : MonoBehaviour
     {
         if (_questText != null)
             _questText.text = QuestLine();
+        if (_guideText != null)
+            _guideText.text = GuideLine();
         if (_promptText != null)
             _promptText.text = _prompt;
         bool show = !string.IsNullOrEmpty(_dialogue) && Time.unscaledTime <= _dialogueUntil;
@@ -283,6 +384,46 @@ public class AdventureGameDirector : MonoBehaviour
         return "クエスト  迷子の猫と犬    " + cat + "  " + dog;
     }
 
+    string GuideLine()
+    {
+        if (_complete || player == null)
+            return "";
+        string line = "";
+        if (!_foundCat && cat != null)
+            line += "猫→" + BearingLabel(player.transform.position, cat.transform.position) + " " + HorizontalDistance(player.transform.position, cat.transform.position) + "m   ";
+        if (!_foundDog && dog != null)
+            line += "犬→" + BearingLabel(player.transform.position, dog.transform.position) + " " + HorizontalDistance(player.transform.position, dog.transform.position) + "m";
+        if (line.Length == 0)
+            return "";
+        return "ヒント  " + line.Trim();
+    }
+
+    static int HorizontalDistance(Vector3 from, Vector3 to)
+    {
+        from.y = 0f;
+        to.y = 0f;
+        return Mathf.RoundToInt(Vector3.Distance(from, to));
+    }
+
+    static string BearingLabel(Vector3 from, Vector3 to)
+    {
+        Vector3 delta = to - from;
+        delta.y = 0f;
+        if (delta.sqrMagnitude < 0.01f)
+            return "近";
+        float angle = Mathf.Atan2(delta.x, delta.z) * Mathf.Rad2Deg;
+        if (angle < 0f)
+            angle += 360f;
+        if (angle >= 337.5f || angle < 22.5f) return "北";
+        if (angle < 67.5f) return "北東";
+        if (angle < 112.5f) return "東";
+        if (angle < 157.5f) return "南東";
+        if (angle < 202.5f) return "南";
+        if (angle < 247.5f) return "南西";
+        if (angle < 292.5f) return "西";
+        return "北西";
+    }
+
     void BuildHud()
     {
         var canvasGo = new GameObject("AdventureHUD");
@@ -299,6 +440,7 @@ public class AdventureGameDirector : MonoBehaviour
             font = Resources.GetBuiltinResource<Font>("Arial.ttf");
 
         _questText = MakeText(canvasGo.transform, "Quest", new Vector2(24, -24), new Vector2(0, 1), new Vector2(720, 64), 22, TextAnchor.UpperLeft, font);
+        _guideText = MakeText(canvasGo.transform, "Guide", new Vector2(24, -92), new Vector2(0, 1), new Vector2(760, 40), 18, TextAnchor.UpperLeft, font);
         _promptText = MakeText(canvasGo.transform, "Prompt", new Vector2(0, 88), new Vector2(0.5f, 0), new Vector2(760, 40), 20, TextAnchor.MiddleCenter, font);
 
         _dialoguePanel = new GameObject("Dialogue");
