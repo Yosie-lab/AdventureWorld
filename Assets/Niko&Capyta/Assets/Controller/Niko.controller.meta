@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: c8bead11f69d15c45aaeb304b870015d
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 9100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 169590
+  packageName: Niko and Capyta
+  packageVersion: 1.0
+  assetPath: Assets/Niko&Capyta/Assets/Controller/Niko.controller
+  uploadId: 370436
