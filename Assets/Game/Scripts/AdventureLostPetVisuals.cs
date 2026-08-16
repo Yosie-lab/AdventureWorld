@@ -12,8 +12,12 @@ public static class AdventureLostPetVisuals
     // 柱は迷子の真上に置くとペットを覆い隠すので、必ず横にずらす。
     const float BeaconOffsetX = 4f;
 
-    // 素の犬は高さ約0.9mしかなく、草木に紛れて見つけられない。
-    const float VisualScale = 3f;
+    // 素の犬は高さ約0.9m。猫だけやや大きくして見つけやすくする。
+    const float DogVisualScale = 1f;
+    const float CatVisualScale = 3f;
+
+    static float VisualScaleFor(string npcId) =>
+        npcId == "dog" ? DogVisualScale : CatVisualScale;
 
     public static void EnsureBeacons()
     {
@@ -33,8 +37,8 @@ public static class AdventureLostPetVisuals
             DisableBrokenVisuals(root, visualName);
             existingVisual.gameObject.SetActive(true);
             float scale = existingVisual.GetComponentInChildren<SkinnedMeshRenderer>(true) != null
-                ? VisualScale
-                : VisualScale * 0.4f;
+                ? VisualScaleFor(npcId)
+                : VisualScaleFor(npcId) * 0.4f;
             existingVisual.localScale = Vector3.one * scale;
             return;
         }
@@ -63,7 +67,7 @@ public static class AdventureLostPetVisuals
         visual.name = visualName;
         visual.transform.localPosition = Vector3.zero;
         visual.transform.localRotation = Quaternion.identity;
-        visual.transform.localScale = Vector3.one * VisualScale;
+        visual.transform.localScale = Vector3.one * VisualScaleFor(npcId);
 
         foreach (var col in visual.GetComponentsInChildren<Collider>(true))
             DestroySafe(col);
@@ -84,7 +88,7 @@ public static class AdventureLostPetVisuals
         rootGo.transform.SetParent(root, false);
         rootGo.transform.localPosition = Vector3.zero;
         rootGo.transform.localRotation = Quaternion.identity;
-        rootGo.transform.localScale = Vector3.one * (VisualScale * 0.4f);
+        rootGo.transform.localScale = Vector3.one * (VisualScaleFor(npcId) * 0.4f);
 
         var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         body.name = "Body";

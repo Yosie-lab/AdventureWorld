@@ -178,7 +178,7 @@ static class AdventurePlayModePetFix
 
         visual.localPosition = Vector3.zero;
         visual.localRotation = Quaternion.identity;
-        visual.localScale = Vector3.one * 3f;
+        visual.localScale = Vector3.one * (name == "Dog" ? 1f : 3f);
         visual.gameObject.SetActive(true);
 
         foreach (var col in visual.GetComponentsInChildren<Collider>(true))
