@@ -18,8 +18,8 @@ public class AdventureTargetMarker : MonoBehaviour
 
         var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         post.transform.SetParent(_visual, false);
-        post.transform.localScale = new Vector3(0.18f, 1.4f, 0.18f);
-        post.transform.localPosition = new Vector3(0f, 1.4f, 0f);
+        post.transform.localScale = new Vector3(0.18f, 0.8f, 0.18f);
+        post.transform.localPosition = new Vector3(0f, 0.8f, 0f);
         Tint(post, color * 0.85f);
         Object.Destroy(post.GetComponent<Collider>());
 

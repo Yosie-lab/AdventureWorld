@@ -12,11 +12,13 @@ public class AdventureCameraFollow : MonoBehaviour
 
     float _yaw;
     float _pitch = 12f;
+    Terrain _land;
 
     void Start()
     {
         if (target != null)
             _yaw = target.eulerAngles.y;
+        _land = AdventureQuestLocations.FindLand();
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -53,6 +55,25 @@ public class AdventureCameraFollow : MonoBehaviour
         Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
         Vector3 desired = pivot + rot * new Vector3(0f, 0f, -distance);
         desired.y = Mathf.Max(desired.y, target.position.y + 1.4f);
-        transform.SetPositionAndRotation(desired, rot);
+        transform.SetPositionAndRotation(Deocclude(pivot, desired), rot);
+    }
+
+    // 急斜面ではカメラが地中に潜り、地面の裏側と空が見えて描画が壊れる。
+    Vector3 Deocclude(Vector3 pivot, Vector3 desired)
+    {
+        Vector3 offset = desired - pivot;
+        float dist = offset.magnitude;
+        if (dist > 0.01f
+            && Physics.SphereCast(pivot, 0.45f, offset / dist, out RaycastHit hit, dist, ~0, QueryTriggerInteraction.Ignore))
+        {
+            desired = pivot + offset / dist * Mathf.Max(hit.distance - 0.25f, 1.2f);
+        }
+
+        if (_land == null)
+            _land = AdventureQuestLocations.FindLand();
+        if (_land != null)
+            desired.y = Mathf.Max(desired.y, AdventureQuestLocations.GroundY(_land, desired.x, desired.z) + 1.2f);
+
+        return desired;
     }
 }

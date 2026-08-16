@@ -26,6 +26,8 @@ public class AdventurePlayerController : MonoBehaviour
     void Awake()
     {
         _cc = GetComponent<CharacterController>();
+        _cc.slopeLimit = 58f;
+        _cc.stepOffset = 0.45f;
         _anim = GetComponentInChildren<Animator>();
         if (_anim != null)
         {
@@ -45,6 +47,7 @@ public class AdventurePlayerController : MonoBehaviour
 
     void Start()
     {
+        AdventureIslandBoundary.Ensure();
         CacheTerrains();
         if (spawnPosition == Vector3.zero)
             spawnPosition = transform.position;
@@ -90,8 +93,7 @@ public class AdventurePlayerController : MonoBehaviour
         }
 
         Vector3 motion = planar * speed * Time.deltaTime;
-        if (!CanStand(transform.position + new Vector3(motion.x, 0f, motion.z)))
-            motion.x = motion.z = 0f;
+        motion = ClipMotion(motion);
 
         if (_cc.isGrounded)
         {
@@ -108,20 +110,31 @@ public class AdventurePlayerController : MonoBehaviour
         _hop += gravity * Time.deltaTime;
         motion.y = _hop * Time.deltaTime;
         _cc.Move(motion);
+        KeepWalkable();
         PlayLocomotion(planar.magnitude * speed, running);
     }
 
-    bool CanStand(Vector3 pos)
+    Vector3 ClipMotion(Vector3 motion)
     {
-        if (_land == null)
-            return true;
-        Vector3 origin = _land.transform.position;
-        Vector3 size = _land.terrainData.size;
-        const float edge = 1.5f;
-        return pos.x > origin.x + edge
-            && pos.x < origin.x + size.x - edge
-            && pos.z > origin.z + edge
-            && pos.z < origin.z + size.z - edge;
+        var bounds = AdventureIslandBoundary.Instance;
+        if (bounds != null)
+            return bounds.ClipMotion(transform.position, motion);
+        return motion;
+    }
+
+    void KeepWalkable()
+    {
+        var bounds = AdventureIslandBoundary.Instance;
+        if (bounds == null)
+            return;
+
+        Vector3 pos = transform.position;
+        if (bounds.IsWalkable(pos))
+            return;
+
+        Vector3 clamped = bounds.ClampWalkable(pos);
+        clamped.y = bounds.GroundY(clamped) + Skin;
+        Teleport(clamped);
     }
 
     float GroundY(Vector3 pos)
@@ -133,7 +146,14 @@ public class AdventurePlayerController : MonoBehaviour
 
     Vector3 Stick(Vector3 pos)
     {
-        pos.y = GroundY(pos) + Skin;
+        var bounds = AdventureIslandBoundary.Instance;
+        if (bounds != null)
+        {
+            pos = bounds.ClampWalkable(pos);
+            pos.y = bounds.GroundY(pos) + Skin;
+        }
+        else
+            pos.y = GroundY(pos) + Skin;
         return pos;
     }
 
@@ -160,8 +180,6 @@ public class AdventurePlayerController : MonoBehaviour
                     col.enabled = false;
             }
         }
-        if (_land == null)
-            _land = Terrain.activeTerrain;
     }
 
     static Vector2 ReadMove(Keyboard kb)

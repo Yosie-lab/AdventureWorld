@@ -121,8 +121,8 @@ public class AdventureIslandMap : MonoBehaviour
     void PlaceLandmarks(Transform mapArea)
     {
         TryLandmark(mapArea, "Capyta", "カ", new Color(0.95f, 0.7f, 0.85f, 1f));
-        TryLandmark(mapArea, "Cat", "猫", new Color(0.95f, 0.75f, 0.45f, 1f));
-        TryLandmark(mapArea, "Dog", "犬", new Color(0.75f, 0.85f, 0.95f, 1f));
+        MakeDot(mapArea, WorldToUv(AdventureQuestLocations.CatPosition), new Vector2(8f, 8f), new Color(0.95f, 0.75f, 0.45f, 1f), "猫");
+        MakeDot(mapArea, WorldToUv(AdventureQuestLocations.DogPosition), new Vector2(8f, 8f), new Color(0.75f, 0.85f, 0.95f, 1f), "犬");
         TryLandmark(mapArea, "Sparrow", "雀", new Color(0.9f, 0.9f, 0.9f, 1f));
         TryLandmark(mapArea, "Muskrat", "鼠", new Color(0.8f, 0.7f, 0.55f, 1f));
         TryLandmark(mapArea, "Pudu", "鹿", new Color(0.85f, 0.8f, 0.7f, 1f));

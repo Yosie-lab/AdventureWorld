@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using System.Collections;
 
 public class AdventureGameDirector : MonoBehaviour
 {
@@ -36,15 +37,102 @@ public class AdventureGameDirector : MonoBehaviour
     Text _dialogueText;
     GameObject _dialoguePanel;
 
+    void Awake()
+    {
+        AdventureWorldBoot.Configure();
+        RepositionLostPets();
+    }
+
     void Start()
     {
+        EnsureIslandBoundary();
+        AdventureWorldBoot.Configure();
+        RepositionLostPets();
+        AdventureMarkerCleanup.RemoveAllQuestMarkers();
         BuildHud();
         SetupSearchAids();
-        ShowDialogue("幻想の森。猫と犬が迷子。黄色い看板と距離表示を頼って。M=マップ / WASD / E / R", 7f);
+        StartCoroutine(RepositionLostPetsDelayed());
+        ShowDialogue("幻想の森。猫と犬が迷子。砂浜と岩=岸。黄色看板と距離表示も頼って。M / WASD / E / R", 7f);
+    }
+
+    IEnumerator RepositionLostPetsDelayed()
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            yield return null;
+            RepositionLostPets();
+        }
+    }
+
+    void RepositionLostPets()
+    {
+        if (cat != null)
+        {
+            AdventureQuestLocations.SnapLostPet(cat.transform, "cat");
+            AdventureLostPetVisuals.EnsurePetModel(cat.transform, "cat");
+        }
+        if (dog != null)
+        {
+            AdventureQuestLocations.SnapLostPet(dog.transform, "dog");
+            AdventureLostPetVisuals.EnsurePetModel(dog.transform, "dog");
+        }
+
+        var land = FindLandTerrain();
+        PlaceOnGround(GameObject.Find("Cat"), AdventureQuestLocations.CatX, AdventureQuestLocations.CatZ, land);
+        PlaceOnGround(GameObject.Find("Dog"), AdventureQuestLocations.DogX, AdventureQuestLocations.DogZ, land);
+    }
+
+    void EnsureLostPetsPlaced()
+    {
+        if (dog != null)
+        {
+            if (!IsNearQuest(dog.transform, AdventureQuestLocations.DogX, AdventureQuestLocations.DogZ))
+                AdventureQuestLocations.SnapLostPet(dog.transform, "dog");
+            AdventureLostPetVisuals.EnsurePetModel(dog.transform, "dog");
+        }
+        if (cat != null)
+        {
+            if (!IsNearQuest(cat.transform, AdventureQuestLocations.CatX, AdventureQuestLocations.CatZ))
+                AdventureQuestLocations.SnapLostPet(cat.transform, "cat");
+            AdventureLostPetVisuals.EnsurePetModel(cat.transform, "cat");
+        }
+    }
+
+    static bool IsNearQuest(Transform target, float x, float z)
+    {
+        Vector3 p = target.position;
+        float dx = p.x - x;
+        float dz = p.z - z;
+        return dx * dx + dz * dz <= 16f;
+    }
+
+    static Terrain FindLandTerrain()
+    {
+        foreach (var terrain in Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude))
+        {
+            if (terrain.name == "LandTerrain")
+                return terrain;
+        }
+
+        return null;
+    }
+
+    static void PlaceOnGround(GameObject go, float x, float z, Terrain land)
+    {
+        if (go == null)
+            return;
+        go.transform.position = new Vector3(x, AdventureQuestLocations.GroundY(land, x, z), z);
+    }
+
+    static void EnsureIslandBoundary()
+    {
+        AdventureIslandBoundary.Ensure();
     }
 
     void Update()
     {
+        EnsureLostPetsPlaced();
+
         if (player == null)
             return;
 
@@ -123,21 +211,56 @@ public class AdventureGameDirector : MonoBehaviour
         if (dog != null)
             dog.radius = 6f;
 
-        SpawnHintSign(new Vector3(176f, 0f, 162f), "迷子メモ", "猫→東の丘 X198 Z128　犬→北東の草地 X214 Z198。Mでマップ。");
-        SpawnHintSign(new Vector3(186f, 0f, 142f), "猫の足跡", "この先、東の高い丘へ。池から離れた上の方。黄色い光を探して。");
-        SpawnHintSign(new Vector3(204f, 0f, 176f), "犬の足跡", "北東の平らな草地へ。Z198 付近。池の北側。");
+        SpawnHintSign(
+            new Vector3(170f, 0f, 162f),
+            "スタート",
+            "M=マップ。猫は北東 " + AdventureQuestLocations.CatCoordLabel
+                + "、犬は北西 " + AdventureQuestLocations.DogCoordLabel + "。");
+        SpawnHintSign(
+            AdventureQuestLocations.HintMemo,
+            "迷子メモ",
+            "猫→北東の草地 " + AdventureQuestLocations.CatCoordLabel
+                + "　犬→北西 " + AdventureQuestLocations.DogCoordLabel + "。Mでマップ。");
+        SpawnHintSign(
+            AdventureQuestLocations.HintCatTrail,
+            "猫の足跡",
+            "この先、北東の草地へ。" + AdventureQuestLocations.CatCoordLabel + " 付近。オレンジの柱が目印。");
+        SpawnHintSign(
+            AdventureQuestLocations.HintDogTrail,
+            "犬の足跡",
+            "北西の草地へ。" + AdventureQuestLocations.DogCoordLabel + " 付近。青い柱が目印。");
 
         if (cat != null)
-            AttachMarker(cat.transform, "猫?", new Color(1f, 0.78f, 0.35f));
+        {
+            RemoveOldSearchMarkers(cat.transform);
+            cat.radius = 6f;
+        }
+
         if (dog != null)
-            AttachMarker(dog.transform, "犬?", new Color(0.55f, 0.85f, 1f));
+        {
+            RemoveOldSearchMarkers(dog.transform);
+            dog.radius = 8f;
+        }
+
+        AdventureLostPetVisuals.EnsureBeacons();
+    }
+
+    static void RemoveOldSearchMarkers(Transform target)
+    {
+        if (target == null)
+            return;
+
+        for (int i = target.childCount - 1; i >= 0; i--)
+        {
+            var child = target.GetChild(i);
+            if (child.name == "SearchMarker" || child.name == "FindRing" || child.name == "FindLight")
+                Object.Destroy(child.gameObject);
+        }
     }
 
     void SpawnHintSign(Vector3 worldPos, string title, string message)
     {
-        var terrain = Terrain.activeTerrain;
-        if (terrain != null)
-            worldPos.y = terrain.SampleHeight(worldPos) + terrain.transform.position.y;
+        worldPos.y = AdventureQuestLocations.GroundY(FindLandTerrain(), worldPos.x, worldPos.z);
 
         var go = new GameObject("Hint_" + title);
         go.transform.position = worldPos;
@@ -147,26 +270,30 @@ public class AdventureGameDirector : MonoBehaviour
 
         var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         post.transform.SetParent(go.transform, false);
-        post.transform.localScale = new Vector3(0.4f, 1.1f, 0.4f);
-        post.transform.localPosition = new Vector3(0f, 1.1f, 0f);
+        post.transform.localScale = new Vector3(0.9f, 2.2f, 0.9f);
+        post.transform.localPosition = new Vector3(0f, 2.2f, 0f);
         Object.Destroy(post.GetComponent<Collider>());
-        post.GetComponent<Renderer>().material.color = new Color(0.95f, 0.82f, 0.25f, 1f);
+        AdventurePrimitiveVisuals.ApplyLitColor(
+            post.GetComponent<Renderer>(),
+            new Color(0.98f, 0.82f, 0.08f));
 
         var board = GameObject.CreatePrimitive(PrimitiveType.Cube);
         board.transform.SetParent(go.transform, false);
-        board.transform.localScale = new Vector3(0.9f, 0.55f, 0.08f);
-        board.transform.localPosition = new Vector3(0f, 2.35f, 0f);
+        board.transform.localScale = new Vector3(2f, 1.1f, 0.12f);
+        board.transform.localPosition = new Vector3(0f, 4.6f, 0f);
         Object.Destroy(board.GetComponent<Collider>());
-        board.GetComponent<Renderer>().material.color = new Color(0.92f, 0.88f, 0.72f, 1f);
+        AdventurePrimitiveVisuals.ApplyLitColor(
+            board.GetComponent<Renderer>(),
+            new Color(0.95f, 0.9f, 0.65f));
 
         var trigger = go.AddComponent<CapsuleCollider>();
         trigger.isTrigger = true;
-        trigger.radius = 4.5f;
-        trigger.height = 3f;
-        trigger.center = new Vector3(0f, 1.5f, 0f);
+        trigger.radius = 5f;
+        trigger.height = 5f;
+        trigger.center = new Vector3(0f, 2.5f, 0f);
     }
 
-    static void AttachMarker(Transform target, string label, Color color)
+    static void AttachMarker(Transform target, string label, Color color, float height = 3.2f)
     {
         var go = new GameObject("SearchMarker");
         go.transform.SetParent(target, false);
@@ -174,6 +301,7 @@ public class AdventureGameDirector : MonoBehaviour
         var marker = go.AddComponent<AdventureTargetMarker>();
         marker.label = label;
         marker.color = color;
+        marker.height = height;
         marker.Build();
     }
 
@@ -232,15 +360,15 @@ public class AdventureGameDirector : MonoBehaviour
             if (step == 0)
                 ShowDialogue("カピタ「猫と犬がはぐれた。スズメとマスクラットは親切。サルとヤモリは嘘をつくよ。」", 6.2f);
             else if (step == 1)
-                ShowDialogue("カピタ「猫は南東の高い丘。犬は北東の低い草地。崖の端にはいない。」", 5.8f);
+                ShowDialogue("カピタ「猫は北東の草地。犬は北西の草地。崖の端にはいない。」", 5.8f);
             else
                 ShowDialogue("カピタ「プドゥは怖がりだけど正直。コロブスの『北の崖へ』は嘘。」", 5.8f);
             return;
         }
         if (!_foundCat)
-            ShowDialogue("カピタ「犬は無事。猫は南東の丘。ヤモリの言う池の中は嘘だよ。」", 5.5f);
+            ShowDialogue("カピタ「犬は無事。猫は北東の草地。ヤモリの言う池の中は嘘だよ。」", 5.5f);
         else
-            ShowDialogue("カピタ「猫は無事。犬は北東の草地。森の端まで行かないで。」", 5.5f);
+            ShowDialogue("カピタ「猫は無事。犬は北西の草地。森の端まで行かないで。」", 5.5f);
     }
 
     void TalkCat()
@@ -253,9 +381,9 @@ public class AdventureGameDirector : MonoBehaviour
             return;
         }
         if (step == 0)
-            ShowDialogue("猫「にゃー、丘で迷った。犬は低い草地へ行った。北東。コロブスの話は信じないで。」", 6.2f);
+            ShowDialogue("猫「にゃー、丘で迷った。犬は北西の草地へ行った。コロブスの話は信じないで。」", 6.2f);
         else if (step == 1)
-            ShowDialogue("猫「迷子情報：犬は高い丘にはいない。下の広い緑。崖の端でもない。」", 5.8f);
+            ShowDialogue("猫「迷子情報：犬は北東にはいない。北西の広い緑。崖の端でもない。」", 5.8f);
         else
             ShowDialogue("猫「スズメは空から見てる。親切だよ。」", 5f);
     }
@@ -270,9 +398,9 @@ public class AdventureGameDirector : MonoBehaviour
             return;
         }
         if (step == 0)
-            ShowDialogue("犬「ワン、匂いを辿って迷子。猫は花の丘、南東。ヤモリは意地悪だから無視。」", 6.2f);
+            ShowDialogue("犬「ワン、匂いを辿って迷子。猫は北東の草地。ヤモリは意地悪だから無視。」", 6.2f);
         else if (step == 1)
-            ShowDialogue("犬「迷子情報：猫は草地にも池にもいない。風の強い高い丘。」", 5.8f);
+            ShowDialogue("犬「迷子情報：猫は池にも北西にもいない。ずっと東の高い草地。」", 5.8f);
         else
             ShowDialogue("犬「マスクラットの匂いは当たってる。親切なんだ。」", 5f);
     }
@@ -282,7 +410,7 @@ public class AdventureGameDirector : MonoBehaviour
         Play(sparrow, "Idle_A");
         int step = _sparrowTalks++ % 3;
         if (step == 0)
-            ShowDialogue("スズメ「上から見た。猫は南東の丘、犬は北東の草地。教えてあげる。」", 6f);
+            ShowDialogue("スズメ「上から見た。猫は北東の草地、犬は北西の草地。教えてあげる。」", 6f);
         else if (step == 1)
             ShowDialogue("スズメ「親切な情報：森のいちばん端は真っ暗。迷子はそんなとこにいない。」", 5.8f);
         else
@@ -296,7 +424,7 @@ public class AdventureGameDirector : MonoBehaviour
         Play(muskrat, "Idle_A");
         int step = _muskratTalks++ % 3;
         if (step == 0)
-            ShowDialogue("マスクラット「匂いを嗅いだよ。犬は草地、猫は丘。池の中にはいない。教えてあげる。」", 6.2f);
+            ShowDialogue("マスクラット「匂いを嗅いだよ。犬は西の草地、猫は東の丘。池の中にはいない。教えてあげる。」", 6.2f);
         else if (step == 1)
             ShowDialogue("マスクラット「親切な情報：ヤモリは『泳げ』って言うけど、嘘。岸で迷うだけ。」", 5.8f);
         else
@@ -310,11 +438,11 @@ public class AdventureGameDirector : MonoBehaviour
         Play(pudu, "Fear");
         int step = _puduTalks++ % 3;
         if (step == 0)
-            ShowDialogue("プドゥ「…こ、こわい。でも教える。猫はもっと上の丘。犬は下の緑。」", 6f);
+            ShowDialogue("プドゥ「…こ、こわい。でも教える。猫は北東の草地。犬は北西の緑。」", 6f);
         else if (step == 1)
             ShowDialogue("プドゥ「コロブスに『あっち行け』って言われた。北の崖は行かないで。」", 5.8f);
         else
-            ShowDialogue("プドゥ「親切にするね。花の匂いがする高いところが、猫。」", 5.5f);
+            ShowDialogue("プドゥ「親切にするね。朝日のあたる北東が、猫。」", 5.5f);
     }
 
     void TalkColobus()
