@@ -12,9 +12,9 @@ public static class AdventureLostPetVisuals
     // 柱は迷子の真上に置くとペットを覆い隠すので、必ず横にずらす。
     const float BeaconOffsetX = 4f;
 
-    // 素の犬は高さ約0.9m。猫だけやや大きくして見つけやすくする。
+    // 素の犬・猫は高さ約0.9m。プレハブ本来の大きさで表示する。
     const float DogVisualScale = 1f;
-    const float CatVisualScale = 3f;
+    const float CatVisualScale = 1f;
 
     static float VisualScaleFor(string npcId) =>
         npcId == "dog" ? DogVisualScale : CatVisualScale;
