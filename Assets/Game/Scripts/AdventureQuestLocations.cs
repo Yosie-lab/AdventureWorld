@@ -21,10 +21,14 @@ public static class AdventureQuestLocations
     public static string CatCoordLabel => "X" + Mathf.RoundToInt(CatX) + " Z" + Mathf.RoundToInt(CatZ);
     public static string DogCoordLabel => "X" + Mathf.RoundToInt(DogX) + " Z" + Mathf.RoundToInt(DogZ);
 
-    public static float GroundY(Terrain land, float x, float z, float offset = 0.02f) =>
-        WalkableGroundY(land, x, z, offset);
+    public static float GroundY(Terrain land, float x, float z, float offset = 0.02f)
+    {
+        if (land == null)
+            return offset;
+        return land.SampleHeight(new Vector3(x, 0f, z)) + land.transform.position.y + offset;
+    }
 
-    // 単点サンプルだと崖頂スパイクを拾うことがあるので、近傍の最低地面を使う。
+    // 看板用。崖頂スパイクを避けるため近傍の最低地面を使う。ペット接地には使わない。
     public static float WalkableGroundY(Terrain land, float x, float z, float offset = 0.02f)
     {
         if (land == null)

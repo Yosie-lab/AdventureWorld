@@ -267,7 +267,7 @@ public class AdventureGameDirector : MonoBehaviour
         if (existing != null)
             Destroy(existing);
 
-        worldPos.y = AdventureQuestLocations.GroundY(FindLandTerrain(), worldPos.x, worldPos.z);
+        worldPos.y = AdventureQuestLocations.WalkableGroundY(FindLandTerrain(), worldPos.x, worldPos.z);
 
         var go = new GameObject("Hint_" + title);
         go.transform.position = worldPos;
