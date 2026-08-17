@@ -12,18 +12,37 @@ public static class AdventureQuestLocations
     public static Vector3 CatPosition => new Vector3(CatX, 0f, CatZ);
     public static Vector3 DogPosition => new Vector3(DogX, 0f, DogZ);
 
-    public static readonly Vector3 HintMemo = new Vector3(168f, 0f, 158f);
+    // 旧 (170,162)/(168,158) は崖頂の heightmap スパイク上（Y≈43）で、歩行エリアから宙に浮いて見えた。
+    public static readonly Vector3 HintStart = new Vector3(159f, 0f, 163f);
+    public static readonly Vector3 HintMemo = new Vector3(164f, 0f, 167f);
     public static readonly Vector3 HintCatTrail = new Vector3(192f, 0f, 190f);
     public static readonly Vector3 HintDogTrail = new Vector3(148f, 0f, 192f);
 
     public static string CatCoordLabel => "X" + Mathf.RoundToInt(CatX) + " Z" + Mathf.RoundToInt(CatZ);
     public static string DogCoordLabel => "X" + Mathf.RoundToInt(DogX) + " Z" + Mathf.RoundToInt(DogZ);
 
-    public static float GroundY(Terrain land, float x, float z, float offset = 0.02f)
+    public static float GroundY(Terrain land, float x, float z, float offset = 0.02f) =>
+        WalkableGroundY(land, x, z, offset);
+
+    // 単点サンプルだと崖頂スパイクを拾うことがあるので、近傍の最低地面を使う。
+    public static float WalkableGroundY(Terrain land, float x, float z, float offset = 0.02f)
     {
         if (land == null)
             return offset;
-        return land.SampleHeight(new Vector3(x, 0f, z)) + land.transform.position.y + offset;
+
+        float minY = float.MaxValue;
+        const float step = 3f;
+        for (float dx = -step; dx <= step; dx += step)
+        {
+            for (float dz = -step; dz <= step; dz += step)
+            {
+                float y = land.SampleHeight(new Vector3(x + dx, 0f, z + dz)) + land.transform.position.y;
+                if (y < minY)
+                    minY = y;
+            }
+        }
+
+        return minY + offset;
     }
 
     public static bool TryGetLostPetCoords(string npcId, out float x, out float z)

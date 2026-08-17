@@ -44,8 +44,9 @@ public static class AdventureWorldBoot
         }
 
         AdventureMarkerCleanup.RemoveAllQuestMarkers();
+        AdventureMarkerCleanup.RemovePetBeacons();
+        AdventureMarkerCleanup.RemoveFloatingShoreBands();
         SnapAllLostPets();
-        AdventureLostPetVisuals.EnsureBeacons();
         AdventureTerrainSnap.FixNorthWestGrassland();
     }
 

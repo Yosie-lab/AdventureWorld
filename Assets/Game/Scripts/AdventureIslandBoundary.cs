@@ -112,33 +112,10 @@ public class AdventureIslandBoundary : MonoBehaviour
         var root = new GameObject("ShoreBoundary").transform;
         root.SetParent(transform, false);
 
-        CreateSandBand(root, walkMinX, walkMinZ, walkMaxX, walkMinZ, walkMaxX - walkMinX, true);
-        CreateSandBand(root, walkMinX, walkMaxZ, walkMaxX, walkMaxZ, walkMaxX - walkMinX, true);
-        CreateSandBand(root, walkMinX, walkMinZ, walkMinX, walkMaxZ, walkMaxZ - walkMinZ, false);
-        CreateSandBand(root, walkMaxX, walkMinZ, walkMaxX, walkMaxZ, walkMaxZ - walkMinZ, false);
-
         PlaceRocks(root, new Vector3(walkMinX, 0f, walkMinZ), new Vector3(walkMaxX, 0f, walkMinZ));
         PlaceRocks(root, new Vector3(walkMaxX, 0f, walkMinZ), new Vector3(walkMaxX, 0f, walkMaxZ));
         PlaceRocks(root, new Vector3(walkMaxX, 0f, walkMaxZ), new Vector3(walkMinX, 0f, walkMaxZ));
         PlaceRocks(root, new Vector3(walkMinX, 0f, walkMaxZ), new Vector3(walkMinX, 0f, walkMinZ));
-    }
-
-    void CreateSandBand(Transform root, float x0, float z0, float x1, float z1, float length, bool alongX)
-    {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        go.name = "SandBand";
-        go.transform.SetParent(root, false);
-        float cx = (x0 + x1) * 0.5f;
-        float cz = (z0 + z1) * 0.5f;
-        float gy = GroundY(new Vector3(cx, 0f, cz));
-        go.transform.position = new Vector3(cx, gy + 0.08f, cz);
-        go.transform.localScale = alongX
-            ? new Vector3(length, 0.16f, 3.6f)
-            : new Vector3(3.6f, 0.16f, length);
-        var renderer = go.GetComponent<Renderer>();
-        if (renderer != null)
-            renderer.material.color = new Color(0.86f, 0.78f, 0.56f, 1f);
-        Object.Destroy(go.GetComponent<Collider>());
     }
 
     void PlaceRocks(Transform root, Vector3 a, Vector3 b)

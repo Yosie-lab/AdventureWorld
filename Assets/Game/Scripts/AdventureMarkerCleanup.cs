@@ -4,12 +4,32 @@ public static class AdventureMarkerCleanup
 {
     public static void RemoveAllQuestMarkers()
     {
-        var dogMarker = GameObject.Find("Marker_犬");
-        if (dogMarker != null)
-            Object.Destroy(dogMarker);
+        DestroyIfExists("Marker_犬");
+        DestroyIfExists("Marker_猫");
+    }
 
-        var catMarker = GameObject.Find("Marker_猫");
-        if (catMarker != null)
-            Object.Destroy(catMarker);
+    public static void RemovePetBeacons()
+    {
+        DestroyIfExists("CatBeacon");
+        DestroyIfExists("DogBeacon");
+        DestroyIfExists("CatBeacon_old");
+        DestroyIfExists("DogBeacon_old");
+    }
+
+    public static void RemoveFloatingShoreBands()
+    {
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (t.name != "SandBand")
+                continue;
+            Object.Destroy(t.gameObject);
+        }
+    }
+
+    static void DestroyIfExists(string name)
+    {
+        var go = GameObject.Find(name);
+        if (go != null)
+            Object.Destroy(go);
     }
 }

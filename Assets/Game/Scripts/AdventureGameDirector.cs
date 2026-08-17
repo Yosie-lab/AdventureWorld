@@ -215,7 +215,7 @@ public class AdventureGameDirector : MonoBehaviour
             dog.radius = 6f;
 
         SpawnHintSign(
-            new Vector3(170f, 0f, 162f),
+            AdventureQuestLocations.HintStart,
             "スタート",
             "M=マップ。猫は北東 " + AdventureQuestLocations.CatCoordLabel
                 + "、犬は北西 " + AdventureQuestLocations.DogCoordLabel + "。");
@@ -245,7 +245,7 @@ public class AdventureGameDirector : MonoBehaviour
             dog.radius = 8f;
         }
 
-        AdventureLostPetVisuals.EnsureBeacons();
+        AdventureMarkerCleanup.RemovePetBeacons();
     }
 
     static void RemoveOldSearchMarkers(Transform target)

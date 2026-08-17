@@ -2,13 +2,8 @@ using UnityEngine;
 
 public static class AdventureLostPetVisuals
 {
-    static readonly Color DogAccent = new Color(0.42f, 0.50f, 0.56f);
-    static readonly Color CatAccent = new Color(0.68f, 0.46f, 0.24f);
     static readonly Color DogBody = new Color(0.58f, 0.36f, 0.16f);
     static readonly Color CatBody = new Color(0.72f, 0.48f, 0.22f);
-
-    // 柱は迷子の真上に置くとペットを覆い隠すので、必ず横にずらす。
-    const float BeaconOffsetX = 4f;
 
     // 素の犬・猫は高さ約0.9m。プレハブ本来の大きさで表示する。
     const float DogVisualScale = 1f;
@@ -16,12 +11,6 @@ public static class AdventureLostPetVisuals
 
     static float VisualScaleFor(string npcId) =>
         npcId == "dog" ? DogVisualScale : CatVisualScale;
-
-    public static void EnsureBeacons()
-    {
-        SpawnBeacon(AdventureQuestLocations.DogX, AdventureQuestLocations.DogZ, "DogBeacon", "犬", DogAccent);
-        SpawnBeacon(AdventureQuestLocations.CatX, AdventureQuestLocations.CatZ, "CatBeacon", "猫", CatAccent);
-    }
 
     public static void EnsurePetModel(Transform root, string npcId)
     {
@@ -113,26 +102,6 @@ public static class AdventureLostPetVisuals
                 continue;
             child.gameObject.SetActive(false);
         }
-    }
-
-    static void SpawnBeacon(float x, float z, string name, string label, Color accent)
-    {
-        // Destroy は遅延するので、同一フレームの再呼び出しで二重生成しないよう先に改名する。
-        for (var existing = GameObject.Find(name); existing != null; existing = GameObject.Find(name))
-        {
-            existing.name = name + "_old";
-            DestroySafe(existing);
-        }
-
-        var land = AdventureQuestLocations.FindLand();
-        float px = x + BeaconOffsetX;
-        var pos = new Vector3(px, AdventureQuestLocations.GroundY(land, px, z), z);
-
-        var root = new GameObject(name);
-        root.transform.position = pos;
-        root.transform.rotation = Quaternion.LookRotation(new Vector3(x - px, 0f, 0f));
-
-        AdventureHintSignVisuals.BuildPetMarker(root.transform, label, accent);
     }
 
     static void DestroySafe(Object obj)

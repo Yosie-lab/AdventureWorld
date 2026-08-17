@@ -40,8 +40,8 @@ static class AdventurePlayModePetFix
         Debug.Log("Adventure: Dog/Cat visuals rebuilt and scene saved.");
     }
 
-    [MenuItem("Adventure/Ensure Lost Pet Beacons (Save Scene)")]
-    public static void EnsureBeaconsMenu()
+    [MenuItem("Adventure/Remove Pet Beacons (Save Scene)")]
+    public static void RemovePetBeaconsMenu()
     {
         if (EditorApplication.isPlaying)
         {
@@ -49,10 +49,26 @@ static class AdventurePlayModePetFix
             return;
         }
 
-        AdventureLostPetVisuals.EnsureBeacons();
+        RemovePetBeaconsInScene();
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         EditorSceneManager.SaveOpenScenes();
-        Debug.Log("Adventure: DogBeacon/CatBeacon placed and scene saved.");
+        Debug.Log("Adventure: CatBeacon/DogBeacon removed and scene saved.");
+    }
+
+    static void RemovePetBeaconsInScene()
+    {
+        foreach (var name in new[] { "CatBeacon", "DogBeacon", "CatBeacon_old", "DogBeacon_old" })
+        {
+            var go = GameObject.Find(name);
+            if (go != null)
+                Object.DestroyImmediate(go);
+        }
+    }
+
+    [MenuItem("Adventure/Ensure Lost Pet Beacons (Save Scene)")]
+    public static void EnsureBeaconsMenu()
+    {
+        RemovePetBeaconsMenu();
     }
 
     [MenuItem("Adventure/Fix Lost Pets (Unpack + Save)")]
