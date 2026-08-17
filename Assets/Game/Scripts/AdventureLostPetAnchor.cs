@@ -27,6 +27,9 @@ public class AdventureLostPetAnchor : MonoBehaviour
         if (_npc == null || (_npc.npcId != "dog" && _npc.npcId != "cat"))
             return;
 
+        if (_npc.IsFollowing())
+            return;
+
         AdventureQuestLocations.SnapLostPet(transform, _npc.npcId);
         AdventureLostPetVisuals.EnsurePetModel(transform, _npc.npcId);
         DisableRootAnimator();

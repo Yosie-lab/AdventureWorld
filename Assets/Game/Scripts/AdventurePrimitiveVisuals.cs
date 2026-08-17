@@ -32,4 +32,15 @@ public static class AdventurePrimitiveVisuals
             return;
         renderer.material = CreateLitMaterial(color, emissive);
     }
+
+    public static void ApplyWood(Renderer renderer, Color color, float smoothness = 0.12f)
+    {
+        if (renderer == null)
+            return;
+
+        var mat = CreateLitMaterial(color);
+        if (mat.HasProperty("_Smoothness"))
+            mat.SetFloat("_Smoothness", smoothness);
+        renderer.material = mat;
+    }
 }

@@ -9,8 +9,13 @@ public class AdventureNpc : MonoBehaviour
 
     void Awake()
     {
-        if (IsLostPet() && GetComponent<AdventureLostPetAnchor>() == null)
-            gameObject.AddComponent<AdventureLostPetAnchor>();
+        if (IsLostPet())
+        {
+            if (GetComponent<AdventureLostPetAnchor>() == null)
+                gameObject.AddComponent<AdventureLostPetAnchor>();
+            if (GetComponent<AdventureLostPetFollower>() == null)
+                gameObject.AddComponent<AdventureLostPetFollower>();
+        }
     }
 
     void Start()
@@ -30,10 +35,16 @@ public class AdventureNpc : MonoBehaviour
         return npcId == "dog" || npcId == "cat";
     }
 
+    public bool IsFollowing()
+    {
+        var follower = GetComponent<AdventureLostPetFollower>();
+        return follower != null && follower.IsFollowing;
+    }
+
     public bool IsInRange(Vector3 playerPosition)
     {
         Vector3 a;
-        if (IsLostPet() && AdventureQuestLocations.TryGetLostPetCoords(npcId, out float x, out float z))
+        if (IsLostPet() && !IsFollowing() && AdventureQuestLocations.TryGetLostPetCoords(npcId, out float x, out float z))
             a = new Vector3(x, 0f, z);
         else
         {

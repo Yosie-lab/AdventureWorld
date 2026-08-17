@@ -2,11 +2,9 @@ using UnityEngine;
 
 public static class AdventureLostPetVisuals
 {
-    static readonly Color DogPillar = new Color(0.15f, 0.55f, 1f);
-    static readonly Color DogCap = new Color(1f, 0.82f, 0.05f);
+    static readonly Color DogAccent = new Color(0.42f, 0.50f, 0.56f);
+    static readonly Color CatAccent = new Color(0.68f, 0.46f, 0.24f);
     static readonly Color DogBody = new Color(0.58f, 0.36f, 0.16f);
-    static readonly Color CatPillar = new Color(1f, 0.65f, 0.15f);
-    static readonly Color CatCap = new Color(1f, 0.95f, 0.2f);
     static readonly Color CatBody = new Color(0.72f, 0.48f, 0.22f);
 
     // 柱は迷子の真上に置くとペットを覆い隠すので、必ず横にずらす。
@@ -21,8 +19,8 @@ public static class AdventureLostPetVisuals
 
     public static void EnsureBeacons()
     {
-        SpawnBeacon(AdventureQuestLocations.DogX, AdventureQuestLocations.DogZ, "DogBeacon", DogPillar, DogCap);
-        SpawnBeacon(AdventureQuestLocations.CatX, AdventureQuestLocations.CatZ, "CatBeacon", CatPillar, CatCap);
+        SpawnBeacon(AdventureQuestLocations.DogX, AdventureQuestLocations.DogZ, "DogBeacon", "犬", DogAccent);
+        SpawnBeacon(AdventureQuestLocations.CatX, AdventureQuestLocations.CatZ, "CatBeacon", "猫", CatAccent);
     }
 
     public static void EnsurePetModel(Transform root, string npcId)
@@ -117,7 +115,7 @@ public static class AdventureLostPetVisuals
         }
     }
 
-    static void SpawnBeacon(float x, float z, string name, Color pillarColor, Color capColor)
+    static void SpawnBeacon(float x, float z, string name, string label, Color accent)
     {
         // Destroy は遅延するので、同一フレームの再呼び出しで二重生成しないよう先に改名する。
         for (var existing = GameObject.Find(name); existing != null; existing = GameObject.Find(name))
@@ -132,31 +130,9 @@ public static class AdventureLostPetVisuals
 
         var root = new GameObject(name);
         root.transform.position = pos;
+        root.transform.rotation = Quaternion.LookRotation(new Vector3(x - px, 0f, 0f));
 
-        var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        pillar.name = "Pillar";
-        pillar.transform.SetParent(root.transform, false);
-        pillar.transform.localScale = new Vector3(1.2f, 5f, 1.2f);
-        pillar.transform.localPosition = new Vector3(0f, 5f, 0f);
-        DestroySafe(pillar.GetComponent<Collider>());
-        AdventurePrimitiveVisuals.ApplyLitColor(pillar.GetComponent<Renderer>(), pillarColor);
-
-        var cap = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        cap.name = "Cap";
-        cap.transform.SetParent(root.transform, false);
-        cap.transform.localScale = new Vector3(2.8f, 1.2f, 2.8f);
-        cap.transform.localPosition = new Vector3(0f, 10.6f, 0f);
-        DestroySafe(cap.GetComponent<Collider>());
-        AdventurePrimitiveVisuals.ApplyLitColor(cap.GetComponent<Renderer>(), capColor, true);
-
-        // 迷子は窪地にいて地面の縁に隠れるので、真上に浮かぶ球で位置を示す。
-        var pointer = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        pointer.name = "Pointer";
-        pointer.transform.SetParent(root.transform, false);
-        pointer.transform.localScale = Vector3.one * 1.6f;
-        pointer.transform.position = new Vector3(x, AdventureQuestLocations.GroundY(land, x, z) + 6f, z);
-        DestroySafe(pointer.GetComponent<Collider>());
-        AdventurePrimitiveVisuals.ApplyLitColor(pointer.GetComponent<Renderer>(), capColor, true);
+        AdventureHintSignVisuals.BuildPetMarker(root.transform, label, accent);
     }
 
     static void DestroySafe(Object obj)

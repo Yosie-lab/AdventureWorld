@@ -66,31 +66,33 @@ public class AdventureGameDirector : MonoBehaviour
 
     void RepositionLostPets()
     {
-        if (cat != null)
+        if (cat != null && !cat.IsFollowing())
         {
             AdventureQuestLocations.SnapLostPet(cat.transform, "cat");
             AdventureLostPetVisuals.EnsurePetModel(cat.transform, "cat");
         }
-        if (dog != null)
+        if (dog != null && !dog.IsFollowing())
         {
             AdventureQuestLocations.SnapLostPet(dog.transform, "dog");
             AdventureLostPetVisuals.EnsurePetModel(dog.transform, "dog");
         }
 
         var land = FindLandTerrain();
-        PlaceOnGround(GameObject.Find("Cat"), AdventureQuestLocations.CatX, AdventureQuestLocations.CatZ, land);
-        PlaceOnGround(GameObject.Find("Dog"), AdventureQuestLocations.DogX, AdventureQuestLocations.DogZ, land);
+        if (cat != null && !cat.IsFollowing())
+            PlaceOnGround(GameObject.Find("Cat"), AdventureQuestLocations.CatX, AdventureQuestLocations.CatZ, land);
+        if (dog != null && !dog.IsFollowing())
+            PlaceOnGround(GameObject.Find("Dog"), AdventureQuestLocations.DogX, AdventureQuestLocations.DogZ, land);
     }
 
     void EnsureLostPetsPlaced()
     {
-        if (dog != null)
+        if (dog != null && !dog.IsFollowing())
         {
             if (!IsNearQuest(dog.transform, AdventureQuestLocations.DogX, AdventureQuestLocations.DogZ))
                 AdventureQuestLocations.SnapLostPet(dog.transform, "dog");
             AdventureLostPetVisuals.EnsurePetModel(dog.transform, "dog");
         }
-        if (cat != null)
+        if (cat != null && !cat.IsFollowing())
         {
             if (!IsNearQuest(cat.transform, AdventureQuestLocations.CatX, AdventureQuestLocations.CatZ))
                 AdventureQuestLocations.SnapLostPet(cat.transform, "cat");
@@ -224,11 +226,11 @@ public class AdventureGameDirector : MonoBehaviour
         SpawnHintSign(
             AdventureQuestLocations.HintCatTrail,
             "猫の足跡",
-            "この先、北東の草地へ。" + AdventureQuestLocations.CatCoordLabel + " 付近。オレンジの柱が目印。");
+            "この先、北東の草地へ。" + AdventureQuestLocations.CatCoordLabel + " 付近。木の看板をたどって。");
         SpawnHintSign(
             AdventureQuestLocations.HintDogTrail,
             "犬の足跡",
-            "北西の草地へ。" + AdventureQuestLocations.DogCoordLabel + " 付近。青い柱が目印。");
+            "北西の草地へ。" + AdventureQuestLocations.DogCoordLabel + " 付近。木の看板をたどって。");
 
         if (cat != null)
         {
@@ -260,31 +262,21 @@ public class AdventureGameDirector : MonoBehaviour
 
     void SpawnHintSign(Vector3 worldPos, string title, string message)
     {
+        var existing = GameObject.Find("Hint_" + title);
+        if (existing != null)
+            Destroy(existing);
+
         worldPos.y = AdventureQuestLocations.GroundY(FindLandTerrain(), worldPos.x, worldPos.z);
 
         var go = new GameObject("Hint_" + title);
         go.transform.position = worldPos;
+        go.transform.rotation = Quaternion.Euler(0f, (worldPos.x + worldPos.z) * 3.7f % 360f, 0f);
+
         var sign = go.AddComponent<AdventureHintSign>();
         sign.displayName = title;
         sign.message = title + "「" + message + "」";
 
-        var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        post.transform.SetParent(go.transform, false);
-        post.transform.localScale = new Vector3(0.9f, 2.2f, 0.9f);
-        post.transform.localPosition = new Vector3(0f, 2.2f, 0f);
-        Object.Destroy(post.GetComponent<Collider>());
-        AdventurePrimitiveVisuals.ApplyLitColor(
-            post.GetComponent<Renderer>(),
-            new Color(0.98f, 0.82f, 0.08f));
-
-        var board = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        board.transform.SetParent(go.transform, false);
-        board.transform.localScale = new Vector3(2f, 1.1f, 0.12f);
-        board.transform.localPosition = new Vector3(0f, 4.6f, 0f);
-        Object.Destroy(board.GetComponent<Collider>());
-        AdventurePrimitiveVisuals.ApplyLitColor(
-            board.GetComponent<Renderer>(),
-            new Color(0.95f, 0.9f, 0.65f));
+        AdventureHintSignVisuals.Build(go.transform, title);
 
         var trigger = go.AddComponent<CapsuleCollider>();
         trigger.isTrigger = true;
@@ -373,8 +365,11 @@ public class AdventureGameDirector : MonoBehaviour
 
     void TalkCat()
     {
+        bool firstFind = !_foundCat;
         _foundCat = true;
         int step = _catTalks++ % 3;
+        if (firstFind)
+            BeginPetFollow(cat);
         if (_foundDog)
         {
             ShowDialogue("猫「にゃあ。犬とも会えた。カピタに無事だって伝えて。」", 5.5f);
@@ -390,8 +385,11 @@ public class AdventureGameDirector : MonoBehaviour
 
     void TalkDog()
     {
+        bool firstFind = !_foundDog;
         _foundDog = true;
         int step = _dogTalks++ % 3;
+        if (firstFind)
+            BeginPetFollow(dog);
         if (_foundCat)
         {
             ShowDialogue("犬「ワン！猫も無事か。カピタへ報告だ。」", 5.5f);
@@ -467,6 +465,16 @@ public class AdventureGameDirector : MonoBehaviour
             ShowDialogue("ヤモリ「猫はもういない。探すだけ無駄。帰れ。」", 5.2f);
         else
             ShowDialogue("ヤモリ「親切ぶるスズメが嫌いなんだよ。信じるな。」", 5.2f);
+    }
+
+    void BeginPetFollow(AdventureNpc pet)
+    {
+        if (pet == null || player == null)
+            return;
+
+        var follower = pet.GetComponent<AdventureLostPetFollower>();
+        if (follower != null)
+            follower.BeginFollow(player.transform);
     }
 
     static void Play(AdventureNpc npc, string state)
