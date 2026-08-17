@@ -18,6 +18,7 @@ public class AdventureGameDirector : MonoBehaviour
     bool _started;
     bool _foundCat;
     bool _foundDog;
+    AdventureNpc _leadFollowPet;
     bool _complete;
     int _capytaTalks;
     int _catTalks;
@@ -473,8 +474,21 @@ public class AdventureGameDirector : MonoBehaviour
             return;
 
         var follower = pet.GetComponent<AdventureLostPetFollower>();
-        if (follower != null)
-            follower.BeginFollow(player.transform);
+        if (follower == null)
+            return;
+
+        Transform target;
+        if (_leadFollowPet == null)
+        {
+            _leadFollowPet = pet;
+            target = player.transform;
+        }
+        else
+        {
+            target = _leadFollowPet.transform;
+        }
+
+        follower.BeginFollow(target);
     }
 
     static void Play(AdventureNpc npc, string state)

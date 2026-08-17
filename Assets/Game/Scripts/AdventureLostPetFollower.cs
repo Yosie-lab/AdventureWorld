@@ -5,8 +5,8 @@ public class AdventureLostPetFollower : MonoBehaviour
     enum Phase { Anchored, Celebrating, Following }
 
     const float CelebrateSeconds = 2.4f;
-    const float FollowDistance = 2.6f;
-    const float StopDistance = 1.7f;
+    const float FollowBehind = 2.3f;
+    const float ArriveDistance = 0.55f;
     const float RunDistance = 6.5f;
     const float WalkSpeed = 3.6f;
     const float RunSpeed = 6.2f;
@@ -68,18 +68,17 @@ public class AdventureLostPetFollower : MonoBehaviour
     void FollowTarget()
     {
         Vector3 self = transform.position;
-        Vector3 goal = _target.position;
+        Vector3 goal = FollowGoal();
         Vector3 delta = goal - self;
         delta.y = 0f;
         float dist = delta.magnitude;
 
-        if (dist > FollowDistance)
+        if (dist > ArriveDistance)
         {
             float speed = dist > RunDistance ? RunSpeed : WalkSpeed;
             Vector3 move = delta.normalized * speed * Time.deltaTime;
-            float maxMove = Mathf.Max(0f, dist - StopDistance);
-            if (move.magnitude > maxMove)
-                move = delta.normalized * maxMove;
+            if (move.magnitude > dist - ArriveDistance)
+                move = delta.normalized * Mathf.Max(0f, dist - ArriveDistance);
 
             Vector3 next = self + move;
             if (_land == null)
@@ -95,6 +94,25 @@ public class AdventureLostPetFollower : MonoBehaviour
         FaceTarget();
         PlayIdle();
         WagTail(18f);
+    }
+
+    Vector3 FollowGoal()
+    {
+        if (_target == null)
+            return transform.position;
+
+        Vector3 back = -ForwardOnGround(_target);
+        return _target.position + back * FollowBehind;
+    }
+
+    static Vector3 ForwardOnGround(Transform target)
+    {
+        Vector3 forward = target.forward;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.001f)
+            forward = target.rotation * Vector3.forward;
+        forward.y = 0f;
+        return forward.sqrMagnitude < 0.001f ? Vector3.forward : forward.normalized;
     }
 
     void ResolveAnimStates()
