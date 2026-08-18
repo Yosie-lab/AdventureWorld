@@ -52,19 +52,24 @@ public class AdventureGameDirector : MonoBehaviour
         AdventureMarkerCleanup.RemoveAllQuestMarkers();
         BuildHud();
         SetupSearchAids();
+
+        // ── シーン上NPC（カビタ・ヤモリ等）を地面に接地させる ──
+        // heightmap平坦化後に実行されるため、スパイクで浮くことがなくなる。
+        GroundAllSceneNpcs();
+
         StartCoroutine(RepositionLostPetsDelayed());
         ShowDialogue("幻想の森。猫と犬が迷子。砂浜と岩=岸。黄色看板と距離表示も頼って。M / WASD / E / R", 7f);
     }
 
     IEnumerator RepositionLostPetsDelayed()
     {
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 10; i++)
         {
             yield return null;
             RepositionLostPets();
+            GroundAllSceneNpcs();
         }
     }
-
     void RepositionLostPets()
     {
         if (cat != null && !cat.IsFollowing())
@@ -125,6 +130,55 @@ public class AdventureGameDirector : MonoBehaviour
         if (go == null)
             return;
         go.transform.position = new Vector3(x, AdventureQuestLocations.GroundY(land, x, z), z);
+    }
+    void GroundAllSceneNpcs()
+    {
+        var land = FindLandTerrain();
+        if (land == null)
+            return;
+
+        // スタート広場(水面+2.5mの広大なフラット平地)の中央にメインキャラクターを配置＆接地
+        if (capyta != null)
+        {
+            Vector3 pos = capyta.transform.position;
+            if (pos.x < 135f || pos.x > 190f || pos.z < 130f || pos.z > 190f)
+                pos = new Vector3(165f, 0f, 166f);
+            pos.y = AdventureQuestLocations.GroundY(land, pos.x, pos.z);
+            capyta.transform.position = pos;
+        }
+
+        if (gecko != null)
+        {
+            Vector3 pos = gecko.transform.position;
+            if (pos.x < 135f || pos.x > 190f || pos.z < 130f || pos.z > 190f)
+                pos = new Vector3(156f, 0f, 164f);
+            pos.y = AdventureQuestLocations.GroundY(land, pos.x, pos.z);
+            gecko.transform.position = pos;
+        }
+
+        // その他全NPCを地面に正確に接地
+        AdventureNpc[] otherNpcs = { sparrow, muskrat, pudu, colobus };
+        foreach (var npc in otherNpcs)
+        {
+            if (npc == null)
+                continue;
+            Vector3 pos = npc.transform.position;
+            pos.y = AdventureQuestLocations.GroundY(land, pos.x, pos.z);
+            npc.transform.position = pos;
+        }
+
+        // プレイヤー(Niko)もスタート広場中央に正しく設置
+        if (player != null)
+        {
+            Vector3 pp = player.transform.position;
+            if (pp.x < 135f || pp.x > 190f || pp.z < 130f || pp.z > 190f)
+                pp = new Vector3(162f, 0f, 164f);
+            pp.y = AdventureQuestLocations.GroundY(land, pp.x, pp.z) + 0.05f;
+            player.spawnPosition = pp;
+            player.transform.position = pp;
+        }
+
+        Physics.SyncTransforms();
     }
 
     static void EnsureIslandBoundary()

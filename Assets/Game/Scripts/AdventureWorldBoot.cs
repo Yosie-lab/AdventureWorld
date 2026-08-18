@@ -41,6 +41,8 @@ public static class AdventureWorldBoot
             }
 
             AdventureTerrainSnap.FixNorthWestGrassland();
+            AdventureTerrainSnap.FixNorthEastGrassland();
+            AdventureTerrainSnap.CarveStartPlateauRamp();
         }
 
         AdventureMarkerCleanup.RemoveAllQuestMarkers();
@@ -48,6 +50,8 @@ public static class AdventureWorldBoot
         AdventureMarkerCleanup.RemoveFloatingShoreBands();
         SnapAllLostPets();
         AdventureTerrainSnap.FixNorthWestGrassland();
+        AdventureTerrainSnap.FixNorthEastGrassland();
+        AdventureTerrainSnap.CarveStartPlateauRamp();
     }
 
     static void SnapAllLostPets()

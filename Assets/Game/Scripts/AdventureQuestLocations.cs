@@ -12,9 +12,9 @@ public static class AdventureQuestLocations
     public static Vector3 CatPosition => new Vector3(CatX, 0f, CatZ);
     public static Vector3 DogPosition => new Vector3(DogX, 0f, DogZ);
 
-    // 旧 (170,162)/(168,158) は崖頂の heightmap スパイク上（Y≈43）で、歩行エリアから宙に浮いて見えた。
-    public static readonly Vector3 HintStart = new Vector3(159f, 0f, 163f);
-    public static readonly Vector3 HintMemo = new Vector3(164f, 0f, 167f);
+    // 崖下・内陸平地スロープ入口 (X:165, Z:130) と 高台スタート地点 (X:165, Z:168)
+    public static readonly Vector3 HintStart = new Vector3(165f, 0f, 130f);
+    public static readonly Vector3 HintMemo = new Vector3(165f, 0f, 168f);
     public static readonly Vector3 HintCatTrail = new Vector3(192f, 0f, 190f);
     public static readonly Vector3 HintDogTrail = new Vector3(148f, 0f, 192f);
 
@@ -28,25 +28,10 @@ public static class AdventureQuestLocations
         return land.SampleHeight(new Vector3(x, 0f, z)) + land.transform.position.y + offset;
     }
 
-    // 看板用。崖頂スパイクを避けるため近傍の最低地面を使う。ペット接地には使わない。
+    // 看板・設置物用。平坦化された高さに正確にアラインする。
     public static float WalkableGroundY(Terrain land, float x, float z, float offset = 0.02f)
     {
-        if (land == null)
-            return offset;
-
-        float minY = float.MaxValue;
-        const float step = 3f;
-        for (float dx = -step; dx <= step; dx += step)
-        {
-            for (float dz = -step; dz <= step; dz += step)
-            {
-                float y = land.SampleHeight(new Vector3(x + dx, 0f, z + dz)) + land.transform.position.y;
-                if (y < minY)
-                    minY = y;
-            }
-        }
-
-        return minY + offset;
+        return GroundY(land, x, z, offset);
     }
 
     public static bool TryGetLostPetCoords(string npcId, out float x, out float z)

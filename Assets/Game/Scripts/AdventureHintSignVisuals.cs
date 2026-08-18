@@ -139,11 +139,14 @@ public static class AdventureHintSignVisuals
 
     static void AddTitle(Transform board, string title, float scale = 0.075f, int fontSize = 48)
     {
+        // 文字数に応じて看板の木枠内に確実に収まるスケールを算出
+        float fitScale = Mathf.Min(scale, 0.28f / Mathf.Max(title.Length, 2));
+
         var labelGo = new GameObject("Title");
         labelGo.transform.SetParent(board, false);
-        labelGo.transform.localPosition = new Vector3(0f, 0.04f, -0.55f);
-        labelGo.transform.localRotation = Quaternion.identity;
-        labelGo.transform.localScale = Vector3.one * scale;
+        labelGo.transform.localPosition = new Vector3(0f, 0.04f, -0.52f);
+        labelGo.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+        labelGo.transform.localScale = Vector3.one * fitScale;
 
         var text = labelGo.AddComponent<TextMesh>();
         text.text = title;

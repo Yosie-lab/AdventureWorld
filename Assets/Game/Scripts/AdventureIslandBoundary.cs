@@ -147,5 +147,9 @@ public class AdventureIslandBoundary : MonoBehaviour
         var renderer = go.GetComponent<Renderer>();
         if (renderer != null)
             renderer.material.color = new Color(0.45f, 0.47f, 0.42f, 1f);
+
+        var col = go.GetComponent<Collider>();
+        if (col != null)
+            col.isTrigger = true;
     }
 }
