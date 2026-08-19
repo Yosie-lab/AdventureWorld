@@ -6,9 +6,9 @@ public class AdventureIslandBoundary : MonoBehaviour
     public static AdventureIslandBoundary Instance { get; private set; }
 
     public float walkMinX = 58f;
-    public float walkMaxX = 242f;
+    public float walkMaxX = 275f;
     public float walkMinZ = 58f;
-    public float walkMaxZ = 242f;
+    public float walkMaxZ = 275f;
     public float waterLevel = 18f;
     public Vector2 lakeCenter = new Vector2(133f, 169f);
     public float lakeRadius = 36f;

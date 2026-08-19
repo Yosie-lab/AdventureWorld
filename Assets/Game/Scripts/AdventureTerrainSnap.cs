@@ -77,9 +77,9 @@ public static class AdventureTerrainSnap
     }
 
     public const float NorthEastMinX = 175f;
-    public const float NorthEastMaxX = 242f;
+    public const float NorthEastMaxX = 275f;
     public const float NorthEastMinZ = 175f;
-    public const float NorthEastMaxZ = 242f;
+    public const float NorthEastMaxZ = 275f;
 
     public static void FixNorthEastGrassland()
     {
@@ -90,7 +90,7 @@ public static class AdventureTerrainSnap
         TerrainData td = land.terrainData;
         if (td != null)
         {
-            // 北東・北端エリア(X175-242, Z175-242, X219 Z242周辺)の段差・崖を平坦化
+            // 北東・北端エリア(X175-275, Z175-275)の段差・崖を平坦化
             FlattenNorthEastArea(land, td);
         }
 
