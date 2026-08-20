@@ -29,6 +29,32 @@ public static class AdventureTerrainSnap
         return null;
     }
 
+    public static float SampleWaterLevel(Vector3 pos, float defaultY = 18.0f)
+    {
+        Terrain water = FindWater();
+        if (water != null)
+            return water.SampleHeight(pos) + water.transform.position.y;
+        return defaultY;
+    }
+
+    public static bool GetHeightmapRegion(Terrain land, TerrainData td, float minX, float maxX, float minZ, float maxZ,
+        out int ix0, out int ix1, out int iz0, out int iz1, out int patchW, out int patchH)
+    {
+        Vector3 terrainPos = land.transform.position;
+        Vector3 terrainSize = td.size;
+        int res = td.heightmapResolution;
+        float invSizeX = 1f / terrainSize.x;
+        float invSizeZ = 1f / terrainSize.z;
+
+        ix0 = Mathf.Clamp(Mathf.FloorToInt((minX - terrainPos.x) * invSizeX * (res - 1)), 0, res - 1);
+        ix1 = Mathf.Clamp(Mathf.CeilToInt ((maxX - terrainPos.x) * invSizeX * (res - 1)), 0, res - 1);
+        iz0 = Mathf.Clamp(Mathf.FloorToInt((minZ - terrainPos.z) * invSizeZ * (res - 1)), 0, res - 1);
+        iz1 = Mathf.Clamp(Mathf.CeilToInt ((maxZ - terrainPos.z) * invSizeZ * (res - 1)), 0, res - 1);
+        patchW = ix1 - ix0 + 1;
+        patchH = iz1 - iz0 + 1;
+        return patchW > 0 && patchH > 0;
+    }
+
     public static float GroundY(Terrain land, Vector3 worldPos, float offset = 0f)
     {
         if (land == null)
@@ -541,18 +567,13 @@ public static class AdventureTerrainSnap
     public static void FillCliffAtX158Z194()
     {
         Terrain land = FindLand();
-        if (land == null)
+        if (land == null || land.terrainData == null)
             return;
 
         TerrainData td = land.terrainData;
-        if (td == null)
-            return;
-
         Vector3 terrainPos = land.transform.position;
         Vector3 terrainSize = td.size;
         int res = td.heightmapResolution;
-        float invSizeX = 1f / terrainSize.x;
-        float invSizeZ = 1f / terrainSize.z;
         float invSizeY = 1f / terrainSize.y;
 
         float centerWorldX = 158f;
@@ -564,21 +585,11 @@ public static class AdventureTerrainSnap
         float minZ = centerWorldZ - radius;
         float maxZ = centerWorldZ + radius;
 
-        int ix0 = Mathf.Clamp(Mathf.FloorToInt((minX - terrainPos.x) * invSizeX * (res - 1)), 0, res - 1);
-        int ix1 = Mathf.Clamp(Mathf.CeilToInt ((maxX - terrainPos.x) * invSizeX * (res - 1)), 0, res - 1);
-        int iz0 = Mathf.Clamp(Mathf.FloorToInt((minZ - terrainPos.z) * invSizeZ * (res - 1)), 0, res - 1);
-        int iz1 = Mathf.Clamp(Mathf.CeilToInt ((maxZ - terrainPos.z) * invSizeZ * (res - 1)), 0, res - 1);
-        int patchW = ix1 - ix0 + 1;
-        int patchH = iz1 - iz0 + 1;
-        if (patchW <= 0 || patchH <= 0)
+        if (!GetHeightmapRegion(land, td, minX, maxX, minZ, maxZ, out int ix0, out int ix1, out int iz0, out int iz1, out int patchW, out int patchH))
             return;
 
         float[,] heights = td.GetHeights(ix0, iz0, patchW, patchH);
-
-        float waterY = 18.0f;
-        Terrain water = FindWater();
-        if (water != null)
-            waterY = water.SampleHeight(new Vector3(158f, 0f, 194f)) + water.transform.position.y;
+        float waterY = SampleWaterLevel(new Vector3(158f, 0f, 194f));
         float minSafeH = (waterY + 6.5f) - terrainPos.y;
 
         bool changed = false;
@@ -601,6 +612,65 @@ public static class AdventureTerrainSnap
 
                 float currentH = heights[pz, px] * terrainSize.y;
                 float targetH = Mathf.Lerp(currentH, Mathf.Max(currentH, minSafeH), weight);
+
+                if (Mathf.Abs(currentH - targetH) > 0.005f)
+                {
+                    heights[pz, px] = targetH * invSizeY;
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+            td.SetHeights(ix0, iz0, heights);
+
+        SnapEnvironmentInRegion(land, minX, maxX, minZ, maxZ);
+    }
+
+    public static void NaturalizeNorthWestPondShore()
+    {
+        Terrain land = FindLand();
+        if (land == null || land.terrainData == null)
+            return;
+
+        TerrainData td = land.terrainData;
+        Vector3 terrainPos = land.transform.position;
+        Vector3 terrainSize = td.size;
+        int res = td.heightmapResolution;
+        float invSizeY = 1f / terrainSize.y;
+
+        float minX = 98f;
+        float maxX = 142f;
+        float minZ = 172f;
+        float maxZ = 218f;
+
+        if (!GetHeightmapRegion(land, td, minX, maxX, minZ, maxZ, out int ix0, out int ix1, out int iz0, out int iz1, out int patchW, out int patchH))
+            return;
+
+        float[,] heights = td.GetHeights(ix0, iz0, patchW, patchH);
+        float waterY = SampleWaterLevel(new Vector3(119f, 0f, 195f));
+        float landH = (waterY + 2.8f) - terrainPos.y;
+
+        bool changed = false;
+
+        for (int pz = 0; pz < patchH; pz++)
+        {
+            for (int px = 0; px < patchW; px++)
+            {
+                int gx = ix0 + px;
+                int gz = iz0 + pz;
+                float wx = terrainPos.x + (float)gx / (res - 1) * terrainSize.x;
+                float wz = terrainPos.z + (float)gz / (res - 1) * terrainSize.z;
+
+                float noiseWiggle = (Mathf.PerlinNoise(wx * 0.055f, wz * 0.055f) - 0.5f) * 12.0f
+                                  + Mathf.Sin(wz * 0.12f) * 3.5f;
+                float dynamicShoreX = 119f + noiseWiggle;
+
+                float distFromShore = wx - dynamicShoreX;
+                float blend = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((distFromShore + 6f) / 12f));
+
+                float currentH = heights[pz, px] * terrainSize.y;
+                float targetH = Mathf.Lerp(currentH, Mathf.Max(currentH, landH), blend);
 
                 if (Mathf.Abs(currentH - targetH) > 0.005f)
                 {
