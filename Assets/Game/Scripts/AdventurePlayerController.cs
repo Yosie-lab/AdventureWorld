@@ -6,8 +6,8 @@ public class AdventurePlayerController : MonoBehaviour
 {
     public float walkSpeed = 4.2f;
     public float runSpeed = 7.8f;
-    public float jumpHeight = 1.15f;
-    public float gravity = -28f;
+    public float jumpHeight = 2.2f;
+    public float gravity = -24f;
     public float turnSpeed = 14f;
     public Transform cameraPivot;
     public Vector3 spawnPosition;
@@ -105,7 +105,10 @@ public class AdventurePlayerController : MonoBehaviour
             _grounded = false;
 
         if (_grounded && kb != null && kb.spaceKey.wasPressedThisFrame)
+        {
             _hop = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            _grounded = false;
+        }
 
         _hop += gravity * Time.deltaTime;
         motion.y = _hop * Time.deltaTime;
@@ -133,8 +136,17 @@ public class AdventurePlayerController : MonoBehaviour
             return;
 
         Vector3 clamped = bounds.ClampWalkable(pos);
-        clamped.y = bounds.GroundY(clamped) + Skin;
-        Teleport(clamped);
+        if (!_grounded && _hop > 0f)
+        {
+            _cc.enabled = false;
+            transform.position = new Vector3(clamped.x, pos.y, clamped.z);
+            _cc.enabled = true;
+        }
+        else
+        {
+            clamped.y = bounds.GroundY(clamped) + Skin;
+            Teleport(clamped);
+        }
     }
 
     float GroundY(Vector3 pos)

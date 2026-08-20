@@ -53,9 +53,9 @@ public static class AdventureTerrainSnap
         SnapEnvironmentInRegion(land, LakeEastMinX, LakeEastMaxX, LakeEastMinZ, LakeEastMaxZ);
     }
 
-    public const float NorthWestMinX = 100f;
+    public const float NorthWestMinX = 58f;
     public const float NorthWestMaxX = 150f;
-    public const float NorthWestMinZ = 190f;
+    public const float NorthWestMinZ = 120f;
     public const float NorthWestMaxZ = 240f;
 
     public static void FixNorthWestGrassland()
@@ -67,7 +67,7 @@ public static class AdventureTerrainSnap
         TerrainData td = land.terrainData;
         if (td != null)
         {
-            // 北西エリア(X105-145, Z185-225, X121 Z195周辺)の崩れた池のくぼみを埋め立て平坦化
+            // 北西エリア(X58-145, Z120-225)の崩れたくぼみ・急傾斜を埋め立て平坦化
             FlattenNorthWestPond(land, td);
         }
 
@@ -76,7 +76,7 @@ public static class AdventureTerrainSnap
         SnapEnvironmentInRegion(land, NorthWestMinX, NorthWestMaxX, NorthWestMinZ, NorthWestMaxZ);
     }
 
-    public const float NorthEastMinX = 175f;
+    public const float NorthEastMinX = 58f;
     public const float NorthEastMaxX = 275f;
     public const float NorthEastMinZ = 175f;
     public const float NorthEastMaxZ = 275f;
@@ -90,13 +90,157 @@ public static class AdventureTerrainSnap
         TerrainData td = land.terrainData;
         if (td != null)
         {
-            // 北東・北端エリア(X175-275, Z175-275)の段差・崖を平坦化
+            // 北部全域エリア(X95-275, Z175-275)の段差・崖・未平坦化隙間を平坦化
             FlattenNorthEastArea(land, td);
         }
 
         Terrain water = FindWater();
         CleanTerrainDetailsInRegion(land, water, NorthEastMinX, NorthEastMaxX, NorthEastMinZ, NorthEastMaxZ, true);
         SnapEnvironmentInRegion(land, NorthEastMinX, NorthEastMaxX, NorthEastMinZ, NorthEastMaxZ);
+        RemoveUnintendedPuddles();
+    }
+
+    public static void RemoveUnintendedPuddles()
+    {
+        Terrain land = FindLand();
+        if (land == null)
+            return;
+
+        TerrainData td = land.terrainData;
+        if (td == null)
+            return;
+
+        Vector3 terrainPos = land.transform.position;
+        Vector3 terrainSize = td.size;
+        int res = td.heightmapResolution;
+        float invSizeY = 1f / terrainSize.y;
+
+        float[,] heights = td.GetHeights(0, 0, res, res);
+
+        float waterY = 18.0f;
+        Terrain water = FindWater();
+        if (water != null)
+            waterY = water.SampleHeight(new Vector3(165f, 0f, 165f)) + water.transform.position.y;
+
+        float thresholdLocalH = (waterY + 1.0f) - terrainPos.y;
+        float fillLocalH = (waterY + 2.5f) - terrainPos.y;
+
+        Vector2 lakeCenter = new Vector2(133f, 169f);
+        float lakeRadius = 45f;
+        var lakeObj = GameObject.Find("Lake");
+        if (lakeObj != null)
+        {
+            var rends = lakeObj.GetComponentsInChildren<Renderer>();
+            if (rends.Length > 0)
+            {
+                Bounds b = rends[0].bounds;
+                for (int i = 1; i < rends.Length; i++)
+                    b.Encapsulate(rends[i].bounds);
+                lakeCenter = new Vector2(b.center.x, b.center.z);
+                lakeRadius = Mathf.Max(b.extents.x, b.extents.z) + 10f;
+            }
+        }
+
+        bool changed = false;
+        for (int z = 0; z < res; z++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float wx = terrainPos.x + (float)x / (res - 1) * terrainSize.x;
+                float wz = terrainPos.z + (float)z / (res - 1) * terrainSize.z;
+
+                float distLake = Vector2.Distance(new Vector2(wx, wz), lakeCenter);
+                if (distLake < lakeRadius)
+                    continue;
+
+                float currentH = heights[z, x] * terrainSize.y;
+                if (currentH < thresholdLocalH)
+                {
+                    heights[z, x] = fillLocalH * invSizeY;
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+            td.SetHeights(0, 0, heights);
+
+        SmoothEntireIslandCliffs();
+    }
+
+    public static void SmoothEntireIslandCliffs()
+    {
+        Terrain land = FindLand();
+        if (land == null)
+            return;
+
+        TerrainData td = land.terrainData;
+        if (td == null)
+            return;
+
+        Vector3 terrainPos = land.transform.position;
+        Vector3 terrainSize = td.size;
+        int res = td.heightmapResolution;
+        float invSizeY = 1f / terrainSize.y;
+
+        float[,] heights = td.GetHeights(0, 0, res, res);
+        float[,] smoothed = (float[,])heights.Clone();
+
+        bool changed = false;
+        int passes = 2;
+
+        Vector2 lakeCenter = new Vector2(133f, 169f);
+        float lakeRadius = 40f;
+
+        for (int p = 0; p < passes; p++)
+        {
+            for (int z = 1; z < res - 1; z++)
+            {
+                for (int x = 1; x < res - 1; x++)
+                {
+                    float wx = terrainPos.x + (float)x / (res - 1) * terrainSize.x;
+                    float wz = terrainPos.z + (float)z / (res - 1) * terrainSize.z;
+
+                    if (wx < 55f || wx > 278f || wz < 55f || wz > 278f)
+                        continue;
+
+                    if (Vector2.Distance(new Vector2(wx, wz), lakeCenter) < lakeRadius)
+                        continue;
+
+                    float centerH = heights[z, x] * terrainSize.y;
+
+                    float sum = 0f;
+                    int count = 0;
+                    float maxDiff = 0f;
+
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            float nh = heights[z + dz, x + dx] * terrainSize.y;
+                            sum += nh;
+                            count++;
+                            float diff = Mathf.Abs(centerH - nh);
+                            if (diff > maxDiff)
+                                maxDiff = diff;
+                        }
+                    }
+
+                    float avgH = sum / count;
+
+                    if (maxDiff > 3.0f)
+                    {
+                        float newH = Mathf.Lerp(centerH, avgH, 0.65f);
+                        smoothed[z, x] = newH * invSizeY;
+                        changed = true;
+                    }
+                }
+            }
+            heights = (float[,])smoothed.Clone();
+        }
+
+        if (changed)
+            td.SetHeights(0, 0, smoothed);
     }
 
     static void FlattenNorthEastArea(Terrain land, TerrainData td)
@@ -154,8 +298,8 @@ public static class AdventureTerrainSnap
 
                 float currentH = heights[pz, px] * terrainSize.y;
 
-                // 標高差がある急坂・段差を平坦化して南へスムーズに移動できるようにする
-                float targetH = Mathf.Lerp(currentH, targetLocalH, blend);
+                // 標高差がある急坂・段差・水たまり凹地をしっかり底上げ平坦化する
+                float targetH = Mathf.Lerp(currentH, Mathf.Max(currentH, targetLocalH), blend);
                 if (Mathf.Abs(currentH - targetH) > 0.02f)
                 {
                     heights[pz, px] = targetH * invSizeY;
@@ -170,10 +314,10 @@ public static class AdventureTerrainSnap
 
     static void FlattenNorthWestPond(Terrain land, TerrainData td)
     {
-        // 範囲をX95-150, Z175-235に拡大（X120 Z194を完全にカバー）
-        float minX = 95f;
+        // 範囲をX58-150, Z120-235に拡大（X73 Z137北側を完全にカバー）
+        float minX = 58f;
         float maxX = 150f;
-        float minZ = 175f;
+        float minZ = 120f;
         float maxZ = 235f;
 
         Vector3 terrainPos = land.transform.position;
@@ -217,14 +361,17 @@ public static class AdventureTerrainSnap
                     wz < minZ - featherMargin || wz > maxZ + featherMargin)
                     continue;
 
-                float edgeDist = Mathf.Min(
-                    wx - (minX - featherMargin), (maxX + featherMargin) - wx,
-                    wz - (minZ - featherMargin), (maxZ + featherMargin) - wz);
+                float distLeft = wx <= minX ? featherMargin : wx - (minX - featherMargin);
+                float distRight = (maxX + featherMargin) - wx;
+                float distBottom = wz <= minZ ? featherMargin : wz - (minZ - featherMargin);
+                float distTop = (maxZ + featherMargin) - wz;
+
+                float edgeDist = Mathf.Min(distLeft, distRight, distBottom, distTop);
                 float blend = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(edgeDist / featherMargin));
 
                 float currentH = heights[pz, px] * terrainSize.y;
 
-                // 池の残滓・くぼみを完全に埋め立てて高架平坦化する
+                // 池の残滓・くぼみ・段差を完全に埋め立てて高架平坦化する
                 float targetH = Mathf.Lerp(currentH, Mathf.Max(currentH, targetLocalH), blend);
                 if (Mathf.Abs(currentH - targetH) > 0.005f)
                 {
@@ -238,6 +385,178 @@ public static class AdventureTerrainSnap
             td.SetHeights(ix0, iz0, heights);
     }
 
+    public static void ApplyNaturalLandscape()
+    {
+        Terrain land = FindLand();
+        if (land == null)
+            return;
+
+        TerrainData td = land.terrainData;
+        if (td == null)
+            return;
+
+        Vector3 terrainPos = land.transform.position;
+        Vector3 terrainSize = td.size;
+        int res = td.heightmapResolution;
+        float invSizeY = 1f / terrainSize.y;
+
+        float[,] heights = td.GetHeights(0, 0, res, res);
+        float[,] smoothed = (float[,])heights.Clone();
+
+        bool changed = false;
+        Vector2 lakeCenter = new Vector2(133f, 169f);
+        float lakeRadius = 40f;
+        Vector2 startCenter = new Vector2(165f, 165f);
+        float startRadius = 18f;
+
+        for (int z = 0; z < res; z++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float wx = terrainPos.x + (float)x / (res - 1) * terrainSize.x;
+                float wz = terrainPos.z + (float)z / (res - 1) * terrainSize.z;
+
+                if (wx < 58f || wx > 275f || wz < 58f || wz > 275f)
+                    continue;
+
+                float distLake = Vector2.Distance(new Vector2(wx, wz), lakeCenter);
+                if (distLake < lakeRadius)
+                    continue;
+
+                float distStart = Vector2.Distance(new Vector2(wx, wz), startCenter);
+                if (distStart < startRadius)
+                    continue;
+
+                float currentH = heights[z, x] * terrainSize.y;
+                float noise = (Mathf.PerlinNoise(wx * 0.045f, wz * 0.045f) - 0.5f) * 0.85f;
+                float newH = currentH + noise;
+                if (Mathf.Abs(currentH - newH) > 0.01f)
+                {
+                    smoothed[z, x] = newH * invSizeY;
+                    changed = true;
+                }
+            }
+        }
+
+        float[,] finalHeights = (float[,])smoothed.Clone();
+        for (int z = 2; z < res - 2; z++)
+        {
+            for (int x = 2; x < res - 2; x++)
+            {
+                float wx = terrainPos.x + (float)x / (res - 1) * terrainSize.x;
+                float wz = terrainPos.z + (float)z / (res - 1) * terrainSize.z;
+
+                if (wx < 58f || wx > 275f || wz < 58f || wz > 275f)
+                    continue;
+
+                if (Vector2.Distance(new Vector2(wx, wz), lakeCenter) < lakeRadius - 5f)
+                    continue;
+
+                float sum = 0f;
+                int count = 0;
+                for (int dz = -2; dz <= 2; dz++)
+                {
+                    for (int dx = -2; dx <= 2; dx++)
+                    {
+                        sum += smoothed[z + dz, x + dx] * terrainSize.y;
+                        count++;
+                    }
+                }
+                float avgH = sum / count;
+                float centerH = smoothed[z, x] * terrainSize.y;
+                if (Mathf.Abs(centerH - avgH) > 1.5f)
+                {
+                    finalHeights[z, x] = Mathf.Lerp(centerH, avgH, 0.45f) * invSizeY;
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+            td.SetHeights(0, 0, finalHeights);
+
+        SnapEnvironmentInRegion(land, 58f, 275f, 58f, 275f);
+        FillCliffAtX158Z194();
+    }
+
+    public static void FillCliffAtX158Z194()
+    {
+        Terrain land = FindLand();
+        if (land == null)
+            return;
+
+        TerrainData td = land.terrainData;
+        if (td == null)
+            return;
+
+        Vector3 terrainPos = land.transform.position;
+        Vector3 terrainSize = td.size;
+        int res = td.heightmapResolution;
+        float invSizeX = 1f / terrainSize.x;
+        float invSizeZ = 1f / terrainSize.z;
+        float invSizeY = 1f / terrainSize.y;
+
+        float centerWorldX = 158f;
+        float centerWorldZ = 194f;
+        float radius = 18f;
+
+        float minX = centerWorldX - radius;
+        float maxX = centerWorldX + radius;
+        float minZ = centerWorldZ - radius;
+        float maxZ = centerWorldZ + radius;
+
+        int ix0 = Mathf.Clamp(Mathf.FloorToInt((minX - terrainPos.x) * invSizeX * (res - 1)), 0, res - 1);
+        int ix1 = Mathf.Clamp(Mathf.CeilToInt ((maxX - terrainPos.x) * invSizeX * (res - 1)), 0, res - 1);
+        int iz0 = Mathf.Clamp(Mathf.FloorToInt((minZ - terrainPos.z) * invSizeZ * (res - 1)), 0, res - 1);
+        int iz1 = Mathf.Clamp(Mathf.CeilToInt ((maxZ - terrainPos.z) * invSizeZ * (res - 1)), 0, res - 1);
+        int patchW = ix1 - ix0 + 1;
+        int patchH = iz1 - iz0 + 1;
+        if (patchW <= 0 || patchH <= 0)
+            return;
+
+        float[,] heights = td.GetHeights(ix0, iz0, patchW, patchH);
+
+        float waterY = 18.0f;
+        Terrain water = FindWater();
+        if (water != null)
+            waterY = water.SampleHeight(new Vector3(158f, 0f, 194f)) + water.transform.position.y;
+        float minSafeH = (waterY + 6.5f) - terrainPos.y;
+
+        bool changed = false;
+
+        for (int pz = 0; pz < patchH; pz++)
+        {
+            for (int px = 0; px < patchW; px++)
+            {
+                int gx = ix0 + px;
+                int gz = iz0 + pz;
+                float wx = terrainPos.x + (float)gx / (res - 1) * terrainSize.x;
+                float wz = terrainPos.z + (float)gz / (res - 1) * terrainSize.z;
+
+                float dist = Vector2.Distance(new Vector2(wx, wz), new Vector2(centerWorldX, centerWorldZ));
+                if (dist > radius)
+                    continue;
+
+                float weight = 1f - Mathf.Clamp01(dist / radius);
+                weight = Mathf.SmoothStep(0f, 1f, weight);
+
+                float currentH = heights[pz, px] * terrainSize.y;
+                float targetH = Mathf.Lerp(currentH, Mathf.Max(currentH, minSafeH), weight);
+
+                if (Mathf.Abs(currentH - targetH) > 0.005f)
+                {
+                    heights[pz, px] = targetH * invSizeY;
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+            td.SetHeights(ix0, iz0, heights);
+
+        SnapEnvironmentInRegion(land, minX, maxX, minZ, maxZ);
+    }
+
     // ── スタート地点の全方向通路開通 ──────────────────
     //
     // 問題: スタート地点(165, 165)の狭い範囲だけを掘り下げると四方が高さ20m以上の岸壁に囲まれる。
@@ -249,19 +568,21 @@ public static class AdventureTerrainSnap
     const float CenterRadius = 18f; // スタート広場半径
     const float CenterTargetHeightWorld = 34.0f; // スタート広場の標高（ワールドY）
 
-    // 4方向の開通ルート（始点→終点）
+    // 5方向の開通ルート（始点→終点）
     static readonly Vector2[] RoadStarts = {
         CenterStart, // 南へ (案内看板)
         CenterStart, // 北東へ (猫エリア 213,213)
         CenterStart, // 北西へ (犬エリア 122,205)
-        CenterStart  // 東へ (東平野 215,165)
+        CenterStart, // 東へ (東平野 215,165)
+        new Vector2(177f, 165f) // 北へ (X177 Z174 なだらかなスロープ)
     };
 
     static readonly Vector2[] RoadEnds = {
         new Vector2(165f, 118f), // 南 (案内看板)
         new Vector2(213f, 213f), // 北東 (猫)
         new Vector2(122f, 205f), // 北西 (犬)
-        new Vector2(215f, 165f)  // 東 (東平野)
+        new Vector2(215f, 165f), // 東 (東平野)
+        new Vector2(177f, 210f)  // 北へ (X177 Z174 なだらかなスロープ)
     };
 
     const float RoadHalfWidth = 8.0f; // 道路幅 16メートル

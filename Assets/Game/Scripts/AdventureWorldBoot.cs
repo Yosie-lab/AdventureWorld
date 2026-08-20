@@ -43,6 +43,7 @@ public static class AdventureWorldBoot
             AdventureTerrainSnap.FixNorthWestGrassland();
             AdventureTerrainSnap.FixNorthEastGrassland();
             AdventureTerrainSnap.CarveStartPlateauRamp();
+            AdventureTerrainSnap.RemoveUnintendedPuddles();
         }
 
         AdventureMarkerCleanup.RemoveAllQuestMarkers();
@@ -52,6 +53,32 @@ public static class AdventureWorldBoot
         AdventureTerrainSnap.FixNorthWestGrassland();
         AdventureTerrainSnap.FixNorthEastGrassland();
         AdventureTerrainSnap.CarveStartPlateauRamp();
+        AdventureTerrainSnap.RemoveUnintendedPuddles();
+        AdventureTerrainSnap.ApplyNaturalLandscape();
+        AdventureTerrainSnap.FillCliffAtX158Z194();
+        AdventurePrimitiveVisuals.FixAnimalMaterials();
+        SetupBrightWorldLighting();
+    }
+
+    public static void SetupBrightWorldLighting()
+    {
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor = new Color(0.60f, 0.64f, 0.72f);
+        RenderSettings.ambientEquatorColor = new Color(0.50f, 0.54f, 0.52f);
+        RenderSettings.ambientGroundColor = new Color(0.38f, 0.40f, 0.38f);
+        RenderSettings.ambientIntensity = 0.85f;
+
+        RenderSettings.fog = false;
+
+        foreach (var light in Object.FindObjectsByType<Light>(FindObjectsInactive.Exclude))
+        {
+            if (light.type == LightType.Directional)
+            {
+                light.intensity = 0.95f;
+                light.color = new Color(1.0f, 0.96f, 0.90f);
+                light.shadowStrength = 0.65f;
+            }
+        }
     }
 
     static void SnapAllLostPets()

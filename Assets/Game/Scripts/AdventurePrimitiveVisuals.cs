@@ -43,4 +43,26 @@ public static class AdventurePrimitiveVisuals
             mat.SetFloat("_Smoothness", smoothness);
         renderer.material = mat;
     }
+
+    public static void FixAnimalMaterials()
+    {
+        foreach (var rend in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Exclude))
+        {
+            if (rend == null)
+                continue;
+
+            var mat = rend.material;
+            if (mat == null)
+                continue;
+
+            string name = mat.name;
+            if (name.Contains("Sparrow") || name.Contains("Colobus") || name.Contains("Gecko") ||
+                name.Contains("Pudu") || name.Contains("Muskrat"))
+            {
+                mat.color = Color.white;
+                if (mat.HasProperty("_BaseColor"))
+                    mat.SetColor("_BaseColor", Color.white);
+            }
+        }
+    }
 }
