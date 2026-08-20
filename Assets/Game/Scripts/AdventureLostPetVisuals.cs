@@ -71,6 +71,7 @@ public static class AdventureLostPetVisuals
     static void SpawnStandInVisual(Transform root, string npcId, string visualName)
     {
         var bodyColor = npcId == "dog" ? DogBody : CatBody;
+        var legColor = bodyColor * 0.85f;
         var rootGo = new GameObject(visualName);
         rootGo.transform.SetParent(root, false);
         rootGo.transform.localPosition = Vector3.zero;
@@ -92,6 +93,55 @@ public static class AdventureLostPetVisuals
         head.transform.localScale = Vector3.one * 0.55f;
         DestroySafe(head.GetComponent<Collider>());
         AdventurePrimitiveVisuals.ApplyLitColor(head.GetComponent<Renderer>(), bodyColor);
+
+        // 耳
+        CreateEar(rootGo.transform, "EarL", new Vector3(-0.25f, 1.6f, 0.85f), new Vector3(0.18f, 0.35f, 0.18f), bodyColor);
+        CreateEar(rootGo.transform, "EarR", new Vector3(0.25f, 1.6f, 0.85f), new Vector3(0.18f, 0.35f, 0.18f), bodyColor);
+
+        // 4本の脚（前左, 前右, 後左, 後右）の付け根（Pivot）とメッシュ
+        CreateLeg(rootGo.transform, "Leg_FL", new Vector3(-0.48f, 0.65f, 0.65f), legColor);
+        CreateLeg(rootGo.transform, "Leg_FR", new Vector3(0.48f, 0.65f, 0.65f), legColor);
+        CreateLeg(rootGo.transform, "Leg_BL", new Vector3(-0.48f, 0.65f, -0.65f), legColor);
+        CreateLeg(rootGo.transform, "Leg_BR", new Vector3(0.48f, 0.65f, -0.65f), legColor);
+
+        // 尻尾
+        var tailPivot = new GameObject("Tail");
+        tailPivot.transform.SetParent(rootGo.transform, false);
+        tailPivot.transform.localPosition = new Vector3(0f, 0.95f, -1.0f);
+        var tailMesh = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        tailMesh.transform.SetParent(tailPivot.transform, false);
+        tailMesh.transform.localPosition = new Vector3(0f, 0.25f, -0.2f);
+        tailMesh.transform.localRotation = Quaternion.Euler(40f, 0f, 0f);
+        tailMesh.transform.localScale = new Vector3(0.22f, 0.45f, 0.22f);
+        DestroySafe(tailMesh.GetComponent<Collider>());
+        AdventurePrimitiveVisuals.ApplyLitColor(tailMesh.GetComponent<Renderer>(), bodyColor);
+    }
+
+    static void CreateLeg(Transform parent, string name, Vector3 pivotPos, Color color)
+    {
+        var pivot = new GameObject(name);
+        pivot.transform.SetParent(parent, false);
+        pivot.transform.localPosition = pivotPos;
+        pivot.transform.localRotation = Quaternion.identity;
+
+        var mesh = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        mesh.name = "LegMesh";
+        mesh.transform.SetParent(pivot.transform, false);
+        mesh.transform.localPosition = new Vector3(0f, -0.32f, 0f);
+        mesh.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
+        DestroySafe(mesh.GetComponent<Collider>());
+        AdventurePrimitiveVisuals.ApplyLitColor(mesh.GetComponent<Renderer>(), color);
+    }
+
+    static void CreateEar(Transform parent, string name, Vector3 pos, Vector3 scale, Color color)
+    {
+        var ear = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        ear.name = name;
+        ear.transform.SetParent(parent, false);
+        ear.transform.localPosition = pos;
+        ear.transform.localScale = scale;
+        DestroySafe(ear.GetComponent<Collider>());
+        AdventurePrimitiveVisuals.ApplyLitColor(ear.GetComponent<Renderer>(), color);
     }
 
     static void DisableBrokenVisuals(Transform root, string keepChildName)

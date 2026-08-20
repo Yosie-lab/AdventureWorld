@@ -13,12 +13,20 @@ public class AdventureCameraFollow : MonoBehaviour
     float _yaw;
     float _pitch = 12f;
     Terrain _land;
+    Camera _cam;
 
     void Start()
     {
         if (target != null)
             _yaw = target.eulerAngles.y;
         _land = AdventureQuestLocations.FindLand();
+        _cam = GetComponent<Camera>();
+        if (_cam != null)
+        {
+            _cam.nearClipPlane = 0.05f;
+            _cam.farClipPlane = 1200f;
+            _cam.useOcclusionCulling = false;
+        }
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -63,16 +71,19 @@ public class AdventureCameraFollow : MonoBehaviour
     {
         Vector3 offset = desired - pivot;
         float dist = offset.magnitude;
+        float castRadius = 0.35f;
         if (dist > 0.01f
-            && Physics.SphereCast(pivot, 0.45f, offset / dist, out RaycastHit hit, dist, ~0, QueryTriggerInteraction.Ignore))
+            && Physics.SphereCast(pivot, castRadius, offset / dist, out RaycastHit hit, dist, ~0, QueryTriggerInteraction.Ignore))
         {
-            desired = pivot + offset / dist * Mathf.Max(hit.distance - 0.25f, 1.2f);
+            // 壁・崖・地面のメッシュ内にカメラが入ってNearClipで裏抜けしないよう、ヒット地点から安全マージンを確保
+            float safeDist = Mathf.Max(hit.distance - 0.12f, 0.8f);
+            desired = pivot + (offset / dist) * safeDist;
         }
 
         if (_land == null)
             _land = AdventureQuestLocations.FindLand();
         if (_land != null)
-            desired.y = Mathf.Max(desired.y, AdventureQuestLocations.GroundY(_land, desired.x, desired.z) + 1.2f);
+            desired.y = Mathf.Max(desired.y, AdventureQuestLocations.GroundY(_land, desired.x, desired.z) + 0.8f);
 
         return desired;
     }

@@ -23,6 +23,11 @@ public class AdventureLostPetFollower : MonoBehaviour
     string _idleState;
     string _runState;
     string _currentAnim;
+    Transform _legFL;
+    Transform _legFR;
+    Transform _legBL;
+    Transform _legBR;
+    float _walkPhase;
 
     public bool IsFollowing => _phase == Phase.Celebrating || _phase == Phase.Following;
 
@@ -88,12 +93,14 @@ public class AdventureLostPetFollower : MonoBehaviour
             FaceDirection(move);
             PlayRun();
             WagTail(10f);
+            AnimateLegs(true, speed);
             return;
         }
 
         FaceTarget();
         PlayIdle();
         WagTail(18f);
+        AnimateLegs(false, 0f);
     }
 
     Vector3 FollowGoal()
@@ -153,6 +160,68 @@ public class AdventureLostPetFollower : MonoBehaviour
             if (_tail != null)
                 _tailBaseLocalRot = _tail.localRotation;
         }
+
+        if (_legFL == null && _visualRoot != null)
+        {
+            _legFL = FindChildRecursive(_visualRoot, "Leg_FL");
+            _legFR = FindChildRecursive(_visualRoot, "Leg_FR");
+            _legBL = FindChildRecursive(_visualRoot, "Leg_BL");
+            _legBR = FindChildRecursive(_visualRoot, "Leg_BR");
+        }
+    }
+
+    void AnimateLegs(bool isMoving, float speed)
+    {
+        if (_legFL == null || _legFR == null || _legBL == null || _legBR == null)
+            return;
+
+        if (isMoving)
+        {
+            float freq = Mathf.Max(speed, WalkSpeed) * 3.2f;
+            _walkPhase += Time.deltaTime * freq;
+
+            float swing1 = Mathf.Sin(_walkPhase) * 28f;  // 前左(FL) & 後右(BR)
+            float swing2 = -Mathf.Sin(_walkPhase) * 28f; // 前右(FR) & 後左(BL)
+
+            _legFL.localRotation = Quaternion.Euler(swing1, 0f, 0f);
+            _legBR.localRotation = Quaternion.Euler(swing1, 0f, 0f);
+
+            _legFR.localRotation = Quaternion.Euler(swing2, 0f, 0f);
+            _legBL.localRotation = Quaternion.Euler(swing2, 0f, 0f);
+
+            if (_visualRoot != null)
+            {
+                float bounce = Mathf.Abs(Mathf.Sin(_walkPhase)) * 0.08f;
+                Vector3 pos = _visualRoot.localPosition;
+                pos.y = bounce;
+                _visualRoot.localPosition = pos;
+            }
+        }
+        else
+        {
+            float t = Time.deltaTime * 10f;
+            _legFL.localRotation = Quaternion.Slerp(_legFL.localRotation, Quaternion.identity, t);
+            _legFR.localRotation = Quaternion.Slerp(_legFR.localRotation, Quaternion.identity, t);
+            _legBL.localRotation = Quaternion.Slerp(_legBL.localRotation, Quaternion.identity, t);
+            _legBR.localRotation = Quaternion.Slerp(_legBR.localRotation, Quaternion.identity, t);
+
+            if (_visualRoot != null)
+            {
+                Vector3 pos = _visualRoot.localPosition;
+                pos.y = Mathf.Lerp(pos.y, 0f, t);
+                _visualRoot.localPosition = pos;
+            }
+        }
+    }
+
+    static Transform FindChildRecursive(Transform root, string childName)
+    {
+        foreach (var t in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name == childName)
+                return t;
+        }
+        return null;
     }
 
     static Transform FindTail(Transform root)
