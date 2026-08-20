@@ -33,8 +33,8 @@ public class AdventurePlayerController : MonoBehaviour
     void Awake()
     {
         _cc = GetComponent<CharacterController>();
-        _cc.slopeLimit = 58f;
-        _cc.stepOffset = 0.45f;
+        _cc.slopeLimit = 78f;
+        _cc.stepOffset = 0.85f;
         _anim = GetComponentInChildren<Animator>();
         if (_anim != null)
         {

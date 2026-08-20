@@ -49,6 +49,7 @@ public static class AdventureWorldBoot
         AdventureMarkerCleanup.RemoveAllQuestMarkers();
         AdventureMarkerCleanup.RemovePetBeacons();
         AdventureMarkerCleanup.RemoveFloatingShoreBands();
+        AdventureMarkerCleanup.RemoveFloatingWaterSurfaces();
         SnapAllLostPets();
         AdventureTerrainSnap.FixNorthWestGrassland();
         AdventureTerrainSnap.FixNorthEastGrassland();

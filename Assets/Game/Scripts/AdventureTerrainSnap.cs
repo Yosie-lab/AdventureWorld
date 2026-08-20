@@ -227,7 +227,7 @@ public static class AdventureTerrainSnap
                     float wx = terrainPos.x + (float)x / (res - 1) * terrainSize.x;
                     float wz = terrainPos.z + (float)z / (res - 1) * terrainSize.z;
 
-                    if (wx < 55f || wx > 278f || wz < 55f || wz > 278f)
+                    if (wx < 25f || wx > 295f || wz < 25f || wz > 295f)
                         continue;
 
                     if (Vector2.Distance(new Vector2(wx, wz), lakeCenter) < lakeRadius)
@@ -254,9 +254,9 @@ public static class AdventureTerrainSnap
 
                     float avgH = sum / count;
 
-                    if (maxDiff > 3.0f)
+                    if (maxDiff > 2.0f)
                     {
-                        float newH = Mathf.Lerp(centerH, avgH, 0.65f);
+                        float newH = Mathf.Lerp(centerH, avgH, 0.75f);
                         smoothed[z, x] = newH * invSizeY;
                         changed = true;
                     }
@@ -498,6 +498,8 @@ public static class AdventureTerrainSnap
 
     public static void EnsureLandWaterSeparation()
     {
+        AdventureMarkerCleanup.RemoveFloatingWaterSurfaces();
+
         Terrain land = FindLand();
         if (land == null)
             return;
