@@ -56,6 +56,7 @@ public static class AdventureWorldBoot
         AdventureTerrainSnap.RemoveUnintendedPuddles();
         AdventureTerrainSnap.ApplyNaturalLandscape();
         AdventureTerrainSnap.FillCliffAtX158Z194();
+        AdventureTerrainSnap.EnsureLandWaterSeparation();
         AdventurePrimitiveVisuals.FixAnimalMaterials();
         SetupBrightWorldLighting();
     }

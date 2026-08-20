@@ -428,8 +428,9 @@ public static class AdventureTerrainSnap
                     continue;
 
                 float currentH = heights[z, x] * terrainSize.y;
-                float noise = (Mathf.PerlinNoise(wx * 0.045f, wz * 0.045f) - 0.5f) * 0.85f;
-                float newH = currentH + noise;
+                float noise1 = (Mathf.PerlinNoise(wx * 0.032f, wz * 0.032f) - 0.5f) * 1.25f;
+                float noise2 = (Mathf.PerlinNoise(wx * 0.085f, wz * 0.085f) - 0.5f) * 0.45f;
+                float newH = currentH + noise1 + noise2;
                 if (Mathf.Abs(currentH - newH) > 0.01f)
                 {
                     smoothed[z, x] = newH * invSizeY;
@@ -475,8 +476,66 @@ public static class AdventureTerrainSnap
         if (changed)
             td.SetHeights(0, 0, finalHeights);
 
+        EnsureLandWaterSeparation();
         SnapEnvironmentInRegion(land, 58f, 275f, 58f, 275f);
         FillCliffAtX158Z194();
+    }
+
+    public static void EnsureLandWaterSeparation()
+    {
+        Terrain land = FindLand();
+        if (land == null)
+            return;
+
+        TerrainData td = land.terrainData;
+        if (td == null)
+            return;
+
+        Vector3 terrainPos = land.transform.position;
+        Vector3 terrainSize = td.size;
+        int res = td.heightmapResolution;
+        float invSizeY = 1f / terrainSize.y;
+
+        float[,] heights = td.GetHeights(0, 0, res, res);
+
+        float waterY = 18.0f;
+        Terrain water = FindWater();
+        if (water != null)
+            waterY = water.SampleHeight(new Vector3(165f, 0f, 165f)) + water.transform.position.y;
+
+        float minSafeLandHeight = (waterY + 1.8f) - terrainPos.y; // 標高 Y >= 19.8m 以上に離隔
+
+        Vector2 lakeCenter = new Vector2(133f, 169f);
+        float lakeRadius = 42f;
+
+        bool changed = false;
+
+        for (int z = 0; z < res; z++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float wx = terrainPos.x + (float)x / (res - 1) * terrainSize.x;
+                float wz = terrainPos.z + (float)z / (res - 1) * terrainSize.z;
+
+                // 可走エリア（58〜275）で湖エリア以外を完全隔離
+                if (wx < 56f || wx > 276f || wz < 56f || wz > 276f)
+                    continue;
+
+                float distLake = Vector2.Distance(new Vector2(wx, wz), lakeCenter);
+                if (distLake < lakeRadius)
+                    continue;
+
+                float currentH = heights[z, x] * terrainSize.y;
+                if (currentH < minSafeLandHeight)
+                {
+                    heights[z, x] = minSafeLandHeight * invSizeY;
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+            td.SetHeights(0, 0, heights);
     }
 
     public static void FillCliffAtX158Z194()

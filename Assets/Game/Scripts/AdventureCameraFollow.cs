@@ -22,7 +22,11 @@ public class AdventureCameraFollow : MonoBehaviour
         _land = AdventureQuestLocations.FindLand();
         _cam = GetComponent<Camera>();
         if (_cam != null)
-            _cam.nearClipPlane = 0.1f;
+        {
+            _cam.nearClipPlane = 0.05f;
+            _cam.farClipPlane = 1200f;
+            _cam.useOcclusionCulling = false;
+        }
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
