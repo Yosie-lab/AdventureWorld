@@ -82,7 +82,7 @@ public static class AdventureTerrainSnap
     public const float NorthWestMinX = 58f;
     public const float NorthWestMaxX = 150f;
     public const float NorthWestMinZ = 120f;
-    public const float NorthWestMaxZ = 240f;
+    public const float NorthWestMaxZ = 275f;
 
     public static void FixNorthWestGrassland()
     {
@@ -324,11 +324,11 @@ public static class AdventureTerrainSnap
 
                 float currentH = heights[pz, px] * terrainSize.y;
 
-                // 標高差がある急坂・段差・水たまり凹地をしっかり底上げ平坦化する
-                float targetH = Mathf.Lerp(currentH, Mathf.Max(currentH, targetLocalH), blend);
-                if (Mathf.Abs(currentH - targetH) > 0.02f)
+                // X242, Z236 以東を含む北東エリアの壁・急坂・断崖をしっかり滑らかに緩和
+                float smoothTarget = Mathf.Lerp(currentH, targetLocalH, blend * 0.95f);
+                if (Mathf.Abs(currentH - smoothTarget) > 0.01f)
                 {
-                    heights[pz, px] = targetH * invSizeY;
+                    heights[pz, px] = smoothTarget * invSizeY;
                     changed = true;
                 }
             }
@@ -340,11 +340,11 @@ public static class AdventureTerrainSnap
 
     static void FlattenNorthWestPond(Terrain land, TerrainData td)
     {
-        // 範囲をX58-150, Z120-235に拡大（X73 Z137北側を完全にカバー）
+        // 範囲をX58-150, Z120-275に拡大（北方向の最北端 Z275 まで完全カバー）
         float minX = 58f;
         float maxX = 150f;
         float minZ = 120f;
-        float maxZ = 235f;
+        float maxZ = 275f;
 
         Vector3 terrainPos = land.transform.position;
         Vector3 terrainSize = td.size;
@@ -353,22 +353,11 @@ public static class AdventureTerrainSnap
         float invSizeZ = 1f / terrainSize.z;
         float invSizeY = 1f / terrainSize.y;
 
-        int ix0 = Mathf.Clamp(Mathf.FloorToInt((minX - terrainPos.x) * invSizeX * (res - 1)), 0, res - 1);
-        int ix1 = Mathf.Clamp(Mathf.CeilToInt ((maxX - terrainPos.x) * invSizeX * (res - 1)), 0, res - 1);
-        int iz0 = Mathf.Clamp(Mathf.FloorToInt((minZ - terrainPos.z) * invSizeZ * (res - 1)), 0, res - 1);
-        int iz1 = Mathf.Clamp(Mathf.CeilToInt ((maxZ - terrainPos.z) * invSizeZ * (res - 1)), 0, res - 1);
-        int patchW = ix1 - ix0 + 1;
-        int patchH = iz1 - iz0 + 1;
-        if (patchW <= 0 || patchH <= 0)
+        if (!GetHeightmapRegion(land, td, minX, maxX, minZ, maxZ, out int ix0, out int ix1, out int iz0, out int iz1, out int patchW, out int patchH))
             return;
 
         float[,] heights = td.GetHeights(ix0, iz0, patchW, patchH);
-
-        // 周囲の自然な草地標高（水面 + 3.0m ≒ 21.0m のしっかりした地上高）
-        float waterY = 18.0f;
-        Terrain water = FindWater();
-        if (water != null)
-            waterY = water.SampleHeight(new Vector3(120f, 0f, 195f)) + water.transform.position.y;
+        float waterY = SampleWaterLevel(new Vector3(120f, 0f, 195f));
         float targetLocalH = (waterY + 3.0f) - terrainPos.y;
 
         bool changed = false;
@@ -390,7 +379,7 @@ public static class AdventureTerrainSnap
                 float distLeft = wx <= minX ? featherMargin : wx - (minX - featherMargin);
                 float distRight = (maxX + featherMargin) - wx;
                 float distBottom = wz <= minZ ? featherMargin : wz - (minZ - featherMargin);
-                float distTop = (maxZ + featherMargin) - wz;
+                float distTop = wz >= maxZ ? featherMargin : (maxZ + featherMargin) - wz;
 
                 float edgeDist = Mathf.Min(distLeft, distRight, distBottom, distTop);
                 float blend = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(edgeDist / featherMargin));
@@ -711,7 +700,7 @@ public static class AdventureTerrainSnap
         new Vector2(213f, 213f), // 北東 (猫)
         new Vector2(122f, 205f), // 北西 (犬)
         new Vector2(215f, 165f), // 東 (東平野)
-        new Vector2(177f, 210f)  // 北へ (X177 Z174 なだらかなスロープ)
+        new Vector2(177f, 275f)  // 北へ (最北端 Z275 まで開通スロープ)
     };
 
     const float RoadHalfWidth = 8.0f; // 道路幅 16メートル
@@ -901,21 +890,95 @@ public static class AdventureTerrainSnap
         }
     }
 
+    public static void SnapAllFloatingRocksAndTrees()
+    {
+        Terrain land = FindLand();
+        if (land == null)
+            return;
+
+        foreach (var rootName in EnvRoots)
+        {
+            var go = GameObject.Find(rootName);
+            if (go != null)
+                SnapTransformRecursive(go.transform, land);
+        }
+
+        foreach (var tr in Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude))
+        {
+            if (tr == null || tr.GetComponent<AdventureNpc>() != null || tr.GetComponent<AdventurePlayerController>() != null)
+                continue;
+
+            string nameLower = tr.name.ToLower();
+            if (nameLower.Contains("rock") || nameLower.Contains("stone") || nameLower.Contains("boulder") || nameLower.Contains("debris"))
+            {
+                Vector3 pos = tr.position;
+                float groundY = land.SampleHeight(pos) + land.transform.position.y;
+                if (pos.y > groundY + 0.2f)
+                {
+                    float sinkOffset = (nameLower.Contains("rock") || nameLower.Contains("boulder")) ? -0.15f : 0f;
+                    tr.position = new Vector3(pos.x, groundY + sinkOffset, pos.z);
+                }
+            }
+        }
+    }
+
+    static void SnapTransformRecursive(Transform parent, Terrain land)
+    {
+        if (parent == null || land == null) return;
+        foreach (Transform child in parent)
+        {
+            if (child.GetComponent<AdventureNpc>() != null || child.GetComponent<AdventurePlayerController>() != null)
+                continue;
+
+            Vector3 pos = child.position;
+            float groundY = land.SampleHeight(pos) + land.transform.position.y;
+            string nameLower = child.name.ToLower();
+            float sinkOffset = (nameLower.Contains("rock") || nameLower.Contains("boulder")) ? -0.15f : 0f;
+            child.position = new Vector3(pos.x, groundY + sinkOffset, pos.z);
+
+            if (child.childCount > 0)
+                SnapTransformRecursive(child, land);
+        }
+    }
+
+    public static void ReplaceBlackCubesWithRocksOrBoxes()
+    {
+        Terrain land = FindLand();
+        if (land == null)
+            return;
+
+        foreach (var rend in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Exclude))
+        {
+            if (rend == null || rend.gameObject.GetComponent<AdventurePlayerController>() != null)
+                continue;
+
+            string objName = rend.gameObject.name.ToLower();
+            if (objName.Contains("cube") || objName.Contains("black") || objName.Contains("placeholder"))
+            {
+                // マジックボックスまたは自然な岩に変換
+                if (rend.gameObject.GetComponent<AdventureMagicBox>() == null)
+                {
+                    // 衝突判定を確実化（すり抜け防止）
+                    var col = rend.gameObject.GetComponent<Collider>();
+                    if (col == null)
+                        col = rend.gameObject.AddComponent<BoxCollider>();
+                    col.isTrigger = false;
+                    col.enabled = true;
+
+                    // 自然な岩のカラー/マテリアルに変更
+                    Color rockColor = new Color(0.48f, 0.45f, 0.42f);
+                    AdventurePrimitiveVisuals.ApplyLitColor(rend, rockColor);
+                }
+            }
+        }
+
+        // マジックボックスの生成
+        AdventureMagicBox.SpawnMagicBoxes(land);
+    }
+
     static void SnapEnvironmentRoot(Transform root, Terrain land, float minX, float maxX, float minZ, float maxZ)
     {
-        foreach (Transform child in root)
-        {
-            if (child.GetComponent<AdventureNpc>() != null
-                || child.GetComponent<AdventurePlayerController>() != null)
-                continue;
-
-            Vector3 p = child.position;
-            if (p.x < minX || p.x > maxX || p.z < minZ || p.z > maxZ)
-                continue;
-
-            p.y = GroundY(land, p, 0f);
-            child.position = p;
-        }
+        SnapTransformRecursive(root, land);
     }
 
     static void SnapWaterplantsInRegion(

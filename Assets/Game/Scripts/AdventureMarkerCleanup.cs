@@ -18,7 +18,7 @@ public static class AdventureMarkerCleanup
 
     public static void RemoveFloatingShoreBands()
     {
-        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
         {
             if (t.name != "SandBand")
                 continue;

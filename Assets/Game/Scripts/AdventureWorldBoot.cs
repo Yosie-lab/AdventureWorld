@@ -58,6 +58,8 @@ public static class AdventureWorldBoot
         AdventureTerrainSnap.FillCliffAtX158Z194();
         AdventureTerrainSnap.NaturalizeNorthWestPondShore();
         AdventureTerrainSnap.EnsureLandWaterSeparation();
+        AdventureTerrainSnap.SnapAllFloatingRocksAndTrees();
+        AdventureTerrainSnap.ReplaceBlackCubesWithRocksOrBoxes();
         AdventurePrimitiveVisuals.FixAnimalMaterials();
         SetupBrightWorldLighting();
     }

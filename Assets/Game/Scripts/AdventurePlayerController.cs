@@ -12,6 +12,13 @@ public class AdventurePlayerController : MonoBehaviour
     public Transform cameraPivot;
     public Vector3 spawnPosition;
 
+    public bool canDoubleJump = false;
+    public float moveSpeedMultiplier = 1.0f;
+    public float jumpMultiplier = 1.0f;
+    public bool hasPetRadar = false;
+
+    bool _doubleJumpUsed = false;
+
     const float Skin = 0.1f;
 
     CharacterController _cc;
@@ -67,7 +74,7 @@ public class AdventurePlayerController : MonoBehaviour
 
         Vector2 input = ReadMove(kb);
         bool running = kb != null && kb.leftShiftKey.isPressed;
-        float speed = running ? runSpeed : walkSpeed;
+        float speed = (running ? runSpeed : walkSpeed) * moveSpeedMultiplier;
 
         Vector3 planar = Vector3.zero;
         if (input.sqrMagnitude > 0.0001f)
@@ -100,14 +107,25 @@ public class AdventurePlayerController : MonoBehaviour
             if (_hop < 0f)
                 _hop = -2f;
             _grounded = true;
+            _doubleJumpUsed = false;
         }
         else
             _grounded = false;
 
-        if (_grounded && kb != null && kb.spaceKey.wasPressedThisFrame)
+        float effectiveJumpHeight = jumpHeight * jumpMultiplier;
+
+        if (kb != null && kb.spaceKey.wasPressedThisFrame)
         {
-            _hop = Mathf.Sqrt(jumpHeight * -2f * gravity);
-            _grounded = false;
+            if (_grounded)
+            {
+                _hop = Mathf.Sqrt(effectiveJumpHeight * -2f * gravity);
+                _grounded = false;
+            }
+            else if (canDoubleJump && !_doubleJumpUsed)
+            {
+                _hop = Mathf.Sqrt(effectiveJumpHeight * -1.8f * gravity);
+                _doubleJumpUsed = true;
+            }
         }
 
         _hop += gravity * Time.deltaTime;
