@@ -6,11 +6,18 @@ public class AdventurePlayerController : MonoBehaviour
 {
     public float walkSpeed = 4.2f;
     public float runSpeed = 7.8f;
-    public float jumpHeight = 1.15f;
-    public float gravity = -28f;
+    public float jumpHeight = 2.2f;
+    public float gravity = -24f;
     public float turnSpeed = 14f;
     public Transform cameraPivot;
     public Vector3 spawnPosition;
+
+    public bool canDoubleJump = false;
+    public float moveSpeedMultiplier = 1.0f;
+    public float jumpMultiplier = 1.0f;
+    public bool hasPetRadar = false;
+
+    bool _doubleJumpUsed = false;
 
     const float Skin = 0.1f;
 
@@ -26,6 +33,8 @@ public class AdventurePlayerController : MonoBehaviour
     void Awake()
     {
         _cc = GetComponent<CharacterController>();
+        _cc.slopeLimit = 58f;
+        _cc.stepOffset = 0.45f;
         _anim = GetComponentInChildren<Animator>();
         if (_anim != null)
         {
@@ -45,6 +54,7 @@ public class AdventurePlayerController : MonoBehaviour
 
     void Start()
     {
+        AdventureIslandBoundary.Ensure();
         CacheTerrains();
         if (spawnPosition == Vector3.zero)
             spawnPosition = transform.position;
@@ -64,7 +74,7 @@ public class AdventurePlayerController : MonoBehaviour
 
         Vector2 input = ReadMove(kb);
         bool running = kb != null && kb.leftShiftKey.isPressed;
-        float speed = running ? runSpeed : walkSpeed;
+        float speed = (running ? runSpeed : walkSpeed) * moveSpeedMultiplier;
 
         Vector3 planar = Vector3.zero;
         if (input.sqrMagnitude > 0.0001f)
@@ -90,38 +100,71 @@ public class AdventurePlayerController : MonoBehaviour
         }
 
         Vector3 motion = planar * speed * Time.deltaTime;
-        if (!CanStand(transform.position + new Vector3(motion.x, 0f, motion.z)))
-            motion.x = motion.z = 0f;
+        motion = ClipMotion(motion);
 
         if (_cc.isGrounded)
         {
             if (_hop < 0f)
                 _hop = -2f;
             _grounded = true;
+            _doubleJumpUsed = false;
         }
         else
             _grounded = false;
 
-        if (_grounded && kb != null && kb.spaceKey.wasPressedThisFrame)
-            _hop = Mathf.Sqrt(jumpHeight * -2f * gravity);
+        float effectiveJumpHeight = jumpHeight * jumpMultiplier;
+
+        if (kb != null && kb.spaceKey.wasPressedThisFrame)
+        {
+            if (_grounded)
+            {
+                _hop = Mathf.Sqrt(effectiveJumpHeight * -2f * gravity);
+                _grounded = false;
+            }
+            else if (canDoubleJump && !_doubleJumpUsed)
+            {
+                _hop = Mathf.Sqrt(effectiveJumpHeight * -1.8f * gravity);
+                _doubleJumpUsed = true;
+            }
+        }
 
         _hop += gravity * Time.deltaTime;
         motion.y = _hop * Time.deltaTime;
         _cc.Move(motion);
+        KeepWalkable();
         PlayLocomotion(planar.magnitude * speed, running);
     }
 
-    bool CanStand(Vector3 pos)
+    Vector3 ClipMotion(Vector3 motion)
     {
-        if (_land == null)
-            return true;
-        Vector3 origin = _land.transform.position;
-        Vector3 size = _land.terrainData.size;
-        const float edge = 1.5f;
-        return pos.x > origin.x + edge
-            && pos.x < origin.x + size.x - edge
-            && pos.z > origin.z + edge
-            && pos.z < origin.z + size.z - edge;
+        var bounds = AdventureIslandBoundary.Instance;
+        if (bounds != null)
+            return bounds.ClipMotion(transform.position, motion);
+        return motion;
+    }
+
+    void KeepWalkable()
+    {
+        var bounds = AdventureIslandBoundary.Instance;
+        if (bounds == null)
+            return;
+
+        Vector3 pos = transform.position;
+        if (bounds.IsWalkable(pos))
+            return;
+
+        Vector3 clamped = bounds.ClampWalkable(pos);
+        if (!_grounded && _hop > 0f)
+        {
+            _cc.enabled = false;
+            transform.position = new Vector3(clamped.x, pos.y, clamped.z);
+            _cc.enabled = true;
+        }
+        else
+        {
+            clamped.y = bounds.GroundY(clamped) + Skin;
+            Teleport(clamped);
+        }
     }
 
     float GroundY(Vector3 pos)
@@ -133,7 +176,14 @@ public class AdventurePlayerController : MonoBehaviour
 
     Vector3 Stick(Vector3 pos)
     {
-        pos.y = GroundY(pos) + Skin;
+        var bounds = AdventureIslandBoundary.Instance;
+        if (bounds != null)
+        {
+            pos = bounds.ClampWalkable(pos);
+            pos.y = bounds.GroundY(pos) + Skin;
+        }
+        else
+            pos.y = GroundY(pos) + Skin;
         return pos;
     }
 
@@ -160,8 +210,6 @@ public class AdventurePlayerController : MonoBehaviour
                     col.enabled = false;
             }
         }
-        if (_land == null)
-            _land = Terrain.activeTerrain;
     }
 
     static Vector2 ReadMove(Keyboard kb)
