@@ -55,6 +55,7 @@ public class AdventurePlayerController : MonoBehaviour
     void Start()
     {
         AdventureIslandBoundary.Ensure();
+        AdventureMarkerCleanup.RemoveFloatingWaterSurfaces();
         CacheTerrains();
         if (spawnPosition == Vector3.zero)
             spawnPosition = transform.position;

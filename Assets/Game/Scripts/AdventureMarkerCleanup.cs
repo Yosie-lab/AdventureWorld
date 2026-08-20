@@ -28,10 +28,13 @@ public static class AdventureMarkerCleanup
 
     public static void RemoveFloatingWaterSurfaces()
     {
-        // 1. WaterTerrain (水面テレイン) の完全非非描画・消去
+        // 1. WaterTerrain (水面テレイン) の完全非描画・非アクティブ・消去
         foreach (var terrain in Object.FindObjectsByType<Terrain>(FindObjectsInactive.Include))
         {
-            if (terrain.name.IndexOf("Water", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            if (terrain == null) continue;
+            if (terrain.name.IndexOf("Water", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                terrain.name.IndexOf("Sea", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                terrain.name.IndexOf("Ocean", System.StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 terrain.drawHeightmap = false;
                 terrain.drawTreesAndFoliage = false;
@@ -39,27 +42,62 @@ public static class AdventureMarkerCleanup
                 var col = terrain.GetComponent<TerrainCollider>();
                 if (col != null)
                     col.enabled = false;
+                Object.Destroy(terrain.gameObject);
             }
         }
 
-        // 2. 「Lake」以外の頭上・広域に漂う不要な水面メッシュ・Plane・Waterオブジェクトの削除
+        // 2. 「Lake」以外の頭上・広域に漂う不要な水面メッシュ・Plane・Waterオブジェクトの徹底削除
         foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
         {
-            if (t == null)
+            if (t == null || t.gameObject == null)
                 continue;
 
             string name = t.name;
-            if (name == "Lake" || name.Contains("Lake"))
-                continue; // 中央の池(Lake)は保持
 
-            // 水面メッシュや WaterTerrain, WaterPlane, WaterSurface などの残骸を消去
-            if (name.Equals("WaterTerrain", System.StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("WaterPlane", System.StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("WaterSurface", System.StringComparison.OrdinalIgnoreCase) ||
-                name.StartsWith("Water_Tile", System.StringComparison.OrdinalIgnoreCase) ||
-                name.StartsWith("WaterTile", System.StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("Sea", System.StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("Ocean", System.StringComparison.OrdinalIgnoreCase))
+            // 中央の低地にある池(Lake)は保持するが、空中に浮いているLake(Y > 21f)は削除
+            bool isLake = name.Equals("Lake", System.StringComparison.OrdinalIgnoreCase) ||
+                          name.IndexOf("Lake", System.StringComparison.OrdinalIgnoreCase) >= 0;
+
+            if (isLake)
+            {
+                if (t.position.y > 21.0f)
+                {
+                    Object.Destroy(t.gameObject);
+                }
+                continue;
+            }
+
+            // 「Water」「Sea」「Ocean」「Pond」など水面に関連するオブジェクトの判定
+            bool isWaterName = name.Equals("Water", System.StringComparison.OrdinalIgnoreCase) ||
+                               name.StartsWith("Water", System.StringComparison.OrdinalIgnoreCase) ||
+                               name.IndexOf("Water", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                               name.Equals("Sea", System.StringComparison.OrdinalIgnoreCase) ||
+                               name.StartsWith("Sea", System.StringComparison.OrdinalIgnoreCase) ||
+                               name.IndexOf("Sea", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                               name.Equals("Ocean", System.StringComparison.OrdinalIgnoreCase) ||
+                               name.StartsWith("Ocean", System.StringComparison.OrdinalIgnoreCase) ||
+                               name.IndexOf("Ocean", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                               name.IndexOf("Pond", System.StringComparison.OrdinalIgnoreCase) >= 0;
+
+            // マテリアル名に Water / Sea / Ocean が含まれる水面メッシュの判定
+            bool isWaterMaterial = false;
+            var mr = t.GetComponent<Renderer>();
+            if (mr != null && mr.sharedMaterials != null)
+            {
+                foreach (var mat in mr.sharedMaterials)
+                {
+                    if (mat != null &&
+                        (mat.name.IndexOf("Water", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                         mat.name.IndexOf("Sea", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                         mat.name.IndexOf("Ocean", System.StringComparison.OrdinalIgnoreCase) >= 0))
+                    {
+                        isWaterMaterial = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isWaterName || isWaterMaterial)
             {
                 Object.Destroy(t.gameObject);
             }
