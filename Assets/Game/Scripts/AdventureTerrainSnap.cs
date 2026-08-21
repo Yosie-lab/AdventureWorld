@@ -911,13 +911,13 @@ public static class AdventureTerrainSnap
                 continue;
 
             string nameLower = tr.name.ToLower();
-            if (nameLower.Contains("rock") || nameLower.Contains("stone") || nameLower.Contains("boulder") || nameLower.Contains("debris"))
+            if (nameLower.Contains("rock") || nameLower.Contains("stone") || nameLower.Contains("boulder") || nameLower.Contains("debris") || nameLower.Contains("cliff"))
             {
                 Vector3 pos = tr.position;
                 float groundY = land.SampleHeight(pos) + land.transform.position.y;
                 if (pos.y > groundY + 0.2f)
                 {
-                    float sinkOffset = (nameLower.Contains("rock") || nameLower.Contains("boulder")) ? -0.15f : 0f;
+                    float sinkOffset = (nameLower.Contains("rock") || nameLower.Contains("boulder") || nameLower.Contains("cliff")) ? -0.15f : 0f;
                     tr.position = new Vector3(pos.x, groundY + sinkOffset, pos.z);
                 }
             }
