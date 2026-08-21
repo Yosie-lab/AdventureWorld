@@ -104,6 +104,39 @@ public static class AdventureMarkerCleanup
         }
     }
 
+    public static void RemoveFloatingRocks()
+    {
+        Terrain land = AdventureQuestLocations.FindLand();
+
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
+        {
+            if (t == null || t.gameObject == null)
+                continue;
+
+            if (t.GetComponent<AdventureNpc>() != null ||
+                t.GetComponent<AdventurePlayerController>() != null ||
+                t.GetComponent<AdventureMagicBox>() != null)
+                continue;
+
+            string nameLower = t.name.ToLower();
+            bool isRock = nameLower.Contains("rock") || nameLower.Contains("stone") ||
+                          nameLower.Contains("boulder") || nameLower.Contains("debris") ||
+                          nameLower.Contains("cliff");
+
+            if (isRock)
+            {
+                Vector3 pos = t.position;
+                float groundY = land != null ? (land.SampleHeight(pos) + land.transform.position.y) : 2.5f;
+
+                bool nearStartSquare = (pos.x >= 130f && pos.x <= 190f && pos.z >= 130f && pos.z <= 190f);
+                if ((nearStartSquare && pos.y > groundY + 0.4f) || (pos.y > groundY + 3.0f))
+                {
+                    Object.Destroy(t.gameObject);
+                }
+            }
+        }
+    }
+
     static void DestroyIfExists(string name)
     {
         var go = GameObject.Find(name);
