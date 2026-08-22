@@ -54,16 +54,12 @@ public static class AdventureMarkerCleanup
 
             string name = t.name;
 
-            // 中央の低地にある池(Lake)は保持するが、空中に浮いているLake(Y > 21f)は削除
+            // 中央および北西の池(Lake)は保護する
             bool isLake = name.Equals("Lake", System.StringComparison.OrdinalIgnoreCase) ||
                           name.IndexOf("Lake", System.StringComparison.OrdinalIgnoreCase) >= 0;
 
             if (isLake)
             {
-                if (t.position.y > 21.0f)
-                {
-                    Object.Destroy(t.gameObject);
-                }
                 continue;
             }
 

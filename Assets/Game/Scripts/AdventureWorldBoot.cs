@@ -69,10 +69,10 @@ public static class AdventureWorldBoot
     public static void SetupBrightWorldLighting()
     {
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(0.60f, 0.64f, 0.72f);
-        RenderSettings.ambientEquatorColor = new Color(0.50f, 0.54f, 0.52f);
-        RenderSettings.ambientGroundColor = new Color(0.38f, 0.40f, 0.38f);
-        RenderSettings.ambientIntensity = 0.85f;
+        RenderSettings.ambientSkyColor = new Color(0.70f, 0.82f, 0.95f);   // 爽やかな青空の照り返し
+        RenderSettings.ambientEquatorColor = new Color(0.62f, 0.72f, 0.68f); // 鮮やかな緑地地平
+        RenderSettings.ambientGroundColor = new Color(0.45f, 0.50f, 0.45f);
+        RenderSettings.ambientIntensity = 1.10f;
 
         RenderSettings.fog = false;
 
@@ -80,9 +80,9 @@ public static class AdventureWorldBoot
         {
             if (light.type == LightType.Directional)
             {
-                light.intensity = 0.95f;
-                light.color = new Color(1.0f, 0.96f, 0.90f);
-                light.shadowStrength = 0.65f;
+                light.intensity = 1.25f;
+                light.color = new Color(1.0f, 0.97f, 0.92f); // 温かみのある澄んだ陽光
+                light.shadowStrength = 0.55f; // ソフトで美しい影
             }
         }
     }

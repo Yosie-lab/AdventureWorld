@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public static class AdventureTerrainSnap
 {
@@ -371,9 +372,13 @@ public static class AdventureTerrainSnap
                 int gz = iz0 + pz;
                 float wx = terrainPos.x + (float)gx / (res - 1) * terrainSize.x;
                 float wz = terrainPos.z + (float)gz / (res - 1) * terrainSize.z;
-
                 if (wx < minX - featherMargin || wx > maxX + featherMargin ||
                     wz < minZ - featherMargin || wz > maxZ + featherMargin)
+                    continue;
+
+                // 浅い池エリア (中心 X146, Z162, 半径11m) は埋め立てから除外保護する
+                float distToPond = Mathf.Sqrt((wx - 146f) * (wx - 146f) + (wz - 162f) * (wz - 162f));
+                if (distToPond < 11.0f)
                     continue;
 
                 float distLeft = wx <= minX ? featherMargin : wx - (minX - featherMargin);
@@ -386,7 +391,7 @@ public static class AdventureTerrainSnap
 
                 float currentH = heights[pz, px] * terrainSize.y;
 
-                // 池の残滓・くぼみ・段差を完全に埋め立てて高架平坦化する
+                // 池の残滓・くぼみ・段差を平坦化する
                 float targetH = Mathf.Lerp(currentH, Mathf.Max(currentH, targetLocalH), blend);
                 if (Mathf.Abs(currentH - targetH) > 0.005f)
                 {
@@ -398,6 +403,18 @@ public static class AdventureTerrainSnap
 
         if (changed)
             td.SetHeights(ix0, iz0, heights);
+    }
+
+    public static void CarveShallowPond()
+    {
+        // 池オブジェクトおよび関連装飾のクリーンアップ
+        GameObject lake = GameObject.Find("Lake");
+        if (lake != null)
+            Object.DestroyImmediate(lake);
+
+        GameObject decorations = GameObject.Find("PondDecorations");
+        if (decorations != null)
+            Object.DestroyImmediate(decorations);
     }
 
     public static void ApplyNaturalLandscape()
@@ -540,6 +557,11 @@ public static class AdventureTerrainSnap
 
                 float distLake = Vector2.Distance(new Vector2(wx, wz), lakeCenter);
                 if (distLake < lakeRadius)
+                    continue;
+
+                // スタート西側平地の浅い池エリア (中心 X:144, Z:162, 半径15m) は埋め立てから除外保護
+                float distShallowPond = Vector2.Distance(new Vector2(wx, wz), new Vector2(144f, 162f));
+                if (distShallowPond < 15f)
                     continue;
 
                 float currentH = heights[z, x] * terrainSize.y;
