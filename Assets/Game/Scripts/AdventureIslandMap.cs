@@ -155,7 +155,7 @@ public class AdventureIslandMap : MonoBehaviour
     {
         _landmarks.Clear();
         Color redText = new Color(1f, 0.22f, 0.22f, 1f); // 鮮やかな赤色
-        AddLandmark(mapArea, "Capyta", "カ", new Color(0.95f, 0.7f, 0.85f, 1f));
+        AddLandmark(mapArea, "Capyta", "カ", new Color(1f, 0.35f, 0.35f, 1f), redText);
         AddLandmark(mapArea, "Cat", "猫", new Color(1f, 0.35f, 0.35f, 1f), redText);
         AddLandmark(mapArea, "Dog", "犬", new Color(1f, 0.35f, 0.35f, 1f), redText);
         AddLandmark(mapArea, "Sparrow", "雀", new Color(0.9f, 0.9f, 0.9f, 1f));
