@@ -3,93 +3,89 @@ using UnityEngine;
 public static class AdventureQuestLocations
 {
     // ────────────────────────────────────────────────
-    // 猫の候補座標（島全域の歩行可能な平坦草地・全12箇所）
+    // 猫の候補座標（山や丘を排除し、完全な平坦草地・見晴らし良好な場所のみ厳選）
     // ────────────────────────────────────────────────
     static readonly Vector2[] CatCandidates =
     {
-        new Vector2(213f, 213f),   // 北東草地（従来の場所）
-        new Vector2(205f, 240f),   // 北東の奥・丘の近く
-        new Vector2(235f, 215f),   // 北東〜東の木陰
-        new Vector2(255f, 175f),   // 東の海岸沿い草地
-        new Vector2(245f, 140f),   // 東南東の開けた平地
-        new Vector2(225f, 115f),   // 南東の静かな草地
-        new Vector2(185f,  85f),   // 南の森の小道
-        new Vector2(170f, 235f),   // 北部中央の小高い平地
-        new Vector2( 95f, 225f),   // 北西の奥まった草地
-        new Vector2( 65f, 165f),   // 西側の森の端
-        new Vector2( 85f,  95f),   // 南西の穏やかな緑地
-        new Vector2(185f, 165f),   // 池の東側の木陰
+        new Vector2(213f, 213f),   // 北東平原の中央草地（水面+3mで完全平坦化済み）
+        new Vector2(198f, 228f),   // 北東平原の北寄り（開けた平地）
+        new Vector2(228f, 202f),   // 北東平原の東寄り（木陰のない平地）
+        new Vector2(205f, 195f),   // 北東平原の南寄り（見通しの良い平地）
+        new Vector2(230f, 180f),   // 東側平野・花畑前の開けた平地
+        new Vector2(185f, 155f),   // スタート広場東側の平坦草地
+        new Vector2(210f, 140f),   // 南東エリアの開けた平坦草地
+        new Vector2(192f, 128f),   // 南東エリアのなだらかな開けた草地
+        new Vector2(168f, 205f),   // 北部連絡道路の平坦草地
+        new Vector2(180f, 228f),   // 北部平原の見通しの良い平地
     };
 
     // ────────────────────────────────────────────────
-    // 犬の候補座標（島全域の歩行可能な平坦草地・全12箇所）
+    // 犬の候補座標（山や丘を排除し、完全な平坦草地・見晴らし良好な場所のみ厳選）
     // ────────────────────────────────────────────────
     static readonly Vector2[] DogCandidates =
     {
-        new Vector2(122f, 205f),   // 北西草地（従来の場所）
-        new Vector2(115f, 240f),   // 北西の北寄り平地
-        new Vector2( 85f, 215f),   // 北西の奥の草地
-        new Vector2( 60f, 185f),   // 西の海岸寄り平地
-        new Vector2( 80f, 150f),   // 池の西側の小道
-        new Vector2( 95f, 110f),   // 南西の開けた草地
-        new Vector2(115f,  85f),   // 南西の小山付近
-        new Vector2(145f,  75f),   // 南の海岸沿い草地
-        new Vector2(210f,  95f),   // 南東ののどかな平地
-        new Vector2(260f, 160f),   // 東の丘のふもと
-        new Vector2(150f, 245f),   // 北部中央の平地
-        new Vector2(220f, 230f),   // 北東の草地端
+        new Vector2(122f, 205f),   // 北西平原の中央草地（水面+3mで完全平坦化済み）
+        new Vector2(105f, 222f),   // 北西平原の北西寄り（完全平坦草地）
+        new Vector2(132f, 228f),   // 北西平原の北寄り（広々とした平地）
+        new Vector2( 98f, 200f),   // 北西平原の西寄り（開けた平坦地）
+        new Vector2(115f, 180f),   // 北西平原の南寄り・池の北岸（平坦草地）
+        new Vector2( 88f, 185f),   // 西側平野の開けた平坦地
+        new Vector2(145f, 145f),   // スタート広場南西の平坦草地
+        new Vector2(120f, 135f),   // 南西エリアの開けた平坦地
+        new Vector2(105f, 150f),   // 西側平野の南寄り平地
+        new Vector2(148f, 235f),   // 北部平原の北西寄り平地
     };
 
     // ────────────────────────────────────────────────
-    // スズメの候補座標（明るい草地、高台や入口付近・全5箇所）
+    // スズメの候補座標（開けた草地・平地）
     // ────────────────────────────────────────────────
     static readonly Vector2[] SparrowCandidates =
     {
-        new Vector2(185f, 165f),   // スタート広場の東寄り
+        new Vector2(185f, 165f),   // スタート広場の東寄り平地
         new Vector2(170f, 195f),   // 北の草地入口
-        new Vector2(145f, 175f),   // スタート西寄り
-        new Vector2(200f, 150f),   // 広場南東の丘
-        new Vector2(160f, 210f),   // 北の小道沿い
+        new Vector2(145f, 175f),   // スタート西寄り平地
+        new Vector2(195f, 150f),   // 広場南東の平坦地
+        new Vector2(160f, 210f),   // 北の平坦な道沿い
     };
 
     // ────────────────────────────────────────────────
-    // マスクラットの候補座標（池・水辺に近い平地・全5箇所）
+    // マスクラットの候補座標（池・水辺の平坦な岸）
     // ────────────────────────────────────────────────
     static readonly Vector2[] MuskratCandidates =
     {
-        new Vector2(152f, 175f),   // 池の北東岸
-        new Vector2(145f, 195f),   // 北西草地入口
-        new Vector2(175f, 200f),   // 北の草地
-        new Vector2(115f, 175f),   // 池の西岸
-        new Vector2(135f, 140f),   // 池の南岸
+        new Vector2(152f, 175f),   // 池の北東岸の平地
+        new Vector2(145f, 195f),   // 北西草地入口の平地
+        new Vector2(175f, 195f),   // 北の平坦草地
+        new Vector2(115f, 175f),   // 池の西岸の平坦地
+        new Vector2(135f, 142f),   // 池の南岸の平坦地
     };
 
     // ────────────────────────────────────────────────
-    // プドゥの候補座標（少し奥まった草地・全5箇所）
+    // プドゥの候補座標（開けた草地の端）
     // ────────────────────────────────────────────────
     static readonly Vector2[] PuduCandidates =
     {
-        new Vector2(185f, 190f),   // 北東の草地端
-        new Vector2(148f, 200f),   // 北西草地への道
-        new Vector2(165f, 215f),   // 北の奥
-        new Vector2(195f, 120f),   // 南東の森
-        new Vector2(105f, 130f),   // 南西の林
+        new Vector2(185f, 190f),   // 北東草地の平坦な端
+        new Vector2(148f, 200f),   // 北西草地への平坦な道
+        new Vector2(165f, 215f),   // 北の平坦地
+        new Vector2(195f, 135f),   // 南東の平坦草地
+        new Vector2(110f, 140f),   // 南西の平坦草地
     };
 
     // ────────────────────────────────────────────────
-    // コロブスの候補座標（広場やや北、木陰など・全5箇所）
+    // コロブスの候補座標（広場周辺の平坦草地）
     // ────────────────────────────────────────────────
     static readonly Vector2[] ColobusCandidates =
     {
         new Vector2(170f, 175f),   // 広場の北寄り中央
-        new Vector2(185f, 185f),   // 広場の北東
-        new Vector2(150f, 180f),   // 広場の北西
-        new Vector2(180f, 140f),   // 広場の南東
-        new Vector2(140f, 155f),   // 広場の西
+        new Vector2(185f, 185f),   // 広場の北東平地
+        new Vector2(150f, 180f),   // 広場の北西平地
+        new Vector2(180f, 145f),   // 広場の南東平地
+        new Vector2(140f, 155f),   // 広場の西側平地
     };
 
     // ────────────────────────────────────────────────
-    // ヤモリの候補座標（スタート広場周辺・全5箇所）
+    // ヤモリの候補座標（スタート広場内の平坦地）
     // ────────────────────────────────────────────────
     static readonly Vector2[] GeckoCandidates =
     {
@@ -101,7 +97,7 @@ public static class AdventureQuestLocations
     };
 
     // ────────────────────────────────────────────────
-    // ゲーム起動のたびに Randomize() でランダム選択される座標
+    // 現在選択されている座標
     // ────────────────────────────────────────────────
     public static float CatX     = 213f;
     public static float CatZ     = 213f;
@@ -168,7 +164,7 @@ public static class AdventureQuestLocations
 
     /// <summary>
     /// 猫・犬・その他の動物の出現座標をランダムに選択する。
-    /// 猫と犬は十分な距離（40m以上）離れた全然違う場所に配置される。
+    /// 猫と犬は十分な距離（40m以上）離れた平坦な場所に配置される。
     /// </summary>
     public static void Randomize()
     {
@@ -176,58 +172,170 @@ public static class AdventureQuestLocations
             return;
         _randomized = true;
 
-        // 猫の座標をランダム選択
-        var cat = CatCandidates[Random.Range(0, CatCandidates.Length)];
-        CatX = cat.x; CatZ = cat.y;
+        var land = FindLand();
 
-        // 犬の座標をランダム選択（猫と近すぎないように最低40m離す）
+        // 猫の座標をランダム選択し、平地チェックを適用
+        var cat = CatCandidates[Random.Range(0, CatCandidates.Length)];
+        Vector3 safeCat = FindSafeFlatPosition(land, cat.x, cat.y);
+        CatX = safeCat.x; CatZ = safeCat.z;
+
+        // 犬の座標をランダム選択（猫と40m以上離れた平地）
         Vector2 dog = DogCandidates[Random.Range(0, DogCandidates.Length)];
         for (int retry = 0; retry < 20; retry++)
         {
             dog = DogCandidates[Random.Range(0, DogCandidates.Length)];
-            if (Vector2.Distance(cat, dog) >= 40f)
+            if (Vector2.Distance(new Vector2(CatX, CatZ), dog) >= 40f)
                 break;
         }
-        DogX = dog.x; DogZ = dog.y;
+        Vector3 safeDog = FindSafeFlatPosition(land, dog.x, dog.y);
+        DogX = safeDog.x; DogZ = safeDog.z;
 
         // その他の動物NPC
         var sparrow = SparrowCandidates[Random.Range(0, SparrowCandidates.Length)];
-        SparrowX = sparrow.x; SparrowZ = sparrow.y;
+        Vector3 safeSparrow = FindSafeFlatPosition(land, sparrow.x, sparrow.y);
+        SparrowX = safeSparrow.x; SparrowZ = safeSparrow.z;
 
         var muskrat = MuskratCandidates[Random.Range(0, MuskratCandidates.Length)];
-        MuskratX = muskrat.x; MuskratZ = muskrat.y;
+        Vector3 safeMuskrat = FindSafeFlatPosition(land, muskrat.x, muskrat.y);
+        MuskratX = safeMuskrat.x; MuskratZ = safeMuskrat.z;
 
         var pudu = PuduCandidates[Random.Range(0, PuduCandidates.Length)];
-        PuduX = pudu.x; PuduZ = pudu.y;
+        Vector3 safePudu = FindSafeFlatPosition(land, pudu.x, pudu.y);
+        PuduX = safePudu.x; PuduZ = safePudu.z;
 
         var colobus = ColobusCandidates[Random.Range(0, ColobusCandidates.Length)];
-        ColobusX = colobus.x; ColobusZ = colobus.y;
+        Vector3 safeColobus = FindSafeFlatPosition(land, colobus.x, colobus.y);
+        ColobusX = safeColobus.x; ColobusZ = safeColobus.z;
 
         var gecko = GeckoCandidates[Random.Range(0, GeckoCandidates.Length)];
-        GeckoX = gecko.x; GeckoZ = gecko.y;
+        Vector3 safeGecko = FindSafeFlatPosition(land, gecko.x, gecko.y);
+        GeckoX = safeGecko.x; GeckoZ = safeGecko.z;
 
         Debug.Log(
-            $"[QuestLocations] 猫→{CatDirectionLabel}({CatX},{CatZ})  犬→{DogDirectionLabel}({DogX},{DogZ})\n" +
-            $"  スズメ→({SparrowX},{SparrowZ})  マスクラット→({MuskratX},{MuskratZ})\n" +
-            $"  プドゥ→({PuduX},{PuduZ})  コロブス→({ColobusX},{ColobusZ})  ヤモリ→({GeckoX},{GeckoZ})");
+            $"[QuestLocations] 猫→{CatDirectionLabel}({CatX:F0},{CatZ:F0})  犬→{DogDirectionLabel}({DogX:F0},{DogZ:F0})\n" +
+            $"  スズメ→({SparrowX:F0},{SparrowZ:F0})  マスクラット→({MuskratX:F0},{MuskratZ:F0})\n" +
+            $"  プドゥ→({PuduX:F0},{PuduZ:F0})  コロブス→({ColobusX:F0},{ColobusZ:F0})  ヤモリ→({GeckoX:F0},{GeckoZ:F0})");
     }
 
     // ────────────────────────────────────────────────
-    // ユーティリティ
+    // 平地検出・埋まり防止ユーティリティ
     // ────────────────────────────────────────────────
 
-    public static float GroundY(Terrain land, float x, float z, float offset = 0.02f)
+    /// <summary>
+    /// 地形の傾斜や凹凸を測定し、丘や山に埋まることなく見晴らしが良い完全な平地座標を返す。
+    /// </summary>
+    public static Vector3 FindSafeFlatPosition(Terrain land, float targetX, float targetZ, float offset = 0.08f)
+    {
+        if (land == null)
+            return new Vector3(targetX, 21.5f + offset, targetZ);
+
+        float bestX = targetX;
+        float bestZ = targetZ;
+        float bestY = SampleTerrainWorldY(land, targetX, targetZ);
+
+        // 中心地点の傾斜（周囲1m四方の標高差）を測定
+        float centerSlope = GetGroundSlope(land, targetX, targetZ);
+        if (centerSlope < 0.12f) // 傾斜が極めて緩やか（約7度未満の平地）ならそのまま採用
+        {
+            return CheckRaycastHeight(new Vector3(targetX, bestY + offset, targetZ));
+        }
+
+        // 傾斜がある（丘・山の斜面など）場合、周囲半径2m〜8mをスパイラル探索して最も平坦な平地へ自動シフト
+        float minSlope = centerSlope;
+        float[] radii = { 2f, 3.5f, 5f, 7f, 9f };
+        int angles = 8;
+
+        for (int r = 0; r < radii.Length; r++)
+        {
+            float radius = radii[r];
+            for (int a = 0; a < angles; a++)
+            {
+                float rad = (a * 360f / angles) * Mathf.Deg2Rad;
+                float testX = targetX + Mathf.Cos(rad) * radius;
+                float testZ = targetZ + Mathf.Sin(rad) * radius;
+
+                // 湖や島の境界外はスキップ
+                if (testX < 35f || testX > 280f || testZ < 35f || testZ > 280f)
+                    continue;
+                if (Vector2.Distance(new Vector2(testX, testZ), new Vector2(133f, 169f)) < 38f)
+                    continue;
+
+                float slope = GetGroundSlope(land, testX, testZ);
+                if (slope < minSlope)
+                {
+                    minSlope = slope;
+                    bestX = testX;
+                    bestZ = testZ;
+                    bestY = SampleTerrainWorldY(land, testX, testZ);
+
+                    // 十分に平坦な場所が見つかれば即座に決定
+                    if (minSlope < 0.08f)
+                        break;
+                }
+            }
+            if (minSlope < 0.08f)
+                break;
+        }
+
+        return CheckRaycastHeight(new Vector3(bestX, bestY + offset, bestZ));
+    }
+
+    /// <summary>
+    /// 地形の傾斜度合い（1mあたりの最大標高差）を測定する。
+    /// </summary>
+    static float GetGroundSlope(Terrain land, float x, float z)
+    {
+        float d = 1.0f;
+        float yCenter = SampleTerrainWorldY(land, x, z);
+        float yNorth  = SampleTerrainWorldY(land, x, z + d);
+        float ySouth  = SampleTerrainWorldY(land, x, z - d);
+        float yEast   = SampleTerrainWorldY(land, x + d, z);
+        float yWest   = SampleTerrainWorldY(land, x - d, z);
+
+        float maxDiff = Mathf.Max(
+            Mathf.Abs(yNorth - yCenter),
+            Mathf.Abs(ySouth - yCenter),
+            Mathf.Abs(yEast - yCenter),
+            Mathf.Abs(yWest - yCenter));
+
+        return maxDiff / d;
+    }
+
+    static float SampleTerrainWorldY(Terrain land, float x, float z)
+    {
+        float h = land.SampleHeight(new Vector3(x, 0f, z)) + land.transform.position.y;
+        // 水面（18.0m）より低くならないよう安全保証
+        return Mathf.Max(18.3f, h);
+    }
+
+    /// <summary>
+    /// 真上からRaycastを行い、岩やメッシュなどの衝突オブジェクトの上面に確実に立たせる。
+    /// </summary>
+    static Vector3 CheckRaycastHeight(Vector3 pos)
+    {
+        Ray ray = new Ray(new Vector3(pos.x, pos.y + 10f, pos.z), Vector3.down);
+        if (Physics.Raycast(ray, out RaycastHit hit, 20f))
+        {
+            // トリガーでない固いコライダーの上に正確に接地
+            if (!hit.collider.isTrigger && hit.point.y > pos.y - 0.5f)
+            {
+                pos.y = hit.point.y + 0.06f;
+            }
+        }
+        return pos;
+    }
+
+    public static float GroundY(Terrain land, float x, float z, float offset = 0.08f)
     {
         if (land == null)
             return Mathf.Max(18.5f, offset);
-        float h = land.SampleHeight(new Vector3(x, 0f, z)) + land.transform.position.y;
-        // 水面（約18.0f）より下にめり込まない安全マージン
-        return Mathf.Max(18.2f, h) + offset;
+        float h = SampleTerrainWorldY(land, x, z);
+        return h + offset;
     }
 
-    public static float WalkableGroundY(Terrain land, float x, float z, float offset = 0.02f)
+    public static float WalkableGroundY(Terrain land, float x, float z, float offset = 0.08f)
     {
-        return GroundY(land, x, z, offset);
+        return FindSafeFlatPosition(land, x, z, offset).y;
     }
 
     public static bool TryGetLostPetCoords(string npcId, out float x, out float z)
@@ -264,6 +372,6 @@ public static class AdventureQuestLocations
             return;
 
         var land = FindLand();
-        target.position = new Vector3(x, GroundY(land, x, z), z);
+        target.position = FindSafeFlatPosition(land, x, z, 0.08f);
     }
 }

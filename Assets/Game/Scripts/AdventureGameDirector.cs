@@ -175,7 +175,7 @@ public class AdventureGameDirector : MonoBehaviour
     {
         if (npc == null)
             return;
-        npc.transform.position = new Vector3(x, AdventureQuestLocations.GroundY(land, x, z), z);
+        npc.transform.position = AdventureQuestLocations.FindSafeFlatPosition(land, x, z, 0.08f);
     }
 
 
