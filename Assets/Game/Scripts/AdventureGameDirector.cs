@@ -269,21 +269,21 @@ public class AdventureGameDirector : MonoBehaviour
         SpawnHintSign(
             AdventureQuestLocations.HintStart,
             "スタート",
-            "M=マップ。猫は北東 " + AdventureQuestLocations.CatCoordLabel
-                + "、犬は北西 " + AdventureQuestLocations.DogCoordLabel + "。");
+            "M=マップ。猫は" + AdventureQuestLocations.CatDirectionLabel + " " + AdventureQuestLocations.CatCoordLabel
+                + "、犬は" + AdventureQuestLocations.DogDirectionLabel + " " + AdventureQuestLocations.DogCoordLabel + "。");
         SpawnHintSign(
             AdventureQuestLocations.HintMemo,
             "迷子メモ",
-            "猫→北東の草地 " + AdventureQuestLocations.CatCoordLabel
-                + "　犬→北西 " + AdventureQuestLocations.DogCoordLabel + "。Mでマップ。");
+            "猫→" + AdventureQuestLocations.CatDirectionLabel + "のエリア " + AdventureQuestLocations.CatCoordLabel
+                + "　犬→" + AdventureQuestLocations.DogDirectionLabel + "のエリア " + AdventureQuestLocations.DogCoordLabel + "。Mでマップ。");
         SpawnHintSign(
             AdventureQuestLocations.HintCatTrail,
             "猫の足跡",
-            "この先、北東の草地へ。" + AdventureQuestLocations.CatCoordLabel + " 付近。木の看板をたどって。");
+            "この先、" + AdventureQuestLocations.CatDirectionLabel + "のエリアへ。" + AdventureQuestLocations.CatCoordLabel + " 付近。木の看板をたどって。");
         SpawnHintSign(
             AdventureQuestLocations.HintDogTrail,
             "犬の足跡",
-            "北西の草地へ。" + AdventureQuestLocations.DogCoordLabel + " 付近。木の看板をたどって。");
+            AdventureQuestLocations.DogDirectionLabel + "のエリアへ。" + AdventureQuestLocations.DogCoordLabel + " 付近。木の看板をたどって。");
 
         if (cat != null)
         {
