@@ -137,7 +137,7 @@ public class AdventureGameDirector : MonoBehaviour
         if (land == null)
             return;
 
-        // スタート広場(水面+2.5mの広大なフラット平地)の中央にメインキャラクターを配置＆接地
+        // カピタ：クエスト進行の要なのでスタート広場に固定
         if (capyta != null)
         {
             Vector3 pos = capyta.transform.position;
@@ -147,27 +147,16 @@ public class AdventureGameDirector : MonoBehaviour
             capyta.transform.position = pos;
         }
 
-        if (gecko != null)
-        {
-            Vector3 pos = gecko.transform.position;
-            if (pos.x < 135f || pos.x > 190f || pos.z < 130f || pos.z > 190f)
-                pos = new Vector3(156f, 0f, 164f);
-            pos.y = AdventureQuestLocations.GroundY(land, pos.x, pos.z);
-            gecko.transform.position = pos;
-        }
+        // ヤモリ：ランダム選択された座標に配置（スタート広場内の候補から選択）
+        PlaceNpcAt(gecko,   AdventureQuestLocations.GeckoX,   AdventureQuestLocations.GeckoZ,   land);
 
-        // その他全NPCを地面に正確に接地
-        AdventureNpc[] otherNpcs = { sparrow, muskrat, pudu, colobus };
-        foreach (var npc in otherNpcs)
-        {
-            if (npc == null)
-                continue;
-            Vector3 pos = npc.transform.position;
-            pos.y = AdventureQuestLocations.GroundY(land, pos.x, pos.z);
-            npc.transform.position = pos;
-        }
+        // スズメ・マスクラット・プドゥ・コロブス：それぞれランダム座標に配置
+        PlaceNpcAt(sparrow, AdventureQuestLocations.SparrowX, AdventureQuestLocations.SparrowZ, land);
+        PlaceNpcAt(muskrat, AdventureQuestLocations.MuskratX, AdventureQuestLocations.MuskratZ, land);
+        PlaceNpcAt(pudu,    AdventureQuestLocations.PuduX,    AdventureQuestLocations.PuduZ,    land);
+        PlaceNpcAt(colobus, AdventureQuestLocations.ColobusX, AdventureQuestLocations.ColobusZ, land);
 
-        // プレイヤー(Niko)もスタート広場中央に正しく設置
+        // プレイヤー(Niko)はスタート広場中央に固定
         if (player != null)
         {
             Vector3 pp = player.transform.position;
@@ -180,6 +169,15 @@ public class AdventureGameDirector : MonoBehaviour
 
         Physics.SyncTransforms();
     }
+
+    // 指定座標に NPC を接地配置するヘルパー
+    static void PlaceNpcAt(AdventureNpc npc, float x, float z, Terrain land)
+    {
+        if (npc == null)
+            return;
+        npc.transform.position = new Vector3(x, AdventureQuestLocations.GroundY(land, x, z), z);
+    }
+
 
     static void EnsureIslandBoundary()
     {

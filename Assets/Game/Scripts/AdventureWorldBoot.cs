@@ -22,6 +22,10 @@ public static class AdventureWorldBoot
         if (!_configured)
         {
             _configured = true;
+
+            // ゲーム起動のたびに猫・犬の出現座標をランダム選択する
+            AdventureQuestLocations.Randomize();
+
             foreach (var terrain in Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude))
             {
                 if (terrain.name == "WaterTerrain")
