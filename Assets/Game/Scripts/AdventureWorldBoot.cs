@@ -65,7 +65,6 @@ public static class AdventureWorldBoot
         AdventureTerrainSnap.EnsureLandWaterSeparation();
         AdventureTerrainSnap.SnapAllFloatingRocksAndTrees();
         AdventureTerrainSnap.ReplaceBlackCubesWithRocksOrBoxes();
-        AdventureQuestLocations.ApplySpotFlattening();
         SnapAllLostPets();
         AdventurePrimitiveVisuals.FixAnimalMaterials();
         SetupBrightWorldLighting();

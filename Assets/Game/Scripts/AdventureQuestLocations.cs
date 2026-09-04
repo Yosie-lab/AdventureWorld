@@ -250,123 +250,29 @@ public static class AdventureQuestLocations
         var gecko = GeckoCandidates[Random.Range(0, GeckoCandidates.Length)];
         GeckoX = gecko.x; GeckoZ = gecko.y;
 
-        // 配置地点の地形を完全フラット化し、絶対に埋まらない安全スペースを生成
-        ApplySpotFlattening();
-
         Debug.Log(
             $"[QuestLocations 全域配置] 猫→{CatDirectionLabel}({CatX:F0},{CatZ:F0})  犬→{DogDirectionLabel}({DogX:F0},{DogZ:F0})\n" +
             $"  スズメ→({SparrowX:F0},{SparrowZ:F0})  マスクラット→({MuskratX:F0},{MuskratZ:F0})\n" +
             $"  プドゥ→({PuduX:F0},{PuduZ:F0})  コロブス→({ColobusX:F0},{ColobusZ:F0})  ヤモリ→({GeckoX:F0},{GeckoZ:F0})");
     }
 
-    /// <summary>
-    /// 猫・犬の配置地点周囲を完全に平坦化して、どんな地形であっても埋まりを100%防止する
-    /// </summary>
-    public static void ApplySpotFlattening()
-    {
-        var land = FindLand();
-        if (land == null)
-            return;
-
-        FlattenSpot(land, CatX, CatZ, 6.0f);
-        FlattenSpot(land, DogX, DogZ, 6.0f);
-        FlattenSpot(land, SparrowX, SparrowZ, 4.0f);
-        FlattenSpot(land, MuskratX, MuskratZ, 4.0f);
-        FlattenSpot(land, PuduX, PuduZ, 4.0f);
-        FlattenSpot(land, ColobusX, ColobusZ, 4.0f);
-        FlattenSpot(land, GeckoX, GeckoZ, 4.0f);
-    }
-
-    /// <summary>
-    /// 指定された座標の周囲半径radius内を完全な平地に均し、見晴らしの良いスペースを作る。
-    /// </summary>
-    static void FlattenSpot(Terrain land, float worldX, float worldZ, float radius)
-    {
-        if (land == null || land.terrainData == null)
-            return;
-
-        TerrainData td = land.terrainData;
-        Vector3 tPos = land.transform.position;
-        Vector3 tSize = td.size;
-        int res = td.heightmapResolution;
-
-        float invSizeX = 1f / tSize.x;
-        float invSizeZ = 1f / tSize.z;
-        float invSizeY = 1f / tSize.y;
-
-        int ix0 = Mathf.Clamp(Mathf.FloorToInt((worldX - radius - 2f - tPos.x) * invSizeX * (res - 1)), 0, res - 1);
-        int ix1 = Mathf.Clamp(Mathf.CeilToInt ((worldX + radius + 2f - tPos.x) * invSizeX * (res - 1)), 0, res - 1);
-        int iz0 = Mathf.Clamp(Mathf.FloorToInt((worldZ - radius - 2f - tPos.z) * invSizeZ * (res - 1)), 0, res - 1);
-        int iz1 = Mathf.Clamp(Mathf.CeilToInt ((worldZ + radius + 2f - tPos.z) * invSizeZ * (res - 1)), 0, res - 1);
-
-        int patchW = ix1 - ix0 + 1;
-        int patchH = iz1 - iz0 + 1;
-        if (patchW <= 0 || patchH <= 0)
-            return;
-
-        float targetWorldH = land.SampleHeight(new Vector3(worldX, 0f, worldZ)) + tPos.y;
-        // nikoに合わせた歩行可能な平地標高（20.2m〜22.2m）に制限・均す
-        targetWorldH = Mathf.Clamp(targetWorldH, 20.2f, 22.2f);
-        float targetLocalH = targetWorldH - tPos.y;
-
-        float[,] heights = td.GetHeights(ix0, iz0, patchW, patchH);
-        bool changed = false;
-
-        for (int pz = 0; pz < patchH; pz++)
-        {
-            for (int px = 0; px < patchW; px++)
-            {
-                int gx = ix0 + px;
-                int gz = iz0 + pz;
-                float wx = tPos.x + (float)gx / (res - 1) * tSize.x;
-                float wz = tPos.z + (float)gz / (res - 1) * tSize.z;
-
-                float dist = Vector2.Distance(new Vector2(wx, wz), new Vector2(worldX, worldZ));
-                if (dist > radius + 2f)
-                    continue;
-
-                float blend = 1f;
-                if (dist > radius)
-                    blend = 1f - (dist - radius) / 2f;
-                blend = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(blend));
-
-                float currentH = heights[pz, px] * tSize.y;
-                float newH = Mathf.Lerp(currentH, targetLocalH, blend);
-
-                if (Mathf.Abs(currentH - newH) > 0.01f)
-                {
-                    heights[pz, px] = newH * invSizeY;
-                    changed = true;
-                }
-            }
-        }
-
-        if (changed)
-        {
-            td.SetHeights(ix0, iz0, heights);
-        }
-    }
-
     // ────────────────────────────────────────────────
     // 接地・ユーティリティ
     // ────────────────────────────────────────────────
 
-    public static float GroundY(Terrain land, float x, float z, float offset = 0.12f)
+    public static float GroundY(Terrain land, float x, float z, float offset = 0.05f)
     {
         if (land == null)
             return 21.5f + offset;
-        float h = land.SampleHeight(new Vector3(x, 0f, z)) + land.transform.position.y;
-        // nikoの高さ帯（20.2m〜22.5m）に合わせて山や丘の高所を排除
-        h = Mathf.Clamp(h, 20.2f, 22.5f);
-        return h + offset;
+        return land.SampleHeight(new Vector3(x, 0f, z)) + land.transform.position.y + offset;
     }
 
-    public static float WalkableGroundY(Terrain land, float x, float z, float offset = 0.12f)
+    public static float WalkableGroundY(Terrain land, float x, float z, float offset = 0.05f)
     {
         return GroundY(land, x, z, offset);
     }
 
-    public static Vector3 FindSafeFlatPosition(Terrain land, float x, float z, float offset = 0.12f)
+    public static Vector3 FindSafeFlatPosition(Terrain land, float x, float z, float offset = 0.05f)
     {
         float y = GroundY(land, x, z, offset);
         return new Vector3(x, y, z);

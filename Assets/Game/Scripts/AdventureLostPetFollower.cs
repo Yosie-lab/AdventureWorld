@@ -112,18 +112,6 @@ public class AdventureLostPetFollower : MonoBehaviour
         delta.y = 0f;
         float dist = delta.magnitude;
 
-        // 地形の高さも参照し、nikoの高さと極端に離れていない場合は地形に接地、それ以外はnikoの高さに完全一致
-        if (_land == null)
-            _land = AdventureQuestLocations.FindLand();
-
-        float groundY = nikoY;
-        if (_land != null)
-        {
-            float terrainH = _land.SampleHeight(new Vector3(self.x, 0f, self.z)) + _land.transform.position.y;
-            // 地形高さがnikoの高さ±1.5m以内なら自然な地形勾配を採用、それ以外は宙浮き・埋まり防止のためnikoの高さ
-            groundY = Mathf.Abs(terrainH - nikoY) < 1.5f ? terrainH : nikoY;
-        }
-
         if (dist > ArriveDistance)
         {
             float speed = dist > RunDistance ? RunSpeed : WalkSpeed;
@@ -132,8 +120,8 @@ public class AdventureLostPetFollower : MonoBehaviour
                 move = delta.normalized * Mathf.Max(0f, dist - ArriveDistance);
 
             Vector3 next = self + move;
-            // nikoの高さ・地面高さへスムーズかつ瞬時に追従
-            next.y = Mathf.MoveTowards(self.y, groundY, Time.deltaTime * 30f);
+            // 常にnikoに合わせた高さにして追従
+            next.y = Mathf.MoveTowards(self.y, nikoY, Time.deltaTime * 30f);
             transform.position = next;
 
             FaceDirection(move);
@@ -143,8 +131,8 @@ public class AdventureLostPetFollower : MonoBehaviour
             return;
         }
 
-        // 立ち止まっている時もnikoの高さに確実に合わせる
-        self.y = Mathf.MoveTowards(self.y, groundY, Time.deltaTime * 30f);
+        // 立ち止まっている時もnikoに合わせた高さ
+        self.y = Mathf.MoveTowards(self.y, nikoY, Time.deltaTime * 30f);
         transform.position = self;
 
         FaceTarget();
