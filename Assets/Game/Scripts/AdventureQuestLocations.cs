@@ -305,7 +305,8 @@ public static class AdventureQuestLocations
             return;
 
         float targetWorldH = land.SampleHeight(new Vector3(worldX, 0f, worldZ)) + tPos.y;
-        targetWorldH = Mathf.Max(19.2f, targetWorldH); // 水面より高い陸地を保証
+        // nikoに合わせた歩行可能な平地標高（20.2m〜22.2m）に制限・均す
+        targetWorldH = Mathf.Clamp(targetWorldH, 20.2f, 22.2f);
         float targetLocalH = targetWorldH - tPos.y;
 
         float[,] heights = td.GetHeights(ix0, iz0, patchW, patchH);
@@ -353,9 +354,11 @@ public static class AdventureQuestLocations
     public static float GroundY(Terrain land, float x, float z, float offset = 0.12f)
     {
         if (land == null)
-            return Mathf.Max(19.2f, offset);
+            return 21.5f + offset;
         float h = land.SampleHeight(new Vector3(x, 0f, z)) + land.transform.position.y;
-        return Mathf.Max(19.2f, h) + offset;
+        // nikoの高さ帯（20.2m〜22.5m）に合わせて山や丘の高所を排除
+        h = Mathf.Clamp(h, 20.2f, 22.5f);
+        return h + offset;
     }
 
     public static float WalkableGroundY(Terrain land, float x, float z, float offset = 0.12f)

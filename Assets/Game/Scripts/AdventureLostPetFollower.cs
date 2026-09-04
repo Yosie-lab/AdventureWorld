@@ -38,6 +38,26 @@ public class AdventureLostPetFollower : MonoBehaviour
             enabled = false;
     }
 
+    float GetNikoHeight()
+    {
+        if (_target != null)
+        {
+            var controller = _target.GetComponent<AdventurePlayerController>();
+            if (controller != null)
+                return _target.position.y;
+        }
+
+        var player = GameObject.FindWithTag("Player");
+        if (player != null)
+            return player.transform.position.y;
+
+        var anyController = Object.FindAnyObjectByType<AdventurePlayerController>();
+        if (anyController != null)
+            return anyController.transform.position.y;
+
+        return _target != null ? _target.position.y : transform.position.y;
+    }
+
     public void BeginFollow(Transform target)
     {
         if (_phase != Phase.Anchored || target == null)
@@ -46,6 +66,13 @@ public class AdventureLostPetFollower : MonoBehaviour
         _target = target;
         _phase = Phase.Celebrating;
         _celebrateUntil = Time.time + CelebrateSeconds;
+
+        // 発見された瞬間から直ちにnikoの高さにスナップ
+        float nikoY = GetNikoHeight();
+        Vector3 p = transform.position;
+        p.y = nikoY;
+        transform.position = p;
+
         ResolveAnimStates();
         CacheVisual();
         PlayIdle();
@@ -53,9 +80,20 @@ public class AdventureLostPetFollower : MonoBehaviour
 
     void LateUpdate()
     {
+        if (_target == null || (_phase != Phase.Celebrating && _phase != Phase.Following))
+            return;
+
+        CacheVisual();
+
+        float nikoY = GetNikoHeight();
+
         if (_phase == Phase.Celebrating)
         {
-            CacheVisual();
+            // 喜んでいる最中もnikoの高さに吸い付かせる
+            Vector3 p = transform.position;
+            p.y = Mathf.MoveTowards(p.y, nikoY, Time.deltaTime * 25f);
+            transform.position = p;
+
             WagTail(32f);
             FaceTarget();
             if (Time.time >= _celebrateUntil)
@@ -63,20 +101,28 @@ public class AdventureLostPetFollower : MonoBehaviour
             return;
         }
 
-        if (_phase != Phase.Following || _target == null)
-            return;
-
-        CacheVisual();
-        FollowTarget();
+        FollowTarget(nikoY);
     }
 
-    void FollowTarget()
+    void FollowTarget(float nikoY)
     {
         Vector3 self = transform.position;
         Vector3 goal = FollowGoal();
         Vector3 delta = goal - self;
         delta.y = 0f;
         float dist = delta.magnitude;
+
+        // 地形の高さも参照し、nikoの高さと極端に離れていない場合は地形に接地、それ以外はnikoの高さに完全一致
+        if (_land == null)
+            _land = AdventureQuestLocations.FindLand();
+
+        float groundY = nikoY;
+        if (_land != null)
+        {
+            float terrainH = _land.SampleHeight(new Vector3(self.x, 0f, self.z)) + _land.transform.position.y;
+            // 地形高さがnikoの高さ±1.5m以内なら自然な地形勾配を採用、それ以外は宙浮き・埋まり防止のためnikoの高さ
+            groundY = Mathf.Abs(terrainH - nikoY) < 1.5f ? terrainH : nikoY;
+        }
 
         if (dist > ArriveDistance)
         {
@@ -86,16 +132,20 @@ public class AdventureLostPetFollower : MonoBehaviour
                 move = delta.normalized * Mathf.Max(0f, dist - ArriveDistance);
 
             Vector3 next = self + move;
-            if (_land == null)
-                _land = AdventureQuestLocations.FindLand();
-            next.y = AdventureQuestLocations.GroundY(_land, next.x, next.z);
+            // nikoの高さ・地面高さへスムーズかつ瞬時に追従
+            next.y = Mathf.MoveTowards(self.y, groundY, Time.deltaTime * 30f);
             transform.position = next;
+
             FaceDirection(move);
             PlayRun();
             WagTail(10f);
             AnimateLegs(true, speed);
             return;
         }
+
+        // 立ち止まっている時もnikoの高さに確実に合わせる
+        self.y = Mathf.MoveTowards(self.y, groundY, Time.deltaTime * 30f);
+        transform.position = self;
 
         FaceTarget();
         PlayIdle();
