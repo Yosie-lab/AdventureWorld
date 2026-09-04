@@ -363,6 +363,12 @@ public static class AdventureQuestLocations
         return GroundY(land, x, z, offset);
     }
 
+    public static Vector3 FindSafeFlatPosition(Terrain land, float x, float z, float offset = 0.12f)
+    {
+        float y = GroundY(land, x, z, offset);
+        return new Vector3(x, y, z);
+    }
+
     public static bool TryGetLostPetCoords(string npcId, out float x, out float z)
     {
         switch (npcId)
