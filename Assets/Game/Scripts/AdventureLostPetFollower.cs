@@ -38,24 +38,41 @@ public class AdventureLostPetFollower : MonoBehaviour
             enabled = false;
     }
 
-    float GetNikoHeight()
+    float SampleGroundY(Vector3 worldPos)
     {
-        if (_target != null)
+        // 1. Raycast による物理接地判定（頭上2.5mから下向きに判定）
+        float rayStartY = worldPos.y + 2.5f;
+        Ray ray = new Ray(new Vector3(worldPos.x, rayStartY, worldPos.z), Vector3.down);
+        int layerMask = ~LayerMask.GetMask("Ignore Raycast");
+
+        RaycastHit[] hits = Physics.RaycastAll(ray, 15f, layerMask);
+        float bestY = -999f;
+        for (int i = 0; i < hits.Length; i++)
         {
-            var controller = _target.GetComponent<AdventurePlayerController>();
-            if (controller != null)
-                return _target.position.y;
+            var hit = hits[i];
+            if (hit.collider.isTrigger)
+                continue;
+            if (hit.collider.transform.root == transform)
+                continue;
+            if (hit.point.y > bestY)
+                bestY = hit.point.y;
         }
 
-        var player = GameObject.FindWithTag("Player");
-        if (player != null)
-            return player.transform.position.y;
+        if (bestY > -900f)
+        {
+            return bestY + 0.04f; // 足元が埋まらない適正な接地オフセット
+        }
 
-        var anyController = Object.FindAnyObjectByType<AdventurePlayerController>();
-        if (anyController != null)
-            return anyController.transform.position.y;
+        // 2. Terrain によるフォールバック
+        if (_land == null)
+            _land = AdventureQuestLocations.FindLand();
 
-        return _target != null ? _target.position.y : transform.position.y;
+        if (_land != null)
+        {
+            return _land.SampleHeight(worldPos) + _land.transform.position.y + 0.04f;
+        }
+
+        return worldPos.y;
     }
 
     public void BeginFollow(Transform target)
@@ -67,10 +84,9 @@ public class AdventureLostPetFollower : MonoBehaviour
         _phase = Phase.Celebrating;
         _celebrateUntil = Time.time + CelebrateSeconds;
 
-        // 発見された瞬間から直ちにnikoの高さにスナップ
-        float nikoY = GetNikoHeight();
+        // 発見時、足元の地面に正確に接地
         Vector3 p = transform.position;
-        p.y = nikoY;
+        p.y = SampleGroundY(p);
         transform.position = p;
 
         ResolveAnimStates();
@@ -85,13 +101,10 @@ public class AdventureLostPetFollower : MonoBehaviour
 
         CacheVisual();
 
-        float nikoY = GetNikoHeight();
-
         if (_phase == Phase.Celebrating)
         {
-            // 喜んでいる最中もnikoの高さに吸い付かせる
             Vector3 p = transform.position;
-            p.y = Mathf.MoveTowards(p.y, nikoY, Time.deltaTime * 25f);
+            p.y = Mathf.MoveTowards(p.y, SampleGroundY(p), Time.deltaTime * 30f);
             transform.position = p;
 
             WagTail(32f);
@@ -101,10 +114,10 @@ public class AdventureLostPetFollower : MonoBehaviour
             return;
         }
 
-        FollowTarget(nikoY);
+        FollowTarget();
     }
 
-    void FollowTarget(float nikoY)
+    void FollowTarget()
     {
         Vector3 self = transform.position;
         Vector3 goal = FollowGoal();
@@ -120,8 +133,9 @@ public class AdventureLostPetFollower : MonoBehaviour
                 move = delta.normalized * Mathf.Max(0f, dist - ArriveDistance);
 
             Vector3 next = self + move;
-            // 常にnikoに合わせた高さにして追従
-            next.y = Mathf.MoveTowards(self.y, nikoY, Time.deltaTime * 30f);
+            // 自分の足元の地面の高さに高精度接地
+            float targetGroundY = SampleGroundY(next);
+            next.y = Mathf.MoveTowards(self.y, targetGroundY, Time.deltaTime * 30f);
             transform.position = next;
 
             FaceDirection(move);
@@ -131,8 +145,9 @@ public class AdventureLostPetFollower : MonoBehaviour
             return;
         }
 
-        // 立ち止まっている時もnikoに合わせた高さ
-        self.y = Mathf.MoveTowards(self.y, nikoY, Time.deltaTime * 30f);
+        // 立ち止まっている時も足元の地面に高精度接地
+        float stopGroundY = SampleGroundY(self);
+        self.y = Mathf.MoveTowards(self.y, stopGroundY, Time.deltaTime * 30f);
         transform.position = self;
 
         FaceTarget();
