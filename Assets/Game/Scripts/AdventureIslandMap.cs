@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using System.Collections.Generic;
 using System.Linq;
 
 public class AdventureIslandMap : MonoBehaviour
@@ -13,6 +14,16 @@ public class AdventureIslandMap : MonoBehaviour
     Text _locationText;
     Vector3 _mapOrigin;
     Vector2 _mapSize = new Vector2(300f, 300f);
+
+    struct LandmarkRef
+    {
+        public string name;
+        public Transform transform;
+        public RectTransform dotRt;
+    }
+
+    readonly List<LandmarkRef> _landmarks = new List<LandmarkRef>();
+
     static readonly Color TextReadable = new Color(1f, 0.97f, 0.9f, 1f);
     static readonly Color TextOutline = new Color(0f, 0f, 0f, 0.92f);
 
@@ -39,13 +50,36 @@ public class AdventureIslandMap : MonoBehaviour
 
     void LateUpdate()
     {
-        if (_panel == null || !_panel.activeSelf || _player == null || _playerDot == null)
+        if (_panel == null || !_panel.activeSelf)
             return;
 
-        Vector3 p = _player.position;
-        _playerDot.anchorMin = _playerDot.anchorMax = WorldToUv(p);
-        if (_locationText != null)
-            _locationText.text = "現在地: " + RegionName(p.x, p.z) + "   X" + Mathf.RoundToInt(p.x) + "  Z" + Mathf.RoundToInt(p.z);
+        if (_player != null && _playerDot != null)
+        {
+            Vector3 p = _player.position;
+            _playerDot.anchorMin = _playerDot.anchorMax = WorldToUv(p);
+            if (_locationText != null)
+                _locationText.text = "現在地: " + RegionName(p.x, p.z) + "   X" + Mathf.RoundToInt(p.x) + "  Z" + Mathf.RoundToInt(p.z);
+        }
+
+        // 各動物・観客のマップ位置動的更新
+        for (int i = 0; i < _landmarks.Count; i++)
+        {
+            var lm = _landmarks[i];
+            if (lm.transform == null)
+            {
+                var go = GameObject.Find(lm.name);
+                if (go != null)
+                {
+                    lm.transform = go.transform;
+                    _landmarks[i] = lm;
+                }
+            }
+
+            if (lm.transform != null && lm.dotRt != null)
+            {
+                lm.dotRt.anchorMin = lm.dotRt.anchorMax = WorldToUv(lm.transform.position);
+            }
+        }
     }
 
     Vector2 WorldToUv(Vector3 world)
@@ -70,7 +104,10 @@ public class AdventureIslandMap : MonoBehaviour
 
     void BuildUi()
     {
-        var rootRt = gameObject.AddComponent<RectTransform>();
+        var rootRt = gameObject.GetComponent<RectTransform>();
+        if (rootRt == null)
+            rootRt = gameObject.AddComponent<RectTransform>();
+
         rootRt.anchorMin = new Vector2(1f, 1f);
         rootRt.anchorMax = new Vector2(1f, 1f);
         rootRt.pivot = new Vector2(1f, 1f);
@@ -83,7 +120,7 @@ public class AdventureIslandMap : MonoBehaviour
         Stretch(panelRt);
         _panel.AddComponent<Image>().color = new Color(0.1f, 0.12f, 0.1f, 0.92f);
 
-        MakeStaticText(_panel.transform, "Title", new Vector2(0.5f, 1f), new Vector2(0f, -14f), new Vector2(220f, 24f), 18, TextAnchor.UpperCenter, "島マップ", true);
+        MakeStaticText(_panel.transform, "Title", new Vector2(0.5f, 1f), new Vector2(0f, -14f), new Vector2(220f, 24f), 18, TextAnchor.UpperCenter, "簡略マップ", true);
 
         var mapArea = new GameObject("MapArea");
         mapArea.transform.SetParent(_panel.transform, false);
@@ -100,11 +137,7 @@ public class AdventureIslandMap : MonoBehaviour
         landRt.anchorMax = new Vector2(0.96f, 0.96f);
         landRt.offsetMin = landRt.offsetMax = Vector2.zero;
 
-        var lake = GameObject.Find("Lake");
-        if (lake != null)
-            MakeDot(mapArea.transform, WorldToUv(lake.transform.position), new Vector2(34f, 22f), new Color(0.35f, 0.7f, 0.95f, 0.85f), "池");
-
-        MakeDot(mapArea.transform, WorldToUv(new Vector3(170f, 0f, 166f)), new Vector2(10f, 10f), new Color(0.95f, 0.9f, 0.55f, 1f), "始");
+        MakeDot(mapArea.transform, WorldToUv(new Vector3(170f, 0f, 166f)), new Vector2(10f, 10f), new Color(0.95f, 0.9f, 0.55f, 1f), "広場");
         PlaceLandmarks(mapArea.transform);
 
         _playerDot = MakeDot(mapArea.transform, new Vector2(0.5f, 0.5f), new Vector2(14f, 14f), new Color(1f, 0.85f, 0.35f, 1f), null).GetComponent<RectTransform>();
@@ -120,25 +153,32 @@ public class AdventureIslandMap : MonoBehaviour
 
     void PlaceLandmarks(Transform mapArea)
     {
-        TryLandmark(mapArea, "Capyta", "カ", new Color(0.95f, 0.7f, 0.85f, 1f));
-        MakeDot(mapArea, WorldToUv(AdventureQuestLocations.CatPosition), new Vector2(8f, 8f), new Color(0.95f, 0.75f, 0.45f, 1f), "猫");
-        MakeDot(mapArea, WorldToUv(AdventureQuestLocations.DogPosition), new Vector2(8f, 8f), new Color(0.75f, 0.85f, 0.95f, 1f), "犬");
-        TryLandmark(mapArea, "Sparrow", "雀", new Color(0.9f, 0.9f, 0.9f, 1f));
-        TryLandmark(mapArea, "Muskrat", "鼠", new Color(0.8f, 0.7f, 0.55f, 1f));
-        TryLandmark(mapArea, "Pudu", "鹿", new Color(0.85f, 0.8f, 0.7f, 1f));
-        TryLandmark(mapArea, "Colobus", "猿", new Color(0.7f, 0.55f, 0.55f, 1f));
-        TryLandmark(mapArea, "Gecko", "守", new Color(0.55f, 0.75f, 0.55f, 1f));
+        _landmarks.Clear();
+        Color redText = new Color(1f, 0.22f, 0.22f, 1f); // 鮮やかな赤色
+        AddLandmark(mapArea, "Capyta", "カ", new Color(1f, 0.35f, 0.35f, 1f), redText);
+        AddLandmark(mapArea, "Cat", "猫", new Color(1f, 0.35f, 0.35f, 1f), redText);
+        AddLandmark(mapArea, "Dog", "犬", new Color(1f, 0.35f, 0.35f, 1f), redText);
+        AddLandmark(mapArea, "Sparrow", "雀", new Color(0.9f, 0.9f, 0.9f, 1f));
+        AddLandmark(mapArea, "Muskrat", "鼠", new Color(0.8f, 0.7f, 0.55f, 1f));
+        AddLandmark(mapArea, "Pudu", "鹿", new Color(0.85f, 0.8f, 0.7f, 1f));
+        AddLandmark(mapArea, "Colobus", "猿", new Color(0.7f, 0.55f, 0.55f, 1f));
+        AddLandmark(mapArea, "Gecko", "守", new Color(0.55f, 0.75f, 0.55f, 1f));
     }
 
-    void TryLandmark(Transform mapArea, string objectName, string label, Color color)
+    void AddLandmark(Transform mapArea, string objectName, string label, Color color, Color? labelColor = null)
     {
         var go = GameObject.Find(objectName);
-        if (go == null)
-            return;
-        MakeDot(mapArea, WorldToUv(go.transform.position), new Vector2(8f, 8f), color, label);
+        Vector3 pos = go != null ? go.transform.position : (objectName == "Cat" ? AdventureQuestLocations.CatPosition : objectName == "Dog" ? AdventureQuestLocations.DogPosition : Vector3.zero);
+        var dotGo = MakeDot(mapArea, WorldToUv(pos), new Vector2(8f, 8f), color, label, labelColor);
+        _landmarks.Add(new LandmarkRef
+        {
+            name = objectName,
+            transform = go != null ? go.transform : null,
+            dotRt = dotGo.GetComponent<RectTransform>()
+        });
     }
 
-    GameObject MakeDot(Transform parent, Vector2 uv, Vector2 size, Color color, string label)
+    GameObject MakeDot(Transform parent, Vector2 uv, Vector2 size, Color color, string label, Color? labelColor = null)
     {
         var go = MakeImage("Dot", parent, color);
         var rt = go.GetComponent<RectTransform>();
@@ -146,7 +186,7 @@ public class AdventureIslandMap : MonoBehaviour
         rt.pivot = new Vector2(0.5f, 0.5f);
         rt.sizeDelta = size;
         if (!string.IsNullOrEmpty(label))
-            MakeStaticText(go.transform, "Label", new Vector2(0.5f, 0f), new Vector2(0f, -11f), new Vector2(36f, 18f), 12, TextAnchor.UpperCenter, label, true);
+            MakeStaticText(go.transform, "Label", new Vector2(0.5f, 0f), new Vector2(0f, -11f), new Vector2(36f, 18f), 13, TextAnchor.UpperCenter, label, true, labelColor);
         return go;
     }
 
@@ -159,7 +199,7 @@ public class AdventureIslandMap : MonoBehaviour
         return go;
     }
 
-    Text MakeStaticText(Transform parent, string name, Vector2 anchor, Vector2 pos, Vector2 size, int fontSize, TextAnchor align, string value, bool bold = false)
+    Text MakeStaticText(Transform parent, string name, Vector2 anchor, Vector2 pos, Vector2 size, int fontSize, TextAnchor align, string value, bool bold = false, Color? textColor = null)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
@@ -174,7 +214,7 @@ public class AdventureIslandMap : MonoBehaviour
         text.fontSize = fontSize;
         text.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
         text.alignment = align;
-        text.color = TextReadable;
+        text.color = textColor ?? TextReadable;
         text.horizontalOverflow = HorizontalWrapMode.Overflow;
         text.verticalOverflow = VerticalWrapMode.Overflow;
         text.text = value;
@@ -198,3 +238,4 @@ public class AdventureIslandMap : MonoBehaviour
         rt.offsetMax = Vector2.zero;
     }
 }
+
