@@ -15,7 +15,7 @@ created: 2026-09-11
 | `Assets/Game/Scripts/AdventureRust*.cs`（Opening / Island / Drone） | `Assets/Idyllic Fantasy Nature/Demo/Settings/Land_Terrain.asset` |
 | `Assets/Game/Scripts/AdventurePalmFactory.cs` | `Assets/Game/Scripts/AdventurePlayerController.cs` の AdventureWorld 専用挙動を壊す変更 |
 | `Assets/Game/Scripts/AdventureButterflyDrift.cs` | Build Settings を Demo/Loader に差し替えること |
-| `Assets/Game/Scripts/Editor/AdventureDressRustFloatParadise.cs` / Open / Build | 秘密情報・`.env`・巨大な未追跡 `Assets/Art` |
+| `Assets/Game/Scripts/Editor/AdventureDressRustFloatParadise.cs` / Open / Build / Shape North Cliff | 秘密情報・`.env`・巨大な未追跡 `Assets/Art` |
 
 フォルダ名は `RustAndFlat`、製品名・メニュー名は **RustAndFloat**。ユーザーは RustAndFloat と呼ぶ。
 
@@ -30,6 +30,7 @@ Unity メニュー: **Adventure → Open RustAndFlat Scene (new island)**
 ## いまの中身
 
 - 丸い島（256×48×256）。海面 y=5.5。北に滑空用の崖。見晴らし台スポーン ≈ `(138, 33, 176)`、北向き。
+- **北崖（済）**: 南から歩ける坂（約30°）→ 平坦な見晴らし台（y≈32.8、z=166–186）→ 北端 z=186 で約1.6mのうちに海面下へ落ちる。島全体の Rebuild はしない。再整形は **Adventure → Shape RustAndFloat North Cliff**（`IslandTerrain.asset` のみ）。
 - niko: `CharacterController` + `AdventurePlayerController`（`canGlide=true`）。空中 WASD 歩行なし。Space 長押しで滑空。R でリセット。
 - 海に沈まない（`waterLevel` で浮く）。急斜面は歩けず落ちる。
 - 相棒 **Rust**: 錆びた球ドローン。遅れ・ヒッチ・きしみ音・熱けむり・油垂れ。
@@ -48,6 +49,7 @@ Unity メニュー: **Adventure → Open RustAndFlat Scene (new island)**
 - 滑空: `Assets/Game/Scripts/AdventurePlayerController.cs`
 - Boot スキップ: `Assets/Game/Scripts/AdventureWorldBoot.cs` が `RustAndFlat` / `RustAndFloat` なら early-return（これを外すと海面 `OceanPlane` が消える）
 - 楽園配置: `Assets/Game/Scripts/Editor/AdventureDressRustFloatParadise.cs`（メニュー Adventure → Dress RustAndFloat Paradise）
+- 北崖整形: `Assets/Game/Scripts/Editor/AdventureBuildRustFloatIsland.cs` の `ShapeNorthCliff`（メニュー Adventure → Shape RustAndFloat North Cliff）
 - ヤシ生成: `Assets/Game/Scripts/AdventurePalmFactory.cs`
 - 蝶: `Assets/Game/Scripts/AdventureButterflyDrift.cs` + Idyllic の Butterfly prefab
 
@@ -64,7 +66,9 @@ Unity メニュー: **Adventure → Open RustAndFlat Scene (new island)**
 
 ユーザーは一手ずつ、確認質問は1つ。日本語、結論ファースト。
 
-1. 北の崖を滑空向きに整える
+**次にやること: 砂浜に漂着ゴミ（2030〜2050の年代グラデーション）。** AdventureWorld と `Land_Terrain.asset` は触るな。島の Rebuild はするな。
+
+1. 【済】北の崖を滑空向きに整える（南から歩ける坂＋平坦な見晴らし台＋北端の急落。メニュー Adventure → Shape RustAndFloat North Cliff）
 2. 【済】この島の冒頭セリフを2050にする（`AdventureRustFloatOpening.cs`）
 3. 【済】上部操作ガイドの左欠け（上中央へ移動）
 4. 砂浜に漂着ゴミ（2030〜2050の年代グラデーション）

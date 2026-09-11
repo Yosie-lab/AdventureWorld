@@ -15,6 +15,12 @@ public static class AdventureBuildRustFloatIsland
         Build();
     }
 
+    [MenuItem("Adventure/Shape RustAndFloat North Cliff")]
+    public static void ShapeNorthCliffFromMenu()
+    {
+        ShapeNorthCliff();
+    }
+
     public static void Build()
     {
         if (EditorApplication.isPlaying)
@@ -181,6 +187,132 @@ public static class AdventureBuildRustFloatIsland
         EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
         AssetDatabase.SaveAssets();
         Debug.Log("[RustAndFloat] 島を作成しました。スポーン=" + spawn + " 崖高さ=" + land.SampleHeight(new Vector3(138f, 0f, 186f)));
+    }
+
+    /// <summary>
+    /// 島全体は作り直さず、北の見晴らし台だけ滑空用にする。
+    /// 南から歩ける坂、広い平坦、北端のほぼ垂直な落ち。
+    /// </summary>
+    public static void ShapeNorthCliff()
+    {
+        if (EditorApplication.isPlaying)
+        {
+            EditorUtility.DisplayDialog("停止してください", "■で再生を止めてから実行してください。", "OK");
+            return;
+        }
+
+        if (EditorSceneManager.GetActiveScene().path != ScenePath)
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+
+        var td = AssetDatabase.LoadAssetAtPath<TerrainData>(TerrainPath);
+        var land = Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude)
+            .FirstOrDefault(t => t.name == "LandTerrain" || t.name == "IslandTerrain");
+        if (td == null || land == null)
+        {
+            Debug.LogError("[RustAndFloat] IslandTerrain がありません");
+            return;
+        }
+
+        int res = td.heightmapResolution;
+        float[,] h = td.GetHeights(0, 0, res, res);
+        float inv = 1f / (res - 1);
+        const float size = 256f;
+        const float peakY = 48f;
+        const float padH = 32.8f / peakY;
+        const float seaH = 0.05f;
+        const float lookX = 138f;
+        const float padZ0 = 166f;
+        const float padZ1 = 186f;
+        const float approachZ0 = 138f;
+        const float dropMeters = 1.6f;
+        const float padHalf = 14f;
+        const float sideBlend = 10f;
+
+        for (int z = 0; z < res; z++)
+        {
+            float wz = z * inv * size;
+            if (wz < 128f || wz > 214f)
+                continue;
+            for (int x = 0; x < res; x++)
+            {
+                float wx = x * inv * size;
+                float absDx = Mathf.Abs(wx - lookX);
+                if (absDx > padHalf + sideBlend + 4f)
+                    continue;
+
+                float lat = Mathf.InverseLerp(padHalf + sideBlend, padHalf, absDx);
+                if (lat <= 0f)
+                    continue;
+
+                float cur = h[z, x];
+                float want = cur;
+
+                if (wz >= padZ0 && wz <= padZ1)
+                {
+                    want = padH;
+                }
+                else if (wz > padZ1)
+                {
+                    float t = Mathf.Clamp01((wz - padZ1) / dropMeters);
+                    t = t * t * (3f - 2f * t);
+                    t = t * t;
+                    want = Mathf.Lerp(padH, seaH, t);
+                }
+                else if (wz >= approachZ0)
+                {
+                    float a = Mathf.InverseLerp(approachZ0, padZ0, wz);
+                    a = a * a * (3f - 2f * a);
+                    want = Mathf.Lerp(cur, padH, a);
+                    if (want < cur)
+                        want = cur;
+                }
+
+                h[z, x] = Mathf.Clamp01(Mathf.Lerp(cur, want, lat));
+            }
+        }
+
+        td.SetHeights(0, 0, h);
+        land.terrainData = td;
+        land.Flush();
+        PaintLayers(td, land);
+        EditorUtility.SetDirty(td);
+
+        ClearGlidePathFoliage();
+
+        var player = Object.FindObjectsByType<AdventurePlayerController>(FindObjectsInactive.Exclude).FirstOrDefault();
+        if (player != null)
+        {
+            Vector3 spawn = new Vector3(138f, 0f, 176f);
+            spawn.y = land.SampleHeight(spawn) + 0.12f;
+            player.transform.SetPositionAndRotation(spawn, Quaternion.Euler(0f, 0f, 0f));
+            player.spawnPosition = spawn;
+            EditorUtility.SetDirty(player);
+        }
+
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+        AssetDatabase.SaveAssets();
+        Debug.Log("[RustAndFloat] 北崖を滑空向きに整形。スポーン=" + land.SampleHeight(new Vector3(138f, 0f, 176f)).ToString("F1")
+            + " 唇=" + land.SampleHeight(new Vector3(138f, 0f, 186f)).ToString("F1")
+            + " 直下=" + land.SampleHeight(new Vector3(138f, 0f, 188f)).ToString("F1"));
+    }
+
+    static void ClearGlidePathFoliage()
+    {
+        var paradise = GameObject.Find("Paradise");
+        if (paradise == null)
+            return;
+
+        var victims = new System.Collections.Generic.List<GameObject>();
+        foreach (Transform child in paradise.transform)
+        {
+            Vector3 p = child.position;
+            if (p.x < 118f || p.x > 158f || p.z < 182f || p.z > 210f)
+                continue;
+            victims.Add(child.gameObject);
+        }
+        for (int i = 0; i < victims.Count; i++)
+            Object.DestroyImmediate(victims[i]);
     }
 
     static void PaintLayers(TerrainData td, Terrain land)
