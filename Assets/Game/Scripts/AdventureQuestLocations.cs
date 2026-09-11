@@ -148,9 +148,9 @@ public static class AdventureQuestLocations
     public static Vector3 CatPosition => new Vector3(CatX, 0f, CatZ);
     public static Vector3 DogPosition => new Vector3(DogX, 0f, DogZ);
 
-    // スタート付近の固定看板座標
+    // スタート付近の固定看板座標（Memoはスポーン真上を避け、誤ってEで上書きされない位置）
     public static readonly Vector3 HintStart = new Vector3(165f, 0f, 130f);
-    public static readonly Vector3 HintMemo  = new Vector3(165f, 0f, 168f);
+    public static readonly Vector3 HintMemo  = new Vector3(148f, 0f, 150f);
 
     // 猫・犬のトレイル看板はスタート広場中央（165, 150）と目的地の中間付近に自動追従
     public static Vector3 HintCatTrail =>
