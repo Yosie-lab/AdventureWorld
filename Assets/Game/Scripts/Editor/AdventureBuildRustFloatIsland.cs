@@ -173,16 +173,9 @@ public static class AdventureBuildRustFloatIsland
             cam.transform.LookAt(spawn + Vector3.up * 1.5f);
         }
 
-        var marker = GameObject.Find("SpawnMarker");
-        if (marker == null)
-            marker = GameObject.Find("CliffLookout");
+        var marker = GameObject.Find("SpawnMarker") ?? GameObject.Find("CliffLookout");
         if (marker != null)
-        {
-            Vector3 cliff = new Vector3(138f, 0f, 186f);
-            cliff.y = land.SampleHeight(cliff) + 0.4f;
-            marker.transform.position = cliff;
-            marker.name = "CliffLookout";
-        }
+            Object.DestroyImmediate(marker);
 
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
