@@ -13,6 +13,7 @@ public class AdventureIslandBoundary : MonoBehaviour
     public Vector2 lakeCenter = new Vector2(133f, 169f);
     public float lakeRadius = 36f;
     public float rockSpacing = 14f;
+    public bool placeShoreRocks = true;
 
     Terrain _land;
     bool _built;
@@ -33,12 +34,14 @@ public class AdventureIslandBoundary : MonoBehaviour
             return;
         }
         Instance = this;
-        _land = Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude).FirstOrDefault(t => t.name == "LandTerrain");
+        _land = Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude)
+            .FirstOrDefault(t => t.name == "LandTerrain" || t.name == "IslandTerrain");
     }
 
     void Start()
     {
-        BuildShore();
+        if (placeShoreRocks)
+            BuildShore();
     }
 
     void OnDestroy()

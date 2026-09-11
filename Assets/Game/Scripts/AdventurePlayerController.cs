@@ -17,7 +17,17 @@ public class AdventurePlayerController : MonoBehaviour
     public float jumpMultiplier = 1.0f;
     public bool hasPetRadar = false;
 
+    [Header("Glide")]
+    public bool canGlide = true;
+    public float glideFallSpeed = -2.4f;
+    public float glideForwardSpeed = 7.2f;
+    public float glideTurnSpeed = 5.5f;
+    public float glideEnterDelay = 0.18f;
+
     bool _doubleJumpUsed = false;
+    bool _gliding;
+    float _airborneTime;
+    Vector3 _airMomentum;
 
     const float Skin = 0.1f;
 
@@ -29,12 +39,25 @@ public class AdventurePlayerController : MonoBehaviour
     string _clip;
 
     public bool InteractPressed { get; private set; }
+    public bool IsGliding => _gliding;
 
     void Awake()
     {
+#if UNITY_EDITOR
+        InputSystem.settings.editorInputBehaviorInPlayMode =
+            InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
+        InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+#endif
+        if (Keyboard.current == null)
+        {
+            try { InputSystem.AddDevice<Keyboard>(); }
+            catch (System.Exception) { }
+        }
+
         _cc = GetComponent<CharacterController>();
-        _cc.slopeLimit = 78f;
-        _cc.stepOffset = 0.85f;
+        _cc.slopeLimit = 50f;
+        _cc.stepOffset = 0.45f;
+        _cc.minMoveDistance = 0f;
         _anim = GetComponentInChildren<Animator>();
         if (_anim != null)
         {
@@ -55,7 +78,9 @@ public class AdventurePlayerController : MonoBehaviour
     void Start()
     {
         AdventureIslandBoundary.Ensure();
-        AdventureMarkerCleanup.RemoveFloatingWaterSurfaces();
+        string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (scene != "RustAndFlat" && scene != "RustAndFloat")
+            AdventureMarkerCleanup.RemoveFloatingWaterSurfaces();
         CacheTerrains();
         if (spawnPosition == Vector3.zero)
             spawnPosition = transform.position;
@@ -73,67 +98,99 @@ public class AdventurePlayerController : MonoBehaviour
             return;
         }
 
-        Vector2 input = ReadMove(kb);
+        Vector2 input = ReadMove();
         bool running = kb != null && kb.leftShiftKey.isPressed;
         float speed = (running ? runSpeed : walkSpeed) * moveSpeedMultiplier;
+        bool holdGlide = canGlide && kb != null && kb.spaceKey.isPressed;
 
-        Vector3 planar = Vector3.zero;
-        if (input.sqrMagnitude > 0.0001f)
-        {
-            Vector3 forward = transform.forward;
-            Vector3 right = transform.right;
-            if (cameraPivot != null)
-            {
-                forward = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
-                right = Vector3.ProjectOnPlane(cameraPivot.right, Vector3.up);
-                if (forward.sqrMagnitude < 0.001f)
-                    forward = transform.forward;
-                else
-                    forward.Normalize();
-                right.Normalize();
-            }
-            planar = (right * input.x + forward * input.y);
-            if (planar.sqrMagnitude > 0.0001f)
-            {
-                planar.Normalize();
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(planar), turnSpeed * Time.deltaTime);
-            }
-        }
-
-        Vector3 motion = planar * speed * Time.deltaTime;
-        motion = ClipMotion(motion);
-
-        if (_cc.isGrounded)
+        if (Floating() || (_cc.isGrounded && !TooSteep() && !StandingOnSeafloor()))
         {
             if (_hop < 0f)
                 _hop = -2f;
             _grounded = true;
             _doubleJumpUsed = false;
+            _gliding = false;
+            _airborneTime = 0f;
         }
         else
+        {
             _grounded = false;
+            _airborneTime += Time.deltaTime;
+        }
 
         float effectiveJumpHeight = jumpHeight * jumpMultiplier;
-
         if (kb != null && kb.spaceKey.wasPressedThisFrame)
         {
             if (_grounded)
             {
                 _hop = Mathf.Sqrt(effectiveJumpHeight * -2f * gravity);
                 _grounded = false;
+                _airborneTime = 0f;
             }
-            else if (canDoubleJump && !_doubleJumpUsed)
+            else if (canDoubleJump && !_doubleJumpUsed && !_gliding)
             {
                 _hop = Mathf.Sqrt(effectiveJumpHeight * -1.8f * gravity);
                 _doubleJumpUsed = true;
             }
         }
 
-        _hop += gravity * Time.deltaTime;
+        _gliding = !_grounded && holdGlide && _airborneTime >= glideEnterDelay;
+
+        Vector3 camForward = transform.forward;
+        Vector3 camRight = transform.right;
+        if (cameraPivot != null)
+        {
+            camForward = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
+            camRight = Vector3.ProjectOnPlane(cameraPivot.right, Vector3.up);
+            if (camForward.sqrMagnitude < 0.001f)
+                camForward = transform.forward;
+            else
+                camForward.Normalize();
+            camRight.Normalize();
+        }
+
+        Vector3 wishWalk = Vector3.zero;
+        if (input.sqrMagnitude > 0.0001f)
+            wishWalk = Vector3.ClampMagnitude(camRight * input.x + camForward * input.y, 1f) * speed;
+
+        Vector3 horizontal;
+        if (_grounded)
+        {
+            horizontal = wishWalk;
+            _airMomentum = wishWalk;
+            if (wishWalk.sqrMagnitude > 0.0001f)
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(wishWalk), turnSpeed * Time.deltaTime);
+        }
+        else if (_gliding)
+        {
+            float glideSpeed = glideForwardSpeed * moveSpeedMultiplier;
+            if (input.y < -0.1f)
+                glideSpeed *= 0.5f;
+            else if (input.y > 0.1f)
+                glideSpeed *= 1.12f;
+            Vector3 wishGlide = camForward * glideSpeed + camRight * input.x * glideSpeed * 0.18f;
+            if (_airMomentum.sqrMagnitude < 4f)
+                _airMomentum = camForward * (glideSpeed * 0.8f);
+            _airMomentum = Vector3.MoveTowards(_airMomentum, wishGlide, 5.5f * Time.deltaTime);
+            if (_airMomentum.sqrMagnitude > 0.01f)
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(_airMomentum), glideTurnSpeed * Time.deltaTime);
+            _hop = Mathf.MoveTowards(_hop, glideFallSpeed, 14f * Time.deltaTime);
+            horizontal = _airMomentum;
+        }
+        else
+        {
+            _airMomentum = Vector3.MoveTowards(_airMomentum, Vector3.zero, 2.2f * Time.deltaTime);
+            horizontal = _airMomentum;
+            _hop += gravity * Time.deltaTime;
+        }
+
+        Vector3 motion = horizontal * Time.deltaTime;
+        motion = ClipMotion(motion);
         motion.y = _hop * Time.deltaTime;
         _cc.Move(motion);
+        FloatOnWater();
         KeepWalkable();
-        PlayLocomotion(planar.magnitude * speed, running);
+        PlayLocomotion(_grounded ? horizontal.magnitude : 0f, running && _grounded);
     }
 
     Vector3 ClipMotion(Vector3 motion)
@@ -163,9 +220,61 @@ public class AdventurePlayerController : MonoBehaviour
         }
         else
         {
-            clamped.y = bounds.GroundY(clamped) + Skin;
+            clamped.y = SurfaceY(clamped) + Skin;
             Teleport(clamped);
         }
+    }
+
+    float WaterY()
+    {
+        var bounds = AdventureIslandBoundary.Instance;
+        return bounds != null ? bounds.waterLevel : float.NegativeInfinity;
+    }
+
+    bool OverWater(Vector3 pos)
+    {
+        return GroundY(pos) < WaterY() - 0.2f;
+    }
+
+    bool Floating()
+    {
+        Vector3 pos = transform.position;
+        return OverWater(pos) && pos.y <= WaterY() + 0.45f;
+    }
+
+    bool StandingOnSeafloor()
+    {
+        Vector3 pos = transform.position;
+        return OverWater(pos) && pos.y < WaterY() - 0.05f;
+    }
+
+    bool TooSteep()
+    {
+        if (_land == null || _land.terrainData == null)
+            return false;
+        Vector3 origin = _land.transform.position;
+        Vector3 size = _land.terrainData.size;
+        float nx = Mathf.Clamp01((transform.position.x - origin.x) / size.x);
+        float nz = Mathf.Clamp01((transform.position.z - origin.z) / size.z);
+        return _land.terrainData.GetInterpolatedNormal(nx, nz).y < 0.68f;
+    }
+
+    void FloatOnWater()
+    {
+        Vector3 pos = transform.position;
+        if (!OverWater(pos))
+            return;
+        float surface = WaterY() + Skin;
+        if (pos.y > surface)
+            return;
+
+        _cc.enabled = false;
+        transform.position = new Vector3(pos.x, surface, pos.z);
+        _cc.enabled = true;
+        _hop = Mathf.Max(_hop, 0f);
+        _grounded = true;
+        _gliding = false;
+        _airborneTime = 0f;
     }
 
     float GroundY(Vector3 pos)
@@ -175,16 +284,19 @@ public class AdventurePlayerController : MonoBehaviour
         return _land.SampleHeight(pos) + _land.transform.position.y;
     }
 
+    float SurfaceY(Vector3 pos)
+    {
+        float landY = GroundY(pos);
+        float water = WaterY();
+        return landY < water ? water : landY;
+    }
+
     Vector3 Stick(Vector3 pos)
     {
         var bounds = AdventureIslandBoundary.Instance;
         if (bounds != null)
-        {
             pos = bounds.ClampWalkable(pos);
-            pos.y = bounds.GroundY(pos) + Skin;
-        }
-        else
-            pos.y = GroundY(pos) + Skin;
+        pos.y = SurfaceY(pos) + Skin;
         return pos;
     }
 
@@ -196,13 +308,16 @@ public class AdventurePlayerController : MonoBehaviour
         _cc.enabled = true;
         _hop = 0f;
         _grounded = true;
+        _gliding = false;
+        _airborneTime = 0f;
+        _airMomentum = Vector3.zero;
     }
 
     void CacheTerrains()
     {
         foreach (var terrain in Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude))
         {
-            if (terrain.name == "LandTerrain")
+            if (terrain.name == "LandTerrain" || terrain.name == "IslandTerrain")
                 _land = terrain;
             else if (terrain.name.IndexOf("Water", System.StringComparison.OrdinalIgnoreCase) >= 0)
             {
@@ -213,11 +328,23 @@ public class AdventurePlayerController : MonoBehaviour
         }
     }
 
-    static Vector2 ReadMove(Keyboard kb)
+    static Vector2 ReadMove()
     {
+        Vector2 input = Vector2.zero;
+        var kb = Keyboard.current;
+        if (kb == null)
+        {
+            foreach (var device in InputSystem.devices)
+            {
+                if (device is Keyboard found)
+                {
+                    kb = found;
+                    break;
+                }
+            }
+        }
         if (kb == null)
             return Vector2.zero;
-        Vector2 input = Vector2.zero;
         if (kb.wKey.isPressed || kb.upArrowKey.isPressed) input.y += 1f;
         if (kb.sKey.isPressed || kb.downArrowKey.isPressed) input.y -= 1f;
         if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) input.x -= 1f;

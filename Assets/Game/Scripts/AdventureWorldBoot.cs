@@ -19,6 +19,10 @@ public static class AdventureWorldBoot
 
     public static void Configure()
     {
+        string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (scene == "RustAndFlat" || scene == "RustAndFloat")
+            return;
+
         if (!_configured)
         {
             _configured = true;
