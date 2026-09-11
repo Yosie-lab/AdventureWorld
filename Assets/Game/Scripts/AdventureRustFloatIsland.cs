@@ -31,4 +31,10 @@ public class AdventureRustFloatIsland : MonoBehaviour
         bounds.lakeRadius = 0f;
         bounds.placeShoreRocks = false;
     }
+
+    void Start()
+    {
+        if (GetComponent<AdventureRustFloatOpening>() == null)
+            gameObject.AddComponent<AdventureRustFloatOpening>();
+    }
 }

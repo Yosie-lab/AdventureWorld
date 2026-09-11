@@ -679,8 +679,10 @@ public class AdventureGameDirector : MonoBehaviour
 
         Font font = ResolveUiFont();
 
-        _questText = MakeText(canvasGo.transform, "Quest", new Vector2(24, -24), new Vector2(0, 1), new Vector2(900, 64), 22, TextAnchor.UpperLeft, font);
-        _guideText = MakeText(canvasGo.transform, "Guide", new Vector2(24, -92), new Vector2(0, 1), new Vector2(760, 40), 18, TextAnchor.UpperLeft, font);
+        _questText = MakeText(canvasGo.transform, "Quest", new Vector2(56, -24), new Vector2(0, 1), new Vector2(1168, 64), 22, TextAnchor.UpperLeft, font);
+        _questText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        _guideText = MakeText(canvasGo.transform, "Guide", new Vector2(56, -92), new Vector2(0, 1), new Vector2(1168, 40), 18, TextAnchor.UpperLeft, font);
+        _guideText.horizontalOverflow = HorizontalWrapMode.Overflow;
         // セリフ枠の上に置く（重なって下半分が消えないようにする）
         _promptText = MakeText(canvasGo.transform, "Prompt", new Vector2(0, 208), new Vector2(0.5f, 0), new Vector2(760, 36), 18, TextAnchor.MiddleCenter, font);
 
