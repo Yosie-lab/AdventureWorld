@@ -19,7 +19,13 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
     AudioClip[] _soloCicadaClips;
 
     float _soloTimer = 2.0f;
-    Queue<GameObject> _pool = new Queue<GameObject>();
+    readonly Queue<GameObject> _pool = new Queue<GameObject>();
+
+    [Header("Volume & Frequency")]
+    [Range(0f, 1f)] public float bgVolume = 0.24f;
+    [Range(0f, 1f)] public float soloVolume = 0.50f;
+    public float minSoloInterval = 4.0f;
+    public float maxSoloInterval = 9.0f;
 
     public static void Ensure()
     {
@@ -77,30 +83,29 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
 
     void SetupBgSources()
     {
-        // プレイヤーの耳を自然に包み込む広域蝉時雨アンビエンス
-        _bgAmbienceSourceA = gameObject.AddComponent<AudioSource>();
-        _bgAmbienceSourceA.clip = _forestAmbienceClip;
-        _bgAmbienceSourceA.loop = true;
-        _bgAmbienceSourceA.spatialBlend = 0.0f;
-        _bgAmbienceSourceA.volume = 0.26f;
-        _bgAmbienceSourceA.playOnAwake = false;
-
-        _bgAmbienceSourceB = gameObject.AddComponent<AudioSource>();
-        _bgAmbienceSourceB.clip = _countryRoadClip ?? _forestAmbienceClip;
-        _bgAmbienceSourceB.loop = true;
-        _bgAmbienceSourceB.spatialBlend = 0.0f;
-        _bgAmbienceSourceB.volume = 0.20f;
-        _bgAmbienceSourceB.playOnAwake = false;
+        // プレイヤーの耳を自然に包み込む広域蝉時雨アンビエンス（2系統）
+        _bgAmbienceSourceA = CreateBgSource(_forestAmbienceClip, bgVolume);
+        _bgAmbienceSourceB = CreateBgSource(_countryRoadClip ?? _forestAmbienceClip, bgVolume * 0.75f);
 
         if (_forestAmbienceClip != null)
-        {
             _bgAmbienceSourceA.Play();
-        }
+
         if (_countryRoadClip != null)
         {
             _bgAmbienceSourceB.time = 8.0f;
             _bgAmbienceSourceB.Play();
         }
+    }
+
+    AudioSource CreateBgSource(AudioClip clip, float vol)
+    {
+        var src = gameObject.AddComponent<AudioSource>();
+        src.clip = clip;
+        src.loop = true;
+        src.spatialBlend = 0.0f;
+        src.volume = vol;
+        src.playOnAwake = false;
+        return src;
     }
 
     void Update()
@@ -118,7 +123,7 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
         _soloTimer -= Time.deltaTime;
         if (_soloTimer <= 0f)
         {
-            _soloTimer = Random.Range(4.0f, 9.0f);
+            _soloTimer = Random.Range(minSoloInterval, maxSoloInterval);
             SpawnRandomCicadaSound();
         }
     }
@@ -129,38 +134,45 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
         var clip = _soloCicadaClips[Random.Range(0, _soloCicadaClips.Length)];
         if (clip == null) return;
 
-        // プレイヤーの周囲12m〜32m、高さ3m〜12mのランダムな梢・草むら
+        // プレイヤーの周囲14m〜32m、高さ3m〜10mのランダムな梢・草むら
         Vector3 p = _playerTransform.position;
         float angle = Random.Range(0f, Mathf.PI * 2f);
         float dist = Random.Range(14f, 32f);
         Vector3 spawnPos = p + new Vector3(Mathf.Cos(angle) * dist, Random.Range(3f, 10f), Mathf.Sin(angle) * dist);
 
-        GameObject sndGo;
-        if (_pool.Count > 0)
-        {
-            sndGo = _pool.Dequeue();
-            sndGo.SetActive(true);
-        }
-        else
-        {
-            sndGo = new GameObject("CicadaOneShot3D");
-            sndGo.transform.SetParent(transform);
-            var src = sndGo.AddComponent<AudioSource>();
-            src.spatialBlend = 1.0f;
-            src.rolloffMode = AudioRolloffMode.Linear;
-            src.minDistance = 6f;
-            src.maxDistance = 50f;
-            src.dopplerLevel = 0f;
-        }
-
+        GameObject sndGo = GetPooledObject();
         sndGo.transform.position = spawnPos;
+
         var audio = sndGo.GetComponent<AudioSource>();
         audio.clip = clip;
-        audio.volume = Random.Range(0.40f, 0.65f);
+        audio.volume = soloVolume * Random.Range(0.85f, 1.15f);
         audio.pitch = Random.Range(0.95f, 1.05f);
         audio.Play();
 
         StartCoroutine(RecycleAfter(sndGo, clip.length + 0.5f));
+    }
+
+    GameObject GetPooledObject()
+    {
+        while (_pool.Count > 0)
+        {
+            var candidate = _pool.Dequeue();
+            if (candidate != null)
+            {
+                candidate.SetActive(true);
+                return candidate;
+            }
+        }
+
+        var sndGo = new GameObject("CicadaOneShot3D");
+        sndGo.transform.SetParent(transform);
+        var src = sndGo.AddComponent<AudioSource>();
+        src.spatialBlend = 1.0f;
+        src.rolloffMode = AudioRolloffMode.Linear;
+        src.minDistance = 6f;
+        src.maxDistance = 50f;
+        src.dopplerLevel = 0f;
+        return sndGo;
     }
 
     System.Collections.IEnumerator RecycleAfter(GameObject go, float delay)

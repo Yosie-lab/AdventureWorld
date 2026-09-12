@@ -14,7 +14,7 @@ public class AdventureBeachWavesManager : MonoBehaviour
     AudioSource _waveSourceB;
     Transform _playerTransform;
 
-    [Header("Wave Volume")]
+    [Header("Wave Volume & Settings")]
     [Range(0f, 1f)] public float masterVolume = 0.55f;
 
     const float IslandCenterX = 512f;
@@ -61,30 +61,29 @@ public class AdventureBeachWavesManager : MonoBehaviour
 
     void SetupAudioSources()
     {
-        // 2系統の音源を時間差（17秒ずらし）でクロスブレンドし、寄せては引く波の立体感とうねりを再現
-        _waveSourceA = gameObject.AddComponent<AudioSource>();
-        _waveSourceA.clip = _waveClip;
-        _waveSourceA.loop = true;
-        _waveSourceA.spatialBlend = 0.0f; // 2Dステレオで耳全体を心地よく包み込む
-        _waveSourceA.volume = 0f;
-        _waveSourceA.playOnAwake = false;
-
-        _waveSourceB = gameObject.AddComponent<AudioSource>();
-        _waveSourceB.clip = _waveClip;
-        _waveSourceB.loop = true;
-        _waveSourceB.spatialBlend = 0.0f;
-        _waveSourceB.volume = 0f;
-        _waveSourceB.playOnAwake = false;
+        // 2系統の音源を時間差（16.5秒ずらし）でクロスブレンドし、寄せては引く波の立体感とうねりを再現
+        _waveSourceA = CreateWaveSource("WaveSource_A");
+        _waveSourceB = CreateWaveSource("WaveSource_B");
 
         if (_waveClip != null)
         {
             _waveSourceA.time = 0f;
             _waveSourceA.Play();
 
-            // Bは半周期ずらして再生開始
             _waveSourceB.time = Mathf.Repeat(16.5f, _waveClip.length);
             _waveSourceB.Play();
         }
+    }
+
+    AudioSource CreateWaveSource(string name)
+    {
+        var src = gameObject.AddComponent<AudioSource>();
+        src.clip = _waveClip;
+        src.loop = true;
+        src.spatialBlend = 0.0f; // 2Dステレオで耳全体を心地よく包み込む
+        src.volume = 0f;
+        src.playOnAwake = false;
+        return src;
     }
 
     void Update()
@@ -101,12 +100,10 @@ public class AdventureBeachWavesManager : MonoBehaviour
         if (_waveClip == null)
         {
             LoadAudioClip();
-            if (_waveClip != null && _waveSourceA != null)
+            if (_waveClip != null)
             {
-                _waveSourceA.clip = _waveClip;
-                _waveSourceB.clip = _waveClip;
-                _waveSourceA.Play();
-                _waveSourceB.Play();
+                if (_waveSourceA != null) { _waveSourceA.clip = _waveClip; _waveSourceA.Play(); }
+                if (_waveSourceB != null) { _waveSourceB.clip = _waveClip; _waveSourceB.Play(); }
             }
             return;
         }
@@ -116,7 +113,8 @@ public class AdventureBeachWavesManager : MonoBehaviour
         // 1. 半径ベースのビーチ接近度（島の中心 512, 512 からの水平距離）
         float dx = pos.x - IslandCenterX;
         float dz = pos.z - IslandCenterZ;
-        float radius = Mathf.Sqrt(dx * dx + dz * dz);
+        float sqrDist = dx * dx + dz * dz;
+        float radius = Mathf.Sqrt(sqrDist);
         float radiusFactor = Mathf.InverseLerp(BeachRadiusMin, BeachRadiusMax, radius);
 
         // 2. 高度ベースの海岸接近度（海抜 5.5m〜10m のビーチテラス）
@@ -134,13 +132,15 @@ public class AdventureBeachWavesManager : MonoBehaviour
         // 半径または低高度のどちらかで海岸に近ければ波音が聞こえる
         float targetIntensity = Mathf.Max(radiusFactor, heightFactor);
 
-        // 波の音量をほんの少しだけ引き上げ（masterVolume = 0.55f）
+        // 波の音量制御（2系統のクロスブレンドでうねりを生む）
         float targetVolA = targetIntensity * masterVolume;
         float targetVolB = targetIntensity * (masterVolume * 0.85f);
 
-        // スムーズな音量フェード
+        // スムーズな音量フェードイン・フェードアウト
         float dt = Time.deltaTime;
-        _waveSourceA.volume = Mathf.MoveTowards(_waveSourceA.volume, targetVolA, dt * 0.4f);
-        _waveSourceB.volume = Mathf.MoveTowards(_waveSourceB.volume, targetVolB, dt * 0.4f);
+        if (_waveSourceA != null)
+            _waveSourceA.volume = Mathf.MoveTowards(_waveSourceA.volume, targetVolA, dt * 0.4f);
+        if (_waveSourceB != null)
+            _waveSourceB.volume = Mathf.MoveTowards(_waveSourceB.volume, targetVolB, dt * 0.4f);
     }
 }

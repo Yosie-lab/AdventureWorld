@@ -2,8 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// niko専用のかわいいトコトコ足音コンポーネント
-/// 2Dダイレクト音響（距離減衰なし）で耳元にクリアに届き、
-/// 草原・砂浜・水辺それぞれの地面に合わせて愛らしい「トコトコ」「サクッ」「ピチャッ」音を奏でる
+/// 2Dダイレクト音響（減衰なし）でプレイヤーの耳元にクリアに届き、
+/// 歩行・ダッシュの速度に応じて愛らしいリズムで左右の足を交互に奏でる
 /// </summary>
 public class AdventureNikoFootsteps : MonoBehaviour
 {
@@ -11,23 +11,15 @@ public class AdventureNikoFootsteps : MonoBehaviour
     AdventurePlayerController _player;
     AudioSource _audioSource;
 
-    // 草地・通常地面用
+    // 左右のトコトコ足音クリップ
     AudioClip _stepL;
     AudioClip _stepR;
-
-    // 砂浜用
-    AudioClip _sandStepL;
-    AudioClip _sandStepR;
-
-    // 浅瀬・波打ち際用
-    AudioClip _waterStepL;
-    AudioClip _waterStepR;
 
     float _stepTimer = 0f;
     int _stepCount = 0;
     Vector3 _lastPos;
 
-    [Header("Volume")]
+    [Header("Volume & Tuning")]
     [Range(0f, 1f)] public float volume = 0.22f;
 
     void Awake()
@@ -35,9 +27,9 @@ public class AdventureNikoFootsteps : MonoBehaviour
         _cc = GetComponent<CharacterController>();
         _player = GetComponent<AdventurePlayerController>();
 
-        // 足音専用のAudioSourceを用意
+        // 足音専用の2D AudioSourceをセットアップ
         _audioSource = gameObject.AddComponent<AudioSource>();
-        _audioSource.spatialBlend = 0.0f; // 2D音響：カメラ距離に関係なくクリアに届く
+        _audioSource.spatialBlend = 0.0f; // 2D音響（カメラ距離に影響されずクリアに聴こえる）
         _audioSource.volume = 1.0f;
         _audioSource.playOnAwake = false;
         _audioSource.loop = false;
@@ -48,7 +40,7 @@ public class AdventureNikoFootsteps : MonoBehaviour
 
     void Start()
     {
-        if (_stepL == null)
+        if (_stepL == null || _stepR == null)
             LoadClips();
     }
 
@@ -57,26 +49,18 @@ public class AdventureNikoFootsteps : MonoBehaviour
 #if UNITY_EDITOR
         _stepL = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFlat/Audio/Footsteps/niko_step_L.wav");
         _stepR = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFlat/Audio/Footsteps/niko_step_R.wav");
-        _sandStepL = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFlat/Audio/Footsteps/niko_step_sand_L.wav");
-        _sandStepR = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFlat/Audio/Footsteps/niko_step_sand_R.wav");
-        _waterStepL = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFlat/Audio/Footsteps/niko_step_water_L.wav");
-        _waterStepR = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFlat/Audio/Footsteps/niko_step_water_R.wav");
 #endif
 
-        // フォールバック合成音
-        if (_stepL == null) _stepL = SynthesizeCuteStep("NikoStep_L", 500f, 340f);
-        if (_stepR == null) _stepR = SynthesizeCuteStep("NikoStep_R", 620f, 420f);
-        if (_sandStepL == null) _sandStepL = _stepL;
-        if (_sandStepR == null) _sandStepR = _stepR;
-        if (_waterStepL == null) _waterStepL = _stepL;
-        if (_waterStepR == null) _waterStepR = _stepR;
+        // フォールバック合成音（万一アセットが未読み込みでも確実に発音を保証）
+        if (_stepL == null) _stepL = SynthesizeCuteStep("NikoStep_L", 520f, 360f);
+        if (_stepR == null) _stepR = SynthesizeCuteStep("NikoStep_R", 640f, 440f);
     }
 
     void Update()
     {
         if (_audioSource == null) return;
 
-        // 接地＆滑空判定
+        // 接地＆滑空判定（空中や滑空時は自然に消音）
         bool isGrounded = (_player != null) ? _player.IsGrounded : (_cc != null && _cc.isGrounded);
         bool isGliding = (_player != null && _player.IsGliding);
 
@@ -87,7 +71,7 @@ public class AdventureNikoFootsteps : MonoBehaviour
             return;
         }
 
-        // 実移動速度の計算（水平方向）
+        // 実移動速度の計算（水平方向のみ）
         Vector3 curPos = transform.position;
         Vector3 diff = curPos - _lastPos;
         diff.y = 0f;
@@ -98,6 +82,7 @@ public class AdventureNikoFootsteps : MonoBehaviour
         // 移動中判定（歩行: 1.5〜4.2m/s、走行: 7.8m/s、微小な動きでも反応するよう閾値0.25f）
         if (speed > 0.25f)
         {
+            // 速度に応じたステップ間隔（歩行: 約0.30秒、走行: 約0.20秒）
             float stepInterval = Mathf.Lerp(0.30f, 0.20f, Mathf.InverseLerp(1.5f, 7.5f, speed));
             _stepTimer += Time.deltaTime;
 
@@ -119,21 +104,22 @@ public class AdventureNikoFootsteps : MonoBehaviour
         _stepCount++;
         bool isLeft = (_stepCount % 2 == 0);
 
-        // 水辺や海、砂浜、草原すべて共通の愛らしいトコトコ音
+        // 左右で交互に鳴るかわいいトコトコ音
         AudioClip clip = isLeft ? _stepL : _stepR;
 
         if (clip != null)
         {
-            // 速度に応じた音量（歩行時: 約0.16、ダッシュ時: 約0.22）
+            // 速度に応じた音量スケーリング（歩行時は優しく約0.16、ダッシュ時は約0.22）
             float speedFactor = Mathf.Lerp(0.75f, 1.0f, Mathf.InverseLerp(1.5f, 7.5f, speed));
             float vol = speedFactor * volume;
 
-            // わずかなピッチ揺らぎで機械感をなくす
+            // わずかなピッチ揺らぎで機械的な反復感を解消
             _audioSource.pitch = Random.Range(0.97f, 1.03f);
             _audioSource.PlayOneShot(clip, vol);
         }
     }
 
+    /// <summary>フォールバック用の愛らしいポップトコトコ音波形合成</summary>
     static AudioClip SynthesizeCuteStep(string name, float startFreq, float endFreq)
     {
         const int rate = 44100;

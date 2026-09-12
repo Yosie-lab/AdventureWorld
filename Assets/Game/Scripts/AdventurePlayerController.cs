@@ -95,7 +95,7 @@ public class AdventurePlayerController : MonoBehaviour
 
     void Update()
     {
-        var kb = Keyboard.current;
+        var kb = GetKeyboard();
         InteractPressed = kb != null && kb.eKey.wasPressedThisFrame;
         if (kb != null && kb.rKey.wasPressedThisFrame)
         {
@@ -103,7 +103,7 @@ public class AdventurePlayerController : MonoBehaviour
             return;
         }
 
-        Vector2 input = ReadMove();
+        Vector2 input = ReadMove(kb);
         bool running = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
         float speed = (running ? runSpeed : walkSpeed) * moveSpeedMultiplier;
         bool holdGlide = canGlide && kb != null && kb.spaceKey.isPressed;
@@ -333,23 +333,23 @@ public class AdventurePlayerController : MonoBehaviour
         }
     }
 
-    static Vector2 ReadMove()
+    static Keyboard GetKeyboard()
     {
-        Vector2 input = Vector2.zero;
         var kb = Keyboard.current;
-        if (kb == null)
+        if (kb != null) return kb;
+        foreach (var device in InputSystem.devices)
         {
-            foreach (var device in InputSystem.devices)
-            {
-                if (device is Keyboard found)
-                {
-                    kb = found;
-                    break;
-                }
-            }
+            if (device is Keyboard found)
+                return found;
         }
+        return null;
+    }
+
+    static Vector2 ReadMove(Keyboard kb)
+    {
         if (kb == null)
             return Vector2.zero;
+        Vector2 input = Vector2.zero;
         if (kb.wKey.isPressed || kb.upArrowKey.isPressed) input.y += 1f;
         if (kb.sKey.isPressed || kb.downArrowKey.isPressed) input.y -= 1f;
         if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) input.x -= 1f;
