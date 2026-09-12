@@ -40,6 +40,7 @@ public class AdventurePlayerController : MonoBehaviour
 
     public bool InteractPressed { get; private set; }
     public bool IsGliding => _gliding;
+    public bool IsGrounded => _grounded;
 
     void Awake()
     {
@@ -78,6 +79,10 @@ public class AdventurePlayerController : MonoBehaviour
     void Start()
     {
         AdventureIslandBoundary.Ensure();
+        AdventureBeachWavesManager.Ensure();
+        AdventureCicadaAmbienceManager.Ensure();
+        if (GetComponent<AdventureNikoFootsteps>() == null)
+            gameObject.AddComponent<AdventureNikoFootsteps>();
         string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         if (scene != "RustAndFlat" && scene != "RustAndFloat")
             AdventureMarkerCleanup.RemoveFloatingWaterSurfaces();
@@ -99,7 +104,7 @@ public class AdventurePlayerController : MonoBehaviour
         }
 
         Vector2 input = ReadMove();
-        bool running = kb != null && kb.leftShiftKey.isPressed;
+        bool running = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
         float speed = (running ? runSpeed : walkSpeed) * moveSpeedMultiplier;
         bool holdGlide = canGlide && kb != null && kb.spaceKey.isPressed;
 

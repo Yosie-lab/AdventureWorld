@@ -92,15 +92,18 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         Font font = ResolveFont();
 
-        // 1. 上部中央の操作ガイド（最初は非表示）。
-        // Overlay は Game ビューより広く組まれることがあり、左寄せだと端が欠ける。
-        _guideText = MakeText(_canvasGo.transform, "Guide", Vector2.zero, new Vector2(0.5f, 1f), new Vector2(980f, 44f), 16, TextAnchor.UpperCenter, font);
+        // 1. 画面最上部中央の水平リボンコンパスHUD（邪魔にならないミニマルデザイン）
+        AdventureCompassHUD.Create(_canvasGo.transform, font);
+
+        // 2. 上部中央の操作ガイド（最初は非表示、ダイアログ終了後に表示）。
+        // コンパスの下（y = -44f）に控えめに配置
+        _guideText = MakeText(_canvasGo.transform, "Guide", Vector2.zero, new Vector2(0.5f, 1f), new Vector2(980f, 32f), 15, TextAnchor.UpperCenter, font);
         var guideRt = _guideText.rectTransform;
         guideRt.anchorMin = new Vector2(0.5f, 1f);
         guideRt.anchorMax = new Vector2(0.5f, 1f);
         guideRt.pivot = new Vector2(0.5f, 1f);
-        guideRt.anchoredPosition = new Vector2(0f, -18f);
-        guideRt.sizeDelta = new Vector2(980f, 44f);
+        guideRt.anchoredPosition = new Vector2(0f, -44f);
+        guideRt.sizeDelta = new Vector2(980f, 32f);
         _guideText.horizontalOverflow = HorizontalWrapMode.Overflow;
         _guideText.verticalOverflow = VerticalWrapMode.Overflow;
         _guideText.color = new Color(0.9f, 0.95f, 1f, 0.75f);

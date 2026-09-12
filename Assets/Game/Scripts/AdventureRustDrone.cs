@@ -9,6 +9,7 @@ public class AdventureRustDrone : MonoBehaviour
     public float bobSpeed = 1.35f;
     public float followDistance = 2.1f;
     public float stopDistance = 1.25f;
+    [Range(0f, 1f)] public float soundVolume = 0.28f;
 
     Transform _lookAt;
     Transform _body;
@@ -134,7 +135,7 @@ public class AdventureRustDrone : MonoBehaviour
         _audio.spatialBlend = 1f;
         _audio.minDistance = 1.5f;
         _audio.maxDistance = 22f;
-        _audio.volume = 0.42f;
+        _audio.volume = soundVolume;
         _creaks = new[] { MakeCreak(11), MakeCreak(29), MakeCreak(47) };
     }
 
@@ -328,9 +329,10 @@ public class AdventureRustDrone : MonoBehaviour
             return;
         if (!force && Time.time < _nextCreak)
             return;
+        _audio.volume = soundVolume;
         _audio.pitch = Random.Range(0.86f, 1.08f);
-        _audio.PlayOneShot(_creaks[Random.Range(0, _creaks.Length)], Random.Range(0.28f, 0.5f));
-        _nextCreak = Time.time + Random.Range(0.9f, 1.8f);
+        _audio.PlayOneShot(_creaks[Random.Range(0, _creaks.Length)], Random.Range(0.22f, 0.38f));
+        _nextCreak = Time.time + Random.Range(1.2f, 2.2f);
     }
 
     static AudioClip MakeCreak(int seed)
