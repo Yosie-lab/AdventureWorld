@@ -4,9 +4,9 @@ using UnityEngine;
 
 public static class AdventureOpenRustAndFloatScene
 {
-    const string ScenePath = "Assets/Scenes/RustAndFloat.unity";
+    const string ScenePath = "Assets/RustAndFloat/Scenes/RustAndFloat.unity";
 
-    [MenuItem("Adventure/Open RustAndFloat Scene")]
+    [MenuItem("Adventure/Open RustAndFloat Scene (1000m Grand Sanctuary)")]
     public static void Open()
     {
         if (EditorApplication.isPlaying)

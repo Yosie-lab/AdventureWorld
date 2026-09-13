@@ -9,7 +9,7 @@ using UnityEditor;
 /// </summary>
 public static class AdventurePalmFactory
 {
-    const string MatPath = "Assets/RustAndFlat/Materials/HawaiiPalm_URP.mat";
+    const string MatPath = "Assets/RustAndFloat/Materials/HawaiiPalm_URP.mat";
 
     static readonly string[] PalmPrefabPaths =
     {

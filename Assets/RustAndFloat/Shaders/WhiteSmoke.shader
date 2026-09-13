@@ -1,4 +1,4 @@
-Shader "RustAndFlat/WhiteSmoke"
+Shader "RustAndFloat/WhiteSmoke"
 {
     Properties
     {
@@ -20,7 +20,7 @@ Shader "RustAndFlat/WhiteSmoke"
             Tags { "LightMode" = "UniversalForward" }
             Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
-            ZTest Always
+            ZTest LEqual
             Cull Off
 
             HLSLPROGRAM

@@ -47,8 +47,8 @@ public class AdventureNikoFootsteps : MonoBehaviour
     void LoadClips()
     {
 #if UNITY_EDITOR
-        _stepL = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFlat/Audio/Footsteps/niko_step_L.wav");
-        _stepR = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFlat/Audio/Footsteps/niko_step_R.wav");
+        _stepL = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFloat/Audio/Footsteps/niko_step_L.wav");
+        _stepR = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFloat/Audio/Footsteps/niko_step_R.wav");
 #endif
 
         // フォールバック合成音（万一アセットが未読み込みでも確実に発音を保証）

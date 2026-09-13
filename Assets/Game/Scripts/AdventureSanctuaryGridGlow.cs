@@ -178,6 +178,7 @@ public class AdventureSanctuaryGridGlow : MonoBehaviour
     void ApplyMaterial(float glow, float reveal)
     {
         if (_renderer == null) return;
+        if (_mpb == null) _mpb = new MaterialPropertyBlock();
         _renderer.GetPropertyBlock(_mpb);
         _mpb.SetFloat(ID_GlowIntensity, glow);
         _mpb.SetFloat(ID_RevealRadius, reveal);

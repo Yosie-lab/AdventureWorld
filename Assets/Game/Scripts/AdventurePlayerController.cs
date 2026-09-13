@@ -28,6 +28,10 @@ public class AdventurePlayerController : MonoBehaviour
     bool _gliding;
     float _airborneTime;
     Vector3 _airMomentum;
+    float _glideBoostTimer;
+    float _glideBoostMultiplier = 1.0f;
+    float _updraftLift;
+    float _updraftTimer;
 
     const float Skin = 0.1f;
 
@@ -38,12 +42,15 @@ public class AdventurePlayerController : MonoBehaviour
     bool _grounded = true;
     string _clip;
 
+    public static AdventurePlayerController Instance { get; private set; }
     public bool InteractPressed { get; private set; }
     public bool IsGliding => _gliding;
     public bool IsGrounded => _grounded;
+    public bool IsBoostActive => _glideBoostTimer > 0f;
 
     void Awake()
     {
+        Instance = this;
 #if UNITY_EDITOR
         InputSystem.settings.editorInputBehaviorInPlayMode =
             InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
@@ -81,6 +88,11 @@ public class AdventurePlayerController : MonoBehaviour
         AdventureIslandBoundary.Ensure();
         AdventureBeachWavesManager.Ensure();
         AdventureCicadaAmbienceManager.Ensure();
+        AdventureScrapManager.Ensure();
+        AdventureScrapHUD.Ensure();
+        AdventureFlightManager.Ensure();
+        AdventureRustDrone.Ensure();
+        AdventureBeachFlotsamManager.Ensure();
         if (GetComponent<AdventureNikoFootsteps>() == null)
             gameObject.AddComponent<AdventureNikoFootsteps>();
         string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
@@ -108,7 +120,14 @@ public class AdventurePlayerController : MonoBehaviour
         float speed = (running ? runSpeed : walkSpeed) * moveSpeedMultiplier;
         bool holdGlide = canGlide && kb != null && kb.spaceKey.isPressed;
 
-        if (Floating() || (_cc.isGrounded && !TooSteep() && !StandingOnSeafloor()))
+        // ブースト中は無条件で大空へ飛び上がり、接地判定や滑空ディレイを完全バイパス
+        if (_glideBoostTimer > 0f)
+        {
+            _grounded = false;
+            _gliding = true;
+            _airborneTime = Mathf.Max(_airborneTime, 1.0f);
+        }
+        else if (Floating() || (_cc.isGrounded && _hop <= 0.05f && !TooSteep() && !StandingOnSeafloor()))
         {
             if (_hop < 0f)
                 _hop = -2f;
@@ -139,7 +158,26 @@ public class AdventurePlayerController : MonoBehaviour
             }
         }
 
-        _gliding = !_grounded && holdGlide && _airborneTime >= glideEnterDelay;
+        bool wasGliding = _gliding;
+        if (_glideBoostTimer > 0f)
+        {
+            _gliding = true;
+            _grounded = false;
+        }
+        else
+        {
+            _gliding = !_grounded && holdGlide && _airborneTime >= glideEnterDelay;
+        }
+
+        // 滑空に入った瞬間に相棒Rustが穏やかに語りかける
+        if (!wasGliding && _gliding)
+        {
+            var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+            if (drone != null)
+            {
+                drone.OnGlideStarted();
+            }
+        }
 
         Vector3 camForward = transform.forward;
         Vector3 camRight = transform.right;
@@ -164,22 +202,83 @@ public class AdventurePlayerController : MonoBehaviour
             horizontal = wishWalk;
             _airMomentum = wishWalk;
             if (wishWalk.sqrMagnitude > 0.0001f)
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(wishWalk), turnSpeed * Time.deltaTime);
+            {
+                Quaternion targetRot = Quaternion.LookRotation(wishWalk);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, turnSpeed * Time.deltaTime);
+            }
+            else
+            {
+                // 地上静止時はピッチ・ロールを水平にリセット
+                Vector3 euler = transform.eulerAngles;
+                if (Mathf.Abs(Mathf.DeltaAngle(euler.x, 0f)) > 0.1f || Mathf.Abs(Mathf.DeltaAngle(euler.z, 0f)) > 0.1f)
+                {
+                    transform.rotation = Quaternion.Euler(0f, euler.y, 0f);
+                }
+            }
         }
         else if (_gliding)
         {
-            float glideSpeed = glideForwardSpeed * moveSpeedMultiplier;
-            if (input.y < -0.1f)
-                glideSpeed *= 0.5f;
-            else if (input.y > 0.1f)
-                glideSpeed *= 1.12f;
-            Vector3 wishGlide = camForward * glideSpeed + camRight * input.x * glideSpeed * 0.18f;
-            if (_airMomentum.sqrMagnitude < 4f)
-                _airMomentum = camForward * (glideSpeed * 0.8f);
-            _airMomentum = Vector3.MoveTowards(_airMomentum, wishGlide, 5.5f * Time.deltaTime);
-            if (_airMomentum.sqrMagnitude > 0.01f)
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(_airMomentum), glideTurnSpeed * Time.deltaTime);
-            _hop = Mathf.MoveTowards(_hop, glideFallSpeed, 14f * Time.deltaTime);
+            // === 『A Short Hike』スタイルの心地よい滑空操作 ===
+            if (_glideBoostTimer > 0f)
+                _glideBoostTimer -= Time.deltaTime;
+
+            bool isBoosted = _glideBoostTimer > 0f;
+
+            // 1. A/Dキーによるダイレクトな機首旋回（大空を自由に飛び回る！）
+            float turnRate = isBoosted ? 110f : 145f; // 毎秒145度でクイック旋回
+            float currentYaw = transform.eulerAngles.y;
+            currentYaw += input.x * turnRate * Time.deltaTime;
+
+            // 左右旋回時の機体バンク（傾き）表現（-22°〜+22°）
+            float targetRoll = -input.x * 22f;
+            float currentRoll = Mathf.MoveTowardsAngle(transform.eulerAngles.z, targetRoll, 90f * Time.deltaTime);
+
+            // 2. W/Sキーによるピッチ（ダイブ加速／滞空ブレーキ）制御
+            // Wキー: 急降下ダイブ（高速加速＆鋭い降下）
+            // Sキー: フレア滞空（ブレーキ＆ふわりと浮き上がり長時間滑空）
+            float targetSpeed;
+            float targetFall;
+            float pitchAngle;
+
+            if (input.y > 0.15f) // Wキー：ダイブ加速！
+            {
+                targetSpeed = (isBoosted ? 15.0f : 11.5f) * moveSpeedMultiplier;
+                targetFall = isBoosted ? -0.8f : -2.8f;
+                pitchAngle = 8f; // 機首下げ
+            }
+            else if (input.y < -0.15f) // Sキー：滞空フレア！
+            {
+                targetSpeed = (isBoosted ? 8.5f : 4.6f) * moveSpeedMultiplier;
+                targetFall = isBoosted ? 0.3f : -0.28f; // ふわりとほとんど落ちない
+                pitchAngle = -6f; // 機首上げ
+            }
+            else // 通常巡航：心地よい浮遊速度
+            {
+                targetSpeed = (isBoosted ? 11.0f : 7.4f) * moveSpeedMultiplier;
+                targetFall = isBoosted ? 0.2f : -1.15f;
+                pitchAngle = 0f;
+            }
+
+            // 機体の姿勢を反映（ピッチ・ヨー・ロール）
+            transform.rotation = Quaternion.Euler(pitchAngle, currentYaw, currentRoll);
+
+            // 3. 機首方向へ前進！
+            Vector3 forwardFlat = transform.forward;
+            forwardFlat.y = 0f;
+            if (forwardFlat.sqrMagnitude < 0.001f) forwardFlat = Vector3.forward;
+            forwardFlat.Normalize();
+
+            Vector3 wishGlide = forwardFlat * targetSpeed;
+            _airMomentum = Vector3.Lerp(_airMomentum, wishGlide, 6.5f * Time.deltaTime);
+
+            // 上昇気流（サーマル）
+            if (_updraftTimer > 0f)
+            {
+                _updraftTimer -= Time.deltaTime;
+                targetFall = _updraftLift;
+            }
+
+            _hop = Mathf.MoveTowards(_hop, targetFall, 7.5f * Time.deltaTime);
             horizontal = _airMomentum;
         }
         else
@@ -200,6 +299,9 @@ public class AdventurePlayerController : MonoBehaviour
 
     Vector3 ClipMotion(Vector3 motion)
     {
+        if (_gliding || _glideBoostTimer > 0f)
+            return motion; // 大空滑空飛行中は見えない壁判定を完全バイパス！
+
         var bounds = AdventureIslandBoundary.Instance;
         if (bounds != null)
             return bounds.ClipMotion(transform.position, motion);
@@ -208,6 +310,9 @@ public class AdventurePlayerController : MonoBehaviour
 
     void KeepWalkable()
     {
+        if (_gliding || _glideBoostTimer > 0f)
+            return; // 滑空飛行中は地上の歩行エリア制限を完全バイパス！
+
         var bounds = AdventureIslandBoundary.Instance;
         if (bounds == null)
             return;
@@ -347,13 +452,29 @@ public class AdventurePlayerController : MonoBehaviour
 
     static Vector2 ReadMove(Keyboard kb)
     {
-        if (kb == null)
-            return Vector2.zero;
         Vector2 input = Vector2.zero;
-        if (kb.wKey.isPressed || kb.upArrowKey.isPressed) input.y += 1f;
-        if (kb.sKey.isPressed || kb.downArrowKey.isPressed) input.y -= 1f;
-        if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) input.x -= 1f;
-        if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) input.x += 1f;
+        if (kb != null)
+        {
+            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) input.y += 1f;
+            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) input.y -= 1f;
+            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) input.x -= 1f;
+            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) input.x += 1f;
+        }
+
+        // 複数キーボードやゲームパッドのフォールバック
+        if (input.sqrMagnitude < 0.001f)
+        {
+            var gp = Gamepad.current;
+            if (gp != null)
+            {
+                Vector2 stick = gp.leftStick.ReadValue();
+                if (stick.sqrMagnitude > 0.04f) input = stick;
+                if (gp.dpad.up.isPressed) input.y += 1f;
+                if (gp.dpad.down.isPressed) input.y -= 1f;
+                if (gp.dpad.left.isPressed) input.x -= 1f;
+                if (gp.dpad.right.isPressed) input.x += 1f;
+            }
+        }
         return Vector2.ClampMagnitude(input, 1f);
     }
 
@@ -373,6 +494,37 @@ public class AdventurePlayerController : MonoBehaviour
         {
             float reference = running ? 5.4f : 2.4f;
             _anim.speed = Mathf.Clamp(speed / reference, 0.9f, 1.7f);
+        }
+    }
+
+    /// <summary>気流（ウインドレーン）や風のリングに乗った時の心地よい浮揚・推進</summary>
+    public void ApplyGlideBoost(float boostMultiplier, float duration, Vector3 boostDirection = default)
+    {
+        _glideBoostMultiplier = Mathf.Max(_glideBoostMultiplier, boostMultiplier);
+        _glideBoostTimer = Mathf.Max(_glideBoostTimer, duration);
+        _grounded = false;
+        _gliding = true;
+        _airborneTime = 1.0f;
+        _hop = 3.6f; // 気流を孕んでフワリと優雅に持ち上がる！
+
+        Vector3 forwardDir = boostDirection.sqrMagnitude > 0.01f ? boostDirection : transform.forward;
+        forwardDir.y = 0f;
+        if (forwardDir.sqrMagnitude < 0.001f) forwardDir = transform.forward;
+        forwardDir.Normalize();
+
+        float cruiseSpeed = 10.5f * moveSpeedMultiplier; // 心地よい追い風クルージング速度
+        _airMomentum = forwardDir * cruiseSpeed;
+        transform.rotation = Quaternion.LookRotation(forwardDir);
+    }
+
+    /// <summary>上昇気流（サーマル）突入時の浮遊・上昇力付与</summary>
+    public void ApplyUpdraft(float liftForce)
+    {
+        _updraftLift = liftForce;
+        _updraftTimer = 0.25f;
+        if (!_grounded)
+        {
+            _gliding = true;
         }
     }
 }

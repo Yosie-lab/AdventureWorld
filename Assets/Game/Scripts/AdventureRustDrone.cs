@@ -28,6 +28,65 @@ public class AdventureRustDrone : MonoBehaviour
     float _heat;
     bool _wasHitching;
 
+    // スクラップ収集・アップグレード対話
+    string _speechText = "";
+    float _speechTimer = 0f;
+    AudioClip _happyBeepClip;
+    AudioClip _sonarBeepClip;
+    float _sonarTimer = 0f;
+    GUIStyle _speechStyle;
+    Texture2D _speechBg;
+
+    // オイルアイテムと手当てシステム
+    public int oilCount = 1;
+    public float wellOiledUntil = 0f;
+    bool _isPlayerNear = false;
+    float _lastInteractTime = 0f;
+
+    public static AdventureRustDrone Instance { get; private set; }
+
+    public static void Ensure()
+    {
+        if (Instance != null) return;
+        var existing = FindAnyObjectByType<AdventureRustDrone>();
+        if (existing != null)
+        {
+            Instance = existing;
+            return;
+        }
+
+        var niko = GameObject.Find("Niko");
+        Vector3 spawnPos = niko != null ? niko.transform.position + niko.transform.right * 1.5f + Vector3.up * 1.2f : new Vector3(266f, 49.5f, 331f);
+
+        GameObject droneGo = null;
+#if UNITY_EDITOR
+        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/RustAndFloat/Prefabs/Rust.prefab");
+        if (prefab != null)
+        {
+            droneGo = Object.Instantiate(prefab, spawnPos, Quaternion.identity);
+            droneGo.name = "Rust";
+        }
+#endif
+        if (droneGo == null)
+        {
+            droneGo = new GameObject("Rust");
+            droneGo.transform.position = spawnPos;
+            var body = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            body.name = "Body";
+            body.transform.SetParent(droneGo.transform, false);
+            body.transform.localScale = new Vector3(0.45f, 0.45f, 0.45f);
+            var col = body.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+        }
+
+        Instance = droneGo.GetComponent<AdventureRustDrone>() ?? droneGo.AddComponent<AdventureRustDrone>();
+    }
+
+    void Awake()
+    {
+        Instance = this;
+    }
+
     void Start()
     {
         var niko = GameObject.Find("Niko");
@@ -41,7 +100,14 @@ public class AdventureRustDrone : MonoBehaviour
         SetupAudio();
         SetupHeat();
         SetupOil();
+
+        // 起動時のあたたかい挨拶
+        _speechText = "ピピッ…！起動したよ、Niko。一緒に行こう！";
+        _speechTimer = 4.5f;
+        _nextIdleTalk = Time.time + 20f;
     }
+
+    float _nextIdleTalk;
 
     void Update()
     {
@@ -49,11 +115,13 @@ public class AdventureRustDrone : MonoBehaviour
             return;
 
         Vector3 goal = FollowPoint();
-        bool hitching = Time.time < _hitchUntil;
-        if (!hitching && Time.time >= _nextHitch && FlatDistance(goal) > 2.4f)
+        bool wellOiled = Time.time < wellOiledUntil;
+        bool hitching = !wellOiled && Time.time < _hitchUntil;
+
+        if (!wellOiled && !hitching && Time.time >= _nextHitch && FlatDistance(goal) > 2.4f)
         {
             _hitchUntil = Time.time + Random.Range(0.22f, 0.5f);
-            _nextHitch = Time.time + Random.Range(2.6f, 5.4f);
+            _nextHitch = Time.time + Random.Range(3.5f, 6.5f);
             hitching = true;
             PlayCreak(true);
             BeginHeatBurst();
@@ -66,7 +134,8 @@ public class AdventureRustDrone : MonoBehaviour
         }
 
         _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-1.7f * Time.deltaTime));
-        transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, 0.52f, 5.1f);
+        float smoothTime = wellOiled ? 0.38f : 0.52f; // 油を差してもらうと機敏に追従
+        transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, 5.5f);
 
         Vector3 to = _lookAt.position + Vector3.up * 0.7f - transform.position;
         if (to.sqrMagnitude > 0.04f)
@@ -74,16 +143,20 @@ public class AdventureRustDrone : MonoBehaviour
             Quaternion look = Quaternion.LookRotation(to);
             if (hitching)
                 look *= Quaternion.Euler(0f, Mathf.Sin(Time.time * 18f) * 8f, 0f);
-            transform.rotation = Quaternion.Slerp(transform.rotation, look, 2.4f * Time.deltaTime);
+            transform.rotation = Quaternion.Slerp(transform.rotation, look, (wellOiled ? 3.5f : 2.4f) * Time.deltaTime);
         }
 
-        if (!hitching && _velocity.sqrMagnitude > 6f)
+        if (!hitching && _velocity.sqrMagnitude > 6f && !wellOiled)
             PlayCreak(false);
 
         UpdateHeat(hitching);
         if (_wasHitching && !hitching)
             DripOil();
         _wasHitching = hitching;
+
+        UpdatePlayerInteraction();
+        UpdateSpeech();
+        UpdateSonar();
     }
 
     Vector3 FollowPoint()
@@ -137,6 +210,8 @@ public class AdventureRustDrone : MonoBehaviour
         _audio.maxDistance = 22f;
         _audio.volume = soundVolume;
         _creaks = new[] { MakeCreak(11), MakeCreak(29), MakeCreak(47) };
+        _happyBeepClip = MakeSynthBeep(880f, 1320f, 0.18f);
+        _sonarBeepClip = MakeSynthBeep(1480f, 1100f, 0.22f);
     }
 
     void SetupHeat()
@@ -160,14 +235,14 @@ public class AdventureRustDrone : MonoBehaviour
         var main = _heatFx.main;
         main.loop = true;
         main.playOnAwake = true;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(2.2f, 3.8f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(0.2f, 0.55f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.9f, 1.7f);
-        main.startColor = new Color(1f, 1f, 1f, 0.78f);
+        main.startLifetime = new ParticleSystem.MinMaxCurve(1.1f, 1.8f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.18f, 0.45f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.32f, 0.65f);
+        main.startColor = new Color(1f, 1f, 1f, 0.65f);
         main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
-        main.gravityModifier = -0.22f;
+        main.gravityModifier = -0.16f;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = 24;
+        main.maxParticles = 16;
         main.scalingMode = ParticleSystemScalingMode.Local;
 
         var emission = _heatFx.emission;
@@ -175,8 +250,8 @@ public class AdventureRustDrone : MonoBehaviour
 
         var shape = _heatFx.shape;
         shape.shapeType = ParticleSystemShapeType.Cone;
-        shape.angle = 38f;
-        shape.radius = 0.2f;
+        shape.angle = 24f;
+        shape.radius = 0.12f;
         shape.rotation = new Vector3(-90f, 0f, 0f);
 
         var color = _heatFx.colorOverLifetime;
@@ -186,35 +261,35 @@ public class AdventureRustDrone : MonoBehaviour
             new[]
             {
                 new GradientColorKey(Color.white, 0f),
-                new GradientColorKey(Color.white, 1f)
+                new GradientColorKey(new Color(0.92f, 0.94f, 0.98f), 1f)
             },
             new[]
             {
-                new GradientAlphaKey(0.8f, 0f),
-                new GradientAlphaKey(0.45f, 0.4f),
-                new GradientAlphaKey(0f, 1f)
+                new GradientAlphaKey(0f, 0f),      // 発生時はスッとフェードイン
+                new GradientAlphaKey(0.6f, 0.25f), // ピーク透明度
+                new GradientAlphaKey(0f, 1f)       // 自然に消滅
             });
         color.color = grad;
 
         var size = _heatFx.sizeOverLifetime;
         size.enabled = true;
-        size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.7f, 1f, 2.2f));
+        size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.5f, 1f, 1.8f));
 
         var rot = _heatFx.rotationOverLifetime;
         rot.enabled = true;
-        rot.z = new ParticleSystem.MinMaxCurve(-18f, 18f);
+        rot.z = new ParticleSystem.MinMaxCurve(-12f, 12f);
 
         var noise = _heatFx.noise;
         noise.enabled = true;
-        noise.strength = 0.7f;
-        noise.frequency = 0.22f;
-        noise.scrollSpeed = 0.18f;
+        noise.strength = 0.45f;
+        noise.frequency = 0.25f;
+        noise.scrollSpeed = 0.15f;
         noise.damping = true;
 
         var renderer = go.GetComponent<ParticleSystemRenderer>();
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         renderer.receiveShadows = false;
-        renderer.maxParticleSize = 3f;
+        renderer.maxParticleSize = 1.5f;
         renderer.material = LoadHeatMaterial();
         _heatFx.Play();
     }
@@ -257,16 +332,119 @@ public class AdventureRustDrone : MonoBehaviour
 
         Vector3 vel = Vector3.down * 0.35f;
         float t = 0f;
+        float groundY = SurfaceY(drop.transform.position);
+
         while (t < 2.4f && drop != null)
         {
             vel += Vector3.down * 9.8f * 0.55f * Time.deltaTime;
             drop.transform.position += vel * Time.deltaTime;
+            if (drop.transform.position.y <= groundY + 0.08f)
+            {
+                // 地面に到達！
+                drop.transform.position = new Vector3(drop.transform.position.x, groundY + 0.05f, drop.transform.position.z);
+                break;
+            }
             t += Time.deltaTime;
             yield return null;
         }
 
         if (drop != null)
+        {
+            // フィールド上のオイルが4個未満なら採取可能なアイテムとして残す
+            int existingOils = Object.FindObjectsByType<AdventureRustOilDrop>(FindObjectsInactive.Exclude).Length;
+            if (existingOils < 4)
+            {
+                var oilItem = new GameObject("RustOilDrop");
+                oilItem.transform.position = drop.transform.position;
+                oilItem.AddComponent<AdventureRustOilDrop>();
+            }
             Destroy(drop);
+        }
+    }
+
+    /// <summary>オイル採取時の通知</summary>
+    public void AddOil(int amount)
+    {
+        oilCount += amount;
+        SpeakCustom("✦ 潤滑油を採取した！（所持数: " + oilCount + "）", 3.2f);
+        if (_happyBeepClip != null && _audio != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.45f);
+    }
+
+    void UpdatePlayerInteraction()
+    {
+        var player = AdventurePlayerController.Instance;
+        if (player == null) return;
+
+        float dist = Vector3.Distance(transform.position, player.transform.position);
+        _isPlayerNear = dist < 2.4f;
+
+        if (_isPlayerNear && player.InteractPressed && Time.time - _lastInteractTime > 0.6f)
+        {
+            _lastInteractTime = Time.time;
+            InteractWithNiko();
+        }
+    }
+
+    /// <summary>Nikoとの直接対話または手当て</summary>
+    void InteractWithNiko()
+    {
+        bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
+
+        // 1. 手当て（油をさしてあげる）
+        if (needsOil && oilCount > 0)
+        {
+            oilCount--;
+            wellOiledUntil = Time.time + 80f; // 80秒間ガタつきなし＆軽快追従
+            _heatUntil = 0f;
+            _heat = 0f;
+            _velocity += Vector3.up * 3.2f;
+
+            if (_happyBeepClip != null && _audio != null)
+                _audio.PlayOneShot(_happyBeepClip, 0.65f);
+
+            string[] treatLines = {
+                "わぁ…！ありがとうNiko、身体がすごく軽くなったよ…！",
+                "油を差してくれてありがとう！ギアが滑らかに回ってるよ！",
+                "ピピッ…！温かい手当てをありがとう。もうギシギシしないよ"
+            };
+            SpeakCustom(treatLines[Random.Range(0, treatLines.Length)], 4.8f);
+            return;
+        }
+
+        // 2. 心温まる対話（通常時）
+        _velocity += Vector3.up * 1.5f;
+        if (_happyBeepClip != null && _audio != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.35f);
+
+        var player = AdventurePlayerController.Instance;
+        var scrapMgr = AdventureScrapManager.Instance;
+        int scraps = scrapMgr != null ? scrapMgr.CollectedCount : 0;
+
+        string reply;
+        if (player != null && player.transform.position.y > 60f)
+        {
+            reply = "すごい見晴らしだね、Niko！ここから風に乗ったらどこまで飛べるかな？";
+        }
+        else if (player != null && player.transform.position.y < 9f)
+        {
+            reply = "波の音がするね…昔の世界から流れてきたものが砂に埋もれているみたい";
+        }
+        else if (scraps >= 6)
+        {
+            reply = "ギアの波長が合ってきたよ！島を一緒に巡れて嬉しいな、Niko";
+        }
+        else
+        {
+            string[] casualLines = {
+                "この島、静かで風が温かいね…一緒にのんびり行こう、Niko",
+                "ピピッ！何かな？ぼくはいつでもNikoの隣にいるよ",
+                "焦らなくていいんだよ。寄り道しながら、空と海を眺めよう"
+            };
+            reply = casualLines[Random.Range(0, casualLines.Length)];
+        }
+
+        SpeakCustom(reply, 4.5f);
     }
 
     void BeginHeatBurst()
@@ -303,35 +481,62 @@ public class AdventureRustDrone : MonoBehaviour
         }
     }
 
+    static Texture2D _softSmokeTex;
+
+    public static Texture2D GetSoftSmokeTexture()
+    {
+        if (_softSmokeTex != null)
+            return _softSmokeTex;
+
+        const int res = 64;
+        _softSmokeTex = new Texture2D(res, res, TextureFormat.RGBA32, false);
+        _softSmokeTex.wrapMode = TextureWrapMode.Clamp;
+        _softSmokeTex.filterMode = FilterMode.Bilinear;
+
+        Vector2 center = new Vector2(res * 0.5f, res * 0.5f);
+        float radius = res * 0.48f;
+
+        for (int y = 0; y < res; y++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float dist = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), center);
+                float t = Mathf.Clamp01(dist / radius);
+                // コサイン曲線による非常に滑らかな減衰（端は完全な透明、境界の四角感をゼロに）
+                float alpha = t >= 1f ? 0f : (Mathf.Cos(t * Mathf.PI) * 0.5f + 0.5f);
+                alpha = Mathf.Pow(alpha, 1.5f);
+                _softSmokeTex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+        _softSmokeTex.Apply();
+        return _softSmokeTex;
+    }
+
     static Material LoadHeatMaterial()
     {
-        var shader = Shader.Find("RustAndFlat/WhiteSmoke");
+        var shader = Shader.Find("RustAndFloat/WhiteSmoke");
         if (shader == null)
             shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
                 ?? Shader.Find("Sprites/Default");
         var mat = new Material(shader);
-        var src = Resources.Load<Material>("RustHeat");
-        if (src != null)
-        {
-            var tex = src.GetTexture("_BaseMap");
-            if (tex != null)
-                mat.SetTexture("_BaseMap", tex);
-        }
-
-        mat.SetColor("_BaseColor", Color.white);
+        mat.SetTexture("_BaseMap", GetSoftSmokeTexture());
+        mat.SetColor("_BaseColor", new Color(1f, 1f, 1f, 0.85f));
         mat.renderQueue = 3100;
         return mat;
     }
 
     void PlayCreak(bool force)
     {
-        if (_audio == null || _creaks == null)
+        if (_audio == null || _creaks == null || _creaks.Length == 0)
             return;
         if (!force && Time.time < _nextCreak)
             return;
+        var clip = _creaks[Random.Range(0, _creaks.Length)];
+        if (clip == null)
+            return;
         _audio.volume = soundVolume;
         _audio.pitch = Random.Range(0.86f, 1.08f);
-        _audio.PlayOneShot(_creaks[Random.Range(0, _creaks.Length)], Random.Range(0.22f, 0.38f));
+        _audio.PlayOneShot(clip, Random.Range(0.22f, 0.38f));
         _nextCreak = Time.time + Random.Range(1.2f, 2.2f);
     }
 
@@ -355,4 +560,277 @@ public class AdventureRustDrone : MonoBehaviour
         clip.SetData(data, 0);
         return clip;
     }
+
+    public void OnNikoFoundScrap(int count)
+    {
+        // 嬉しそうにピョンと跳ねる
+        _velocity += Vector3.up * 2.8f;
+        if (_audio != null && _happyBeepClip != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.45f);
+
+        switch (count)
+        {
+            case 1:
+                _speechText = "ピピピッ！綺麗なギアを見つけたね、Niko！";
+                break;
+            case 2:
+                _speechText = "古代のエネルギーが微かに残ってるよ…！";
+                break;
+            case 3:
+                _speechText = "ピキーン！歯車が噛み合った！ダッシュが速くなったよ！";
+                break;
+            case 6:
+                _speechText = "コア同期完了！二段ジャンプができるようになったよ！";
+                break;
+            case 9:
+                _speechText = "探知レーダーが作動！近くの遺物を探知するよ！";
+                break;
+            case 12:
+                _speechText = "全パーツ結合完了！大滑空ブーストが全開になったよ！！";
+                break;
+            default:
+                string[] barks = {
+                    "ピピッ！また見つけたね！",
+                    "調子が出てきたよ、Niko！",
+                    "島の遺物はあといくつかな？",
+                    "すごい！ギアの波長が合ってきた！"
+                };
+                _speechText = barks[Random.Range(0, barks.Length)];
+                break;
+        }
+        _speechTimer = 4.2f;
+    }
+
+    /// <summary>滑空を開始した瞬間のRustの穏やかなセリフ</summary>
+    public void OnGlideStarted()
+    {
+        _velocity += Vector3.up * 1.5f;
+        string[] glideStartLines = {
+            "わぁ…！風が気持ちいいね、Niko",
+            "ふわりと浮いたよ…！",
+            "風を掴んだね…！すごいよ！"
+        };
+        _speechText = glideStartLines[Random.Range(0, glideStartLines.Length)];
+        _speechTimer = 4.0f;
+    }
+
+    /// <summary>気流に乗った時のRustの穏やかなセリフ</summary>
+    public void OnFloatWindCaught()
+    {
+        _velocity += Vector3.up * 1.8f;
+        string[] windLines = {
+            "わぁ…！風が気持ちいいね、Niko",
+            "ふわりと浮いたよ…！",
+            "風に乗って、どこまでも行けそう",
+            "島を見下ろすと、すごく綺麗だね"
+        };
+        _speechText = windLines[Random.Range(0, windLines.Length)];
+        _speechTimer = 4.0f;
+    }
+
+    /// <summary>指定したテキストを特大ダイアログで発話</summary>
+    public void SpeakCustom(string text, float duration = 4.5f)
+    {
+        _velocity += Vector3.up * 0.8f;
+        _speechText = text;
+        _speechTimer = duration;
+    }
+
+    void UpdateSpeech()
+    {
+        if (_speechTimer > 0f)
+            _speechTimer -= Time.deltaTime;
+        else if (Time.time >= _nextIdleTalk)
+        {
+            _nextIdleTalk = Time.time + Random.Range(30f, 50f);
+            var player = AdventurePlayerController.Instance;
+            if (player != null && player.IsGliding)
+            {
+                string[] glideLines = {
+                    "風に乗って、どこまでも行けそう",
+                    "島を見下ろすと、すごく綺麗だね",
+                    "わぁ…！風が気持ちいいね、Niko"
+                };
+                _speechText = glideLines[Random.Range(0, glideLines.Length)];
+                _speechTimer = 4.0f;
+            }
+            else
+            {
+                string[] exploreLines = {
+                    "風の音が心地いいね、Niko",
+                    "どこへ行こうか？のんびり行こう",
+                    "この島の空気、すこし温かいね",
+                    "ピピッ…何か光るものがあるかな？"
+                };
+                _speechText = exploreLines[Random.Range(0, exploreLines.Length)];
+                _speechTimer = 3.8f;
+            }
+        }
+    }
+
+    void UpdateSonar()
+    {
+        var mgr = AdventureScrapManager.Instance;
+        if (mgr == null || !mgr.hasPetRadar)
+            return;
+
+        var nearest = mgr.GetNearestScrap(transform.position, out float dist);
+        if (nearest == null || dist > 45f)
+            return;
+
+        _sonarTimer -= Time.deltaTime;
+        if (_sonarTimer <= 0f)
+        {
+            float rate = Mathf.Lerp(1.0f, 2.8f, 1f - Mathf.Clamp01(dist / 45f));
+            _sonarTimer = 3.2f / rate;
+
+            if (_audio != null && _sonarBeepClip != null)
+            {
+                _audio.pitch = Mathf.Lerp(0.9f, 1.35f, 1f - Mathf.Clamp01(dist / 45f));
+                _audio.PlayOneShot(_sonarBeepClip, 0.32f);
+            }
+        }
+    }
+
+    void OnGUI()
+    {
+        // 1. Niko接近時の頭上インタラクションプロンプト
+        if (_isPlayerNear && Camera.main != null)
+        {
+            Vector3 headPos = transform.position + Vector3.up * 0.75f;
+            Vector3 screenPos = Camera.main.WorldToScreenPoint(headPos);
+            if (screenPos.z > 0.2f)
+            {
+                bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
+                string prompt = (needsOil && oilCount > 0) ? "【E】油をさして手当て" : "【E】話しかける";
+                if (needsOil && oilCount == 0)
+                    prompt = "【Rustが不調…油が必要】";
+
+                GUIStyle pStyle = new GUIStyle(GUI.skin.box);
+                pStyle.fontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.020f, 15f, 22f));
+                pStyle.fontStyle = FontStyle.Bold;
+                pStyle.normal.textColor = (needsOil && oilCount > 0) ? new Color(1.0f, 0.85f, 0.3f) : new Color(0.4f, 0.95f, 1.0f);
+                pStyle.alignment = TextAnchor.MiddleCenter;
+
+                Vector2 pSize = pStyle.CalcSize(new GUIContent(prompt));
+                pSize.x += 20f;
+                pSize.y += 8f;
+                GUI.Box(new Rect(screenPos.x - pSize.x * 0.5f, Screen.height - screenPos.y - pSize.y - 12f, pSize.x, pSize.y), prompt, pStyle);
+            }
+        }
+
+        // 2. 画面右上のオイル所持数バッジ（HUD）
+        if (oilCount > 0 || Time.time < wellOiledUntil)
+        {
+            int badgeSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.018f, 14f, 20f));
+            GUIStyle badgeStyle = new GUIStyle(GUI.skin.box);
+            badgeStyle.fontSize = badgeSize;
+            badgeStyle.fontStyle = FontStyle.Bold;
+            badgeStyle.alignment = TextAnchor.MiddleCenter;
+            badgeStyle.normal.textColor = new Color(0.95f, 0.92f, 0.82f);
+
+            string status = Time.time < wellOiledUntil ? "✦ 良好（整備済）" : "✦ 潤滑油: " + oilCount;
+            GUIContent bContent = new GUIContent(status);
+            Vector2 bSize = badgeStyle.CalcSize(bContent);
+            bSize.x += 16f;
+            bSize.y += 8f;
+            GUI.Box(new Rect(Screen.width - bSize.x - 20f, 65f, bSize.x, bSize.y), bContent, badgeStyle);
+        }
+
+        // 3. セリフダイアログ表示
+        if (_speechTimer <= 0f || string.IsNullOrEmpty(_speechText))
+            return;
+
+        // Retinaや大画面・4Kでも絶対に小さくならない特大フォント設計
+        // 基準解像度での視認性を最優先（1080pで本文34pt、大画面で最大46pt）
+        int bodyFontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.034f, 26f, 44f));
+        int nameFontSize = Mathf.RoundToInt(bodyFontSize * 0.68f);
+
+        // スタイル生成・キャッシュ
+        if (_speechStyle == null)
+        {
+            _speechStyle = new GUIStyle();
+            _speechBg = new Texture2D(1, 1);
+            _speechBg.SetPixel(0, 0, new Color(0.04f, 0.07f, 0.12f, 0.92f));
+            _speechBg.Apply();
+        }
+
+        // ウィンドウサイズの計算（画面幅の65%〜85%を心地よく使用）
+        float boxWidth = Mathf.Clamp(Screen.width * 0.72f, 480f, 1020f);
+        float boxHeight = bodyFontSize * 2.8f + nameFontSize + 28f;
+        float x = (Screen.width - boxWidth) * 0.5f;
+        float y = Screen.height - boxHeight - Mathf.Clamp(Screen.height * 0.06f, 40f, 85f);
+
+        float alpha = Mathf.Clamp01(_speechTimer);
+        Color prevColor = GUI.color;
+        GUI.color = new Color(1f, 1f, 1f, alpha);
+
+        Rect boxRect = new Rect(x, y, boxWidth, boxHeight);
+
+        // 1. 半透明ダーク背景（映画字幕風ウィンドウ）
+        GUI.DrawTexture(boxRect, _speechBg);
+
+        // 上部アクセントバー（エメラルドシアンの風の光彩ライン）
+        Rect barRect = new Rect(x, y, boxWidth, 3f);
+        GUI.DrawTexture(barRect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, new Color(0.2f, 0.95f, 0.85f, 0.9f * alpha), 0, 0);
+
+        // 2. ネームタグ [ 相棒 Rust ]
+        GUIStyle nameStyle = new GUIStyle(GUI.skin.label);
+        nameStyle.fontSize = nameFontSize;
+        nameStyle.fontStyle = FontStyle.Bold;
+        nameStyle.alignment = TextAnchor.MiddleLeft;
+
+        Rect nameRect = new Rect(x + 28f, y + 10f, boxWidth - 56f, nameFontSize + 6f);
+        DrawOutlinedText(nameRect, "✦ 相棒 Rust", nameStyle, new Color(0.35f, 0.92f, 0.98f, alpha), new Color(0f, 0f, 0f, 0.9f * alpha));
+
+        // 3. セリフ本文（特大・高コントラスト）
+        GUIStyle bodyStyle = new GUIStyle(GUI.skin.label);
+        bodyStyle.fontSize = bodyFontSize;
+        bodyStyle.fontStyle = FontStyle.Bold;
+        bodyStyle.alignment = TextAnchor.MiddleLeft;
+        bodyStyle.wordWrap = true;
+
+        Rect bodyRect = new Rect(x + 28f, y + nameFontSize + 16f, boxWidth - 56f, bodyFontSize * 1.8f);
+        DrawOutlinedText(bodyRect, "「" + _speechText + "」", bodyStyle, new Color(1.0f, 1.0f, 1.0f, alpha), new Color(0f, 0f, 0f, 0.95f * alpha));
+
+        GUI.color = prevColor;
+    }
+
+    /// <summary>4方向の黒フチ取り（アウトライン）で背景色問わず100%くっきり描画</summary>
+    static void DrawOutlinedText(Rect rect, string text, GUIStyle style, Color textColor, Color outlineColor)
+    {
+        int spread = Mathf.Max(2, style.fontSize / 14);
+        Color origColor = style.normal.textColor;
+
+        style.normal.textColor = outlineColor;
+        GUI.Label(new Rect(rect.x - spread, rect.y, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x + spread, rect.y, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x, rect.y - spread, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x, rect.y + spread, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x + spread, rect.y + spread, rect.width, rect.height), text, style);
+
+        style.normal.textColor = textColor;
+        GUI.Label(rect, text, style);
+        style.normal.textColor = origColor;
+    }
+
+    static AudioClip MakeSynthBeep(float startFreq, float endFreq, float duration)
+    {
+        const int hz = 44100;
+        int samples = (int)(hz * duration);
+        float[] data = new float[samples];
+        float phase = 0f;
+        for (int i = 0; i < samples; i++)
+        {
+            float t = i / (float)samples;
+            float freq = Mathf.Lerp(startFreq, endFreq, t);
+            phase += 2f * Mathf.PI * freq / hz;
+            float env = Mathf.Sin(t * Mathf.PI);
+            data[i] = Mathf.Sin(phase) * env * 0.45f;
+        }
+        var clip = AudioClip.Create("SynthBeep", samples, 1, hz, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
 }
+

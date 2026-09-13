@@ -5,8 +5,8 @@ using System.Linq;
 
 public static class AdventureBuildRustFloatIsland
 {
-    const string ScenePath = "Assets/RustAndFlat/Scenes/RustAndFlat.unity";
-    const string TerrainPath = "Assets/RustAndFlat/Terrain/IslandTerrain.asset";
+    const string ScenePath = "Assets/RustAndFloat/Scenes/RustAndFloat.unity";
+    const string TerrainPath = "Assets/RustAndFloat/Terrain/IslandTerrain.asset";
     const string NikoPath = "Assets/Niko&Capyta/Assets/Prefabs/Niko.prefab";
 
     [MenuItem("Adventure/🏝️ Build 1000m Grand Sanctuary Island")]
@@ -324,7 +324,7 @@ public static class AdventureBuildRustFloatIsland
 
     static void PaintLayers(TerrainData td, Terrain land)
     {
-        var sand = AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/RustAndFlat/Terrain/SandLayer.terrainlayer");
+        var sand = AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/RustAndFloat/Terrain/SandLayer.terrainlayer");
         var grass = AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/Idyllic Fantasy Nature/Terrain Layer/Grass_Layer.terrainlayer");
         var rock = AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/Idyllic Fantasy Nature/Terrain Layer/Rock_Layer.terrainlayer");
         if (sand == null || grass == null || rock == null)

@@ -53,7 +53,7 @@ public class AdventureBeachWavesManager : MonoBehaviour
     void LoadAudioClip()
     {
 #if UNITY_EDITOR
-        _waveClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFlat/Audio/Ambience/ocean_waves_grand.wav");
+        _waveClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFloat/Audio/Ambience/ocean_waves_grand.wav");
         if (_waveClip == null)
             _waveClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/AudioFiles/03_amb/watershore_amb.wav");
 #endif

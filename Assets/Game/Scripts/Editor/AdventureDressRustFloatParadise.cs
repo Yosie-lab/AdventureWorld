@@ -6,7 +6,7 @@ using System.Linq;
 
 public static class AdventureDressRustFloatParadise
 {
-    const string ScenePath = "Assets/RustAndFlat/Scenes/RustAndFlat.unity";
+    const string ScenePath = "Assets/RustAndFloat/Scenes/RustAndFloat.unity";
     const string RootName = "Paradise";
     const string PrefabRoot = "Assets/Idyllic Fantasy Nature/Prefabs/";
 
@@ -923,7 +923,7 @@ public static class AdventureDressRustFloatParadise
         var skyShader = Shader.Find("RustAndFloat/ClearBlueSky");
         if (skyShader != null)
         {
-            const string skyMatPath = "Assets/RustAndFlat/Materials/ClearBlueSky.mat";
+            const string skyMatPath = "Assets/RustAndFloat/Materials/ClearBlueSky.mat";
             var skyMat = AssetDatabase.LoadAssetAtPath<Material>(skyMatPath);
             if (skyMat == null)
             {
@@ -987,7 +987,7 @@ public static class AdventureDressRustFloatParadise
         Material cloudMat = null;
         if (cloudShader != null)
         {
-            const string cloudMatPath = "Assets/RustAndFlat/Materials/FluffyCloud.mat";
+            const string cloudMatPath = "Assets/RustAndFloat/Materials/FluffyCloud.mat";
             cloudMat = AssetDatabase.LoadAssetAtPath<Material>(cloudMatPath);
             if (cloudMat == null)
             {
@@ -1931,7 +1931,7 @@ public static class AdventureDressRustFloatParadise
         Vector3 center = origin + new Vector3(td.size.x * 0.5f, 0f, td.size.z * 0.5f);
         float islandR = td.size.x * 0.44f; // 半径約450mの海岸線
 
-        var waveClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFlat/Audio/Ambience/ocean_waves_grand.wav");
+        var waveClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFloat/Audio/Ambience/ocean_waves_grand.wav");
         if (waveClip == null)
             waveClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/AudioFiles/03_amb/watershore_amb.wav");
         if (waveClip == null) return;

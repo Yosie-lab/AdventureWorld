@@ -124,13 +124,17 @@ public class DragonflyFlight : MonoBehaviour
         _target = _home + Random.insideUnitSphere * 4f;
         _target.y = _home.y + Random.Range(-0.5f, 0.8f);
         _wings = transform.Find("Wings");
+        if (_wings != null)
+        {
+            _wings.localScale = new Vector3(0.55f, 0.015f, 0.14f);
+        }
     }
 
     void Update()
     {
-        // 高速羽ばたき
+        // 高速羽ばたき（スケールを破壊せず、自然な角度振動で羽ばたく）
         if (_wings != null)
-            _wings.localScale = new Vector3(1f, Mathf.Sin(Time.time * 65f) * 0.8f, 1f);
+            _wings.localRotation = Quaternion.Euler(Mathf.Sin(Time.time * 55f) * 22f, 0f, 0f);
 
         // 飛行移動
         transform.position = Vector3.MoveTowards(transform.position, _target, _speed * Time.deltaTime);
