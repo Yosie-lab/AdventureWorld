@@ -4,6 +4,8 @@ using System.Collections;
 /// <summary>
 /// NikoがRustを手当てした時や、何かを成し遂げた時（パーツ回収、キーストーン獲得など）に、
 /// 愛おしくRustを撫でる（ペッティング＆スキンシップ）アクションを司るコンポーネント。
+/// Niko正規のアニメーション（NikoPickItemDown / NikoIdle）を用いて、右手が脱臼・変形することなく
+/// 自然で愛らしいスキンシップを実現する。
 /// </summary>
 public class AdventurePettingAction : MonoBehaviour
 {
@@ -11,15 +13,12 @@ public class AdventurePettingAction : MonoBehaviour
 
     AdventurePlayerController _player;
     Animator _anim;
-    Transform _rightHandBone;
-    Transform _rightArmBone;
 
     bool _isPetting = false;
     public bool IsPetting => _isPetting;
 
     float _petTimer = 0f;
     float _petDuration = 2.0f;
-    float _petWeight = 0f; // 0.0〜1.0の手のブレンドウェイト
 
     static ParticleSystem _heartFxInstance;
     static AudioClip _sweetCuddleSound;
@@ -36,42 +35,6 @@ public class AdventurePettingAction : MonoBehaviour
         Instance = this;
         _player = GetComponent<AdventurePlayerController>();
         _anim = GetComponentInChildren<Animator>();
-        FindBones();
-    }
-
-    void FindBones()
-    {
-        if (_anim != null && _anim.isHuman)
-        {
-            _rightHandBone = _anim.GetBoneTransform(HumanBodyBones.RightHand);
-            _rightArmBone = _anim.GetBoneTransform(HumanBodyBones.RightUpperArm);
-        }
-
-        if (_rightHandBone == null)
-        {
-            foreach (var t in GetComponentsInChildren<Transform>())
-            {
-                string n = t.name.ToLower();
-                if ((n.Contains("hand") || n.Contains("wrist")) && (n.Contains("r") || n.Contains("right")))
-                {
-                    _rightHandBone = t;
-                    break;
-                }
-            }
-        }
-
-        if (_rightArmBone == null)
-        {
-            foreach (var t in GetComponentsInChildren<Transform>())
-            {
-                string n = t.name.ToLower();
-                if (n.Contains("arm") && (n.Contains("r") || n.Contains("right")) && !n.Contains("fore"))
-                {
-                    _rightArmBone = t;
-                    break;
-                }
-            }
-        }
     }
 
     /// <summary>Rustを愛おしく撫でるアクションを実行</summary>
@@ -96,49 +59,47 @@ public class AdventurePettingAction : MonoBehaviour
             PlaySweetCuddleSound(drone.transform.position);
         }
 
-        // 2. 撫でるアニメーション（開始時は手を持ち上げ、ストロークし、戻す）
+        // 2. Nikoの正規モーション「NikoPickItemDown」（自然に身をかがめて手を前に伸ばす）を優しく再生
+        if (_anim != null)
+        {
+            _anim.CrossFadeInFixedTime("NikoPickItemDown", 0.2f);
+        }
+
+        // 3. 撫でている間の演出（Rustの寄り添い・ハートエフェクト）
         while (_petTimer < _petDuration)
         {
             _petTimer += Time.deltaTime;
             float progress = _petTimer / _petDuration;
 
-            // イーズイン・アウトのウェイト曲線
-            if (progress < 0.25f)
-                _petWeight = Mathf.SmoothStep(0f, 1f, progress / 0.25f);
-            else if (progress > 0.75f)
-                _petWeight = Mathf.SmoothStep(1f, 0f, (progress - 0.75f) / 0.25f);
-            else
-                _petWeight = 1f;
-
-            // RustをNikoの手の届く位置（Nikoの少し前方・胸の高さ）へ優しく寄り添わせる
+            // RustをNikoの手が届く位置（Nikoの前方0.6m、手の高さ約0.65m）へ優しく寄り添わせる
             if (drone != null)
             {
-                Vector3 petAnchor = transform.position + transform.forward * 0.75f + transform.right * 0.25f + Vector3.up * 1.05f;
-                drone.transform.position = Vector3.Lerp(drone.transform.position, petAnchor, Time.deltaTime * 6.0f);
+                Vector3 petAnchor = transform.position + transform.forward * 0.58f + Vector3.up * 0.62f;
+                drone.transform.position = Vector3.Lerp(drone.transform.position, petAnchor, Time.deltaTime * 5.5f);
 
-                // RustがNikoに甘えるように少し首を傾げる
+                // RustがNikoの手に頭をすり寄せるように少し斜めに傾く甘えモーション
                 Quaternion cuddleRot = Quaternion.LookRotation(transform.position - drone.transform.position)
-                                     * Quaternion.Euler(Mathf.Sin(Time.time * 6f) * 8f, 0f, 14f);
-                drone.transform.rotation = Quaternion.Slerp(drone.transform.rotation, cuddleRot, Time.deltaTime * 8.0f);
+                                     * Quaternion.Euler(Mathf.Sin(Time.time * 5f) * 6f, 0f, 16f);
+                drone.transform.rotation = Quaternion.Slerp(drone.transform.rotation, cuddleRot, Time.deltaTime * 7.0f);
             }
 
-            // NikoをRustの方へ向かせる
+            // NikoをRustの方向へ優しく向かせる
             if (drone != null)
             {
                 Vector3 toDrone = (drone.transform.position - transform.position);
                 toDrone.y = 0f;
                 if (toDrone.sqrMagnitude > 0.01f)
                 {
-                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(toDrone), Time.deltaTime * 6.0f);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(toDrone), Time.deltaTime * 5.0f);
                 }
             }
 
-            // ハート・温かい光のパーティクルを生成（撫でている最中にポワポワと浮かぶ）
-            if (drone != null && progress > 0.2f && progress < 0.8f)
+            // ハート・温かい光のスパークルを生成（撫でている最中にポワポワと浮かぶ）
+            if (drone != null && progress > 0.2f && progress < 0.85f)
             {
                 if (Random.value < 0.18f)
                 {
-                    Vector3 contactPos = drone.transform.position + Vector3.up * 0.25f + Random.insideUnitSphere * 0.12f;
+                    Vector3 contactPos = drone.transform.position + Vector3.up * 0.22f + Random.insideUnitSphere * 0.1f;
                     SpawnHeartSparkle(contactPos);
                 }
             }
@@ -146,42 +107,18 @@ public class AdventurePettingAction : MonoBehaviour
             yield return null;
         }
 
-        _petWeight = 0f;
+        // 4. アイドル姿勢へスムーズに戻る
+        if (_anim != null)
+        {
+            _anim.CrossFadeInFixedTime("NikoIdle", 0.25f);
+        }
+
         _isPetting = false;
 
-        // 撫で終わった後、Rustが嬉しそうに小さくピピッ！と一回転
+        // 撫で終わった後、Rustが満足そうに小さくピピッ！と一回転
         if (drone != null)
         {
             drone.StartCoroutine(drone.CheerSpinRoutine());
-        }
-    }
-
-    void LateUpdate()
-    {
-        if (_petWeight <= 0.001f) return;
-
-        var drone = AdventureRustDrone.Instance;
-        if (drone == null) return;
-
-        Vector3 targetHeadPos = drone.transform.position + Vector3.up * 0.22f;
-
-        // 優しくなでなでするストローク運動（前後・上下の穏やかな往復）
-        float strokePhase = Mathf.Sin(_petTimer * 7.5f);
-        Vector3 strokeOffset = transform.forward * (strokePhase * 0.06f) + Vector3.up * (Mathf.Abs(strokePhase) * 0.035f);
-        targetHeadPos += strokeOffset;
-
-        // ボーンがある場合、右腕・右手をRustの頭の上へ向けて滑らかに曲げる
-        if (_rightHandBone != null)
-        {
-            Vector3 handTarget = targetHeadPos;
-            _rightHandBone.position = Vector3.Lerp(_rightHandBone.position, handTarget, _petWeight * 0.85f);
-            _rightHandBone.rotation = Quaternion.Slerp(_rightHandBone.rotation, Quaternion.Euler(0f, transform.eulerAngles.y - 45f, -75f), _petWeight * 0.85f);
-        }
-
-        if (_rightArmBone != null)
-        {
-            Quaternion reachRot = Quaternion.LookRotation(targetHeadPos - _rightArmBone.position, Vector3.up);
-            _rightArmBone.rotation = Quaternion.Slerp(_rightArmBone.rotation, reachRot, _petWeight * 0.45f);
         }
     }
 
@@ -192,25 +129,25 @@ public class AdventurePettingAction : MonoBehaviour
             var fxGo = new GameObject("HeartSparkleFX");
             _heartFxInstance = fxGo.AddComponent<ParticleSystem>();
             var main = _heartFxInstance.main;
-            main.startSpeed = 0.65f;
-            main.startLifetime = 1.3f;
-            main.startSize = 0.28f;
-            main.startColor = new Color(1.0f, 0.65f, 0.82f, 0.95f); // 愛らしい温かなピンクゴールド
+            main.startSpeed = 0.5f;
+            main.startLifetime = 1.4f;
+            main.startSize = 0.26f;
+            main.startColor = new Color(1.0f, 0.62f, 0.80f, 0.95f); // 愛らしい温かなピンクゴールド
             main.loop = false;
             main.maxParticles = 50;
 
             var shape = _heartFxInstance.shape;
             shape.shapeType = ParticleSystemShapeType.Sphere;
-            shape.radius = 0.15f;
+            shape.radius = 0.12f;
 
             var vel = _heartFxInstance.velocityOverLifetime;
             vel.enabled = true;
-            vel.y = 0.8f; // ふわふわと上へ昇る
+            vel.y = 0.75f; // ふわふわと上へ昇る
 
             var rend = fxGo.GetComponent<ParticleSystemRenderer>();
             var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
             rend.material = new Material(shader);
-            rend.material.SetColor("_BaseColor", new Color(1.0f, 0.65f, 0.82f, 0.95f));
+            rend.material.SetColor("_BaseColor", new Color(1.0f, 0.62f, 0.80f, 0.95f));
         }
 
         _heartFxInstance.transform.position = pos;
