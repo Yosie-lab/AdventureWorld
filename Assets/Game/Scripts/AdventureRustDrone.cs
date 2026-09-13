@@ -226,9 +226,10 @@ public class AdventureRustDrone : MonoBehaviour
         }
         else if (CurrentState == RustState.Petting)
         {
-            // Nikoの胸の座標を基準に、Rustのモデル半径（約0.4m）がめり込まない前方0.72m・胸骨の高さに配置
+            // Rustの全幅（直径約1.2m、半径約0.6m）とNikoの腕の位置を考慮し、
+            // 腕に一切干渉しない胸の真正面0.95m・胸骨〜鎖骨の高さに配置
             Vector3 chestPos = GetNikoChestPosition();
-            goal = chestPos + _lookAt.forward * 0.72f + _lookAt.right * 0.10f + Vector3.up * 0.05f;
+            goal = chestPos + _lookAt.forward * 0.95f + Vector3.up * 0.08f;
             goal.y += Mathf.Sin(Time.time * 3.5f) * 0.035f; // 胸元でのふんわりホバー
 
             _lagTarget = goal; // 遅延によるオーバーシュート（めり込み）を防止
@@ -432,8 +433,8 @@ public class AdventureRustDrone : MonoBehaviour
             return new Vector3(guidePos.x, chest.y + 0.1f + sBob, guidePos.z);
         }
 
-        // 通常追従の理想位置: Nikoの右肩の斜め後ろ（右0.75m、後方1.05m）
-        Vector3 rightBack = _lookAt.right * 0.75f - _lookAt.forward * 1.05f;
+        // 通常追従の理想位置: Nikoの右肩の斜め後ろ（右0.95m、後方1.25m、腕に触れない快適クリアランス）
+        Vector3 rightBack = _lookAt.right * 0.95f - _lookAt.forward * 1.25f;
         Vector3 targetPos = niko + rightBack;
 
         // Nikoの真正面（股間の前）にRustが入り込んで居座るのを防止
