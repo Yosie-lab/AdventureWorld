@@ -80,6 +80,9 @@ public class AdventureLakeVisualEnhancer : MonoBehaviour
 
         // 8. 寄り道のご褒美：オアシス池の温かい上昇気流（サーマル・コラム）
         BuildThermalUpdraft(root.transform);
+
+        // 9. 脱出を快適にする登り坂ステップ＆階段道（Escape Ramps）
+        BuildEscapeRampsAndSteps(root.transform);
     }
 
     // ── 1. せせらぎの小川（Stream & Cascades） ──────────────────
@@ -161,6 +164,10 @@ public class AdventureLakeVisualEnhancer : MonoBehaviour
             rockR.transform.position = rightBank;
             rockR.transform.rotation = Quaternion.Euler(Random.Range(-10f, 10f), Random.Range(0f, 360f), Random.Range(-10f, 10f));
             rockR.transform.localScale = Vector3.one * Random.Range(0.65f, 1.05f);
+
+            // 岩がプレイヤーの登攀や脱出の壁にならないようコライダーを除去
+            foreach (var c in rockL.GetComponentsInChildren<Collider>()) Destroy(c);
+            foreach (var c in rockR.GetComponentsInChildren<Collider>()) Destroy(c);
         }
 #endif
     }
@@ -361,6 +368,9 @@ public class AdventureLakeVisualEnhancer : MonoBehaviour
                 p.transform.localScale = Vector3.one * Random.Range(0.8f, 1.3f);
             }
         }
+
+        // 岸辺の岩組みがプレイヤーの脱出を塞がないようコライダーを除去
+        foreach (var c in shoreGo.GetComponentsInChildren<Collider>()) Destroy(c);
 #endif
     }
 
@@ -579,6 +589,68 @@ public class AdventureLakeVisualEnhancer : MonoBehaviour
         // 上昇気流トリガーコンポーネント
         ventGo.AddComponent<OasisThermalVent>();
     }
+
+    // ── 9. 脱出を快適にする登り坂ステップ＆階段道（Escape Ramps & Steps） ────
+    void BuildEscapeRampsAndSteps(Transform parent)
+    {
+        var rampGo = new GameObject("Lake_EscapeRamps");
+        rampGo.transform.SetParent(parent, false);
+
+        var stepMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+        stepMat.SetColor("_BaseColor", new Color(0.40f, 0.44f, 0.38f)); // 苔むした自然な岩盤色
+        stepMat.SetFloat("_Smoothness", 0.35f);
+
+        // 1. 東側（渓流・スタート高台へ続く大テラス階段：池18mから高台26mへ）
+        Vector3[] eastSteps = {
+            new Vector3(146f, 18.4f, 163f),
+            new Vector3(149f, 19.8f, 163.5f),
+            new Vector3(152f, 21.4f, 164f),
+            new Vector3(155f, 23.0f, 164.5f),
+            new Vector3(158f, 24.6f, 165f),
+            new Vector3(161f, 26.0f, 165.5f)
+        };
+        for (int i = 0; i < eastSteps.Length; i++)
+        {
+            CreateStepBlock(rampGo.transform, "EastStep_" + i, eastSteps[i], new Vector3(3.8f, 0.65f, 3.2f), stepMat);
+        }
+
+        // 2. 北側（草原丘陵へ続く緩やかな登りステップ：池18mから丘22mへ）
+        Vector3[] northSteps = {
+            new Vector3(135f, 18.5f, 175f),
+            new Vector3(135f, 19.8f, 179f),
+            new Vector3(135f, 21.2f, 183f),
+            new Vector3(135f, 22.5f, 187f)
+        };
+        for (int i = 0; i < northSteps.Length; i++)
+        {
+            CreateStepBlock(rampGo.transform, "NorthStep_" + i, northSteps[i], new Vector3(4.2f, 0.65f, 3.2f), stepMat);
+        }
+
+        // 3. 南側（スタート広場側へ続く登りステップ：池18mから広場22mへ）
+        Vector3[] southSteps = {
+            new Vector3(135f, 18.5f, 157f),
+            new Vector3(135f, 19.8f, 153f),
+            new Vector3(136f, 21.2f, 149f),
+            new Vector3(137f, 22.5f, 145f)
+        };
+        for (int i = 0; i < southSteps.Length; i++)
+        {
+            CreateStepBlock(rampGo.transform, "SouthStep_" + i, southSteps[i], new Vector3(4.2f, 0.65f, 3.2f), stepMat);
+        }
+    }
+
+    void CreateStepBlock(Transform parent, string name, Vector3 pos, Vector3 size, Material mat)
+    {
+        var block = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        block.name = name;
+        block.transform.SetParent(parent, false);
+        block.transform.position = pos;
+        block.transform.localScale = size;
+        block.transform.rotation = Quaternion.Euler(Random.Range(-2f, 2f), Random.Range(-5f, 5f), Random.Range(-2f, 2f));
+
+        var rend = block.GetComponent<Renderer>();
+        if (rend != null) rend.material = mat;
+    }
 }
 
 /// <summary>
@@ -641,7 +713,7 @@ public class LakeWaterWaveAnimator : MonoBehaviour
 }
 
 /// <summary>
-/// 寄り道したプレイヤーを温かい上昇気流（サーマル）でふわりと大空へ舞い上がらせるコンポーネント
+/// 寄り道したプレイヤーを温かい上昇気流（サーマル）と水面キックジャンプで快適に脱出させるコンポーネント
 /// </summary>
 public class OasisThermalVent : MonoBehaviour
 {
@@ -655,25 +727,24 @@ public class OasisThermalVent : MonoBehaviour
 
         Vector3 diff = player.transform.position - transform.position;
         float hDist = new Vector2(diff.x, diff.z).magnitude;
-        float vDist = diff.y; // 気流の高さ（0m〜16m）
+        float pY = player.transform.position.y;
 
-        // 半径5.5m、高度0〜16mのサーマルコラム
-        if (hDist < 5.5f && vDist >= -0.5f && vDist < 16f)
+        // 池の中心部サーマル（半径8.5m）：近づくだけでふわりと上空26mへ舞い上がる
+        if (hDist < 8.5f && pY >= 16.5f && pY < 32f)
         {
-            if (Time.time - _lastLiftTime > 0.25f)
+            if (Time.time - _lastLiftTime > 0.22f)
             {
                 _lastLiftTime = Time.time;
-                player.ApplyGlideBoost(1.4f, 3.0f, Vector3.up);
-                player.ApplyUpdraft(6.8f);
+                player.ApplyGlideBoost(1.45f, 3.2f, Vector3.up);
+                player.ApplyUpdraft(7.8f);
 
-                // 相棒Rustの歓喜
-                if (Time.time - _lastCheerTime > 12f)
+                if (Time.time - _lastCheerTime > 10f)
                 {
                     _lastCheerTime = Time.time;
                     var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
                     if (drone != null)
                     {
-                        drone.SpeakCustom("わぁっ！温かい上昇気流だ！風に乗って行こう、Niko！", 4.5f);
+                        drone.SpeakCustom("わぁっ！温かい上昇気流だ！風に乗って大空へ行こう、Niko！", 4.5f);
                     }
                 }
             }

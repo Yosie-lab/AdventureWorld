@@ -63,8 +63,8 @@ public class AdventurePlayerController : MonoBehaviour
         }
 
         _cc = GetComponent<CharacterController>();
-        _cc.slopeLimit = 50f;
-        _cc.stepOffset = 0.45f;
+        _cc.slopeLimit = 78f; // 78度の急斜面もスムーズに駆け上がれる
+        _cc.stepOffset = 1.35f; // 1.35mの岩段差や砂浜のへり・段差もスムーズに乗り越えられる
         _cc.minMoveDistance = 0f;
         _anim = GetComponentInChildren<Animator>();
         if (_anim != null)
@@ -94,6 +94,7 @@ public class AdventurePlayerController : MonoBehaviour
         AdventureRustDrone.Ensure();
         AdventureBeachFlotsamManager.Ensure();
         AdventureLakeVisualEnhancer.Ensure();
+        AdventureBeachEscapeManager.Ensure();
         if (GetComponent<AdventureNikoFootsteps>() == null)
             gameObject.AddComponent<AdventureNikoFootsteps>();
         string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
@@ -150,7 +151,58 @@ public class AdventurePlayerController : MonoBehaviour
         float effectiveJumpHeight = jumpHeight * jumpMultiplier;
         if (kb != null && kb.spaceKey.wasPressedThisFrame)
         {
-            if (_grounded)
+            // 池・渓流のすり鉢窪地（水底・水面）からの超強力な脱出ローンチジャンプ！
+            if (IsInLakeOrStreamBasin(transform.position))
+            {
+                _hop = 19.5f; // 重力-24fに対して高低差8m（岸の上）を軽々と超える大跳躍！
+                _grounded = false;
+                _gliding = true;
+                _airborneTime = 1.0f;
+                _glideBoostTimer = 3.2f; // 滑空ブーストで前進力も付与
+
+                // 池の中心から外側（岸の方向）へ脱出推進
+                Vector3 escapeDir = transform.position - new Vector3(135f, 18.15f, 166f);
+                escapeDir.y = 0f;
+                if (escapeDir.sqrMagnitude < 0.1f) escapeDir = transform.forward;
+                escapeDir.Normalize();
+
+                _airMomentum = (escapeDir * 7.5f + transform.forward * 4.5f).normalized * 9.5f;
+                transform.rotation = Quaternion.LookRotation(_airMomentum);
+
+                // 相棒Rustの歓喜ボイス
+                var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+                if (drone != null)
+                {
+                    drone.SpeakCustom("ナイスジャンプ！風に乗って岸へ戻ろう、Niko！", 4.0f);
+                }
+            }
+            // 外周砂浜・海岸からの超強力な「海風サーマル・ウインドジャンプ」！
+            else if (IsInBeachOrCoastZone(transform.position))
+            {
+                _hop = 22.0f; // 海抜5.5mから一気に20m〜25mの島の上空へ舞い上がる大跳躍！
+                _grounded = false;
+                _gliding = true;
+                _airborneTime = 1.0f;
+                _glideBoostTimer = 4.2f; // 4秒間の滑空ブーストで島の内陸へロングクルーズ
+
+                // 砂浜から島の内陸中心へ向かう推進ベクトル
+                Vector3 center = GetIslandCenterXZ();
+                Vector3 inwardDir = center - new Vector3(transform.position.x, 0f, transform.position.z);
+                inwardDir.y = 0f;
+                if (inwardDir.sqrMagnitude < 0.1f) inwardDir = transform.forward;
+                inwardDir.Normalize();
+
+                _airMomentum = (inwardDir * 8.5f + transform.forward * 3.5f).normalized * 11.5f;
+                transform.rotation = Quaternion.LookRotation(_airMomentum);
+
+                // 相棒Rustの誘導ボイス
+                var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+                if (drone != null)
+                {
+                    drone.SpeakCustom("海風の上昇気流をつかまえたよ！島の内陸へ飛んで帰ろう、Niko！", 4.5f);
+                }
+            }
+            else if (_grounded)
             {
                 _hop = Mathf.Sqrt(effectiveJumpHeight * -2f * gravity);
                 _grounded = false;
@@ -208,6 +260,22 @@ public class AdventurePlayerController : MonoBehaviour
             _airMomentum = wishWalk;
             if (wishWalk.sqrMagnitude > 0.0001f)
             {
+                // 砂浜や低地から内陸へ向かって歩いている時、斜面をスルスル登れる強力な登坂アシスト
+                if (IsInBeachOrCoastZone(transform.position))
+                {
+                    Vector3 center = GetIslandCenterXZ();
+                    Vector3 inward = center - new Vector3(transform.position.x, 0f, transform.position.z);
+                    inward.y = 0f;
+                    if (inward.sqrMagnitude > 0.1f)
+                    {
+                        inward.Normalize();
+                        if (Vector3.Dot(wishWalk.normalized, inward) > 0.1f)
+                        {
+                            horizontal += inward * (running ? 3.5f : 2.0f); // 内陸への登坂を力強くサポート
+                        }
+                    }
+                }
+
                 Quaternion targetRot = Quaternion.LookRotation(wishWalk);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, turnSpeed * Time.deltaTime);
             }
@@ -371,7 +439,7 @@ public class AdventurePlayerController : MonoBehaviour
         Vector3 size = _land.terrainData.size;
         float nx = Mathf.Clamp01((transform.position.x - origin.x) / size.x);
         float nz = Mathf.Clamp01((transform.position.z - origin.z) / size.z);
-        return _land.terrainData.GetInterpolatedNormal(nx, nz).y < 0.68f;
+        return _land.terrainData.GetInterpolatedNormal(nx, nz).y < 0.20f; // 78度以上の極端な絶壁以外は足が滑らず自力登坂可能に
     }
 
     void FloatOnWater()
@@ -531,5 +599,47 @@ public class AdventurePlayerController : MonoBehaviour
         {
             _gliding = true;
         }
+    }
+
+    /// <summary>オアシス池（標高18.15m）および渓流のすり鉢窪地にいるかの判定</summary>
+    public bool IsInLakeOrStreamBasin(Vector3 pos)
+    {
+        float distToLake = new Vector2(pos.x - 135f, pos.z - 166f).magnitude;
+        bool nearLake = distToLake < 32f && pos.y <= 21.5f;
+        bool inStream = (pos.x >= 143f && pos.x <= 163f && pos.z >= 156f && pos.z <= 172f && pos.y <= 26.0f);
+        return nearLake || inStream;
+    }
+
+    /// <summary>島の中央座標（XZ平面）を取得</summary>
+    public Vector3 GetIslandCenterXZ()
+    {
+        if (_land != null && _land.terrainData != null)
+        {
+            Vector3 origin = _land.transform.position;
+            Vector3 size = _land.terrainData.size;
+            return new Vector3(origin.x + size.x * 0.5f, 0f, origin.z + size.z * 0.5f);
+        }
+        return new Vector3(512f, 0f, 512f);
+    }
+
+    /// <summary>外周砂浜（白砂ビーチ・海岸線・低地）にいるかの判定</summary>
+    public bool IsInBeachOrCoastZone(Vector3 pos)
+    {
+        float waterY = WaterY();
+        if (float.IsNegativeInfinity(waterY)) waterY = 5.5f;
+
+        Vector3 center = GetIslandCenterXZ();
+        float distToCenter = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(center.x, center.z));
+        float islandRadius = (_land != null && _land.terrainData != null) ? _land.terrainData.size.x * 0.5f : 512f;
+
+        // 1. 島外周エリア（半径の約62%以遠、Grand Islandなら半径320m〜510m）かつ低地（海抜 <= waterY + 9.5f）
+        if (distToCenter >= islandRadius * 0.62f && pos.y <= waterY + 9.5f)
+            return true;
+
+        // 2. 海水・波打ち際付近（海抜 <= waterY + 3.0f）
+        if (pos.y <= waterY + 3.0f)
+            return true;
+
+        return false;
     }
 }

@@ -44,9 +44,19 @@ public class AdventureThermalUpdraft : MonoBehaviour
         float distXZ = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(pPos.x, pPos.z));
         bool inY = pPos.y >= pos.y - 1.0f && pPos.y <= pos.y + height;
 
-        if (distXZ < radius && inY && player.IsGliding)
+        if (distXZ < radius && inY)
         {
-            player.ApplyUpdraft(liftSpeed);
+            if (player.IsGliding)
+            {
+                player.ApplyUpdraft(liftSpeed);
+            }
+            else
+            {
+                // 地上から歩いて気流に入った時、自動でフワリと上空へテイクオフ！
+                player.ApplyGlideBoost(1.25f, 3.8f, transform.forward);
+                player.ApplyUpdraft(liftSpeed * 1.3f);
+            }
+
             if (_audio != null)
                 _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
         }
@@ -61,9 +71,15 @@ public class AdventureThermalUpdraft : MonoBehaviour
     {
         var player = other.GetComponent<AdventurePlayerController>()
             ?? other.GetComponentInParent<AdventurePlayerController>();
-        if (player != null && player.IsGliding)
+        if (player != null)
         {
-            player.ApplyUpdraft(liftSpeed);
+            if (player.IsGliding)
+                player.ApplyUpdraft(liftSpeed);
+            else
+            {
+                player.ApplyGlideBoost(1.25f, 3.8f, transform.forward);
+                player.ApplyUpdraft(liftSpeed * 1.3f);
+            }
 
             // 音量のフェードイン
             if (_audio != null)
