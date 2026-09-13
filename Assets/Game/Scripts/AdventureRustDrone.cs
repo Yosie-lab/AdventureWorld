@@ -48,13 +48,27 @@ public class AdventureRustDrone : MonoBehaviour
     float _nextGuideNotice = 0f;
     bool _isPointingToScrap = false;
 
-    // 連携アクション（Fキー指示・遠隔回収・偵察・宙返り）
-    public enum RustState { Follow, Fetching, Returning, Scouting, Celebrating }
+    // 連携アクション（Fキー指示・遠隔回収・偵察・宙返り・撫でスキンシップ）
+    public enum RustState { Follow, Fetching, Returning, Scouting, Celebrating, Petting }
     public RustState CurrentState { get; private set; } = RustState.Follow;
     AdventureScrapItem _targetScrap;
     Vector3 _scoutTargetPos;
     float _stateTimer = 0f;
     AdventureScrapItem _aimedScrap;
+
+    public void SetPettingState(bool active, float duration)
+    {
+        if (active)
+        {
+            CurrentState = RustState.Petting;
+            _stateTimer = duration;
+        }
+        else
+        {
+            if (CurrentState == RustState.Petting)
+                CurrentState = RustState.Follow;
+        }
+    }
 
     public static AdventureRustDrone Instance { get; private set; }
 
@@ -209,6 +223,16 @@ public class AdventureRustDrone : MonoBehaviour
             if (_stateTimer <= 0f)
                 CurrentState = RustState.Follow;
         }
+        else if (CurrentState == RustState.Petting)
+        {
+            // Nikoの胸元（Nikoの原点 + 上方1.25m + 前方0.45m）に確実にホバリング！
+            goal = _lookAt.position + _lookAt.forward * 0.45f + Vector3.up * 1.25f;
+            goal.y += Mathf.Sin(Time.time * 3.5f) * 0.035f; // 胸元でのふんわりホバー
+
+            _stateTimer -= Time.deltaTime;
+            if (_stateTimer <= 0f)
+                CurrentState = RustState.Follow;
+        }
         else // Follow
         {
             goal = FollowPoint();
@@ -229,7 +253,7 @@ public class AdventureRustDrone : MonoBehaviour
         }
 
         _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-2.2f * Time.deltaTime));
-        float smoothTime = CurrentState == RustState.Fetching || CurrentState == RustState.Returning ? 0.28f : (wellOiled ? 0.38f : 0.52f);
+        float smoothTime = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning || CurrentState == RustState.Petting) ? 0.24f : (wellOiled ? 0.38f : 0.52f);
         transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, 8.5f);
 
         // 回転の計算
@@ -240,9 +264,9 @@ public class AdventureRustDrone : MonoBehaviour
             if (_isPointingToScrap && _guidedScrap != null)
                 to = _guidedScrap.transform.position + Vector3.up * 0.3f - transform.position;
         }
-        else if (CurrentState == RustState.Returning)
+        else if (CurrentState == RustState.Returning || CurrentState == RustState.Petting)
         {
-            to = _lookAt.position + Vector3.up * 0.7f - transform.position;
+            to = _lookAt.position + Vector3.up * 1.35f - transform.position;
         }
 
         if (to.sqrMagnitude > 0.04f)
@@ -253,12 +277,17 @@ public class AdventureRustDrone : MonoBehaviour
                 // 嬉しい宙返り回転！
                 look *= Quaternion.Euler(Time.time * 720f, 0f, 0f);
             }
+            else if (CurrentState == RustState.Petting)
+            {
+                // 胸元ですり寄る甘えチルト
+                look *= Quaternion.Euler(-10f + Mathf.Sin(Time.time * 4f) * 4f, 0f, 16f);
+            }
             else if (hitching)
                 look *= Quaternion.Euler(0f, Mathf.Sin(Time.time * 18f) * 8f, 0f);
             else if (_isPointingToScrap && CurrentState == RustState.Follow)
                 look *= Quaternion.Euler(Mathf.Sin(Time.time * 10f) * 6f, 0f, Mathf.Cos(Time.time * 8f) * 4f);
 
-            transform.rotation = Quaternion.Slerp(transform.rotation, look, 5.0f * Time.deltaTime);
+            transform.rotation = Quaternion.Slerp(transform.rotation, look, 6.5f * Time.deltaTime);
         }
 
         if (!hitching && _velocity.sqrMagnitude > 6f && !wellOiled && CurrentState == RustState.Follow)

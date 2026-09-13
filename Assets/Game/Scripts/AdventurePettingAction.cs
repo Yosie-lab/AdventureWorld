@@ -52,9 +52,10 @@ public class AdventurePettingAction : MonoBehaviour
 
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
 
-        // 1. Rustへの挨拶・台詞と甘える効果音
+        // 1. Rustへの挨拶・台詞と甘える効果音、胸元ホバリングステートの開始
         if (drone != null)
         {
+            drone.SetPettingState(true, duration);
             drone.SpeakCustom(speechText, duration + 1.0f);
             PlaySweetCuddleSound(drone.transform.position);
         }
@@ -65,27 +66,11 @@ public class AdventurePettingAction : MonoBehaviour
             _anim.CrossFadeInFixedTime("NikoIdle", 0.2f);
         }
 
-        // 3. 撫でている間の演出（Rustの胸元への寄り添い・ハートエフェクト）
+        // 3. 撫でている間の演出（胸元の触れ合い・ハートエフェクト）
         while (_petTimer < _petDuration)
         {
             _petTimer += Time.deltaTime;
             float progress = _petTimer / _petDuration;
-
-            // RustをNikoの胸の高さ（地上1.18m、胸元正面0.45m〜0.52m）へ優しく寄り添わせる
-            if (drone != null)
-            {
-                Vector3 chestAnchor = transform.position + transform.forward * 0.48f + Vector3.up * 1.18f;
-                // ふわふわとした胸元の抱擁ホバー
-                float hoverBob = Mathf.Sin(Time.time * 3.5f) * 0.035f;
-                chestAnchor += Vector3.up * hoverBob;
-
-                drone.transform.position = Vector3.Lerp(drone.transform.position, chestAnchor, Time.deltaTime * 5.5f);
-
-                // RustがNikoの胸元・肩口に頭を預けてすり寄せる愛らしい甘え角度（少し斜め上を仰ぐ）
-                Quaternion cuddleRot = Quaternion.LookRotation(transform.position + Vector3.up * 1.35f - drone.transform.position)
-                                     * Quaternion.Euler(-10f + Mathf.Sin(Time.time * 4f) * 5f, 0f, 15f);
-                drone.transform.rotation = Quaternion.Slerp(drone.transform.rotation, cuddleRot, Time.deltaTime * 7.0f);
-            }
 
             // NikoをRustの方向へ優しく向かせる
             if (drone != null)
@@ -109,6 +94,11 @@ public class AdventurePettingAction : MonoBehaviour
             }
 
             yield return null;
+        }
+
+        if (drone != null)
+        {
+            drone.SetPettingState(false, 0f);
         }
 
         _isPetting = false;
