@@ -188,6 +188,10 @@ public class AdventureWindRing : MonoBehaviour
 
     void TriggerBoost(AdventurePlayerController player)
     {
+        // 滑空中の時のみ風のリングの空中加速ブーストを発動（地上歩行中の意図しない浮遊を防止）
+        if (player == null || !player.IsGliding)
+            return;
+
         _isCooldown = true;
 
         // プレイヤーに前進ロケット加速ブーストを付与（リングの貫通方向へ猛烈に射出！）

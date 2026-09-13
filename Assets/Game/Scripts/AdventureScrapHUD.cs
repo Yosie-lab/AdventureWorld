@@ -246,9 +246,13 @@ public class AdventureScrapHUD : MonoBehaviour
         {
             _tickerText.text = $"✦ 目標: スーパーグライダー完成 ({count}/12){radarInfo}";
         }
+        else if (!AdventureSanctuaryTowerManager.IsCanopyBroken)
+        {
+            _tickerText.text = "✦ 全パーツ回収完了！島中央タワー頂上の【真鍮レバー】を引け！";
+        }
         else
         {
-            _tickerText.text = "✦ 全パーツ回収完了！中央タワー最深部へ向かえ！";
+            _tickerText.text = "✦ 天蓋崩壊！空の裂け目へ光のウインドピラーから大滑空ダイブせよ！";
         }
     }
 

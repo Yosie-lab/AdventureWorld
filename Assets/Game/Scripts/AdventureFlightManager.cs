@@ -48,20 +48,16 @@ public class AdventureFlightManager : MonoBehaviour
         var course = new GameObject("Course_Meadows");
         course.transform.SetParent(parent, false);
 
-        // 1. スタート地点の真正面（北東へ約10m）：開始時に画面中央にドカンと映るチュートリアルリング！
-        // プレイヤー(265, 330)の正面55度方向。地上走行でど真ん中を貫通する高さ
-        CreateRingAt(course.transform, new Vector3(273f, 0f, 336f), 1.4f, Quaternion.Euler(0f, 55f, 0f), land);
+        // 1. 東の小高い丘から池へ向けて飛び出す空中リング（滑空でくぐる高さ）
+        CreateRingAt(course.transform, new Vector3(292f, 0f, 350f), 4.8f, Quaternion.Euler(0f, 50f, 0f), land);
 
-        // 2. そのすぐ先、東の緩やかな丘へ登るリング（ブースト滑空でそのまま突入）
-        CreateRingAt(course.transform, new Vector3(292f, 0f, 350f), 2.5f, Quaternion.Euler(0f, 50f, 0f), land);
+        // 2. 丘の上から池の対岸へ滑空するリング
+        CreateRingAt(course.transform, new Vector3(310f, 0f, 370f), 5.5f, Quaternion.Euler(0f, 40f, 0f), land);
 
-        // 3. 丘の上から池の対岸へ飛び出すリング
-        CreateRingAt(course.transform, new Vector3(310f, 0f, 370f), 3.5f, Quaternion.Euler(0f, 40f, 0f), land);
+        // 3. 池上空を優雅に横断する空中リング
+        CreateRingAt(course.transform, new Vector3(285f, 0f, 395f), 6.5f, Quaternion.Euler(0f, -60f, 0f), land);
 
-        // 4. 池上空を滑空するリング
-        CreateRingAt(course.transform, new Vector3(285f, 0f, 395f), 5.0f, Quaternion.Euler(0f, -60f, 0f), land);
-
-        // 5. せせらぎ池のほとりの上昇気流サーマル（飛び降りた後、高度を+45m吹き上げる！）
+        // 4. せせらぎ池上空の上昇気流サーマル（滑空中に飛び込むと高度を吹き上げる）
         CreateThermalAt(course.transform, new Vector3(275f, 0f, 370f), 8.5f, 45f, land);
     }
 
