@@ -72,8 +72,8 @@ public class AdventurePettingAction : MonoBehaviour
             _petTimer += Time.deltaTime;
             float progress = _petTimer / _petDuration;
 
-            // NikoをRustの方向へ優しく向かせる
-            if (drone != null)
+            // 撫で始め（最初の約0.7秒間）にNikoをRustの方向へ向かせ、胸元到着後はブレないよう固定
+            if (drone != null && progress < 0.25f)
             {
                 Vector3 toDrone = (drone.transform.position - transform.position);
                 toDrone.y = 0f;
