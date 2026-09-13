@@ -59,27 +59,31 @@ public class AdventurePettingAction : MonoBehaviour
             PlaySweetCuddleSound(drone.transform.position);
         }
 
-        // 2. Nikoの正規モーション「NikoPickItemDown」（自然に身をかがめて手を前に伸ばす）を優しく再生
+        // 2. Nikoは穏やかなアイドル姿勢でRustをあたたかく迎える
         if (_anim != null)
         {
-            _anim.CrossFadeInFixedTime("NikoPickItemDown", 0.2f);
+            _anim.CrossFadeInFixedTime("NikoIdle", 0.2f);
         }
 
-        // 3. 撫でている間の演出（Rustの寄り添い・ハートエフェクト）
+        // 3. 撫でている間の演出（Rustの胸元への寄り添い・ハートエフェクト）
         while (_petTimer < _petDuration)
         {
             _petTimer += Time.deltaTime;
             float progress = _petTimer / _petDuration;
 
-            // RustをNikoの手が届く位置（Nikoの前方0.6m、手の高さ約0.65m）へ優しく寄り添わせる
+            // RustをNikoの胸の高さ（地上1.18m、胸元正面0.45m〜0.52m）へ優しく寄り添わせる
             if (drone != null)
             {
-                Vector3 petAnchor = transform.position + transform.forward * 0.58f + Vector3.up * 0.62f;
-                drone.transform.position = Vector3.Lerp(drone.transform.position, petAnchor, Time.deltaTime * 5.5f);
+                Vector3 chestAnchor = transform.position + transform.forward * 0.48f + Vector3.up * 1.18f;
+                // ふわふわとした胸元の抱擁ホバー
+                float hoverBob = Mathf.Sin(Time.time * 3.5f) * 0.035f;
+                chestAnchor += Vector3.up * hoverBob;
 
-                // RustがNikoの手に頭をすり寄せるように少し斜めに傾く甘えモーション
-                Quaternion cuddleRot = Quaternion.LookRotation(transform.position - drone.transform.position)
-                                     * Quaternion.Euler(Mathf.Sin(Time.time * 5f) * 6f, 0f, 16f);
+                drone.transform.position = Vector3.Lerp(drone.transform.position, chestAnchor, Time.deltaTime * 5.5f);
+
+                // RustがNikoの胸元・肩口に頭を預けてすり寄せる愛らしい甘え角度（少し斜め上を仰ぐ）
+                Quaternion cuddleRot = Quaternion.LookRotation(transform.position + Vector3.up * 1.35f - drone.transform.position)
+                                     * Quaternion.Euler(-10f + Mathf.Sin(Time.time * 4f) * 5f, 0f, 15f);
                 drone.transform.rotation = Quaternion.Slerp(drone.transform.rotation, cuddleRot, Time.deltaTime * 7.0f);
             }
 
@@ -94,23 +98,17 @@ public class AdventurePettingAction : MonoBehaviour
                 }
             }
 
-            // ハート・温かい光のスパークルを生成（撫でている最中にポワポワと浮かぶ）
-            if (drone != null && progress > 0.2f && progress < 0.85f)
+            // 胸元の触れ合いから、温かなハート・光のスパークルを生成
+            if (drone != null && progress > 0.15f && progress < 0.9f)
             {
-                if (Random.value < 0.18f)
+                if (Random.value < 0.22f)
                 {
-                    Vector3 contactPos = drone.transform.position + Vector3.up * 0.22f + Random.insideUnitSphere * 0.1f;
+                    Vector3 contactPos = drone.transform.position + Vector3.up * 0.15f + Random.insideUnitSphere * 0.08f;
                     SpawnHeartSparkle(contactPos);
                 }
             }
 
             yield return null;
-        }
-
-        // 4. アイドル姿勢へスムーズに戻る
-        if (_anim != null)
-        {
-            _anim.CrossFadeInFixedTime("NikoIdle", 0.25f);
         }
 
         _isPetting = false;
