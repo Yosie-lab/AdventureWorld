@@ -280,6 +280,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // 5. タワー中央から上空180mの裂け目へ突き抜ける超巨大「天空スーパーサーマル」噴出！
         BuildSkybreakHyperUpdraft(new Vector3(512f, 62f, 512f));
 
+        if (AdventurePettingAction.Instance != null)
+        {
+            AdventurePettingAction.Instance.PetRust("ありがとうRust…！君がいたからここまで来られた。行こう！", 3.2f);
+        }
+
         yield return new WaitForSeconds(2.5f);
 
         if (drone != null)

@@ -99,6 +99,7 @@ public class AdventurePlayerController : MonoBehaviour
         AdventureMusicDirector.Ensure();
         AdventureCloudDrift.EnsureCloudSystem();
         AdventureDayNightDirector.Ensure();
+        AdventurePettingAction.Ensure(gameObject);
         if (GetComponent<AdventureNikoFootsteps>() == null)
             gameObject.AddComponent<AdventureNikoFootsteps>();
         string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
@@ -126,6 +127,10 @@ public class AdventurePlayerController : MonoBehaviour
         }
 
         Vector2 input = ReadMove(kb);
+        if (AdventurePettingAction.Instance != null && AdventurePettingAction.Instance.IsPetting)
+        {
+            input = Vector2.zero;
+        }
         bool running = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
         float speed = (running ? runSpeed : walkSpeed) * moveSpeedMultiplier;
         bool holdGlide = canGlide && kb != null && kb.spaceKey.isPressed;

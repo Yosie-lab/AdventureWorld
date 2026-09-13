@@ -302,6 +302,12 @@ public class AdventureScrapItem : MonoBehaviour
             AdventureScrapManager.Instance.OnScrapCollected(this);
         }
 
+        // 成し遂げた時：NikoがRustを愛おしく撫でる
+        if (AdventurePettingAction.Instance != null && !AdventurePettingAction.Instance.IsPetting)
+        {
+            AdventurePettingAction.Instance.PetRust("やったねRust！パーツを見つけたよ！", 1.8f);
+        }
+
         // 音の再生完了後に自身を破棄
         Destroy(gameObject, 0.8f);
     }

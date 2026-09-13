@@ -171,7 +171,16 @@ public class AdventureRustDrone : MonoBehaviour
                 }
                 CurrentState = RustState.Celebrating;
                 _stateTimer = 1.6f;
-                SpeakCustom("えへへ、お届け完了！", 3.0f);
+
+                if (AdventurePettingAction.Instance != null)
+                {
+                    AdventurePettingAction.Instance.PetRust("すごいよRust！取ってきてくれてありがとう！", 2.2f);
+                }
+                else
+                {
+                    SpeakCustom("えへへ、お届け完了！", 3.0f);
+                }
+
                 if (_audio != null && _happyBeepClip != null)
                 {
                     _audio.pitch = 1.55f;
@@ -295,15 +304,12 @@ public class AdventureRustDrone : MonoBehaviour
             }
         }
 
-        // Fキー（またはInputSystemのFキー）検知
+        // Fキー（New Input Systemによる安全な検知）
         bool fPressed = false;
-        if (Input.GetKeyDown(KeyCode.F))
-            fPressed = true;
-        else
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null)
         {
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && kb.fKey.wasPressedThisFrame)
-                fPressed = true;
+            fPressed = kb.fKey.wasPressedThisFrame;
         }
 
         if (fPressed && CurrentState == RustState.Follow)
@@ -635,12 +641,20 @@ public class AdventureRustDrone : MonoBehaviour
             wellOiledUntil = Mathf.Max(wellOiledUntil, Time.time) + 90f; // 90秒間快調
             _heatUntil = 0f;
             _heat = 0f;
-            _velocity += Vector3.up * 3.5f;
+            _velocity += Vector3.up * 1.5f;
 
             if (_happyBeepClip != null && _audio != null)
                 _audio.PlayOneShot(_happyBeepClip, 0.85f);
 
-            StartCoroutine(CheerSpinRoutine());
+            // NikoがRustを愛おしく撫でて手当て
+            if (AdventurePettingAction.Instance != null)
+            {
+                AdventurePettingAction.Instance.PetRust("よしよし、これで快調だね！いつもありがとう、Rust", 2.5f);
+            }
+            else
+            {
+                StartCoroutine(CheerSpinRoutine());
+            }
             return;
         }
 
@@ -652,10 +666,16 @@ public class AdventureRustDrone : MonoBehaviour
             return;
         }
 
-        // 3. 通常の対話
-        _velocity += Vector3.up * 1.5f;
+        // 3. 通常のスキンシップ・撫でる
+        _velocity += Vector3.up * 1.0f;
         if (_happyBeepClip != null && _audio != null)
-            _audio.PlayOneShot(_happyBeepClip, 0.35f);
+            _audio.PlayOneShot(_happyBeepClip, 0.5f);
+
+        if (AdventurePettingAction.Instance != null)
+        {
+            AdventurePettingAction.Instance.PetRust("いい子だね、Rust。一緒に未知の空へ行こう", 2.2f);
+            return;
+        }
 
         var player = AdventurePlayerController.Instance;
         var scrapMgr = AdventureScrapManager.Instance;
@@ -1019,15 +1039,15 @@ public class AdventureRustDrone : MonoBehaviour
                 if (oilCount > 0)
                 {
                     prompt = needsOil 
-                        ? $"【E】油をさして手当てする（所持: {oilCount}）" 
-                        : $"【E】油をさして整備（所持: {oilCount}）";
+                        ? $"【E】油をさして手当て・撫でる（所持: {oilCount}）" 
+                        : $"【E】Rustを愛おしく撫でる（油所持: {oilCount}）";
                     textColor = new Color(1.0f, 0.90f, 0.25f); // 鮮やかなゴールド
                 }
                 else
                 {
                     prompt = needsOil 
                         ? "【⚠ Rustが不調…油切れ（油滴を拾おう）】" 
-                        : "【E】話しかける（油切れ: 0）";
+                        : "【E】Rustを愛おしく撫でる";
                     textColor = needsOil ? new Color(1.0f, 0.55f, 0.15f) : new Color(0.40f, 0.96f, 1.0f);
                 }
 
@@ -1217,7 +1237,7 @@ public class AdventureRustDrone : MonoBehaviour
     }
 
     /// <summary>油を差してもらって快調になったRustの祝祭・宙返り＆パーツレーダー演出</summary>
-    IEnumerator CheerSpinRoutine()
+    public IEnumerator CheerSpinRoutine()
     {
         // 1. 黄金の光粒子スパークルをバースト放出
         SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 26);
