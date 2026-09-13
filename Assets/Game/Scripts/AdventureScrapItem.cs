@@ -210,9 +210,27 @@ public class AdventureScrapItem : MonoBehaviour
             _collectClip = SynthesizeCollectChime();
     }
 
+    Transform _carriedByDrone;
+
+    public void AttachToDrone(Transform drone)
+    {
+        _carriedByDrone = drone;
+        if (_beaconPillar != null)
+            _beaconPillar.gameObject.SetActive(false); // 運搬中は柱を消してスマートに
+    }
+
     void Update()
     {
         if (_isCollected) return;
+
+        // ドローン運搬中の追従
+        if (_carriedByDrone != null)
+        {
+            transform.position = _carriedByDrone.position - Vector3.up * 0.42f;
+            if (_model != null)
+                _model.localRotation = Quaternion.Euler(0f, Time.time * 90f, 0f);
+            return;
+        }
 
         // 浮遊アニメーション（上下ホバー ＆ 優雅な回転）
         float t = Time.time + _hoverOffset;
@@ -259,7 +277,7 @@ public class AdventureScrapItem : MonoBehaviour
         }
     }
 
-    void Collect()
+    public void Collect()
     {
         if (_isCollected) return;
         _isCollected = true;

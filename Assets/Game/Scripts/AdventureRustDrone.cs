@@ -48,6 +48,14 @@ public class AdventureRustDrone : MonoBehaviour
     float _nextGuideNotice = 0f;
     bool _isPointingToScrap = false;
 
+    // 連携アクション（Fキー指示・遠隔回収・偵察・宙返り）
+    public enum RustState { Follow, Fetching, Returning, Scouting, Celebrating }
+    public RustState CurrentState { get; private set; } = RustState.Follow;
+    AdventureScrapItem _targetScrap;
+    Vector3 _scoutTargetPos;
+    float _stateTimer = 0f;
+    AdventureScrapItem _aimedScrap;
+
     public static AdventureRustDrone Instance { get; private set; }
 
     public static void Ensure()
@@ -120,46 +128,131 @@ public class AdventureRustDrone : MonoBehaviour
         if (_lookAt == null)
             return;
 
-        Vector3 goal = FollowPoint();
+        UpdateCommandInput();
+
+        Vector3 goal;
         bool wellOiled = Time.time < wellOiledUntil;
         bool hitching = !wellOiled && Time.time < _hitchUntil;
 
-        if (!wellOiled && !hitching && Time.time >= _nextHitch && FlatDistance(goal) > 2.4f)
+        if (CurrentState == RustState.Fetching)
         {
-            _hitchUntil = Time.time + Random.Range(0.22f, 0.5f);
-            _nextHitch = Time.time + Random.Range(3.5f, 6.5f);
-            hitching = true;
-            PlayCreak(true);
-            BeginHeatBurst();
+            if (_targetScrap == null || _targetScrap.IsCollected)
+            {
+                CurrentState = RustState.Follow;
+                goal = FollowPoint();
+            }
+            else
+            {
+                goal = _targetScrap.transform.position + Vector3.up * 0.45f;
+                float distToTarget = Vector3.Distance(transform.position, goal);
+                if (distToTarget < 1.25f)
+                {
+                    _targetScrap.AttachToDrone(transform);
+                    CurrentState = RustState.Returning;
+                    SpeakCustom("キャッチしたよ！Nikoのところへ持ってくね！", 3.0f);
+                    if (_audio != null && _happyBeepClip != null)
+                    {
+                        _audio.pitch = 1.4f;
+                        _audio.PlayOneShot(_happyBeepClip, 0.8f);
+                    }
+                }
+            }
+        }
+        else if (CurrentState == RustState.Returning)
+        {
+            goal = _lookAt.position + Vector3.up * 1.1f + _lookAt.forward * 1.0f;
+            float distToNiko = Vector3.Distance(transform.position, _lookAt.position + Vector3.up * 1.0f);
+            if (distToNiko < 1.85f)
+            {
+                if (_targetScrap != null)
+                {
+                    _targetScrap.Collect();
+                    _targetScrap = null;
+                }
+                CurrentState = RustState.Celebrating;
+                _stateTimer = 1.6f;
+                SpeakCustom("えへへ、お届け完了！", 3.0f);
+                if (_audio != null && _happyBeepClip != null)
+                {
+                    _audio.pitch = 1.55f;
+                    _audio.PlayOneShot(_happyBeepClip, 0.85f);
+                }
+            }
+        }
+        else if (CurrentState == RustState.Scouting)
+        {
+            goal = _scoutTargetPos + Vector3.up * 1.2f;
+            float dist = Vector3.Distance(transform.position, goal);
+            if (dist < 1.8f)
+            {
+                _stateTimer -= Time.deltaTime;
+                if (_stateTimer <= 0f)
+                {
+                    CurrentState = RustState.Follow;
+                    SpeakCustom("偵察完了！周囲に危険はないよ！", 3.0f);
+                }
+            }
+        }
+        else if (CurrentState == RustState.Celebrating)
+        {
+            goal = _lookAt.position + Vector3.up * 1.35f + _lookAt.right * 1.2f;
+            _stateTimer -= Time.deltaTime;
+            if (_stateTimer <= 0f)
+                CurrentState = RustState.Follow;
+        }
+        else // Follow
+        {
+            goal = FollowPoint();
+            if (!wellOiled && !hitching && Time.time >= _nextHitch && FlatDistance(goal) > 2.4f)
+            {
+                _hitchUntil = Time.time + Random.Range(0.22f, 0.5f);
+                _nextHitch = Time.time + Random.Range(3.5f, 6.5f);
+                hitching = true;
+                PlayCreak(true);
+                BeginHeatBurst();
+            }
         }
 
-        if (hitching)
+        if (hitching && CurrentState == RustState.Follow)
         {
             goal.x = transform.position.x;
             goal.z = transform.position.z;
         }
 
-        _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-1.7f * Time.deltaTime));
-        float smoothTime = wellOiled ? 0.38f : 0.52f; // 油を差してもらうと機敏に追従
-        transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, 5.5f);
+        _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-2.2f * Time.deltaTime));
+        float smoothTime = CurrentState == RustState.Fetching || CurrentState == RustState.Returning ? 0.28f : (wellOiled ? 0.38f : 0.52f);
+        transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, 8.5f);
 
-        Vector3 to = _lookAt.position + Vector3.up * 0.7f - transform.position;
-        if (_isPointingToScrap && _guidedScrap != null)
+        // 回転の計算
+        Vector3 to = goal - transform.position;
+        if (CurrentState == RustState.Follow)
         {
-            to = _guidedScrap.transform.position + Vector3.up * 0.3f - transform.position;
+            to = _lookAt.position + Vector3.up * 0.7f - transform.position;
+            if (_isPointingToScrap && _guidedScrap != null)
+                to = _guidedScrap.transform.position + Vector3.up * 0.3f - transform.position;
+        }
+        else if (CurrentState == RustState.Returning)
+        {
+            to = _lookAt.position + Vector3.up * 0.7f - transform.position;
         }
 
         if (to.sqrMagnitude > 0.04f)
         {
             Quaternion look = Quaternion.LookRotation(to);
-            if (hitching)
+            if (CurrentState == RustState.Celebrating)
+            {
+                // 嬉しい宙返り回転！
+                look *= Quaternion.Euler(Time.time * 720f, 0f, 0f);
+            }
+            else if (hitching)
                 look *= Quaternion.Euler(0f, Mathf.Sin(Time.time * 18f) * 8f, 0f);
-            else if (_isPointingToScrap)
-                look *= Quaternion.Euler(Mathf.Sin(Time.time * 10f) * 6f, 0f, Mathf.Cos(Time.time * 8f) * 4f); // スクラップを指して小刻みに首を傾げる
-            transform.rotation = Quaternion.Slerp(transform.rotation, look, (wellOiled ? 3.8f : 2.6f) * Time.deltaTime);
+            else if (_isPointingToScrap && CurrentState == RustState.Follow)
+                look *= Quaternion.Euler(Mathf.Sin(Time.time * 10f) * 6f, 0f, Mathf.Cos(Time.time * 8f) * 4f);
+
+            transform.rotation = Quaternion.Slerp(transform.rotation, look, 5.0f * Time.deltaTime);
         }
 
-        if (!hitching && _velocity.sqrMagnitude > 6f && !wellOiled)
+        if (!hitching && _velocity.sqrMagnitude > 6f && !wellOiled && CurrentState == RustState.Follow)
             PlayCreak(false);
 
         UpdateHeat(hitching);
@@ -171,6 +264,80 @@ public class AdventureRustDrone : MonoBehaviour
         UpdatePlayerInteraction();
         UpdateSpeech();
         UpdateSonar();
+    }
+
+    void UpdateCommandInput()
+    {
+        // 照準先のスクラップを探す
+        _aimedScrap = null;
+        var cam = Camera.main;
+        if (cam != null)
+        {
+            Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            var scraps = FindObjectsByType<AdventureScrapItem>(FindObjectsInactive.Exclude);
+            float bestDot = 0.88f; // 視野角約30度以内
+            float maxDist = 38f;
+
+            foreach (var s in scraps)
+            {
+                if (s == null || s.IsCollected) continue;
+                Vector3 toScrap = s.transform.position - cam.transform.position;
+                float d = toScrap.magnitude;
+                if (d < maxDist)
+                {
+                    float dot = Vector3.Dot(ray.direction, toScrap.normalized);
+                    if (dot > bestDot)
+                    {
+                        bestDot = dot;
+                        _aimedScrap = s;
+                    }
+                }
+            }
+        }
+
+        // Fキー（またはInputSystemのFキー）検知
+        bool fPressed = false;
+        if (Input.GetKeyDown(KeyCode.F))
+            fPressed = true;
+        else
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && kb.fKey.wasPressedThisFrame)
+                fPressed = true;
+        }
+
+        if (fPressed && CurrentState == RustState.Follow)
+        {
+            if (_aimedScrap != null)
+            {
+                // スクラップ回収を指示！
+                _targetScrap = _aimedScrap;
+                CurrentState = RustState.Fetching;
+                SpeakCustom("了解！あのパーツを取ってくるね、Niko！", 3.2f);
+                if (_audio != null && _happyBeepClip != null)
+                {
+                    _audio.pitch = 1.3f;
+                    _audio.PlayOneShot(_happyBeepClip, 0.75f);
+                }
+            }
+            else if (cam != null)
+            {
+                // 何もない場所を指差した場合は偵察指示
+                Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+                if (Physics.Raycast(ray, out RaycastHit hit, 35f))
+                {
+                    _scoutTargetPos = hit.point;
+                    CurrentState = RustState.Scouting;
+                    _stateTimer = 1.8f;
+                    SpeakCustom("あそこを見に行ってみるよ！", 2.8f);
+                    if (_audio != null && _happyBeepClip != null)
+                    {
+                        _audio.pitch = 1.2f;
+                        _audio.PlayOneShot(_happyBeepClip, 0.65f);
+                    }
+                }
+            }
+        }
     }
 
     void UpdateGuide()
@@ -810,6 +977,27 @@ public class AdventureRustDrone : MonoBehaviour
 
     void OnGUI()
     {
+        // 照準中のスクラップに対するRust遠隔回収プロンプト
+        if (_aimedScrap != null && CurrentState == RustState.Follow && Camera.main != null)
+        {
+            Vector3 screenPos = Camera.main.WorldToScreenPoint(_aimedScrap.transform.position + Vector3.up * 0.4f);
+            if (screenPos.z > 0.5f)
+            {
+                float aimW = 260f;
+                float aimH = 34f;
+                float aimX = screenPos.x - aimW * 0.5f;
+                float aimY = Screen.height - screenPos.y - 45f;
+
+                var promptStyle = new GUIStyle(GUI.skin.box);
+                promptStyle.fontSize = 15;
+                promptStyle.fontStyle = FontStyle.Bold;
+                promptStyle.alignment = TextAnchor.MiddleCenter;
+                promptStyle.normal.textColor = new Color(0.35f, 0.95f, 1.0f);
+
+                GUI.Box(new Rect(aimX, aimY, aimW, aimH), "【F】Rustに回収を指示", promptStyle);
+            }
+        }
+
         // 0. Eキー検知の確実なフォールバック（InputSystemのフレーム遅延やEventSystem遮断を完全救済）
         if (_isPlayerNear && Event.current != null && Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.E && Time.time - _lastInteractTime > 0.35f)
         {
