@@ -160,7 +160,7 @@ public class AdventureRustDrone : MonoBehaviour
             {
                 goal = _targetScrap.transform.position + Vector3.up * 0.45f;
                 float distToTarget = Vector3.Distance(transform.position, goal);
-                if (distToTarget < 1.25f)
+                if (distToTarget < 2.0f)
                 {
                     _targetScrap.AttachToDrone(transform);
                     CurrentState = RustState.Returning;

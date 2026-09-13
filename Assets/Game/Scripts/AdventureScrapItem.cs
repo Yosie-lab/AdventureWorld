@@ -65,10 +65,10 @@ public class AdventureScrapItem : MonoBehaviour
         ApplyMaterial(hub.GetComponent<Renderer>());
         ApplyCoreMaterial(core.GetComponent<Renderer>());
 
-        // コライダー（接近感知用トリガー：3.5m以内で吸い寄せ開始）
+        // コライダー（接近感知用トリガー：4.5m以内で確実に吸い寄せ開始）
         var col = gameObject.AddComponent<SphereCollider>();
         col.isTrigger = true;
-        col.radius = 3.5f;
+        col.radius = 4.5f;
     }
 
     void CreateBeacon()
@@ -247,31 +247,58 @@ public class AdventureScrapItem : MonoBehaviour
             _beaconPillar.localScale = new Vector3(0.22f * pulse, 5.0f, 0.22f * pulse);
         }
 
-        // プレイヤーへの吸い寄せチェック（3.8m以内）
+        // プレイヤーへの吸い寄せ＆回収チェック（最大5.5m以内）
         var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
         if (player != null)
         {
-            Vector3 playerPos = player.transform.position + Vector3.up * 0.85f;
+            Vector3 playerPos = player.transform.position + Vector3.up * 0.95f;
             float dist = Vector3.Distance(transform.position, playerPos);
+            float horizontalDist = Vector2.Distance(
+                new Vector2(transform.position.x, transform.position.z), 
+                new Vector2(player.transform.position.x, player.transform.position.z)
+            );
+            float verticalDiff = Mathf.Abs(transform.position.y - playerPos.y);
 
-            if (dist < 3.8f)
+            // 1. 取得完了判定（中心間1.85m以内、または水平1.6m＆高低差2.5m以内で確実に即取得！）
+            if (dist < 1.85f || (horizontalDist < 1.6f && verticalDiff < 2.5f))
             {
-                // スムーズに吸い寄せられるマグネット効果
-                transform.position = Vector3.MoveTowards(transform.position, playerPos, Time.deltaTime * 8.5f);
+                Collect();
+                return;
+            }
 
-                // 接触したら取得完了
-                if (dist < 0.75f)
-                {
-                    Collect();
-                }
+            // 2. スムーズで強力なマグネット吸い寄せ（5.5m以内）
+            if (dist < 5.5f || (horizontalDist < 4.8f && verticalDiff < 4.5f))
+            {
+                transform.position = Vector3.MoveTowards(transform.position, playerPos, Time.deltaTime * 14.0f);
+            }
+
+            // 3. 近くにいる時にEキー（インタラクト）が押された場合も確実に即時取得
+            if (player.InteractPressed && dist < 4.5f)
+            {
+                Collect();
+                return;
             }
         }
     }
 
     void OnTriggerEnter(Collider other)
     {
+        CheckColliderCollect(other);
+    }
+
+    void OnTriggerStay(Collider other)
+    {
+        CheckColliderCollect(other);
+    }
+
+    void CheckColliderCollect(Collider other)
+    {
         if (_isCollected) return;
-        if (other.GetComponent<AdventurePlayerController>() != null || other.CompareTag("Player"))
+        if (other == null) return;
+
+        if (other.GetComponentInParent<AdventurePlayerController>() != null 
+            || other.CompareTag("Player") 
+            || other.name.ToLower().Contains("niko"))
         {
             Collect();
         }
