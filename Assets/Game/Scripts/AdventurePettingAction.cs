@@ -38,7 +38,7 @@ public class AdventurePettingAction : MonoBehaviour
     }
 
     /// <summary>Rustを愛おしく撫でるアクションを実行</summary>
-    public void PetRust(string speechText = "よしよし、いつもありがとうね", float duration = 2.2f)
+    public void PetRust(string speechText = "よしよし、いつもありがとうね", float duration = 3.0f)
     {
         if (_isPetting) return;
         StartCoroutine(PettingRoutine(speechText, duration));

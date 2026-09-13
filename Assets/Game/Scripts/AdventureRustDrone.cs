@@ -62,6 +62,7 @@ public class AdventureRustDrone : MonoBehaviour
         {
             CurrentState = RustState.Petting;
             _stateTimer = duration;
+            _velocity = Vector3.zero; // 物理的な跳ね上がりや落下速度をクリアし、胸元へスムーズに引き寄せる
         }
         else
         {
@@ -418,33 +419,39 @@ public class AdventureRustDrone : MonoBehaviour
     Vector3 FollowPoint()
     {
         Vector3 niko = _lookAt.position;
+        Vector3 chest = GetNikoChestPosition();
 
         // 近くに未回収パーツがある場合、RustはNikoの少し前方（パーツ寄り）へ先行して合図
         if (_isPointingToScrap && _guidedScrap != null)
         {
             Vector3 toScrap = Vector3.ProjectOnPlane(_guidedScrap.transform.position - niko, Vector3.up).normalized;
             Vector3 guidePos = niko + toScrap * 1.8f;
-            float sY = SurfaceY(guidePos) + hoverHeight + 0.25f;
             float sBob = Mathf.Sin(Time.time * bobSpeed * 1.6f) * (bobAmount * 1.2f);
-            return new Vector3(guidePos.x, sY + sBob, guidePos.z);
+            return new Vector3(guidePos.x, chest.y + 0.1f + sBob, guidePos.z);
         }
 
-        Vector3 back = Vector3.ProjectOnPlane(-_lookAt.forward, Vector3.up);
-        if (back.sqrMagnitude < 0.01f)
-            back = Vector3.back;
-        back.Normalize();
+        // 通常追従の理想位置: Nikoの右肩の斜め後ろ（右0.75m、後方1.05m）
+        Vector3 rightBack = _lookAt.right * 0.75f - _lookAt.forward * 1.05f;
+        Vector3 targetPos = niko + rightBack;
 
-        Vector3 flat = niko + back * followDistance;
-        if (FlatDistance(niko) < stopDistance)
-            flat = new Vector3(transform.position.x, 0f, transform.position.z);
+        // Nikoの真正面（股間の前）にRustが入り込んで居座るのを防止
+        Vector3 toDrone = transform.position - niko;
+        float forwardDot = Vector3.Dot(_lookAt.forward, toDrone);
+        if (FlatDistance(niko) < 1.4f && forwardDot > -0.2f)
+        {
+            // 目の前（股間・お腹の正面）にいる時は、積極的に右肩後ろのポジションへ誘導
+            targetPos = niko + rightBack;
+        }
+        else if (FlatDistance(niko) < stopDistance)
+        {
+            // Nikoから適切な距離にいる時はその水平位置を維持
+            targetPos = new Vector3(transform.position.x, 0f, transform.position.z);
+        }
 
-        float surface = SurfaceY(flat) + hoverHeight;
         float bob = Mathf.Sin(Time.time * bobSpeed) * bobAmount;
-        float y = surface + bob;
-        if (niko.y > surface + 1.2f)
-            y = niko.y + 0.35f + bob * 0.5f;
+        float y = chest.y + 0.05f + bob; // 常にNikoの胸・肩の高さに追従！
 
-        return new Vector3(flat.x, y, flat.z);
+        return new Vector3(targetPos.x, y, targetPos.z);
     }
 
     float SurfaceY(Vector3 pos)
@@ -675,15 +682,14 @@ public class AdventureRustDrone : MonoBehaviour
             wellOiledUntil = Mathf.Max(wellOiledUntil, Time.time) + 90f; // 90秒間快調
             _heatUntil = 0f;
             _heat = 0f;
-            _velocity += Vector3.up * 1.5f;
 
             if (_happyBeepClip != null && _audio != null)
                 _audio.PlayOneShot(_happyBeepClip, 0.85f);
 
-            // NikoがRustを愛おしく撫でて手当て
+            // NikoがRustを胸元で愛おしく撫でて手当て
             if (AdventurePettingAction.Instance != null)
             {
-                AdventurePettingAction.Instance.PetRust("よしよし、これで快調だね！いつもありがとう、Rust", 2.5f);
+                AdventurePettingAction.Instance.PetRust("よしよし、これで快調だね！いつもありがとう、Rust", 3.2f);
             }
             else
             {
@@ -692,22 +698,30 @@ public class AdventureRustDrone : MonoBehaviour
             return;
         }
 
-        // 2. 油が切れている場合
+        // 2. 油が切れている場合でも、胸元で優しく抱きしめて励ますスキンシップ
         if (needsOil && oilCount == 0)
         {
-            _velocity += Vector3.up * 1.2f;
-            SpeakCustom("ピピッ…潤滑油が切れちゃった。僕が落とした黒いオイルのしずくを拾ってくれたら嬉しいな！", 4.5f);
+            if (_happyBeepClip != null && _audio != null)
+                _audio.PlayOneShot(_happyBeepClip, 0.65f);
+
+            if (AdventurePettingAction.Instance != null)
+            {
+                AdventurePettingAction.Instance.PetRust("大丈夫だよRust。黒いオイルを見つけて必ず元気にしてあげるからね", 3.2f);
+            }
+            else
+            {
+                SpeakCustom("ピピッ…潤滑油が切れちゃった。僕が落とした黒いオイルのしずくを拾ってくれたら嬉しいな！", 4.5f);
+            }
             return;
         }
 
         // 3. 通常のスキンシップ・撫でる
-        _velocity += Vector3.up * 1.0f;
         if (_happyBeepClip != null && _audio != null)
-            _audio.PlayOneShot(_happyBeepClip, 0.5f);
+            _audio.PlayOneShot(_happyBeepClip, 0.75f);
 
         if (AdventurePettingAction.Instance != null)
         {
-            AdventurePettingAction.Instance.PetRust("いい子だね、Rust。一緒に未知の空へ行こう", 2.2f);
+            AdventurePettingAction.Instance.PetRust("いい子だね、Rust。一緒に未知の空へ行こう", 3.2f);
             return;
         }
 
@@ -1370,23 +1384,28 @@ public class AdventureRustDrone : MonoBehaviour
         Destroy(go, 2.0f);
     }
 
-    /// <summary>Nikoの胸のワールド座標を高精度に取得（両肩の中点・胸ボーン・頭部基準）</summary>
+    /// <summary>Nikoの胸のワールド座標を高精度に取得（両胸バストの中点・両肩の中点・胸骨ボーン基準）</summary>
     public Vector3 GetNikoChestPosition()
     {
         if (_lookAt == null) return transform.position;
 
-        // 1. Nikoモデルの骨格ボーンから肩・胸・首・頭を正確に特定
+        // 1. Nikoモデルの骨格ボーンから両胸・両肩・胸骨・首・頭を正確に特定
+        Transform breastL = null;
+        Transform breastR = null;
         Transform shoulderL = null;
         Transform shoulderR = null;
         Transform spine003 = null;
         Transform spine004 = null;
         Transform head = null;
-        Transform spine002 = null;
 
         foreach (var t in _lookAt.GetComponentsInChildren<Transform>())
         {
             string n = t.name.ToLower();
-            if (n.Contains("shoulder") && (n.Contains(".l") || n.EndsWith("_l") || n.Contains("left")))
+            if (n.Contains("breast") && (n.Contains(".l") || n.EndsWith("_l") || n.Contains("left")))
+                breastL = t;
+            else if (n.Contains("breast") && (n.Contains(".r") || n.EndsWith("_r") || n.Contains("right")))
+                breastR = t;
+            else if (n.Contains("shoulder") && (n.Contains(".l") || n.EndsWith("_l") || n.Contains("left")))
                 shoulderL = t;
             else if (n.Contains("shoulder") && (n.Contains(".r") || n.EndsWith("_r") || n.Contains("right")))
                 shoulderR = t;
@@ -1396,15 +1415,21 @@ public class AdventureRustDrone : MonoBehaviour
                 spine004 = t;
             else if (n.Contains("head"))
                 head = t;
-            else if (n == "spine.002" || n.Contains("spine2"))
-                spine002 = t;
         }
 
-        // 両肩の中点（鎖骨・胸骨の真上！幾何学的に最も確実な胸の中心位置）
+        // 最優先: 両胸（breast.L と breast.R）の中点（100%正真正銘のバスト・胸の中央！）
+        if (breastL != null && breastR != null)
+        {
+            return (breastL.position + breastR.position) * 0.5f;
+        }
+        if (breastL != null) return breastL.position;
+        if (breastR != null) return breastR.position;
+
+        // 両肩の中点（鎖骨・胸骨の真上！）
         if (shoulderL != null && shoulderR != null)
         {
             Vector3 midShoulder = (shoulderL.position + shoulderR.position) * 0.5f;
-            return midShoulder - _lookAt.up * 0.05f; // 肩ラインから胸の中央へ約5cm微調整
+            return midShoulder - _lookAt.up * 0.08f; // 肩ラインから胸の中央へ約8cm下げる
         }
 
         // spine.003（胸骨ボーン）
@@ -1413,36 +1438,21 @@ public class AdventureRustDrone : MonoBehaviour
 
         // 首（spine.004）から少し下
         if (spine004 != null)
-            return spine004.position - _lookAt.up * 0.12f;
+            return spine004.position - _lookAt.up * 0.15f;
 
-        // 頭（Head）から胸の高さへオフセット（約30cm下）
+        // 頭（Head）から胸の高さへオフセット（約35cm下）
         if (head != null)
-            return head.position - _lookAt.up * 0.32f;
+            return head.position - _lookAt.up * 0.35f;
 
-        // spine.002（みぞおち）から少し上
-        if (spine002 != null)
-            return spine002.position + _lookAt.up * 0.15f;
-
-        // 2. AnimatorがHumanoidの場合（フォールバック）
-        var anim = _lookAt.GetComponentInChildren<Animator>();
-        if (anim != null && anim.isHuman)
-        {
-            var chest = anim.GetBoneTransform(HumanBodyBones.UpperChest)
-                     ?? anim.GetBoneTransform(HumanBodyBones.Chest)
-                     ?? anim.GetBoneTransform(HumanBodyBones.Neck);
-            if (chest != null)
-                return chest.position;
-        }
-
-        // 3. CharacterControllerの高さ基準（Nikoの身長1.55mの約78%が胸・バストの高さ）
+        // 2. CharacterControllerの高さ基準（Nikoの身長1.55mの約78%が胸・バストの高さ）
         var cc = _lookAt.GetComponent<CharacterController>();
         if (cc != null)
         {
             return _lookAt.position + Vector3.up * (cc.height * 0.78f);
         }
 
-        // 4. フォールバック（Nikoの原点 + 1.35m）
-        return _lookAt.position + Vector3.up * 1.35f;
+        // 3. フォールバック（Nikoの原点 + 1.45m）
+        return _lookAt.position + Vector3.up * 1.45f;
     }
 }
 
