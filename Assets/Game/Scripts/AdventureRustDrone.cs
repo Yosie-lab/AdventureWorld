@@ -4,7 +4,7 @@ using System.Linq;
 
 public class AdventureRustDrone : MonoBehaviour
 {
-    public float hoverHeight = 1.15f;
+    public float hoverHeight = 1.35f;
     public float bobAmount = 0.1f;
     public float bobSpeed = 1.35f;
     public float followDistance = 2.1f;
@@ -225,8 +225,9 @@ public class AdventureRustDrone : MonoBehaviour
         }
         else if (CurrentState == RustState.Petting)
         {
-            // Nikoの胸元（Nikoの原点 + 上方1.25m + 前方0.45m）に確実にホバリング！
-            goal = _lookAt.position + _lookAt.forward * 0.45f + Vector3.up * 1.25f;
+            // Nikoの実際のボーン（両肩・胸骨・首）から胸のワールド座標をピンポイント特定！
+            Vector3 chestPos = GetNikoChestPosition();
+            goal = chestPos + _lookAt.forward * 0.38f + Vector3.up * 0.04f;
             goal.y += Mathf.Sin(Time.time * 3.5f) * 0.035f; // 胸元でのふんわりホバー
 
             _stateTimer -= Time.deltaTime;
@@ -264,9 +265,13 @@ public class AdventureRustDrone : MonoBehaviour
             if (_isPointingToScrap && _guidedScrap != null)
                 to = _guidedScrap.transform.position + Vector3.up * 0.3f - transform.position;
         }
-        else if (CurrentState == RustState.Returning || CurrentState == RustState.Petting)
+        else if (CurrentState == RustState.Returning)
         {
             to = _lookAt.position + Vector3.up * 1.35f - transform.position;
+        }
+        else if (CurrentState == RustState.Petting)
+        {
+            to = (GetNikoChestPosition() + Vector3.up * 0.32f) - transform.position; // Nikoの顔を見上げる
         }
 
         if (to.sqrMagnitude > 0.04f)
@@ -1363,6 +1368,81 @@ public class AdventureRustDrone : MonoBehaviour
 
         ps.Play();
         Destroy(go, 2.0f);
+    }
+
+    /// <summary>Nikoの胸のワールド座標を高精度に取得（両肩の中点・胸ボーン・頭部基準）</summary>
+    public Vector3 GetNikoChestPosition()
+    {
+        if (_lookAt == null) return transform.position;
+
+        // 1. Nikoモデルの骨格ボーンから肩・胸・首・頭を正確に特定
+        Transform shoulderL = null;
+        Transform shoulderR = null;
+        Transform spine003 = null;
+        Transform spine004 = null;
+        Transform head = null;
+        Transform spine002 = null;
+
+        foreach (var t in _lookAt.GetComponentsInChildren<Transform>())
+        {
+            string n = t.name.ToLower();
+            if (n.Contains("shoulder") && (n.Contains(".l") || n.EndsWith("_l") || n.Contains("left")))
+                shoulderL = t;
+            else if (n.Contains("shoulder") && (n.Contains(".r") || n.EndsWith("_r") || n.Contains("right")))
+                shoulderR = t;
+            else if (n == "spine.003" || n.Contains("spine3") || n.Contains("spine_03") || n.Contains("chest"))
+                spine003 = t;
+            else if (n == "spine.004" || n.Contains("neck"))
+                spine004 = t;
+            else if (n.Contains("head"))
+                head = t;
+            else if (n == "spine.002" || n.Contains("spine2"))
+                spine002 = t;
+        }
+
+        // 両肩の中点（鎖骨・胸骨の真上！幾何学的に最も確実な胸の中心位置）
+        if (shoulderL != null && shoulderR != null)
+        {
+            Vector3 midShoulder = (shoulderL.position + shoulderR.position) * 0.5f;
+            return midShoulder - _lookAt.up * 0.05f; // 肩ラインから胸の中央へ約5cm微調整
+        }
+
+        // spine.003（胸骨ボーン）
+        if (spine003 != null)
+            return spine003.position;
+
+        // 首（spine.004）から少し下
+        if (spine004 != null)
+            return spine004.position - _lookAt.up * 0.12f;
+
+        // 頭（Head）から胸の高さへオフセット（約30cm下）
+        if (head != null)
+            return head.position - _lookAt.up * 0.32f;
+
+        // spine.002（みぞおち）から少し上
+        if (spine002 != null)
+            return spine002.position + _lookAt.up * 0.15f;
+
+        // 2. AnimatorがHumanoidの場合（フォールバック）
+        var anim = _lookAt.GetComponentInChildren<Animator>();
+        if (anim != null && anim.isHuman)
+        {
+            var chest = anim.GetBoneTransform(HumanBodyBones.UpperChest)
+                     ?? anim.GetBoneTransform(HumanBodyBones.Chest)
+                     ?? anim.GetBoneTransform(HumanBodyBones.Neck);
+            if (chest != null)
+                return chest.position;
+        }
+
+        // 3. CharacterControllerの高さ基準（Nikoの身長1.55mの約78%が胸・バストの高さ）
+        var cc = _lookAt.GetComponent<CharacterController>();
+        if (cc != null)
+        {
+            return _lookAt.position + Vector3.up * (cc.height * 0.78f);
+        }
+
+        // 4. フォールバック（Nikoの原点 + 1.35m）
+        return _lookAt.position + Vector3.up * 1.35f;
     }
 }
 
