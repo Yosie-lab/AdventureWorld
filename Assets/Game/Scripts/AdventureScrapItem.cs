@@ -72,33 +72,41 @@ public class AdventureScrapItem : MonoBehaviour
 
     void CreateBeacon()
     {
-        // 遠くからでも一目でわかる天空への光の柱（高さ10mのライトビーコン）
+        // 遠くからでも山や木立の向こうから一目でわかる天空への光の柱（高さ35m）
         var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         beacon.name = "BeaconPillar";
         beacon.transform.SetParent(transform, false);
-        beacon.transform.localPosition = new Vector3(0f, 5.0f, 0f);
-        beacon.transform.localScale = new Vector3(0.22f, 5.0f, 0.22f);
+        beacon.transform.localPosition = new Vector3(0f, 17.5f, 0f);
+        beacon.transform.localScale = new Vector3(0.40f, 17.5f, 0.40f);
         Destroy(beacon.GetComponent<Collider>());
 
         var rend = beacon.GetComponent<Renderer>();
         if (rend != null)
         {
-            var shader = Shader.Find("RustAndFloat/WhiteSmoke")
-                ?? Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            var shader = Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("RustAndFloat/WhiteSmoke")
                 ?? Shader.Find("Sprites/Default");
             var mat = new Material(shader);
             mat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
             Color bCol = itemColor;
-            bCol.a = 0.5f;
+            bCol.a = 0.70f;
             mat.SetColor("_BaseColor", bCol);
             mat.renderQueue = 3150;
             rend.material = mat;
         }
         _beaconPillar = beacon.transform;
+
+        // 周囲の地面や草木を照らし出す自発光ポイントライト
+        var light = gameObject.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.color = itemColor;
+        light.range = 16f;
+        light.intensity = 2.8f;
     }
 
     void CreateIdleSparkles()
     {
+        // 1. アイテム周囲の浮遊スパークル
         var pGo = new GameObject("IdleSparkles");
         pGo.transform.SetParent(transform, false);
         pGo.transform.localPosition = Vector3.zero;
@@ -106,27 +114,64 @@ public class AdventureScrapItem : MonoBehaviour
 
         var main = ps.main;
         main.loop = true;
-        main.startLifetime = 1.6f;
-        main.startSpeed = 0.22f;
-        main.startSize = 0.16f;
-        main.startColor = itemColor * 1.5f;
+        main.startLifetime = 1.8f;
+        main.startSpeed = 0.25f;
+        main.startSize = 0.22f;
+        main.startColor = itemColor * 2.0f;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
 
         var emission = ps.emission;
-        emission.rateOverTime = 8f;
+        emission.rateOverTime = 12f;
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.65f;
+        shape.radius = 0.85f;
 
         var rend = pGo.GetComponent<ParticleSystemRenderer>();
         if (rend != null)
         {
-            var shader = Shader.Find("RustAndFloat/WhiteSmoke") ?? Shader.Find("Sprites/Default");
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                ?? Shader.Find("RustAndFloat/WhiteSmoke")
+                ?? Shader.Find("Sprites/Default");
             var mat = new Material(shader);
             mat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
-            mat.SetColor("_BaseColor", itemColor * 2.0f);
+            mat.SetColor("_BaseColor", itemColor * 2.5f);
             rend.material = mat;
+        }
+
+        // 2. 天に向かって垂直に昇る光の粒子ビーム（遠景からもハッキリ視認可能）
+        var beamGo = new GameObject("VerticalBeamSparkles");
+        beamGo.transform.SetParent(transform, false);
+        beamGo.transform.localPosition = Vector3.zero;
+        var psBeam = beamGo.AddComponent<ParticleSystem>();
+
+        var mainBeam = psBeam.main;
+        mainBeam.loop = true;
+        mainBeam.startLifetime = 2.5f;
+        mainBeam.startSpeed = 12.0f; // 上空へぐんぐん昇る
+        mainBeam.startSize = 0.35f;
+        mainBeam.startColor = itemColor * 2.2f;
+        mainBeam.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        var emissionBeam = psBeam.emission;
+        emissionBeam.rateOverTime = 16f;
+
+        var shapeBeam = psBeam.shape;
+        shapeBeam.shapeType = ParticleSystemShapeType.Cone;
+        shapeBeam.angle = 1.5f;
+        shapeBeam.radius = 0.3f;
+        shapeBeam.rotation = new Vector3(-90f, 0f, 0f); // 真上に向ける
+
+        var rendBeam = beamGo.GetComponent<ParticleSystemRenderer>();
+        if (rendBeam != null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                ?? Shader.Find("RustAndFloat/WhiteSmoke")
+                ?? Shader.Find("Sprites/Default");
+            var mat = new Material(shader);
+            mat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
+            mat.SetColor("_BaseColor", itemColor * 2.8f);
+            rendBeam.material = mat;
         }
     }
 

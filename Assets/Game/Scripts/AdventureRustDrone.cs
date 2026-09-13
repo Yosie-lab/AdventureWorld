@@ -694,72 +694,147 @@ public class AdventureRustDrone : MonoBehaviour
 
     void OnGUI()
     {
-        // 1. Niko接近時の頭上インタラクションプロンプト
+        // 1. Niko接近時の頭上インタラクションプロンプト（特大フォント・高コントラスト）
         if (_isPlayerNear && Camera.main != null)
         {
-            Vector3 headPos = transform.position + Vector3.up * 0.75f;
+            Vector3 headPos = transform.position + Vector3.up * 0.85f;
             Vector3 screenPos = Camera.main.WorldToScreenPoint(headPos);
             if (screenPos.z > 0.2f)
             {
                 bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
-                string prompt = (needsOil && oilCount > 0) ? "【E】油をさして手当て" : "【E】話しかける";
-                if (needsOil && oilCount == 0)
-                    prompt = "【Rustが不調…油が必要】";
+                string prompt;
+                Color textColor;
 
-                GUIStyle pStyle = new GUIStyle(GUI.skin.box);
-                pStyle.fontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.020f, 15f, 22f));
+                if (needsOil)
+                {
+                    if (oilCount > 0)
+                    {
+                        prompt = "【E】油をさして手当てする";
+                        textColor = new Color(1.0f, 0.90f, 0.25f); // 鮮やかなゴールド
+                    }
+                    else
+                    {
+                        prompt = "【⚠ Rustが不調…潤滑油が必要】";
+                        textColor = new Color(1.0f, 0.58f, 0.18f); // 警告アンバーオレンジ
+                    }
+                }
+                else
+                {
+                    prompt = "【E】話しかける";
+                    textColor = new Color(0.40f, 0.96f, 1.0f); // 爽やかなシアン
+                }
+
+                // セリフ本文と調和する上品で読みやすいフォント（20〜30pt）
+                int promptFontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.026f, 20f, 30f));
+                GUIStyle pStyle = new GUIStyle(GUI.skin.label);
+                pStyle.fontSize = promptFontSize;
                 pStyle.fontStyle = FontStyle.Bold;
-                pStyle.normal.textColor = (needsOil && oilCount > 0) ? new Color(1.0f, 0.85f, 0.3f) : new Color(0.4f, 0.95f, 1.0f);
                 pStyle.alignment = TextAnchor.MiddleCenter;
 
                 Vector2 pSize = pStyle.CalcSize(new GUIContent(prompt));
-                pSize.x += 20f;
-                pSize.y += 8f;
-                GUI.Box(new Rect(screenPos.x - pSize.x * 0.5f, Screen.height - screenPos.y - pSize.y - 12f, pSize.x, pSize.y), prompt, pStyle);
+                float padX = 28f;
+                float padY = 12f;
+                float boxW = pSize.x + padX;
+                float boxH = pSize.y + padY;
+                float boxX = screenPos.x - boxW * 0.5f;
+                float boxY = Screen.height - screenPos.y - boxH - 16f;
+                Rect promptBoxRect = new Rect(boxX, boxY, boxW, boxH);
+
+                // 半透明ダーク背景
+                if (_speechBg == null)
+                {
+                    _speechBg = new Texture2D(1, 1);
+                    _speechBg.SetPixel(0, 0, new Color(0.04f, 0.07f, 0.12f, 0.92f));
+                    _speechBg.Apply();
+                }
+                GUI.DrawTexture(promptBoxRect, _speechBg);
+
+                // 上部アクセントライン
+                Rect lineRect = new Rect(boxX, boxY, boxW, 3f);
+                GUI.DrawTexture(lineRect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, textColor, 0, 0);
+
+                // 黒アウトライン付き特大テキスト描画
+                DrawOutlinedText(promptBoxRect, prompt, pStyle, textColor, new Color(0f, 0f, 0f, 0.95f));
             }
         }
 
-        // 2. 画面右上のオイル所持数バッジ（HUD）
-        if (oilCount > 0 || Time.time < wellOiledUntil)
+        // 2. 画面右上のオイル所持数＆RustコンディションHUD（文字欠け防止＆余裕のセーフマージン）
+        bool isOiled = Time.time < wellOiledUntil;
+        bool isDistressed = (_heat > 0.15f || Time.time < _hitchUntil || !isOiled);
+        if (oilCount > 0 || isOiled || isDistressed)
         {
-            int badgeSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.018f, 14f, 20f));
-            GUIStyle badgeStyle = new GUIStyle(GUI.skin.box);
+            // 上品で視認性の高いHUDフォント（15〜22pt）
+            int badgeSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.018f, 15f, 22f));
+            GUIStyle badgeStyle = new GUIStyle(GUI.skin.label);
             badgeStyle.fontSize = badgeSize;
             badgeStyle.fontStyle = FontStyle.Bold;
             badgeStyle.alignment = TextAnchor.MiddleCenter;
-            badgeStyle.normal.textColor = new Color(0.95f, 0.92f, 0.82f);
+            badgeStyle.clipping = TextClipping.Overflow; // 文字クリッピングを完全防止
 
-            string status = Time.time < wellOiledUntil ? "✦ 良好（整備済）" : "✦ 潤滑油: " + oilCount;
+            string status;
+            Color bColor;
+            if (isOiled)
+            {
+                status = "✦ Rust好調（整備済）";
+                bColor = new Color(0.45f, 0.95f, 0.65f); // エメラルドグリーン
+            }
+            else if (oilCount > 0)
+            {
+                status = $"⚠ 要整備 (油: {oilCount})";
+                bColor = new Color(1.0f, 0.88f, 0.35f); // イエロー
+            }
+            else
+            {
+                status = "⚠ Rust不調 (油が必要)";
+                bColor = new Color(1.0f, 0.62f, 0.22f); // オレンジ
+            }
+
             GUIContent bContent = new GUIContent(status);
             Vector2 bSize = badgeStyle.CalcSize(bContent);
-            bSize.x += 16f;
-            bSize.y += 8f;
-            GUI.Box(new Rect(Screen.width - bSize.x - 20f, 65f, bSize.x, bSize.y), bContent, badgeStyle);
+            // 幅と高さを大幅に広げて余裕を確保（絶対に文字欠けしない）
+            float bw = Mathf.Max(200f, bSize.x + 54f);
+            float bh = Mathf.Max(36f, badgeSize + 18f);
+
+            // 画面右端からしっかり離す（セーフエリアマージン 65〜110px）
+            float rightMargin = Mathf.Clamp(Screen.width * 0.055f, 65f, 110f);
+            float topMargin = Mathf.Clamp(Screen.height * 0.045f, 45f, 75f);
+            Rect bRect = new Rect(Screen.width - bw - rightMargin, topMargin, bw, bh);
+
+            if (_speechBg == null)
+            {
+                _speechBg = new Texture2D(1, 1);
+                _speechBg.SetPixel(0, 0, new Color(0.04f, 0.07f, 0.12f, 0.92f));
+                _speechBg.Apply();
+            }
+            GUI.DrawTexture(bRect, _speechBg);
+            Rect bLine = new Rect(bRect.x, bRect.y, bw, 2.5f);
+            GUI.DrawTexture(bLine, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, bColor, 0, 0);
+
+            DrawOutlinedText(bRect, status, badgeStyle, bColor, new Color(0f, 0f, 0f, 0.95f));
         }
 
-        // 3. セリフダイアログ表示
+        // 3. セリフダイアログ表示（視認性抜群＆文字欠け防止設計）
         if (_speechTimer <= 0f || string.IsNullOrEmpty(_speechText))
             return;
 
-        // Retinaや大画面・4Kでも絶対に小さくならない特大フォント設計
-        // 基準解像度での視認性を最優先（1080pで本文34pt、大画面で最大46pt）
-        int bodyFontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.034f, 26f, 44f));
-        int nameFontSize = Mathf.RoundToInt(bodyFontSize * 0.68f);
+        // しっかり大きく読みやすいシネマフォント設計（1080pで約30〜31pt）
+        int bodyFontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.029f, 23f, 34f));
+        int nameFontSize = Mathf.RoundToInt(bodyFontSize * 0.70f);
 
         // スタイル生成・キャッシュ
         if (_speechStyle == null)
         {
             _speechStyle = new GUIStyle();
             _speechBg = new Texture2D(1, 1);
-            _speechBg.SetPixel(0, 0, new Color(0.04f, 0.07f, 0.12f, 0.92f));
+            _speechBg.SetPixel(0, 0, new Color(0.04f, 0.07f, 0.12f, 0.90f));
             _speechBg.Apply();
         }
 
-        // ウィンドウサイズの計算（画面幅の65%〜85%を心地よく使用）
-        float boxWidth = Mathf.Clamp(Screen.width * 0.72f, 480f, 1020f);
-        float boxHeight = bodyFontSize * 2.8f + nameFontSize + 28f;
+        // ウィンドウサイズの計算（拡大した文字が欠けずゆったり収まるサイズ）
+        float boxWidth = Mathf.Clamp(Screen.width * 0.68f, 520f, 960f);
+        float boxHeight = bodyFontSize * 2.8f + nameFontSize + 32f;
         float x = (Screen.width - boxWidth) * 0.5f;
-        float y = Screen.height - boxHeight - Mathf.Clamp(Screen.height * 0.06f, 40f, 85f);
+        float y = Screen.height - boxHeight - Mathf.Clamp(Screen.height * 0.05f, 35f, 65f);
 
         float alpha = Mathf.Clamp01(_speechTimer);
         Color prevColor = GUI.color;
@@ -771,7 +846,7 @@ public class AdventureRustDrone : MonoBehaviour
         GUI.DrawTexture(boxRect, _speechBg);
 
         // 上部アクセントバー（エメラルドシアンの風の光彩ライン）
-        Rect barRect = new Rect(x, y, boxWidth, 3f);
+        Rect barRect = new Rect(x, y, boxWidth, 2.5f);
         GUI.DrawTexture(barRect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, new Color(0.2f, 0.95f, 0.85f, 0.9f * alpha), 0, 0);
 
         // 2. ネームタグ [ 相棒 Rust ]
@@ -779,18 +854,20 @@ public class AdventureRustDrone : MonoBehaviour
         nameStyle.fontSize = nameFontSize;
         nameStyle.fontStyle = FontStyle.Bold;
         nameStyle.alignment = TextAnchor.MiddleLeft;
+        nameStyle.clipping = TextClipping.Overflow;
 
-        Rect nameRect = new Rect(x + 28f, y + 10f, boxWidth - 56f, nameFontSize + 6f);
+        Rect nameRect = new Rect(x + 28f, y + 10f, boxWidth - 56f, nameFontSize + 4f);
         DrawOutlinedText(nameRect, "✦ 相棒 Rust", nameStyle, new Color(0.35f, 0.92f, 0.98f, alpha), new Color(0f, 0f, 0f, 0.9f * alpha));
 
-        // 3. セリフ本文（特大・高コントラスト）
+        // 3. セリフ本文（大きくてはっきり読める・クリッピング防止）
         GUIStyle bodyStyle = new GUIStyle(GUI.skin.label);
         bodyStyle.fontSize = bodyFontSize;
         bodyStyle.fontStyle = FontStyle.Bold;
-        bodyStyle.alignment = TextAnchor.MiddleLeft;
+        bodyStyle.alignment = TextAnchor.UpperLeft;
         bodyStyle.wordWrap = true;
+        bodyStyle.clipping = TextClipping.Overflow; // 上下左右の文字クリップを完全排除
 
-        Rect bodyRect = new Rect(x + 28f, y + nameFontSize + 16f, boxWidth - 56f, bodyFontSize * 1.8f);
+        Rect bodyRect = new Rect(x + 28f, y + nameFontSize + 14f, boxWidth - 56f, bodyFontSize * 2.6f);
         DrawOutlinedText(bodyRect, "「" + _speechText + "」", bodyStyle, new Color(1.0f, 1.0f, 1.0f, alpha), new Color(0f, 0f, 0f, 0.95f * alpha));
 
         GUI.color = prevColor;
@@ -799,7 +876,7 @@ public class AdventureRustDrone : MonoBehaviour
     /// <summary>4方向の黒フチ取り（アウトライン）で背景色問わず100%くっきり描画</summary>
     static void DrawOutlinedText(Rect rect, string text, GUIStyle style, Color textColor, Color outlineColor)
     {
-        int spread = Mathf.Max(2, style.fontSize / 14);
+        int spread = Mathf.Max(1, style.fontSize / 16);
         Color origColor = style.normal.textColor;
 
         style.normal.textColor = outlineColor;
@@ -807,7 +884,6 @@ public class AdventureRustDrone : MonoBehaviour
         GUI.Label(new Rect(rect.x + spread, rect.y, rect.width, rect.height), text, style);
         GUI.Label(new Rect(rect.x, rect.y - spread, rect.width, rect.height), text, style);
         GUI.Label(new Rect(rect.x, rect.y + spread, rect.width, rect.height), text, style);
-        GUI.Label(new Rect(rect.x + spread, rect.y + spread, rect.width, rect.height), text, style);
 
         style.normal.textColor = textColor;
         GUI.Label(rect, text, style);

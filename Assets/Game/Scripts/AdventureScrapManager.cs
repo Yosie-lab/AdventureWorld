@@ -77,11 +77,25 @@ public class AdventureScrapManager : MonoBehaviour
     void SpawnAllScraps()
     {
         var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
+        var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
+        Vector3 pSpawn = (player != null && player.spawnPosition != Vector3.zero) 
+            ? player.spawnPosition 
+            : new Vector3(170f, 43f, 166f);
+
         var root = new GameObject("ScrapItemsRoot");
 
-        for (int i = 0; i < _scrapSpawnPositions.Count; i++)
+        // プレイヤーの実際のスポーン位置に連動した序盤の探索導線
+        List<Vector3> positions = new List<Vector3>(_scrapSpawnPositions);
+        // 1. スタート直後の正面視界（前方10.5m・右2.5m：開始した瞬間に画面中央に必ず光り輝く）
+        positions[0] = new Vector3(pSpawn.x + 2.5f, 0f, pSpawn.z + 10.5f);
+        // 2. スタート小道沿いの小高い岩場（前方約35m）
+        positions[1] = new Vector3(pSpawn.x + 6f, 0f, pSpawn.z + 36f);
+        // 3. 西側白砂ビーチへと続く丘の木陰（約72m先）
+        positions[2] = new Vector3(pSpawn.x - 18f, 0f, pSpawn.z + 72f);
+
+        for (int i = 0; i < positions.Count; i++)
         {
-            Vector3 pos = _scrapSpawnPositions[i];
+            Vector3 pos = positions[i];
             if (land != null)
             {
                 pos.y = land.SampleHeight(pos) + land.transform.position.y + 1.35f;
@@ -184,7 +198,14 @@ public class AdventureScrapManager : MonoBehaviour
     /// <summary>探知ソナー用：プレイヤーから最も近い未取得パーツの位置を返す</summary>
     public Transform GetNearestScrap(Vector3 playerPos, out float distance)
     {
-        Transform nearest = null;
+        var item = GetNearestScrapItem(playerPos, out distance);
+        return item != null ? item.transform : null;
+    }
+
+    /// <summary>最寄りの未取得アイテム実体を返す</summary>
+    public AdventureScrapItem GetNearestScrapItem(Vector3 playerPos, out float distance)
+    {
+        AdventureScrapItem nearest = null;
         float minDist = float.MaxValue;
 
         for (int i = 0; i < _activeItems.Count; i++)
@@ -195,7 +216,7 @@ public class AdventureScrapManager : MonoBehaviour
             if (d < minDist)
             {
                 minDist = d;
-                nearest = it.transform;
+                nearest = it;
             }
         }
 

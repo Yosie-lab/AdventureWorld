@@ -61,16 +61,21 @@ public class AdventureCameraFollow : MonoBehaviour
         var kb = Keyboard.current;
         var mouse = Mouse.current;
 
-        // エスケープでカーソル解放、画面クリックで確実にロック復帰
-        if (kb != null && kb.escapeKey.wasPressedThisFrame)
+        bool isOpeningActive = !AdventureRustFloatOpening.IsGameStarted && FindAnyObjectByType<AdventureRustFloatOpening>() != null;
+
+        // エスケープでカーソル解放、画面クリックで確実にロック復帰（スタート前はクリックによる強制ロックを停止）
+        if (!isOpeningActive)
         {
-            bool locked = Cursor.lockState != CursorLockMode.Locked;
-            Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
-            Cursor.visible = !locked;
-        }
-        else if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked)
-        {
-            LockCursor();
+            if (kb != null && kb.escapeKey.wasPressedThisFrame)
+            {
+                bool locked = Cursor.lockState != CursorLockMode.Locked;
+                Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
+                Cursor.visible = !locked;
+            }
+            else if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked)
+            {
+                LockCursor();
+            }
         }
 
         if (kb != null && kb.rKey.wasPressedThisFrame)
@@ -79,8 +84,8 @@ public class AdventureCameraFollow : MonoBehaviour
             _yaw = target.eulerAngles.y;
         }
 
-        // マウス視点操作（ダイレクト即時反映：遅延ゼロで指先の動きにピタッと追従）
-        bool isMouseActive = Cursor.lockState == CursorLockMode.Locked;
+        // マウス視点操作（ダイレクト即時反映：遅延ゼロで指先の動きにピタッと追従、スタート前は待機）
+        bool isMouseActive = Cursor.lockState == CursorLockMode.Locked && !isOpeningActive;
         if (mouse != null && isMouseActive)
         {
             Vector2 delta = mouse.delta.ReadValue();

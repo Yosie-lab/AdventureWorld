@@ -164,7 +164,30 @@ public class AdventureCompassHUD : MonoBehaviour
         var badgeOutline = badgeGo.AddComponent<Outline>();
         badgeOutline.effectColor = new Color(0f, 0f, 0f, 0.7f);
         badgeOutline.effectDistance = new Vector2(1f, -1f);
+
+        // 最寄り漂着パーツの方向・距離ナビゲーションバッジ（例: "✦ 古代の黄金ギア  11m  [▲ 正面]"）
+        var navGo = new GameObject("ScrapNavBadge");
+        navGo.transform.SetParent(transform, false);
+        var navRt = navGo.AddComponent<RectTransform>();
+        navRt.anchorMin = new Vector2(0.5f, 0f);
+        navRt.anchorMax = new Vector2(0.5f, 0f);
+        navRt.pivot = new Vector2(0.5f, 1f);
+        navRt.anchoredPosition = new Vector2(0f, -19f);
+        navRt.sizeDelta = new Vector2(340f, 18f);
+
+        _scrapNavText = navGo.AddComponent<Text>();
+        _scrapNavText.font = font;
+        _scrapNavText.fontSize = 11;
+        _scrapNavText.fontStyle = FontStyle.Bold;
+        _scrapNavText.alignment = TextAnchor.MiddleCenter;
+        _scrapNavText.color = new Color(1.0f, 0.82f, 0.25f, 0.95f);
+        _scrapNavText.text = "✦ 最寄りの漂着パーツを探知中…";
+        var navOutline = navGo.AddComponent<Outline>();
+        navOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
+        navOutline.effectDistance = new Vector2(1f, -1f);
     }
+
+    Text _scrapNavText;
 
     void Update()
     {
@@ -186,6 +209,46 @@ public class AdventureCompassHUD : MonoBehaviour
         {
             string cardinal = GetCardinal(yaw);
             _headingBadgeText.text = $"{cardinal}  {(int)yaw}°";
+        }
+
+        // 最寄り漂着パーツへの方向と距離のリアルタイムナビゲーション
+        if (_scrapNavText != null)
+        {
+            var mgr = AdventureScrapManager.Instance;
+            var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
+            if (mgr != null && player != null)
+            {
+                var nearest = mgr.GetNearestScrapItem(player.transform.position, out float dist);
+                if (nearest != null)
+                {
+                    Vector3 camFwd = _cam.transform.forward;
+                    camFwd.y = 0f;
+                    camFwd.Normalize();
+
+                    Vector3 toScrap = (nearest.transform.position - player.transform.position);
+                    toScrap.y = 0f;
+
+                    if (toScrap.sqrMagnitude > 0.01f)
+                    {
+                        toScrap.Normalize();
+                        float angle = Vector3.SignedAngle(camFwd, toScrap, Vector3.up);
+
+                        string arrow;
+                        if (Mathf.Abs(angle) < 25f) arrow = "▲ 正面";
+                        else if (angle >= 25f && angle < 155f) arrow = "▶ 右";
+                        else if (angle <= -25f && angle > -155f) arrow = "◀ 左";
+                        else arrow = "▼ 後方";
+
+                        _scrapNavText.text = $"✦ {nearest.itemName}  {(int)dist}m  [{arrow}]";
+                        _scrapNavText.color = nearest.itemColor;
+                    }
+                }
+                else
+                {
+                    _scrapNavText.text = "✦ 全ての漂着パーツ回収完了！";
+                    _scrapNavText.color = new Color(0.35f, 1.0f, 0.85f, 0.95f);
+                }
+            }
         }
     }
 

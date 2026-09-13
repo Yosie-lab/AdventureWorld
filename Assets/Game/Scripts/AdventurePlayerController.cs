@@ -107,6 +107,10 @@ public class AdventurePlayerController : MonoBehaviour
 
     void Update()
     {
+        // スタート前（時代背景説明ボード表示中）は待機
+        if (!AdventureRustFloatOpening.IsGameStarted && FindAnyObjectByType<AdventureRustFloatOpening>() != null)
+            return;
+
         var kb = GetKeyboard();
         InteractPressed = kb != null && kb.eKey.wasPressedThisFrame;
         if (kb != null && kb.rKey.wasPressedThisFrame)
