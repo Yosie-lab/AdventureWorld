@@ -38,6 +38,43 @@ public class AdventureLostPetFollower : MonoBehaviour
             enabled = false;
     }
 
+    float SampleGroundY(Vector3 worldPos)
+    {
+        // 1. Raycast による物理接地判定（頭上2.5mから下向きに判定）
+        float rayStartY = worldPos.y + 2.5f;
+        Ray ray = new Ray(new Vector3(worldPos.x, rayStartY, worldPos.z), Vector3.down);
+        int layerMask = ~LayerMask.GetMask("Ignore Raycast");
+
+        RaycastHit[] hits = Physics.RaycastAll(ray, 15f, layerMask);
+        float bestY = -999f;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            var hit = hits[i];
+            if (hit.collider.isTrigger)
+                continue;
+            if (hit.collider.transform.root == transform)
+                continue;
+            if (hit.point.y > bestY)
+                bestY = hit.point.y;
+        }
+
+        if (bestY > -900f)
+        {
+            return bestY + 0.04f; // 足元が埋まらない適正な接地オフセット
+        }
+
+        // 2. Terrain によるフォールバック
+        if (_land == null)
+            _land = AdventureQuestLocations.FindLand();
+
+        if (_land != null)
+        {
+            return _land.SampleHeight(worldPos) + _land.transform.position.y + 0.04f;
+        }
+
+        return worldPos.y;
+    }
+
     public void BeginFollow(Transform target)
     {
         if (_phase != Phase.Anchored || target == null)
@@ -46,6 +83,12 @@ public class AdventureLostPetFollower : MonoBehaviour
         _target = target;
         _phase = Phase.Celebrating;
         _celebrateUntil = Time.time + CelebrateSeconds;
+
+        // 発見時、足元の地面に正確に接地
+        Vector3 p = transform.position;
+        p.y = SampleGroundY(p);
+        transform.position = p;
+
         ResolveAnimStates();
         CacheVisual();
         PlayIdle();
@@ -53,9 +96,17 @@ public class AdventureLostPetFollower : MonoBehaviour
 
     void LateUpdate()
     {
+        if (_target == null || (_phase != Phase.Celebrating && _phase != Phase.Following))
+            return;
+
+        CacheVisual();
+
         if (_phase == Phase.Celebrating)
         {
-            CacheVisual();
+            Vector3 p = transform.position;
+            p.y = Mathf.MoveTowards(p.y, SampleGroundY(p), Time.deltaTime * 30f);
+            transform.position = p;
+
             WagTail(32f);
             FaceTarget();
             if (Time.time >= _celebrateUntil)
@@ -63,10 +114,6 @@ public class AdventureLostPetFollower : MonoBehaviour
             return;
         }
 
-        if (_phase != Phase.Following || _target == null)
-            return;
-
-        CacheVisual();
         FollowTarget();
     }
 
@@ -86,16 +133,22 @@ public class AdventureLostPetFollower : MonoBehaviour
                 move = delta.normalized * Mathf.Max(0f, dist - ArriveDistance);
 
             Vector3 next = self + move;
-            if (_land == null)
-                _land = AdventureQuestLocations.FindLand();
-            next.y = AdventureQuestLocations.GroundY(_land, next.x, next.z);
+            // 自分の足元の地面の高さに高精度接地
+            float targetGroundY = SampleGroundY(next);
+            next.y = Mathf.MoveTowards(self.y, targetGroundY, Time.deltaTime * 30f);
             transform.position = next;
+
             FaceDirection(move);
             PlayRun();
             WagTail(10f);
             AnimateLegs(true, speed);
             return;
         }
+
+        // 立ち止まっている時も足元の地面に高精度接地
+        float stopGroundY = SampleGroundY(self);
+        self.y = Mathf.MoveTowards(self.y, stopGroundY, Time.deltaTime * 30f);
+        transform.position = self;
 
         FaceTarget();
         PlayIdle();

@@ -13,6 +13,7 @@ public class AdventureIslandBoundary : MonoBehaviour
     public Vector2 lakeCenter = new Vector2(133f, 169f);
     public float lakeRadius = 36f;
     public float rockSpacing = 14f;
+    public bool placeShoreRocks = true;
 
     Terrain _land;
     bool _built;
@@ -33,12 +34,28 @@ public class AdventureIslandBoundary : MonoBehaviour
             return;
         }
         Instance = this;
-        _land = Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude).FirstOrDefault(t => t.name == "LandTerrain");
+        _land = Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude)
+            .FirstOrDefault(t => t.name == "LandTerrain" || t.name == "IslandTerrain");
+        if (_land != null && _land.terrainData != null)
+        {
+            Vector3 size = _land.terrainData.size;
+            Vector3 origin = _land.transform.position;
+            walkMinX = origin.x + 10f;
+            walkMaxX = origin.x + size.x - 10f;
+            walkMinZ = origin.z + 10f;
+            walkMaxZ = origin.z + size.z - 10f;
+            if (size.x > 500f)
+            {
+                // Grand Island (1000m) の場合は旧256m島の進入禁止円を無効化
+                lakeRadius = 0f;
+            }
+        }
     }
 
     void Start()
     {
-        BuildShore();
+        if (placeShoreRocks)
+            BuildShore();
     }
 
     void OnDestroy()

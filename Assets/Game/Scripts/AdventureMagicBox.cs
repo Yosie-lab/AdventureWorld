@@ -183,10 +183,36 @@ public class AdventureMagicBox : MonoBehaviour
         if (land == null)
             return;
 
-        // 主要なポイントにマジックボックスを配置
-        CreateBoxAt(new Vector3(145f, 0f, 155f), MagicBoxSkillType.DoubleJump, "2段ジャンプ宝箱", land);
-        CreateBoxAt(new Vector3(205f, 0f, 215f), MagicBoxSkillType.SuperJumpAndDash, "ダッシュ宝箱", land);
-        CreateBoxAt(new Vector3(115f, 0f, 205f), MagicBoxSkillType.PetRadar, "ペットレーダー宝箱", land);
+        // 各スキルボックスの候補座標（岩・崖のない平坦な草地のみ）
+        Vector3[] doubleJumpCandidates =
+        {
+            new Vector3(145f, 0f, 155f),   // 候補A
+            new Vector3(178f, 0f, 148f),   // 候補B
+            new Vector3(158f, 0f, 175f),   // 候補C
+        };
+        Vector3[] superJumpCandidates =
+        {
+            new Vector3(205f, 0f, 215f),   // 候補A（元の位置）
+            new Vector3(222f, 0f, 200f),   // 候補B
+            new Vector3(195f, 0f, 228f),   // 候補C
+        };
+        Vector3[] petRadarCandidates =
+        {
+            new Vector3(115f, 0f, 205f),   // 候補A（元の位置）
+            new Vector3(100f, 0f, 225f),   // 候補B
+            new Vector3( 88f, 0f, 210f),   // 候補C
+        };
+
+        // ランダムに1か所を選択して配置
+        CreateBoxAt(
+            doubleJumpCandidates[Random.Range(0, doubleJumpCandidates.Length)],
+            MagicBoxSkillType.DoubleJump, "2段ジャンプ宝箱", land);
+        CreateBoxAt(
+            superJumpCandidates[Random.Range(0, superJumpCandidates.Length)],
+            MagicBoxSkillType.SuperJumpAndDash, "ダッシュ宝箱", land);
+        CreateBoxAt(
+            petRadarCandidates[Random.Range(0, petRadarCandidates.Length)],
+            MagicBoxSkillType.PetRadar, "ペットレーダー宝箱", land);
     }
 
     static void CreateBoxAt(Vector3 pos, MagicBoxSkillType skill, string name, Terrain land)

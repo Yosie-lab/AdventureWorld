@@ -28,7 +28,11 @@ public class AdventureLostPetAnchor : MonoBehaviour
             return;
 
         if (_npc.IsFollowing())
+        {
+            // 追従開始後はアンカーは不要なため破棄し、競合を完全に防ぐ
+            Destroy(this);
             return;
+        }
 
         AdventureQuestLocations.SnapLostPet(transform, _npc.npcId);
         AdventureLostPetVisuals.EnsurePetModel(transform, _npc.npcId);

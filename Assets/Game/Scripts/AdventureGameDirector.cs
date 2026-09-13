@@ -20,6 +20,7 @@ public class AdventureGameDirector : MonoBehaviour
     bool _foundDog;
     AdventureNpc _leadFollowPet;
     bool _complete;
+    bool _openingActive;
     int _capytaTalks;
     int _catTalks;
     int _dogTalks;
@@ -58,7 +59,10 @@ public class AdventureGameDirector : MonoBehaviour
         GroundAllSceneNpcs();
 
         StartCoroutine(RepositionLostPetsDelayed());
-        ShowDialogue("幻想の森。猫と犬が迷子。砂浜と岩=岸。黄色看板と距離表示も頼って。M / WASD / E / R", 7f);
+        // 2050設定の導入。スペース／E で閉じるまで消えない
+        const string opening =
+            "西暦2050。nikoは正解しかない世界から逃げた。\n息苦しさが、この孤島へ導いた。猫と犬が迷子。\n【スペース】でつづける";
+        BeginOpeningDialogue(opening);
     }
 
     IEnumerator RepositionLostPetsDelayed()
@@ -137,7 +141,7 @@ public class AdventureGameDirector : MonoBehaviour
         if (land == null)
             return;
 
-        // スタート広場(水面+2.5mの広大なフラット平地)の中央にメインキャラクターを配置＆接地
+        // カピタ：クエスト進行の要なのでスタート広場に固定
         if (capyta != null)
         {
             Vector3 pos = capyta.transform.position;
@@ -147,27 +151,16 @@ public class AdventureGameDirector : MonoBehaviour
             capyta.transform.position = pos;
         }
 
-        if (gecko != null)
-        {
-            Vector3 pos = gecko.transform.position;
-            if (pos.x < 135f || pos.x > 190f || pos.z < 130f || pos.z > 190f)
-                pos = new Vector3(156f, 0f, 164f);
-            pos.y = AdventureQuestLocations.GroundY(land, pos.x, pos.z);
-            gecko.transform.position = pos;
-        }
+        // ヤモリ：ランダム選択された座標に配置（スタート広場内の候補から選択）
+        PlaceNpcAt(gecko,   AdventureQuestLocations.GeckoX,   AdventureQuestLocations.GeckoZ,   land);
 
-        // その他全NPCを地面に正確に接地
-        AdventureNpc[] otherNpcs = { sparrow, muskrat, pudu, colobus };
-        foreach (var npc in otherNpcs)
-        {
-            if (npc == null)
-                continue;
-            Vector3 pos = npc.transform.position;
-            pos.y = AdventureQuestLocations.GroundY(land, pos.x, pos.z);
-            npc.transform.position = pos;
-        }
+        // スズメ・マスクラット・プドゥ・コロブス：それぞれランダム座標に配置
+        PlaceNpcAt(sparrow, AdventureQuestLocations.SparrowX, AdventureQuestLocations.SparrowZ, land);
+        PlaceNpcAt(muskrat, AdventureQuestLocations.MuskratX, AdventureQuestLocations.MuskratZ, land);
+        PlaceNpcAt(pudu,    AdventureQuestLocations.PuduX,    AdventureQuestLocations.PuduZ,    land);
+        PlaceNpcAt(colobus, AdventureQuestLocations.ColobusX, AdventureQuestLocations.ColobusZ, land);
 
-        // プレイヤー(Niko)もスタート広場中央に正しく設置
+        // プレイヤー(Niko)はスタート広場中央に固定
         if (player != null)
         {
             Vector3 pp = player.transform.position;
@@ -181,6 +174,15 @@ public class AdventureGameDirector : MonoBehaviour
         Physics.SyncTransforms();
     }
 
+    // 指定座標に NPC を接地配置するヘルパー
+    static void PlaceNpcAt(AdventureNpc npc, float x, float z, Terrain land)
+    {
+        if (npc == null)
+            return;
+        npc.transform.position = AdventureQuestLocations.FindSafeFlatPosition(land, x, z, 0.08f);
+    }
+
+
     static void EnsureIslandBoundary()
     {
         AdventureIslandBoundary.Ensure();
@@ -192,6 +194,20 @@ public class AdventureGameDirector : MonoBehaviour
 
         if (player == null)
             return;
+
+        if (_openingActive)
+        {
+            var kb = Keyboard.current;
+            bool dismiss =
+                kb != null &&
+                (kb.spaceKey.wasPressedThisFrame ||
+                 kb.enterKey.wasPressedThisFrame ||
+                 kb.eKey.wasPressedThisFrame);
+            if (dismiss)
+                EndOpeningDialogue();
+            RefreshHud();
+            return;
+        }
 
         AdventureNpc nearNpc = NearestNpc();
         AdventureHintSign nearHint = nearNpc == null ? NearestHintSign() : null;
@@ -271,21 +287,21 @@ public class AdventureGameDirector : MonoBehaviour
         SpawnHintSign(
             AdventureQuestLocations.HintStart,
             "スタート",
-            "M=マップ。猫は北東 " + AdventureQuestLocations.CatCoordLabel
-                + "、犬は北西 " + AdventureQuestLocations.DogCoordLabel + "。");
+            "M=マップ。猫は" + AdventureQuestLocations.CatDirectionLabel + " " + AdventureQuestLocations.CatCoordLabel
+                + "、犬は" + AdventureQuestLocations.DogDirectionLabel + " " + AdventureQuestLocations.DogCoordLabel + "。");
         SpawnHintSign(
             AdventureQuestLocations.HintMemo,
             "迷子メモ",
-            "猫→北東の草地 " + AdventureQuestLocations.CatCoordLabel
-                + "　犬→北西 " + AdventureQuestLocations.DogCoordLabel + "。Mでマップ。");
+            "猫→" + AdventureQuestLocations.CatDirectionLabel + "のエリア " + AdventureQuestLocations.CatCoordLabel
+                + "　犬→" + AdventureQuestLocations.DogDirectionLabel + "のエリア " + AdventureQuestLocations.DogCoordLabel + "。Mでマップ。");
         SpawnHintSign(
             AdventureQuestLocations.HintCatTrail,
             "猫の足跡",
-            "この先、北東の草地へ。" + AdventureQuestLocations.CatCoordLabel + " 付近。木の看板をたどって。");
+            "この先、" + AdventureQuestLocations.CatDirectionLabel + "のエリアへ。" + AdventureQuestLocations.CatCoordLabel + " 付近。木の看板をたどって。");
         SpawnHintSign(
             AdventureQuestLocations.HintDogTrail,
             "犬の足跡",
-            "北西の草地へ。" + AdventureQuestLocations.DogCoordLabel + " 付近。木の看板をたどって。");
+            AdventureQuestLocations.DogDirectionLabel + "のエリアへ。" + AdventureQuestLocations.DogCoordLabel + " 付近。木の看板をたどって。");
 
         if (cat != null)
         {
@@ -554,8 +570,28 @@ public class AdventureGameDirector : MonoBehaviour
             anim.CrossFadeInFixedTime(state, 0.2f);
     }
 
+    void BeginOpeningDialogue(string text)
+    {
+        _openingActive = true;
+        _prompt = "スペース  または  E  でつづける";
+        ShowDialogue(text, 9999f);
+        Debug.Log("[Adventure] 冒頭セリフ: " + text);
+    }
+
+    void EndOpeningDialogue()
+    {
+        if (!_openingActive)
+            return;
+        _openingActive = false;
+        _dialogue = "";
+        _dialogueUntil = 0f;
+        _prompt = "";
+    }
+
     void ShowDialogue(string text, float seconds)
     {
+        if (_openingActive && seconds < 9000f)
+            return;
         _dialogue = text;
         _dialogueUntil = Time.unscaledTime + seconds;
     }
@@ -579,8 +615,10 @@ public class AdventureGameDirector : MonoBehaviour
     {
         if (_complete)
             return "クエスト完了  みんな、幻想の森で揃った";
+        if (_openingActive)
+            return "西暦2050  niko脱走の孤島  —  スペースでつづける";
         if (!_started)
-            return "クエスト  猫と犬を探す（嘘と本当がある）";
+            return "西暦2050  niko脱走の孤島 ／ クエスト  猫と犬を探す";
         string cat = _foundCat ? "猫 ✓" : "猫 ？";
         string dog = _foundDog ? "犬 ✓" : "犬 ？";
         if (_foundCat && _foundDog)
@@ -639,13 +677,14 @@ public class AdventureGameDirector : MonoBehaviour
         scaler.referenceResolution = new Vector2(1280, 720);
         canvasGo.AddComponent<GraphicRaycaster>();
 
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (font == null)
-            font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        Font font = ResolveUiFont();
 
-        _questText = MakeText(canvasGo.transform, "Quest", new Vector2(24, -24), new Vector2(0, 1), new Vector2(720, 64), 22, TextAnchor.UpperLeft, font);
-        _guideText = MakeText(canvasGo.transform, "Guide", new Vector2(24, -92), new Vector2(0, 1), new Vector2(760, 40), 18, TextAnchor.UpperLeft, font);
-        _promptText = MakeText(canvasGo.transform, "Prompt", new Vector2(0, 88), new Vector2(0.5f, 0), new Vector2(760, 40), 20, TextAnchor.MiddleCenter, font);
+        _questText = MakeText(canvasGo.transform, "Quest", new Vector2(56, -24), new Vector2(0, 1), new Vector2(1168, 64), 22, TextAnchor.UpperLeft, font);
+        _questText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        _guideText = MakeText(canvasGo.transform, "Guide", new Vector2(56, -92), new Vector2(0, 1), new Vector2(1168, 40), 18, TextAnchor.UpperLeft, font);
+        _guideText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        // セリフ枠の上に置く（重なって下半分が消えないようにする）
+        _promptText = MakeText(canvasGo.transform, "Prompt", new Vector2(0, 208), new Vector2(0.5f, 0), new Vector2(760, 36), 18, TextAnchor.MiddleCenter, font);
 
         _dialoguePanel = new GameObject("Dialogue");
         _dialoguePanel.transform.SetParent(canvasGo.transform, false);
@@ -653,17 +692,74 @@ public class AdventureGameDirector : MonoBehaviour
         panelRt.anchorMin = new Vector2(0.5f, 0f);
         panelRt.anchorMax = new Vector2(0.5f, 0f);
         panelRt.pivot = new Vector2(0.5f, 0f);
-        panelRt.anchoredPosition = new Vector2(0f, 22f);
-        panelRt.sizeDelta = new Vector2(780, 72);
+        panelRt.anchoredPosition = new Vector2(0f, 18f);
+        panelRt.sizeDelta = new Vector2(1040, 168);
         var img = _dialoguePanel.AddComponent<Image>();
-        img.color = new Color(0.16f, 0.18f, 0.16f, 0.55f);
-        _dialogueText = MakeText(_dialoguePanel.transform, "Line", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(740, 60), 20, TextAnchor.MiddleLeft, font);
+        img.color = new Color(0.08f, 0.1f, 0.12f, 0.88f);
+        _dialogueText = MakeDialogueBody(_dialoguePanel.transform, font);
         _dialoguePanel.SetActive(false);
 
         var mapGo = new GameObject("IslandMap");
         mapGo.transform.SetParent(canvasGo.transform, false);
         var map = mapGo.AddComponent<AdventureIslandMap>();
         map.Setup(player != null ? player.transform : null, font);
+    }
+
+    static Font ResolveUiFont()
+    {
+        // LegacyRuntime は日本語が欠けやすいので、Macの日本語フォントを優先する
+        string[] candidates =
+        {
+            "Hiragino Sans",
+            "Hiragino Kaku Gothic ProN",
+            "Hiragino Sans GB",
+            "Apple SD Gothic Neo",
+            "Arial Unicode MS",
+            "YuGothic",
+            "Noto Sans CJK JP"
+        };
+        foreach (string name in candidates)
+        {
+            try
+            {
+                Font os = Font.CreateDynamicFontFromOSFont(name, 22);
+                if (os != null)
+                    return os;
+            }
+            catch
+            {
+                // 次の候補へ
+            }
+        }
+
+        Font builtin = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (builtin != null)
+            return builtin;
+        return Resources.GetBuiltinResource<Font>("Arial.ttf");
+    }
+
+    static Text MakeDialogueBody(Transform parent, Font font)
+    {
+        var go = new GameObject("Line");
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        // 枠の内側いっぱいに広げる（余白つき）
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = new Vector2(24f, 16f);
+        rt.offsetMax = new Vector2(-24f, -16f);
+        var text = go.AddComponent<Text>();
+        text.font = font;
+        text.fontSize = 20;
+        text.alignment = TextAnchor.UpperLeft;
+        text.color = Color.white;
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
+        text.verticalOverflow = VerticalWrapMode.Overflow;
+        text.lineSpacing = 1.15f;
+        var outline = go.AddComponent<Outline>();
+        outline.effectColor = new Color(0f, 0f, 0f, 0.75f);
+        outline.effectDistance = new Vector2(1f, -1f);
+        return text;
     }
 
     static Text MakeText(Transform parent, string name, Vector2 pos, Vector2 anchor, Vector2 size, int fontSize, TextAnchor align, Font font)

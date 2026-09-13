@@ -54,16 +54,12 @@ public static class AdventureMarkerCleanup
 
             string name = t.name;
 
-            // 中央の低地にある池(Lake)は保持するが、空中に浮いているLake(Y > 21f)は削除
+            // 中央および北西の池(Lake)は保護する
             bool isLake = name.Equals("Lake", System.StringComparison.OrdinalIgnoreCase) ||
                           name.IndexOf("Lake", System.StringComparison.OrdinalIgnoreCase) >= 0;
 
             if (isLake)
             {
-                if (t.position.y > 21.0f)
-                {
-                    Object.Destroy(t.gameObject);
-                }
                 continue;
             }
 
@@ -100,6 +96,39 @@ public static class AdventureMarkerCleanup
             if (isWaterName || isWaterMaterial)
             {
                 Object.Destroy(t.gameObject);
+            }
+        }
+    }
+
+    public static void RemoveFloatingRocks()
+    {
+        Terrain land = AdventureQuestLocations.FindLand();
+
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
+        {
+            if (t == null || t.gameObject == null)
+                continue;
+
+            if (t.GetComponent<AdventureNpc>() != null ||
+                t.GetComponent<AdventurePlayerController>() != null ||
+                t.GetComponent<AdventureMagicBox>() != null)
+                continue;
+
+            string nameLower = t.name.ToLower();
+            bool isRock = nameLower.Contains("rock") || nameLower.Contains("stone") ||
+                          nameLower.Contains("boulder") || nameLower.Contains("debris") ||
+                          nameLower.Contains("cliff");
+
+            if (isRock)
+            {
+                Vector3 pos = t.position;
+                float groundY = land != null ? (land.SampleHeight(pos) + land.transform.position.y) : 2.5f;
+
+                bool nearStartSquare = (pos.x >= 130f && pos.x <= 190f && pos.z >= 130f && pos.z <= 190f);
+                if ((nearStartSquare && pos.y > groundY + 0.4f) || (pos.y > groundY + 3.0f))
+                {
+                    Object.Destroy(t.gameObject);
+                }
             }
         }
     }
