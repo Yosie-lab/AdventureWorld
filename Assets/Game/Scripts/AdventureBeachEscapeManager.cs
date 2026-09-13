@@ -14,6 +14,11 @@ public class AdventureBeachEscapeManager : MonoBehaviour
 
     bool _hasNotifiedBeachGuide = false;
 
+    Material _cachedWoodMat;
+    Material _cachedPostMat;
+    Material _cachedLanternMat;
+    Material _cachedDriftwoodMat;
+
     public static void Ensure()
     {
         var existing = Object.FindObjectsByType<AdventureBeachEscapeManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -31,6 +36,32 @@ public class AdventureBeachEscapeManager : MonoBehaviour
     void Awake()
     {
         _instance = this;
+        InitMaterials();
+    }
+
+    void OnDestroy()
+    {
+        if (_instance == this)
+            _instance = null;
+    }
+
+    void InitMaterials()
+    {
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+
+        _cachedWoodMat = new Material(shader);
+        _cachedWoodMat.SetColor("_BaseColor", new Color(0.50f, 0.40f, 0.30f, 1.0f));
+
+        _cachedPostMat = new Material(shader);
+        _cachedPostMat.SetColor("_BaseColor", new Color(0.38f, 0.29f, 0.20f, 1.0f));
+
+        _cachedDriftwoodMat = new Material(shader);
+        _cachedDriftwoodMat.SetColor("_BaseColor", new Color(0.42f, 0.35f, 0.28f, 1.0f));
+
+        _cachedLanternMat = new Material(shader);
+        _cachedLanternMat.SetColor("_BaseColor", new Color(1.0f, 0.92f, 0.65f, 1.0f));
+        _cachedLanternMat.EnableKeyword("_EMISSION");
+        _cachedLanternMat.SetColor("_EmissionColor", new Color(1.0f, 0.85f, 0.45f) * 1.8f);
     }
 
     void Start()
@@ -131,17 +162,14 @@ public class AdventureBeachEscapeManager : MonoBehaviour
         var mr = markerGo.GetComponent<MeshRenderer>();
         if (mr != null)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            var mat = new Material(shader);
-            mat.SetColor("_BaseColor", new Color(0.42f, 0.35f, 0.28f, 1.0f));
-            mr.material = mat;
+            mr.material = _cachedDriftwoodMat;
         }
 
         var col = markerGo.GetComponent<Collider>();
         if (col != null) col.isTrigger = true; // プレイヤーの邪魔にならない
     }
 
-    /// <summary>砂浜から内陸草地へ駆け上がれる木製ウッドデッキスロープ道（Boardwalk Ramps）を東西南北に設置</summary>
+    /// <summary>砂浜から内陸草地へ快適に歩いて登れる木製ウッドデッキスロープ道（Boardwalk Ramps）を主要海岸に設置</summary>
     void BuildBeachBoardwalkRamps(Transform parent, Terrain land, float waterY)
     {
         var rampsRoot = new GameObject("BeachBoardwalkRamps");
@@ -155,30 +183,41 @@ public class AdventureBeachEscapeManager : MonoBehaviour
             center = new Vector3(origin.x + size.x * 0.5f, 0f, origin.z + size.z * 0.5f);
         }
 
-        // 4大方角のビーチ〜内陸草地スロープ（西、南、東、北西）
-        float[] angles = { 180f, 270f, 0f, 135f };
+        // 漂着ゴミや探索スポットが密集する南西〜西ビーチ（195°〜235°）を中心に、各海岸線へ木道を多数設置
+        float[] angles = {
+            195f, // 南西ビーチ（漂着ゴミ・2050年AIドローンプロペラ前）
+            212f, // 南西ビーチ中央（生体追跡リング・健康バンド前）
+            228f, // 南西ビーチ奥（2040年ロボットギア・2030年スマホ前）
+            180f, // 真西ビーチテラス（Hawaii Beach Houseヤシ林前）
+            245f, // 南南西ビーチ
+            270f, // 真南ビーチ
+            295f, // 北西ビーチ（高密度電源結晶前）
+            0f,   // 真東ビーチ
+            60f   // 北東ビーチ
+        };
+
         for (int i = 0; i < angles.Length; i++)
         {
             float deg = angles[i];
             float rad = deg * Mathf.Deg2Rad;
             Vector3 dir = new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad)).normalized;
 
-            // 砂浜の端（半径約440m）から内陸の草原（半径約370m）へ向かってウッドデッキ道を敷設
-            Vector3 beachPoint = center + dir * 440f;
+            // 砂浜の波打ち際手前（半径約445m）から内陸の草原（半径約370m）へ向かってウッドデッキ道を敷設
+            Vector3 beachPoint = center + dir * 445f;
             Vector3 inlandPoint = center + dir * 370f;
 
             if (land != null)
             {
-                beachPoint.y = Mathf.Max(waterY + 0.3f, land.SampleHeight(beachPoint) + land.transform.position.y);
+                beachPoint.y = Mathf.Max(waterY + 0.35f, land.SampleHeight(beachPoint) + land.transform.position.y);
                 inlandPoint.y = land.SampleHeight(inlandPoint) + land.transform.position.y;
             }
             else
             {
-                beachPoint.y = waterY + 0.3f;
+                beachPoint.y = waterY + 0.35f;
                 inlandPoint.y = waterY + 12f;
             }
 
-            CreateBoardwalkRamp(rampsRoot.transform, beachPoint, inlandPoint, $"Ramp_{i}", land);
+            CreateBoardwalkRamp(rampsRoot.transform, beachPoint, inlandPoint, $"BoardwalkRamp_{Mathf.RoundToInt(deg)}deg", land);
         }
     }
 
@@ -187,43 +226,105 @@ public class AdventureBeachEscapeManager : MonoBehaviour
         var rampGo = new GameObject(rampName);
         rampGo.transform.SetParent(parent, false);
 
-        int segments = 16;
-        float width = 3.6f; // ゆったり走れる幅広ウッドデッキ
+        int segments = 28; // 高密度分割で地形の傾斜にぴったり追従
+        float width = 4.2f; // ゆったり広々歩ける幅広ウッドデッキ
         Vector3 totalDir = (inlandPoint - beachPoint);
-        Vector3 rightDir = Vector3.Cross(Vector3.up, totalDir).normalized;
 
-        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-        var woodMat = new Material(shader);
-        woodMat.SetColor("_BaseColor", new Color(0.48f, 0.38f, 0.28f, 1.0f));
-
-        for (int i = 0; i < segments; i++)
+        // 各セグメントの標高を地形から計算
+        Vector3[] points = new Vector3[segments + 1];
+        for (int i = 0; i <= segments; i++)
         {
-            float t0 = (float)i / segments;
-            float t1 = (float)(i + 1) / segments;
-
-            Vector3 p0 = Vector3.Lerp(beachPoint, inlandPoint, t0);
-            Vector3 p1 = Vector3.Lerp(beachPoint, inlandPoint, t1);
-
+            float t = (float)i / segments;
+            Vector3 p = Vector3.Lerp(beachPoint, inlandPoint, t);
             if (land != null)
             {
-                p0.y = Mathf.Max(p0.y, land.SampleHeight(p0) + land.transform.position.y + 0.22f);
-                p1.y = Mathf.Max(p1.y, land.SampleHeight(p1) + land.transform.position.y + 0.22f);
+                float ty = land.SampleHeight(p) + land.transform.position.y;
+                // 砂浜の端（t=0）は地面に少し埋め込んでスムーズに乗り込めるようにし、中間〜頂上は地面より+0.18m浮かせる
+                float lift = Mathf.Lerp(0.04f, 0.22f, Mathf.Sin(t * Mathf.PI * 0.5f));
+                p.y = Mathf.Max(p.y, ty + lift);
             }
+            points[i] = p;
+        }
 
+        // デッキ板（Plank）の配置
+        for (int i = 0; i < segments; i++)
+        {
+            Vector3 p0 = points[i];
+            Vector3 p1 = points[i + 1];
             Vector3 center = (p0 + p1) * 0.5f;
             Vector3 forward = (p1 - p0);
             float length = forward.magnitude;
             if (length < 0.01f) continue;
 
+            Vector3 fwdNorm = forward.normalized;
+            Vector3 right = Vector3.Cross(Vector3.up, fwdNorm).normalized;
+
             var plank = GameObject.CreatePrimitive(PrimitiveType.Cube);
             plank.name = $"Plank_{i}";
             plank.transform.SetParent(rampGo.transform, false);
             plank.transform.position = center;
-            plank.transform.rotation = Quaternion.LookRotation(forward.normalized, Vector3.up);
-            plank.transform.localScale = new Vector3(width, 0.35f, length * 1.02f);
+            plank.transform.rotation = Quaternion.LookRotation(fwdNorm, Vector3.up);
+            plank.transform.localScale = new Vector3(width, 0.30f, length * 1.04f);
 
             var mr = plank.GetComponent<MeshRenderer>();
-            if (mr != null) mr.material = woodMat;
+            if (mr != null) mr.material = _cachedWoodMat;
+
+            // 4セグメントごとに両脇に手すり支柱（Wooden Posts）を配置
+            if (i % 4 == 0 || i == segments - 1)
+            {
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    post.name = $"RailingPost_{i}_{(side < 0 ? "L" : "R")}";
+                    post.transform.SetParent(rampGo.transform, false);
+                    post.transform.position = center + right * (side * (width * 0.5f - 0.15f)) + Vector3.up * 0.55f;
+                    post.transform.localScale = new Vector3(0.18f, 0.55f, 0.18f);
+
+                    var postMr = post.GetComponent<MeshRenderer>();
+                    if (postMr != null) postMr.material = _cachedPostMat;
+
+                    var col = post.GetComponent<Collider>();
+                    if (col != null) col.isTrigger = true; // 歩行の邪魔にならない
+                }
+            }
         }
+
+        // 入口（砂浜側）と出口（内陸側）に案内ランタンポストを配置
+        CreateLanternPost(rampGo.transform, points[0], Vector3.Cross(Vector3.up, (points[1] - points[0]).normalized).normalized * (width * 0.5f + 0.6f));
+        CreateLanternPost(rampGo.transform, points[segments], Vector3.Cross(Vector3.up, (points[segments] - points[segments - 1]).normalized).normalized * (width * 0.5f + 0.6f));
+    }
+
+    void CreateLanternPost(Transform parent, Vector3 basePos, Vector3 offset)
+    {
+        var lanternRoot = new GameObject("LanternPost");
+        lanternRoot.transform.SetParent(parent, false);
+        lanternRoot.transform.position = basePos + offset;
+
+        // 支柱
+        var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        post.transform.SetParent(lanternRoot.transform, false);
+        post.transform.localPosition = new Vector3(0f, 1.2f, 0f);
+        post.transform.localScale = new Vector3(0.22f, 1.2f, 0.22f);
+        var pmr = post.GetComponent<MeshRenderer>();
+        if (pmr != null) pmr.material = _cachedPostMat;
+        var pcol = post.GetComponent<Collider>();
+        if (pcol != null) pcol.isTrigger = true;
+
+        // ランタン本体（発光体）
+        var lamp = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        lamp.transform.SetParent(lanternRoot.transform, false);
+        lamp.transform.localPosition = new Vector3(0f, 2.3f, 0f);
+        lamp.transform.localScale = Vector3.one * 0.42f;
+        var lmr = lamp.GetComponent<MeshRenderer>();
+        if (lmr != null) lmr.material = _cachedLanternMat;
+        var lcol = lamp.GetComponent<Collider>();
+        if (lcol != null) lcol.isTrigger = true;
+
+        // 温かい点光源ライト
+        var light = lanternRoot.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.color = new Color(1.0f, 0.88f, 0.65f);
+        light.intensity = 2.4f;
+        light.range = 16f;
     }
 }
