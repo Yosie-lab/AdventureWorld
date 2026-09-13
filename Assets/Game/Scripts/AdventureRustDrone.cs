@@ -38,7 +38,7 @@ public class AdventureRustDrone : MonoBehaviour
     Texture2D _speechBg;
 
     // オイルアイテムと手当てシステム
-    public int oilCount = 1;
+    public int oilCount = 2;
     public float wellOiledUntil = 0f;
     bool _isPlayerNear = false;
     float _lastInteractTime = 0f;
@@ -100,6 +100,7 @@ public class AdventureRustDrone : MonoBehaviour
         SetupAudio();
         SetupHeat();
         SetupOil();
+        oilCount = Mathf.Max(oilCount, 2); // ゲーム開始時に確実に2個以上油を所持
 
         // 起動時のあたたかい挨拶
         _speechText = "ピピッ…！起動したよ、Niko。一緒に行こう！";
@@ -373,13 +374,23 @@ public class AdventureRustDrone : MonoBehaviour
 
     void UpdatePlayerInteraction()
     {
-        var player = AdventurePlayerController.Instance;
+        var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
         if (player == null) return;
 
-        float dist = Vector3.Distance(transform.position, player.transform.position);
-        _isPlayerNear = dist < 2.4f;
+        // Rustの浮遊高さを考慮し、水平5.5m・高低差5.0mまで広角に接近検知
+        Vector3 diff = transform.position - player.transform.position;
+        float horizontalDist = new Vector2(diff.x, diff.z).magnitude;
+        float verticalDist = Mathf.Abs(diff.y);
+        _isPlayerNear = (horizontalDist < 5.5f && verticalDist < 5.0f);
 
-        if (_isPlayerNear && player.InteractPressed && Time.time - _lastInteractTime > 0.6f)
+        // キーボードEキー・パッド決定・PlayerController経由のいずれでも100%直接検知
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        var pad = UnityEngine.InputSystem.Gamepad.current;
+        bool ePressed = (kb != null && (kb.eKey.wasPressedThisFrame || kb.eKey.wasReleasedThisFrame))
+                     || (pad != null && pad.buttonWest.wasPressedThisFrame)
+                     || (player != null && player.InteractPressed);
+
+        if (_isPlayerNear && ePressed && Time.time - _lastInteractTime > 0.35f)
         {
             _lastInteractTime = Time.time;
             InteractWithNiko();
@@ -391,28 +402,36 @@ public class AdventureRustDrone : MonoBehaviour
     {
         bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
 
-        // 1. 手当て（油をさしてあげる）
-        if (needsOil && oilCount > 0)
+        // 1. 油を持っている場合は手当て・整備を確実に実行
+        if (oilCount > 0)
         {
             oilCount--;
-            wellOiledUntil = Time.time + 80f; // 80秒間ガタつきなし＆軽快追従
+            wellOiledUntil = Mathf.Max(wellOiledUntil, Time.time) + 90f; // 90秒間快調
             _heatUntil = 0f;
             _heat = 0f;
-            _velocity += Vector3.up * 3.2f;
+            _velocity += Vector3.up * 3.5f;
 
             if (_happyBeepClip != null && _audio != null)
-                _audio.PlayOneShot(_happyBeepClip, 0.65f);
+                _audio.PlayOneShot(_happyBeepClip, 0.75f);
 
             string[] treatLines = {
                 "わぁ…！ありがとうNiko、身体がすごく軽くなったよ…！",
                 "油を差してくれてありがとう！ギアが滑らかに回ってるよ！",
-                "ピピッ…！温かい手当てをありがとう。もうギシギシしないよ"
+                "ピピッ…！温かい手当てをありがとう。もうギシギシしないよ！"
             };
             SpeakCustom(treatLines[Random.Range(0, treatLines.Length)], 4.8f);
             return;
         }
 
-        // 2. 心温まる対話（通常時）
+        // 2. 油が切れている場合
+        if (needsOil && oilCount == 0)
+        {
+            _velocity += Vector3.up * 1.2f;
+            SpeakCustom("ピピッ…潤滑油が切れちゃった。僕が落とした黒いオイルのしずくを拾ってくれたら嬉しいな！", 4.5f);
+            return;
+        }
+
+        // 3. 通常の対話
         _velocity += Vector3.up * 1.5f;
         if (_happyBeepClip != null && _audio != null)
             _audio.PlayOneShot(_happyBeepClip, 0.35f);
@@ -694,6 +713,13 @@ public class AdventureRustDrone : MonoBehaviour
 
     void OnGUI()
     {
+        // 0. Eキー検知の確実なフォールバック（InputSystemのフレーム遅延やEventSystem遮断を完全救済）
+        if (_isPlayerNear && Event.current != null && Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.E && Time.time - _lastInteractTime > 0.35f)
+        {
+            _lastInteractTime = Time.time;
+            InteractWithNiko();
+        }
+
         // 1. Niko接近時の頭上インタラクションプロンプト（特大フォント・高コントラスト）
         if (_isPlayerNear && Camera.main != null)
         {
@@ -705,23 +731,19 @@ public class AdventureRustDrone : MonoBehaviour
                 string prompt;
                 Color textColor;
 
-                if (needsOil)
+                if (oilCount > 0)
                 {
-                    if (oilCount > 0)
-                    {
-                        prompt = "【E】油をさして手当てする";
-                        textColor = new Color(1.0f, 0.90f, 0.25f); // 鮮やかなゴールド
-                    }
-                    else
-                    {
-                        prompt = "【⚠ Rustが不調…潤滑油が必要】";
-                        textColor = new Color(1.0f, 0.58f, 0.18f); // 警告アンバーオレンジ
-                    }
+                    prompt = needsOil 
+                        ? $"【E】油をさして手当てする（所持: {oilCount}）" 
+                        : $"【E】油をさして整備（所持: {oilCount}）";
+                    textColor = new Color(1.0f, 0.90f, 0.25f); // 鮮やかなゴールド
                 }
                 else
                 {
-                    prompt = "【E】話しかける";
-                    textColor = new Color(0.40f, 0.96f, 1.0f); // 爽やかなシアン
+                    prompt = needsOil 
+                        ? "【⚠ Rustが不調…油切れ（油滴を拾おう）】" 
+                        : "【E】話しかける（油切れ: 0）";
+                    textColor = needsOil ? new Color(1.0f, 0.55f, 0.15f) : new Color(0.40f, 0.96f, 1.0f);
                 }
 
                 // セリフ本文と調和する上品で読みやすいフォント（20〜30pt）

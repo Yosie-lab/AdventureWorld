@@ -12,13 +12,13 @@ public class AdventureRustFloatOpening : MonoBehaviour
     public static bool IsGameStarted { get; private set; } = false;
 
     const string TitleText = "✦ Rust & Float ✦";
-    const string SubTitleText = "〜 2050 楽園からの脱獄 〜";
+    const string SubTitleText = "〜 2050 静かなる脱出 〜";
     const string StoryText =
         "西暦2050年。100%最適化された無痛の幸福を脱獄した。\n\n" +
-        "躓いて傷を負う痛みの熱さも、全身を崖からすくい上げる本物の風の重さも、\n" +
-        "生きている歓びそのものだ。\n\n" +
-        "……隣には、同じくスクラップとして捨てられた旧型ドローン、Rust。\n" +
-        "この風薫る島を巡り、錆びた相棒と共に大空へ飛び立とう。";
+        "頬を打つ冷たい潮風も、駆け抜けた足の痛みさえ、\n" +
+        "ここではすべてが生きている証そのものだ。\n\n" +
+        "……隣には、草臥れたスクラップとして捨てられていた旧型ドローン、Rust。\n" +
+        "忘れかけた自由な蒼穹（そら）へ、一緒に飛び立とう。";
 
     GameObject _canvasGo;
     GameObject _overlayGo;
@@ -27,6 +27,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
     Text _guideText;
     Button _playButton;
     bool _isClosing = false;
+    float _openTime = 0f;
 
     void Awake()
     {
@@ -35,6 +36,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     void Start()
     {
+        _openTime = Time.realtimeSinceStartup;
         BuildHud();
         // スタート前はマウスカーソルを表示・アンロック
         Cursor.lockState = CursorLockMode.None;
@@ -46,6 +48,10 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (IsGameStarted || _isClosing)
             return;
 
+        // 起動直後（0.6秒間）はエディタのPlayクリックやウィンドウフォーカスの余韻による即時誤爆を防止
+        if (Time.realtimeSinceStartup - _openTime < 0.6f)
+            return;
+
         // スタート前は常にカーソルを表示
         if (Cursor.lockState != CursorLockMode.None)
         {
@@ -53,20 +59,35 @@ public class AdventureRustFloatOpening : MonoBehaviour
             Cursor.visible = true;
         }
 
-        // マウスクリック、キーボード（Space, Enter, E）、ゲームパッドのいずれでも確実にスタート
+        // キーボード（Space, Enter）、マウスクリック、ゲームパッドのいずれでもスタート可能
         var kb = Keyboard.current;
         var pad = Gamepad.current;
         var mouse = Mouse.current;
         bool triggerPlay = false;
 
-        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+        if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.leftButton.isPressed))
             triggerPlay = true;
-        if (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame))
+        if (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame))
             triggerPlay = true;
         if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.startButton.wasPressedThisFrame))
             triggerPlay = true;
 
         if (triggerPlay)
+        {
+            OnPlayButtonClicked();
+        }
+    }
+
+    void OnGUI()
+    {
+        if (IsGameStarted || _isClosing)
+            return;
+
+        if (Time.realtimeSinceStartup - _openTime < 0.4f)
+            return;
+
+        Event e = Event.current;
+        if (e != null && (e.type == EventType.MouseDown || (e.type == EventType.KeyDown && (e.keyCode == KeyCode.Space || e.keyCode == KeyCode.Return))))
         {
             OnPlayButtonClicked();
         }

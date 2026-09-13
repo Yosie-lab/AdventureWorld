@@ -71,6 +71,7 @@ public static class AdventureWorldBoot
         AdventureTerrainSnap.ReplaceBlackCubesWithRocksOrBoxes();
         SnapAllLostPets();
         AdventurePrimitiveVisuals.FixAnimalMaterials();
+        AdventureLakeVisualEnhancer.Ensure();
         SetupBrightWorldLighting();
     }
 
