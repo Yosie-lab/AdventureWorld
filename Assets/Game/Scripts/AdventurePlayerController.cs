@@ -96,6 +96,7 @@ public class AdventurePlayerController : MonoBehaviour
         AdventureLakeVisualEnhancer.Ensure();
         AdventureBeachEscapeManager.Ensure();
         AdventureSanctuaryTowerManager.Ensure();
+        AdventureMusicDirector.Ensure();
         if (GetComponent<AdventureNikoFootsteps>() == null)
             gameObject.AddComponent<AdventureNikoFootsteps>();
         string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;

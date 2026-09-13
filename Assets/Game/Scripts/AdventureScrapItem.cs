@@ -15,6 +15,7 @@ public class AdventureScrapItem : MonoBehaviour
     Vector3 _initialPos;
     float _hoverOffset;
     bool _isCollected = false;
+    public bool IsCollected => _isCollected;
     AudioSource _audioSource;
     static AudioClip _collectClip;
 

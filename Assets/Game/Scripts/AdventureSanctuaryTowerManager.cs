@@ -429,6 +429,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             player.ApplyGlideBoost(1.6f, 45f);
         }
 
+        // 天蓋の外側に広がる未知の荒野（壮大な山脈シルエットと光芒）を出現
+        SpawnWildernessPanorama();
+
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
@@ -456,6 +459,62 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             yield return null;
         }
         _epilogueAlpha = 0f;
+    }
+
+    /// <summary>天蓋の割れ目の外側に広がる「未知の地球・荒野の山脈シルエット」と光芒を生成</summary>
+    void SpawnWildernessPanorama()
+    {
+        var panoramaGo = new GameObject("WildernessPanorama");
+        panoramaGo.transform.position = new Vector3(512f, 90f, 512f);
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        var mountainMat = new Material(shader);
+        mountainMat.color = new Color(0.18f, 0.22f, 0.35f); // 雄大な遠景の藍色シルエット
+
+        // 全周12方向に連なる巨大な未知の山脈・稜線を配置
+        for (int i = 0; i < 12; i++)
+        {
+            float ang = i * 30f * Mathf.Deg2Rad;
+            float dist = 680f;
+            Vector3 pos = new Vector3(Mathf.Cos(ang) * dist, Random.Range(10f, 40f), Mathf.Sin(ang) * dist);
+
+            var peak = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            peak.name = $"WildernessRidge_{i}";
+            peak.transform.SetParent(panoramaGo.transform, false);
+            peak.transform.localPosition = pos;
+            peak.transform.localScale = new Vector3(260f, Random.Range(85f, 150f), 260f);
+            peak.transform.rotation = Quaternion.Euler(Random.Range(-8f, 8f), i * 30f, Random.Range(-8f, 8f));
+
+            var col = peak.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            var rend = peak.GetComponent<Renderer>();
+            if (rend != null) rend.material = mountainMat;
+        }
+
+        // 天蓋の裂け目から差し込む金色の光芒（God Rays）
+        var raysGo = new GameObject("SkybreakGodRays");
+        raysGo.transform.SetParent(panoramaGo.transform, false);
+        raysGo.transform.localPosition = new Vector3(0f, 60f, 0f);
+
+        var rayShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        var rayMat = new Material(rayShader);
+        rayMat.color = new Color(1.0f, 0.92f, 0.65f, 0.35f);
+
+        for (int r = 0; r < 8; r++)
+        {
+            var ray = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ray.name = $"GodRay_{r}";
+            ray.transform.SetParent(raysGo.transform, false);
+            ray.transform.localScale = new Vector3(8f, 120f, 8f);
+            ray.transform.localRotation = Quaternion.Euler(Random.Range(15f, 35f), r * 45f + 15f, 0f);
+
+            var col = ray.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            var rend = ray.GetComponent<Renderer>();
+            if (rend != null) rend.material = rayMat;
+        }
     }
 
     /// <summary>オアシス湧水池（480, 455）からタワー台地（512, 512）へ登る白亜の古代神殿アプローチ階段道を生成</summary>

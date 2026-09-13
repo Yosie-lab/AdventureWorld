@@ -43,6 +43,11 @@ public class AdventureRustDrone : MonoBehaviour
     bool _isPlayerNear = false;
     float _lastInteractTime = 0f;
 
+    // 探索アシスト（近くの未発見パーツへの誘導・合図）
+    AdventureScrapItem _guidedScrap;
+    float _nextGuideNotice = 0f;
+    bool _isPointingToScrap = false;
+
     public static AdventureRustDrone Instance { get; private set; }
 
     public static void Ensure()
@@ -139,12 +144,19 @@ public class AdventureRustDrone : MonoBehaviour
         transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, 5.5f);
 
         Vector3 to = _lookAt.position + Vector3.up * 0.7f - transform.position;
+        if (_isPointingToScrap && _guidedScrap != null)
+        {
+            to = _guidedScrap.transform.position + Vector3.up * 0.3f - transform.position;
+        }
+
         if (to.sqrMagnitude > 0.04f)
         {
             Quaternion look = Quaternion.LookRotation(to);
             if (hitching)
                 look *= Quaternion.Euler(0f, Mathf.Sin(Time.time * 18f) * 8f, 0f);
-            transform.rotation = Quaternion.Slerp(transform.rotation, look, (wellOiled ? 3.5f : 2.4f) * Time.deltaTime);
+            else if (_isPointingToScrap)
+                look *= Quaternion.Euler(Mathf.Sin(Time.time * 10f) * 6f, 0f, Mathf.Cos(Time.time * 8f) * 4f); // スクラップを指して小刻みに首を傾げる
+            transform.rotation = Quaternion.Slerp(transform.rotation, look, (wellOiled ? 3.8f : 2.6f) * Time.deltaTime);
         }
 
         if (!hitching && _velocity.sqrMagnitude > 6f && !wellOiled)
@@ -155,14 +167,61 @@ public class AdventureRustDrone : MonoBehaviour
             DripOil();
         _wasHitching = hitching;
 
+        UpdateGuide();
         UpdatePlayerInteraction();
         UpdateSpeech();
         UpdateSonar();
     }
 
+    void UpdateGuide()
+    {
+        var mgr = AdventureScrapManager.Instance;
+        if (mgr == null || _lookAt == null)
+        {
+            _guidedScrap = null;
+            _isPointingToScrap = false;
+            return;
+        }
+
+        var nearest = mgr.GetNearestScrapItem(_lookAt.position, out float dist);
+        if (nearest != null && dist <= 22f && !nearest.IsCollected)
+        {
+            _guidedScrap = nearest;
+            _isPointingToScrap = true;
+
+            if (Time.time >= _nextGuideNotice)
+            {
+                _nextGuideNotice = Time.time + 14f;
+                _speechText = "ピピピッ！あそこにパーツの反応があるよ！";
+                _speechTimer = 3.8f;
+                if (_audio != null && _happyBeepClip != null)
+                {
+                    _audio.pitch = 1.35f;
+                    _audio.PlayOneShot(_happyBeepClip, 0.65f);
+                }
+            }
+        }
+        else
+        {
+            _guidedScrap = null;
+            _isPointingToScrap = false;
+        }
+    }
+
     Vector3 FollowPoint()
     {
         Vector3 niko = _lookAt.position;
+
+        // 近くに未回収パーツがある場合、RustはNikoの少し前方（パーツ寄り）へ先行して合図
+        if (_isPointingToScrap && _guidedScrap != null)
+        {
+            Vector3 toScrap = Vector3.ProjectOnPlane(_guidedScrap.transform.position - niko, Vector3.up).normalized;
+            Vector3 guidePos = niko + toScrap * 1.8f;
+            float sY = SurfaceY(guidePos) + hoverHeight + 0.25f;
+            float sBob = Mathf.Sin(Time.time * bobSpeed * 1.6f) * (bobAmount * 1.2f);
+            return new Vector3(guidePos.x, sY + sBob, guidePos.z);
+        }
+
         Vector3 back = Vector3.ProjectOnPlane(-_lookAt.forward, Vector3.up);
         if (back.sqrMagnitude < 0.01f)
             back = Vector3.back;
