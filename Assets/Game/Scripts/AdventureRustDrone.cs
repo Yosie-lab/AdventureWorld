@@ -580,39 +580,82 @@ public class AdventureRustDrone : MonoBehaviour
         // 嬉しそうにピョンと跳ねる
         _velocity += Vector3.up * 2.8f;
         if (_audio != null && _happyBeepClip != null)
-            _audio.PlayOneShot(_happyBeepClip, 0.45f);
+            _audio.PlayOneShot(_happyBeepClip, 0.5f);
 
         switch (count)
         {
             case 1:
-                _speechText = "ピピピッ！綺麗なギアを見つけたね、Niko！";
+                _speechText = "ピピピッ！綺麗なギアだ…！指先が油で汚れても、この生身の手応えが嬉しいね、Niko！";
                 break;
             case 2:
-                _speechText = "古代のエネルギーが微かに残ってるよ…！";
+                _speechText = "微かに温かい光が残ってる…！最短ルートを走るだけじゃ出会えなかった宝物だね。";
                 break;
             case 3:
-                _speechText = "ピキーン！歯車が噛み合った！ダッシュが速くなったよ！";
+                _speechText = "ピキーン！歯車がカチリと噛み合ったよ…！僕らは今、自分の足で走ってるんだ！";
+                break;
+            case 4:
+                _speechText = "ピピッ！また見つけたよ！少し寄り道した先に、こんな綺麗なパーツが眠ってたなんて！";
+                break;
+            case 5:
+                _speechText = "煤けてるけど大丈夫。優しく拭いてあげたら、青く澄んだ光が戻ってきたよ…！";
                 break;
             case 6:
-                _speechText = "コア同期完了！二段ジャンプができるようになったよ！";
+                _speechText = "ピロロ…！温かい光が胸に灯ったよ……心臓の鼓動みたいだ。空中でSpaceを押してみて！";
+                break;
+            case 7:
+                _speechText = "歯車のひとつひとつに、昔の人の手の温もりが残っているみたいだね。";
+                break;
+            case 8:
+                _speechText = "ピロッ…！冷たい海風が心地いいね。僕たちの翼が少しずつ呼吸を取り戻してるよ。";
                 break;
             case 9:
-                _speechText = "探知レーダーが作動！近くの遺物を探知するよ！";
+                _speechText = "ピピ…！古いメモリから子供たちの声が聞こえたよ。無駄な時間の中にこそ愛があったんだね！";
+                break;
+            case 10:
+                _speechText = "森の木漏れ日、海の青さ…寄り道して迷った道こそが、本当の景色だったんだね。";
+                break;
+            case 11:
+                _speechText = "あとひとつで全てが繋がるよ…！あの白亜のタワーの頂が、僕たちを呼んでいる！";
                 break;
             case 12:
-                _speechText = "全パーツ結合完了！大滑空ブーストが全開になったよ！！";
+                _speechText = "ピキーッ！風の重さを取り戻したよ！冷たい向かい風は前へ進む証拠だ…行こう、中央タワーへ！";
                 break;
             default:
-                string[] barks = {
-                    "ピピッ！また見つけたね！",
-                    "調子が出てきたよ、Niko！",
-                    "島の遺物はあといくつかな？",
-                    "すごい！ギアの波長が合ってきた！"
-                };
-                _speechText = barks[Random.Range(0, barks.Length)];
+                _speechText = "ピピッ！ギアの波長が合ってきたよ！";
                 break;
         }
-        _speechTimer = 4.2f;
+        _speechTimer = 5.2f;
+
+        // キーストーン節目（3, 6, 9, 12個）の特別アクション演出
+        if (count == 3 || count == 6 || count == 9 || count == 12)
+        {
+            StartCoroutine(KeystoneFittedRoutine(count));
+        }
+    }
+
+    /// <summary>キーストーン取り付け時の祝祭・感情豊かなリアクション演出</summary>
+    IEnumerator KeystoneFittedRoutine(int count)
+    {
+        yield return new WaitForSeconds(0.2f);
+
+        // 黄金スパークル放出
+        Color sparkColor = (count == 6) ? new Color(0.25f, 0.95f, 1.0f) : new Color(1.0f, 0.85f, 0.35f);
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 32);
+
+        // 嬉しそうに宙返り・旋回
+        float elapsed = 0f;
+        float duration = 0.9f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float step = (Time.deltaTime / duration) * 360f;
+            transform.Rotate(Vector3.right, step, Space.Self);
+            transform.position += Vector3.up * (Mathf.Sin((elapsed / duration) * Mathf.PI) * 0.045f);
+            yield return null;
+        }
+
+        if (_audio != null && _sonarBeepClip != null)
+            _audio.PlayOneShot(_sonarBeepClip, 0.75f);
     }
 
     /// <summary>滑空を開始した瞬間のRustの穏やかなセリフ</summary>

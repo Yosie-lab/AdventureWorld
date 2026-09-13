@@ -162,28 +162,53 @@ public class AdventureScrapManager : MonoBehaviour
 
         if (CollectedCount == 3)
         {
-            // 3個: ブースター修復（ダッシュ速度 7.8 -> 9.2m/s）
-            player.runSpeed = 9.2f;
-            NotifyUpgrade("【ブースター修復！】\nRustの推進力でダッシュ速度がアップした！");
+            // 3個: 黄金ギア完成（ダッシュ速度 7.8 -> 9.4m/s & 旋回強化）
+            player.runSpeed = 9.4f;
+            player.turnSpeed = 16.0f;
+            NotifyLore(
+                "キーストーン I：手動の自由と手応え",
+                "AIに管理されていた頃、僕らはただ最短ルートを滑らされていた。\nでも今、指先が油で汚れ、歯車が噛み合うたびに、生きている実感が胸を打つ。",
+                "【ブースター修復】ダッシュ速度＆クイックターンが向上！"
+            );
         }
         else if (CollectedCount == 6)
         {
-            // 6個: 反重力機能修復（二段ジャンプ完全解禁！）
+            // 6個: 反重力エネルギーコア脈動（二段ジャンプ完全解禁！）
             player.canDoubleJump = true;
-            NotifyUpgrade("【反重力ジャンプ解禁！】\n空中でSpaceを押すと二段ジャンプができる！");
+            NotifyLore(
+                "キーストーン II：脈打つ不確かさ",
+                "100%最適化された電力にはなかった、温かくて不規則な青い脈動。\n……心臓の鼓動と同じだ。傷つく自由があるからこそ、光は美しい。",
+                "【反重力ジャンプ覚醒】空中でSpaceを押すと二段ジャンプが可能に！"
+            );
         }
         else if (CollectedCount == 9)
         {
-            // 9個: 探知ソナー修復（近くの漂着パーツを音と光でナビゲート）
+            // 9個: 探知ソナー／古いメモリ想起（遺物レーダー解禁）
             player.hasPetRadar = true;
-            NotifyUpgrade("【探知ソナー修復！】\nRustが近くのパーツをピピッと教えてくれる！");
+            NotifyLore(
+                "キーストーン III：失われた記憶の断片",
+                "Rustの古いメモリから、子供たちの笑い声と夏の波音が再生された。\n効率化のために根絶された“無駄な時間”の中にこそ、愛があったんだ。",
+                "【探知ソナー修復】Rustが近くのパーツをピピッとナビゲート！"
+            );
         }
         else if (CollectedCount == 12)
         {
-            // 12個: 大滑空ブースター展開（滑空滞空・前進速度大幅強化）
-            player.glideForwardSpeed = 10.5f;
-            player.glideFallSpeed = -1.6f;
-            NotifyUpgrade("【スーパーグライダー解禁！】\n風に乗って島全体を悠々と大滑空できる！");
+            // 12個: 推進スタビライザー完成（全機能同期・スーパーグライダー完全解放）
+            player.glideForwardSpeed = 11.5f;
+            player.glideFallSpeed = -1.35f;
+            NotifyLore(
+                "キーストーン IV：風の重さと、未知の空へ",
+                "最適化都市では風すら消し去られていた。冷たい向かい風は、前へ進んでいる証拠だ。\nさあ行こう、Rust。島の頂、あの白亜のタワーへ！",
+                "【スーパーグライダー解放】大滑空滞空力＆前進推進力が最大化！"
+            );
+        }
+    }
+
+    void NotifyLore(string title, string loreQuote, string unlockEffect)
+    {
+        if (AdventureScrapHUD.Instance != null)
+        {
+            AdventureScrapHUD.Instance.ShowPoeticLore(title, loreQuote, unlockEffect);
         }
     }
 

@@ -104,21 +104,21 @@ public class AdventureScrapHUD : MonoBehaviour
         outline.effectColor = new Color(0f, 0.05f, 0.12f, 0.90f);
         outline.effectDistance = new Vector2(1.2f, -1.2f);
 
-        // ── アップグレード大バナー（画面中央上部） ──
-        _bannerGo = new GameObject("UpgradeBanner");
+        // ── 詩的ロア・アップグレードバナー（画面下部中央・映画のようなシネマティック表示） ──
+        _bannerGo = new GameObject("PoeticLoreBanner");
         _bannerGo.transform.SetParent(canvasGo.transform, false);
         var bannerRt = _bannerGo.AddComponent<RectTransform>();
-        bannerRt.anchorMin = new Vector2(0.5f, 1.0f);
-        bannerRt.anchorMax = new Vector2(0.5f, 1.0f);
-        bannerRt.pivot = new Vector2(0.5f, 1.0f);
-        bannerRt.anchoredPosition = new Vector2(0f, -85f);
-        bannerRt.sizeDelta = new Vector2(540f, 75f);
+        bannerRt.anchorMin = new Vector2(0.5f, 0.0f);
+        bannerRt.anchorMax = new Vector2(0.5f, 0.0f);
+        bannerRt.pivot = new Vector2(0.5f, 0.0f);
+        bannerRt.anchoredPosition = new Vector2(0f, 75f); // 画面下部、足元より少し上
+        bannerRt.sizeDelta = new Vector2(720f, 105f);
 
         var bannerBg = _bannerGo.AddComponent<Image>();
-        bannerBg.color = new Color(0.04f, 0.08f, 0.16f, 0.92f);
+        bannerBg.color = new Color(0.03f, 0.06f, 0.12f, 0.90f);
         var bOutline = _bannerGo.AddComponent<Outline>();
-        bOutline.effectColor = new Color(0.4f, 0.95f, 1.0f, 0.7f);
-        bOutline.effectDistance = new Vector2(1.5f, -1.5f);
+        bOutline.effectColor = new Color(0.35f, 0.85f, 0.95f, 0.6f);
+        bOutline.effectDistance = new Vector2(1.2f, -1.2f);
 
         _bannerCg = _bannerGo.AddComponent<CanvasGroup>();
         _bannerCg.alpha = 0f;
@@ -128,16 +128,17 @@ public class AdventureScrapHUD : MonoBehaviour
         var bTextRt = bTextGo.AddComponent<RectTransform>();
         bTextRt.anchorMin = Vector2.zero;
         bTextRt.anchorMax = Vector2.one;
-        bTextRt.sizeDelta = new Vector2(-24f, -16f);
+        bTextRt.sizeDelta = new Vector2(-28f, -14f);
 
         _bannerText = bTextGo.AddComponent<Text>();
         _bannerText.font = _font;
-        _bannerText.fontSize = 18;
-        _bannerText.fontStyle = FontStyle.Bold;
+        _bannerText.fontSize = 15;
+        _bannerText.lineSpacing = 1.25f;
         _bannerText.alignment = TextAnchor.MiddleCenter;
         _bannerText.horizontalOverflow = HorizontalWrapMode.Wrap;
         _bannerText.verticalOverflow = VerticalWrapMode.Overflow;
-        _bannerText.color = new Color(1.0f, 0.92f, 0.45f);
+        _bannerText.supportRichText = true;
+        _bannerText.color = Color.white;
 
         RefreshQuestDisplay();
     }
@@ -187,7 +188,20 @@ public class AdventureScrapHUD : MonoBehaviour
         if (_bannerText != null)
         {
             _bannerText.text = text;
-            _bannerTimer = 5.5f;
+            _bannerTimer = 6.0f;
+        }
+        RefreshQuestDisplay();
+    }
+
+    /// <summary>世界観仕様書に基づく詩的ロアモーダル（タイトル・詩的ナレーション・機能アンロック）を表示</summary>
+    public void ShowPoeticLore(string title, string loreQuote, string unlockEffect)
+    {
+        if (_bannerText != null)
+        {
+            _bannerText.text = $"<color=#FFE066><b>✦ {title} ✦</b></color>\n" +
+                               $"<color=#EAEFF5>「{loreQuote}」</color>\n" +
+                               $"<color=#5CE1E6><b>▶ {unlockEffect}</b></color>";
+            _bannerTimer = 8.0f; // じっくり味わえる8秒間表示
         }
         RefreshQuestDisplay();
     }
