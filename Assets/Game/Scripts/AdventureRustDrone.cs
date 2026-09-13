@@ -412,14 +412,9 @@ public class AdventureRustDrone : MonoBehaviour
             _velocity += Vector3.up * 3.5f;
 
             if (_happyBeepClip != null && _audio != null)
-                _audio.PlayOneShot(_happyBeepClip, 0.75f);
+                _audio.PlayOneShot(_happyBeepClip, 0.85f);
 
-            string[] treatLines = {
-                "わぁ…！ありがとうNiko、身体がすごく軽くなったよ…！",
-                "油を差してくれてありがとう！ギアが滑らかに回ってるよ！",
-                "ピピッ…！温かい手当てをありがとう。もうギシギシしないよ！"
-            };
-            SpeakCustom(treatLines[Random.Range(0, treatLines.Length)], 4.8f);
+            StartCoroutine(CheerSpinRoutine());
             return;
         }
 
@@ -929,6 +924,106 @@ public class AdventureRustDrone : MonoBehaviour
         var clip = AudioClip.Create("SynthBeep", samples, 1, hz, false);
         clip.SetData(data, 0);
         return clip;
+    }
+
+    /// <summary>油を差してもらって快調になったRustの祝祭・宙返り＆パーツレーダー演出</summary>
+    IEnumerator CheerSpinRoutine()
+    {
+        // 1. 黄金の光粒子スパークルをバースト放出
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 26);
+
+        string[] treatLines = {
+            "わぁ…！ありがとうNiko、身体がすごく軽くなったよ…！",
+            "油を差してくれてありがとう！ギアが滑らかに回ってるよ！",
+            "ピピッ…！温かい手当てをありがとう。もうギシギシしないよ！"
+        };
+        SpeakCustom(treatLines[Random.Range(0, treatLines.Length)], 4.2f);
+
+        // 2. 宙返りアニメーション（嬉しそうに一回転）
+        float elapsed = 0f;
+        float duration = 0.75f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float step = (Time.deltaTime / duration) * 360f;
+            transform.Rotate(Vector3.right, step, Space.Self);
+            transform.position += Vector3.up * (Mathf.Sin((elapsed / duration) * Mathf.PI) * 0.035f);
+            yield return null;
+        }
+
+        // 3. 最寄りの未回収パーツ（スクラップ）を探知して方角を案内
+        yield return new WaitForSeconds(0.4f);
+        var allScraps = FindObjectsByType<AdventureScrapItem>(FindObjectsInactive.Exclude);
+        AdventureScrapItem nearest = null;
+        float minDist = float.MaxValue;
+        foreach (var s in allScraps)
+        {
+            if (s == null || !s.gameObject.activeInHierarchy) continue;
+            float d = Vector3.Distance(transform.position, s.transform.position);
+            if (d < minDist)
+            {
+                minDist = d;
+                nearest = s;
+            }
+        }
+
+        if (nearest != null && minDist < 95f)
+        {
+            Vector3 diff = nearest.transform.position - transform.position;
+            string dirName;
+            if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
+                dirName = diff.x > 0 ? "東（右奥）" : "西（海側）";
+            else
+                dirName = diff.z > 0 ? "北（奥の高台）" : "南（浜辺側）";
+
+            if (_audio != null && _sonarBeepClip != null)
+                _audio.PlayOneShot(_sonarBeepClip, 0.7f);
+
+            SpeakCustom($"ピピッ！{dirName}の方角から、古代パーツの共鳴を感じるよ！", 5.0f);
+        }
+    }
+
+    void SpawnGoldSparkles(Vector3 pos, int count)
+    {
+        var go = new GameObject("Rust_GoldSparkles");
+        go.transform.position = pos;
+        var ps = go.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.duration = 0.8f;
+        main.loop = false;
+        main.startLifetime = 1.4f;
+        main.startSpeed = 3.6f;
+        main.startSize = 0.35f;
+        main.startColor = new Color(1f, 0.90f, 0.35f, 0.95f); // 鮮やかなゴールド
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        var emission = ps.emission;
+        emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, count) });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 0.45f;
+
+        var col = ps.colorOverLifetime;
+        col.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new GradientColorKey[] { new GradientColorKey(new Color(1f, 0.92f, 0.3f), 0f), new GradientColorKey(new Color(1f, 0.6f, 0.1f), 1f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) }
+        );
+        col.color = grad;
+
+        var rend = go.GetComponent<ParticleSystemRenderer>();
+        if (rend != null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
+            var mat = new Material(shader);
+            mat.SetTexture("_BaseMap", GetSoftSmokeTexture());
+            rend.material = mat;
+        }
+
+        ps.Play();
+        Destroy(go, 2.0f);
     }
 }
 

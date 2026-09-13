@@ -77,6 +77,9 @@ public class AdventureLakeVisualEnhancer : MonoBehaviour
 
         // 7. 太陽光のきらめき ＆ 水音（立体音響）
         BuildSparklesAndAmbience(root.transform);
+
+        // 8. 寄り道のご褒美：オアシス池の温かい上昇気流（サーマル・コラム）
+        BuildThermalUpdraft(root.transform);
     }
 
     // ── 1. せせらぎの小川（Stream & Cascades） ──────────────────
@@ -525,6 +528,57 @@ public class AdventureLakeVisualEnhancer : MonoBehaviour
 #endif
         return ResolveLakeMaterial();
     }
+
+    // ── 8. 寄り道のご褒美：オアシス池の温かい上昇気流（サーマル・コラム） ────
+    void BuildThermalUpdraft(Transform parent)
+    {
+        var ventGo = new GameObject("Lake_ThermalUpdraftVent");
+        ventGo.transform.SetParent(parent, false);
+        ventGo.transform.position = LakeCenter + Vector3.up * 0.3f; // 池中央
+
+        // 立ち昇る風と光のサーマルパーティクル
+        var ps = ventGo.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.loop = true;
+        main.startLifetime = 3.2f;
+        main.startSpeed = 4.8f;
+        main.startSize = 0.45f;
+        main.startColor = new Color(0.35f, 0.95f, 0.90f, 0.75f); // 澄んだシアンと光の風
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        var emission = ps.emission;
+        emission.rateOverTime = 28f;
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = 4.5f;
+        shape.rotation = new Vector3(-90f, 0f, 0f); // 真上へ噴出
+
+        var vel = ps.velocityOverLifetime;
+        vel.enabled = true;
+        vel.orbitalZ = 1.8f; // らせん状に美しく舞い上がる
+
+        var col = ps.colorOverLifetime;
+        col.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new GradientColorKey[] { new GradientColorKey(new Color(0.4f, 0.98f, 0.9f), 0f), new GradientColorKey(new Color(1f, 0.92f, 0.5f), 1f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.85f, 0.2f), new GradientAlphaKey(0f, 1f) }
+        );
+        col.color = grad;
+
+        var rend = ventGo.GetComponent<ParticleSystemRenderer>();
+        if (rend != null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
+            var mat = new Material(shader);
+            mat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
+            rend.material = mat;
+        }
+
+        // 上昇気流トリガーコンポーネント
+        ventGo.AddComponent<OasisThermalVent>();
+    }
 }
 
 /// <summary>
@@ -585,3 +639,45 @@ public class LakeWaterWaveAnimator : MonoBehaviour
             _mat.SetTextureOffset("_BumpMap", _offset);
     }
 }
+
+/// <summary>
+/// 寄り道したプレイヤーを温かい上昇気流（サーマル）でふわりと大空へ舞い上がらせるコンポーネント
+/// </summary>
+public class OasisThermalVent : MonoBehaviour
+{
+    float _lastLiftTime = -10f;
+    float _lastCheerTime = -20f;
+
+    void Update()
+    {
+        var player = AdventurePlayerController.Instance;
+        if (player == null) return;
+
+        Vector3 diff = player.transform.position - transform.position;
+        float hDist = new Vector2(diff.x, diff.z).magnitude;
+        float vDist = diff.y; // 気流の高さ（0m〜16m）
+
+        // 半径5.5m、高度0〜16mのサーマルコラム
+        if (hDist < 5.5f && vDist >= -0.5f && vDist < 16f)
+        {
+            if (Time.time - _lastLiftTime > 0.25f)
+            {
+                _lastLiftTime = Time.time;
+                player.ApplyGlideBoost(1.4f, 3.0f, Vector3.up);
+                player.ApplyUpdraft(6.8f);
+
+                // 相棒Rustの歓喜
+                if (Time.time - _lastCheerTime > 12f)
+                {
+                    _lastCheerTime = Time.time;
+                    var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+                    if (drone != null)
+                    {
+                        drone.SpeakCustom("わぁっ！温かい上昇気流だ！風に乗って行こう、Niko！", 4.5f);
+                    }
+                }
+            }
+        }
+    }
+}
+

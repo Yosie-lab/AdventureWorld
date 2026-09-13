@@ -2,23 +2,22 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 漂着パーツ収集カウンターおよびアップグレード通知HUD
-/// 没入感を損なわないスマート・オートハイド設計（普段は完全非表示、取得時のみスッと数秒表示）
+/// 『Rust & Float』現在のクエスト目標（MISSION TRACKER）および遺物カウンターHUD
+/// 画面左上に常に直感的で分かりやすいクエスト目標・進捗・最寄りパーツ方角を表示
+/// 【Tab】キーで詳細表示 ⇄ ミニマル表示をスムーズに切り替え可能
 /// </summary>
 public class AdventureScrapHUD : MonoBehaviour
 {
     static AdventureScrapHUD _instance;
     public static AdventureScrapHUD Instance => _instance;
 
-    int _count = 0;
-    int _total = 12;
-
     Canvas _canvas;
-    Text _labelTitleText;
-    Text _countValueText;
-    RectTransform _counterPanelRt;
-    CanvasGroup _counterCg;
-    float _counterTimer = 2.8f; // 開始時に2.8秒だけ存在を伝えてスッとフェードアウト
+    Font _font;
+
+    // ミニマル1行クエストティッカー（画面上部中央・コンパス直下・背景枠なし）
+    RectTransform _questPanelRt;
+    CanvasGroup _questCg;
+    Text _tickerText;
 
     // アップグレード大バナー
     GameObject _bannerGo;
@@ -26,9 +25,12 @@ public class AdventureScrapHUD : MonoBehaviour
     CanvasGroup _bannerCg;
     float _bannerTimer = 0f;
 
+    bool _isHidden = false;
+    float _radarUpdateTimer = 0f;
+
     public static void Ensure()
     {
-        var existingList = FindObjectsByType<AdventureScrapHUD>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var existingList = FindObjectsByType<AdventureScrapHUD>(FindObjectsInactive.Include);
         foreach (var ex in existingList)
         {
             if (ex != null && ex.gameObject != null)
@@ -44,10 +46,10 @@ public class AdventureScrapHUD : MonoBehaviour
     void Awake()
     {
         _instance = this;
-        CreateCanvasUI();
+        CreateUI();
     }
 
-    void CreateCanvasUI()
+    void CreateUI()
     {
         var canvasGo = new GameObject("ScrapHUD_Canvas");
         canvasGo.transform.SetParent(transform, false);
@@ -60,102 +62,64 @@ public class AdventureScrapHUD : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1280f, 720f);
         scaler.matchWidthOrHeight = 0.5f;
-
         canvasGo.AddComponent<GraphicRaycaster>();
 
-        Font uiFont = ResolveFont();
+        _font = ResolveFont();
 
-        // 1. スリム・オートハイドカウンター（画面上部中央：普段は非表示、取得時のみスッと現れる）
-        var counterPanel = new GameObject("CounterPanel");
-        counterPanel.transform.SetParent(canvasGo.transform, false);
-        _counterPanelRt = counterPanel.AddComponent<RectTransform>();
-        _counterPanelRt.anchorMin = new Vector2(0.5f, 1f);
-        _counterPanelRt.anchorMax = new Vector2(0.5f, 1f);
-        _counterPanelRt.pivot = new Vector2(0.5f, 1f);
-        _counterPanelRt.anchoredPosition = new Vector2(0f, -48f);
-        _counterPanelRt.sizeDelta = new Vector2(230f, 34f);
+        _font = ResolveFont();
 
-        var panelBg = counterPanel.AddComponent<Image>();
-        panelBg.color = new Color(0.06f, 0.10f, 0.16f, 0.88f);
+        // ── 邪魔にならない極薄ミニマル1行クエストティッカー（画面上部コンパス直下・背景板なし） ──
+        var panelGo = new GameObject("QuestTickerPanel");
+        panelGo.transform.SetParent(canvasGo.transform, false);
+        _questPanelRt = panelGo.AddComponent<RectTransform>();
+        _questPanelRt.anchorMin = new Vector2(0.5f, 1f);
+        _questPanelRt.anchorMax = new Vector2(0.5f, 1f);
+        _questPanelRt.pivot = new Vector2(0.5f, 1f);
+        _questPanelRt.anchoredPosition = new Vector2(0f, -40f); // コンパスのすぐ下
+        _questPanelRt.sizeDelta = new Vector2(620f, 26f);
 
-        _counterCg = counterPanel.AddComponent<CanvasGroup>();
-        _counterCg.alpha = 1.0f; // 開始直後は表示され、2.8秒後に自然に消える
+        // 背景板（四角い枠）は全廃！景色を一切遮らない透明設計
+        _questCg = panelGo.AddComponent<CanvasGroup>();
+        _questCg.alpha = 0.85f;
 
-        // 左端のシアンアクセントバー
-        var barGo = new GameObject("AccentBar");
-        barGo.transform.SetParent(counterPanel.transform, false);
-        var barRt = barGo.AddComponent<RectTransform>();
-        barRt.anchorMin = new Vector2(0f, 0f);
-        barRt.anchorMax = new Vector2(0f, 1f);
-        barRt.pivot = new Vector2(0f, 0.5f);
-        barRt.anchoredPosition = Vector2.zero;
-        barRt.sizeDelta = new Vector2(4f, 0f);
-        var barImg = barGo.AddComponent<Image>();
-        barImg.color = new Color(0.2f, 0.88f, 1.0f, 1.0f);
+        // 1行の統合クエストテキスト（フチ取り付きでどんな背景でも美しく可読）
+        var textGo = new GameObject("TickerText");
+        textGo.transform.SetParent(panelGo.transform, false);
+        var tRt = textGo.AddComponent<RectTransform>();
+        tRt.anchorMin = Vector2.zero;
+        tRt.anchorMax = Vector2.one;
+        tRt.sizeDelta = Vector2.zero;
+        tRt.anchoredPosition = Vector2.zero;
 
-        // 左側：タイトルテキスト「⚙ 漂着遺物」
-        var titleGo = new GameObject("TitleText");
-        titleGo.transform.SetParent(counterPanel.transform, false);
-        var titleRt = titleGo.AddComponent<RectTransform>();
-        titleRt.anchorMin = new Vector2(0f, 0f);
-        titleRt.anchorMax = new Vector2(0.58f, 1f);
-        titleRt.pivot = new Vector2(0f, 0.5f);
-        titleRt.anchoredPosition = new Vector2(12f, 0f);
-        titleRt.sizeDelta = new Vector2(-12f, 0f);
+        _tickerText = textGo.AddComponent<Text>();
+        _tickerText.font = _font;
+        _tickerText.fontSize = 13;
+        _tickerText.fontStyle = FontStyle.Bold;
+        _tickerText.alignment = TextAnchor.MiddleCenter;
+        _tickerText.color = new Color(0.92f, 0.98f, 1.0f, 0.95f);
+        _tickerText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        _tickerText.verticalOverflow = VerticalWrapMode.Overflow;
 
-        _labelTitleText = titleGo.AddComponent<Text>();
-        _labelTitleText.font = uiFont;
-        _labelTitleText.fontSize = 15;
-        _labelTitleText.fontStyle = FontStyle.Bold;
-        _labelTitleText.alignment = TextAnchor.MiddleLeft;
-        _labelTitleText.horizontalOverflow = HorizontalWrapMode.Overflow;
-        _labelTitleText.verticalOverflow = VerticalWrapMode.Overflow;
-        _labelTitleText.color = new Color(0.92f, 0.96f, 1.0f);
-        _labelTitleText.text = "⚙ 漂着遺物";
+        var outline = textGo.AddComponent<Outline>();
+        outline.effectColor = new Color(0f, 0.05f, 0.12f, 0.90f);
+        outline.effectDistance = new Vector2(1.2f, -1.2f);
 
-        // 右側：数値バッジ背景
-        var badgeGo = new GameObject("CountBadge");
-        badgeGo.transform.SetParent(counterPanel.transform, false);
-        var badgeRt = badgeGo.AddComponent<RectTransform>();
-        badgeRt.anchorMin = new Vector2(0.58f, 0.12f);
-        badgeRt.anchorMax = new Vector2(0.96f, 0.88f);
-        badgeRt.sizeDelta = Vector2.zero;
-        badgeRt.anchoredPosition = Vector2.zero;
-
-        var badgeBg = badgeGo.AddComponent<Image>();
-        badgeBg.color = new Color(0.12f, 0.18f, 0.28f, 0.85f);
-
-        // 右側：数値テキスト「0 / 12」
-        var countGo = new GameObject("CountText");
-        countGo.transform.SetParent(badgeGo.transform, false);
-        var countRt = countGo.AddComponent<RectTransform>();
-        countRt.anchorMin = Vector2.zero;
-        countRt.anchorMax = Vector2.one;
-        countRt.sizeDelta = Vector2.zero;
-        countRt.anchoredPosition = Vector2.zero;
-
-        _countValueText = countGo.AddComponent<Text>();
-        _countValueText.font = uiFont;
-        _countValueText.fontSize = 16;
-        _countValueText.fontStyle = FontStyle.Bold;
-        _countValueText.alignment = TextAnchor.MiddleCenter;
-        _countValueText.horizontalOverflow = HorizontalWrapMode.Overflow;
-        _countValueText.verticalOverflow = VerticalWrapMode.Overflow;
-        _countValueText.color = new Color(1.0f, 0.88f, 0.38f);
-        _countValueText.text = $"{_count} / {_total}";
-
-        // 2. アップグレード達成通知バナー（画面中央上部：達成時のみ表示）
+        // ── アップグレード大バナー（画面中央上部） ──
         _bannerGo = new GameObject("UpgradeBanner");
         _bannerGo.transform.SetParent(canvasGo.transform, false);
         var bannerRt = _bannerGo.AddComponent<RectTransform>();
         bannerRt.anchorMin = new Vector2(0.5f, 1.0f);
         bannerRt.anchorMax = new Vector2(0.5f, 1.0f);
         bannerRt.pivot = new Vector2(0.5f, 1.0f);
-        bannerRt.anchoredPosition = new Vector2(0f, -92f);
-        bannerRt.sizeDelta = new Vector2(560f, 85f);
+        bannerRt.anchoredPosition = new Vector2(0f, -85f);
+        bannerRt.sizeDelta = new Vector2(540f, 75f);
 
         var bannerBg = _bannerGo.AddComponent<Image>();
-        bannerBg.color = new Color(0.07f, 0.12f, 0.20f, 0.94f);
+        bannerBg.color = new Color(0.04f, 0.08f, 0.16f, 0.92f);
+        var bOutline = _bannerGo.AddComponent<Outline>();
+        bOutline.effectColor = new Color(0.4f, 0.95f, 1.0f, 0.7f);
+        bOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
         _bannerCg = _bannerGo.AddComponent<CanvasGroup>();
         _bannerCg.alpha = 0f;
 
@@ -164,67 +128,39 @@ public class AdventureScrapHUD : MonoBehaviour
         var bTextRt = bTextGo.AddComponent<RectTransform>();
         bTextRt.anchorMin = Vector2.zero;
         bTextRt.anchorMax = Vector2.one;
-        bTextRt.sizeDelta = new Vector2(-20f, -16f);
+        bTextRt.sizeDelta = new Vector2(-24f, -16f);
 
         _bannerText = bTextGo.AddComponent<Text>();
-        _bannerText.font = uiFont;
-        _bannerText.fontSize = 19;
+        _bannerText.font = _font;
+        _bannerText.fontSize = 18;
         _bannerText.fontStyle = FontStyle.Bold;
         _bannerText.alignment = TextAnchor.MiddleCenter;
         _bannerText.horizontalOverflow = HorizontalWrapMode.Wrap;
         _bannerText.verticalOverflow = VerticalWrapMode.Overflow;
         _bannerText.color = new Color(1.0f, 0.92f, 0.45f);
-    }
 
-    public void OnCollect(string itemName, int current, int total)
-    {
-        _count = current;
-        _total = total;
-
-        if (_countValueText != null)
-        {
-            _countValueText.text = $"{_count} / {_total}";
-        }
-
-        // 取得時にスッと表示し、3.5秒後に自動フェードアウト
-        _counterTimer = 3.5f;
-
-        // カウンターの強調パルスアニメーション
-        if (_counterPanelRt != null)
-        {
-            _counterPanelRt.localScale = Vector3.one * 1.2f;
-        }
-    }
-
-    public void ShowUpgradeBanner(string text)
-    {
-        if (_bannerText != null)
-        {
-            _bannerText.text = text;
-            _bannerTimer = 5.0f;
-        }
+        RefreshQuestDisplay();
     }
 
     void Update()
     {
-        // カウンターのスケール復帰
-        if (_counterPanelRt != null && _counterPanelRt.localScale.x > 1.0f)
+        // 【Tab】キーで表示 ⇄ 完全非表示を切り替え
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null && kb.tabKey.wasPressedThisFrame)
         {
-            _counterPanelRt.localScale = Vector3.MoveTowards(_counterPanelRt.localScale, Vector3.one, Time.deltaTime * 1.5f);
+            _isHidden = !_isHidden;
+            if (_questCg != null)
+                _questCg.alpha = _isHidden ? 0f : 0.85f;
         }
 
-        // オートハイド（普段は非表示、必要な時だけスッと現れて自然に消える）
-        if (_counterCg != null)
+        if (_isHidden) return;
+
+        // 定期的にクエスト進捗と最寄りパーツレーダーを更新
+        _radarUpdateTimer -= Time.deltaTime;
+        if (_radarUpdateTimer <= 0f)
         {
-            if (_counterTimer > 0f)
-            {
-                _counterTimer -= Time.deltaTime;
-                _counterCg.alpha = Mathf.MoveTowards(_counterCg.alpha, 1.0f, Time.deltaTime * 4.0f);
-            }
-            else
-            {
-                _counterCg.alpha = Mathf.MoveTowards(_counterCg.alpha, 0.0f, Time.deltaTime * 2.0f);
-            }
+            _radarUpdateTimer = 0.4f;
+            RefreshQuestDisplay();
         }
 
         // アップグレードバナーのフェード制御
@@ -239,6 +175,82 @@ public class AdventureScrapHUD : MonoBehaviour
             if (_bannerCg != null)
                 _bannerCg.alpha = Mathf.MoveTowards(_bannerCg.alpha, 0.0f, Time.deltaTime * 2.0f);
         }
+    }
+
+    public void OnCollect(string itemName, int current, int total)
+    {
+        RefreshQuestDisplay();
+    }
+
+    public void ShowUpgradeBanner(string text)
+    {
+        if (_bannerText != null)
+        {
+            _bannerText.text = text;
+            _bannerTimer = 5.5f;
+        }
+        RefreshQuestDisplay();
+    }
+
+    /// <summary>画面上部コンパス直下に溶け込む、極薄1行のクエストティッカー</summary>
+    void RefreshQuestDisplay()
+    {
+        if (_tickerText == null) return;
+
+        var scrapMgr = AdventureScrapManager.Instance;
+        int count = scrapMgr != null ? scrapMgr.CollectedCount : 0;
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+
+        // 最寄りパーツの方角
+        string radarInfo = "";
+        var player = AdventurePlayerController.Instance;
+        if (player != null && scrapMgr != null && count < 12)
+        {
+            var nearest = scrapMgr.GetNearestScrapItem(player.transform.position, out float dist);
+            if (nearest != null)
+            {
+                Vector3 diff = nearest.transform.position - player.transform.position;
+                string dir = GetDirectionString(diff);
+                radarInfo = $"　|　📍 最寄り: {dir} 約{Mathf.RoundToInt(dist)}m";
+            }
+        }
+
+        if (count < 3)
+        {
+            string rustStatus = (drone != null && Time.time < drone.wellOiledUntil) ? "☑ Rust快調" : "【E】Rustに油をさす";
+            _tickerText.text = $"✦ 目標: 漂着パーツ回収 ({count}/3)　〔{rustStatus}〕{radarInfo}";
+        }
+        else if (count < 6)
+        {
+            _tickerText.text = $"✦ 目標: 反重力コア回収 ({count}/6) ▶ 二段ジャンプ解放{radarInfo}";
+        }
+        else if (count < 9)
+        {
+            _tickerText.text = $"✦ 目標: 探知ソナー修復 ({count}/9) ▶ レーダー解放{radarInfo}";
+        }
+        else if (count < 12)
+        {
+            _tickerText.text = $"✦ 目標: スーパーグライダー完成 ({count}/12){radarInfo}";
+        }
+        else
+        {
+            _tickerText.text = "✦ 全パーツ回収完了！中央タワー最深部へ向かえ！";
+        }
+    }
+
+    static string GetDirectionString(Vector3 diff)
+    {
+        float angle = Mathf.Atan2(diff.x, diff.z) * Mathf.Rad2Deg;
+        if (angle < 0f) angle += 360f;
+
+        if (angle >= 337.5f || angle < 22.5f) return "北（奥の高台）";
+        if (angle >= 22.5f && angle < 67.5f) return "北東（丘陵地帯）";
+        if (angle >= 67.5f && angle < 112.5f) return "東（右奥の林）";
+        if (angle >= 112.5f && angle < 157.5f) return "南東（崖側）";
+        if (angle >= 157.5f && angle < 202.5f) return "南（手前の浜辺）";
+        if (angle >= 202.5f && angle < 247.5f) return "南西（浅瀬）";
+        if (angle >= 247.5f && angle < 292.5f) return "西（海・オアシス）";
+        return "北西（断崖）";
     }
 
     static Font ResolveFont()
