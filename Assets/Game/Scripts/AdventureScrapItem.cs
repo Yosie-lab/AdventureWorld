@@ -309,11 +309,10 @@ public class AdventureScrapItem : MonoBehaviour
         if (_isCollected) return;
         _isCollected = true;
 
-        // 爽快な取得音の再生
-        if (_audioSource != null && _collectClip != null)
+        // 爽快なパーツ取得ファンファーレ音を確実に再生！
+        if (AdventureScrapManager.Instance != null)
         {
-            _audioSource.pitch = Random.Range(0.98f, 1.05f);
-            _audioSource.PlayOneShot(_collectClip, 0.85f);
+            AdventureScrapManager.Instance.PlayScrapCollectFanfare();
         }
 
         // 取得エフェクト（弾ける光のスパーク）
