@@ -1513,7 +1513,9 @@ public class AdventureRustDrone : MonoBehaviour
         var go = new GameObject("Rust_GoldSparkles");
         go.transform.position = pos;
         var ps = go.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = ps.main;
+        main.playOnAwake = false;
         main.duration = 0.8f;
         main.loop = false;
         main.startLifetime = 1.4f;
