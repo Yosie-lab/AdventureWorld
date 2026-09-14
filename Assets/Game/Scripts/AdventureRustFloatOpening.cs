@@ -252,13 +252,13 @@ public class AdventureRustFloatOpening : MonoBehaviour
         // 1. 画面最上部中央の水平リボンコンパスHUD
         AdventureCompassHUD.Create(_canvasGo.transform, font);
 
-        // 2. 上部中央の操作ガイド（最初は非表示、Play後に表示）
-        _guideText = MakeText(_canvasGo.transform, "Guide", Vector2.zero, new Vector2(0.5f, 1f), new Vector2(980f, 32f), 15, TextAnchor.UpperCenter, font);
+        // 2. 上部中央の操作ガイド（コンパス・パーツナビと被らないよう y=-68f に配置）
+        _guideText = MakeText(_canvasGo.transform, "Guide", Vector2.zero, new Vector2(0.5f, 1f), new Vector2(980f, 32f), 14, TextAnchor.UpperCenter, font);
         var guideRt = _guideText.rectTransform;
         guideRt.anchorMin = new Vector2(0.5f, 1f);
         guideRt.anchorMax = new Vector2(0.5f, 1f);
         guideRt.pivot = new Vector2(0.5f, 1f);
-        guideRt.anchoredPosition = new Vector2(0f, -44f);
+        guideRt.anchoredPosition = new Vector2(0f, -68f);
         guideRt.sizeDelta = new Vector2(980f, 32f);
         _guideText.horizontalOverflow = HorizontalWrapMode.Overflow;
         _guideText.verticalOverflow = VerticalWrapMode.Overflow;
