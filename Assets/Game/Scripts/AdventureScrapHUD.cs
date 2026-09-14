@@ -76,11 +76,11 @@ public class AdventureScrapHUD : MonoBehaviour
         _questPanelRt.anchorMax = new Vector2(0f, 1f);
         _questPanelRt.pivot = new Vector2(0f, 1f);
         _questPanelRt.anchoredPosition = new Vector2(24f, -24f); // 画面左上にゆったり配置
-        _questPanelRt.sizeDelta = new Vector2(360f, 54f);
+        _questPanelRt.sizeDelta = new Vector2(390f, 56f);
 
         // どんな背景でもクッキリ読める半透明ダーク背景プレート
         var panelBg = panelGo.AddComponent<Image>();
-        panelBg.color = new Color(0.04f, 0.08f, 0.14f, 0.88f);
+        panelBg.color = new Color(0.02f, 0.05f, 0.10f, 0.92f);
 
         // 左端のアクセントライン（サイバーシアン光彩）
         var accentGo = new GameObject("LeftAccent");
@@ -95,7 +95,7 @@ public class AdventureScrapHUD : MonoBehaviour
         accImg.color = new Color(0.35f, 0.85f, 1.0f, 1.0f);
 
         _questCg = panelGo.AddComponent<CanvasGroup>();
-        _questCg.alpha = 0.95f;
+        _questCg.alpha = 0.98f;
 
         // 2行構成のクッキリしたクエストテキスト
         var textGo = new GameObject("TickerText");
@@ -104,20 +104,20 @@ public class AdventureScrapHUD : MonoBehaviour
         tRt.anchorMin = Vector2.zero;
         tRt.anchorMax = Vector2.one;
         tRt.sizeDelta = new Vector2(-24f, -8f);
-        tRt.anchoredPosition = new Vector2(8f, 0f);
+        tRt.anchoredPosition = new Vector2(10f, 0f);
 
         _tickerText = textGo.AddComponent<Text>();
         _tickerText.font = _font;
-        _tickerText.fontSize = 13;
-        _tickerText.lineSpacing = 1.15f;
+        _tickerText.fontSize = 14;
+        _tickerText.lineSpacing = 1.18f;
         _tickerText.alignment = TextAnchor.MiddleLeft;
         _tickerText.color = new Color(0.95f, 0.98f, 1.0f, 0.98f);
         _tickerText.horizontalOverflow = HorizontalWrapMode.Wrap;
         _tickerText.verticalOverflow = VerticalWrapMode.Overflow;
 
         var outline = textGo.AddComponent<Outline>();
-        outline.effectColor = new Color(0f, 0.04f, 0.10f, 0.95f);
-        outline.effectDistance = new Vector2(1.2f, -1.2f);
+        outline.effectColor = new Color(0f, 0.02f, 0.06f, 0.98f);
+        outline.effectDistance = new Vector2(1.5f, -1.5f);
 
         // ── 詩的ロア・アップグレードバナー（画面下部中央・映画のようなシネマティック表示） ──
         _bannerGo = new GameObject("PoeticLoreBanner");
@@ -233,17 +233,17 @@ public class AdventureScrapHUD : MonoBehaviour
         // 1行目：現在のメイン目標
         string goalText;
         if (count < 3)
-            goalText = $"<b><color=#FFE066>✦ 目標:</color></b> 漂着パーツ回収 (<b>{count}/3</b>)";
+            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>漂着パーツ回収</b></color> <color=#00E5FF><b>({count}/3)</b></color>";
         else if (count < 6)
-            goalText = $"<b><color=#FFE066>✦ 目標:</color></b> 反重力コア回収 (<b>{count}/6</b>) ▶ 二段ジャンプ解放";
+            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>反重力コア回収</b></color> <color=#00E5FF><b>({count}/6)</b></color> <color=#FFD54F>▶ 二段ジャンプ解放</color>";
         else if (count < 9)
-            goalText = $"<b><color=#FFE066>✦ 目標:</color></b> 探知ソナー修復 (<b>{count}/9</b>) ▶ レーダー解放";
+            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>探知ソナー修復</b></color> <color=#00E5FF><b>({count}/9)</b></color> <color=#FFD54F>▶ レーダー解放</color>";
         else if (count < 12)
-            goalText = $"<b><color=#FFE066>✦ 目標:</color></b> スーパーグライダー完成 (<b>{count}/12</b>)";
+            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>スーパーグライダー完成</b></color> <color=#00E5FF><b>({count}/12)</b></color>";
         else if (!AdventureSanctuaryTowerManager.IsCanopyBroken)
-            goalText = "<b><color=#5CE1E6>✦ 全パーツ回収完了！</color></b> 中央タワー頂上へ";
+            goalText = "<color=#00E5FF><b>✦ 全パーツ回収完了！</b></color> <color=#FFFFFF>中央タワー頂上へ</color>";
         else
-            goalText = "<b><color=#FFD700>✦ 天蓋崩壊！</color></b> 光の柱から空の裂け目へダイブ！";
+            goalText = "<color=#FFD700><b>✦ 天蓋崩壊！</b></color> <color=#FFFFFF>光の柱から空の裂け目へダイブ！</color>";
 
         // 2行目：最寄りパーツ探知（方角と距離）
         string subInfo = "";
@@ -254,35 +254,35 @@ public class AdventureScrapHUD : MonoBehaviour
             if (nearest != null)
             {
                 Vector3 diff = nearest.transform.position - player.transform.position;
-                string dir = GetDirectionString(diff);
-                subInfo = $"<color=#5CE1E6>📍 最寄り:</color> {dir} <color=#FFE066>約{Mathf.RoundToInt(dist)}m</color>";
+                var (cardinal, hint) = GetDirectionParts(diff);
+                subInfo = $"<color=#80D8FF><b>📍 最寄り:</b></color> <color=#FFEB3B><b>{cardinal}</b></color><color=#ECEFF1>（{hint}）</color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color>";
             }
             else
             {
-                subInfo = "<color=#A0C0D0>📍 全てのパーツを発見しました</color>";
+                subInfo = "<color=#B0BEC5>📍 全てのパーツを発見しました</color>";
             }
         }
         else if (count >= 12)
         {
-            subInfo = "<color=#5CE1E6>📍 目標地点:</color> 中央タワー頂上";
+            subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFEB3B><b>中央タワー頂上</b></color>";
         }
 
         _tickerText.text = $"{goalText}\n{subInfo}";
     }
 
-    static string GetDirectionString(Vector3 diff)
+    static (string cardinal, string hint) GetDirectionParts(Vector3 diff)
     {
         float angle = Mathf.Atan2(diff.x, diff.z) * Mathf.Rad2Deg;
         if (angle < 0f) angle += 360f;
 
-        if (angle >= 337.5f || angle < 22.5f) return "北（奥の高台）";
-        if (angle >= 22.5f && angle < 67.5f) return "北東（丘陵地帯）";
-        if (angle >= 67.5f && angle < 112.5f) return "東（右奥の林）";
-        if (angle >= 112.5f && angle < 157.5f) return "南東（崖側）";
-        if (angle >= 157.5f && angle < 202.5f) return "南（手前の浜辺）";
-        if (angle >= 202.5f && angle < 247.5f) return "南西（浅瀬）";
-        if (angle >= 247.5f && angle < 292.5f) return "西（海・オアシス）";
-        return "北西（断崖）";
+        if (angle >= 337.5f || angle < 22.5f) return ("北", "奥の高台");
+        if (angle >= 22.5f && angle < 67.5f) return ("北東", "丘陵地帯");
+        if (angle >= 67.5f && angle < 112.5f) return ("東", "右奥の林");
+        if (angle >= 112.5f && angle < 157.5f) return ("南東", "崖側");
+        if (angle >= 157.5f && angle < 202.5f) return ("南", "手前の浜辺");
+        if (angle >= 202.5f && angle < 247.5f) return ("南西", "浅瀬");
+        if (angle >= 247.5f && angle < 292.5f) return ("西", "海・オアシス");
+        return ("北西", "断崖");
     }
 
     static Font ResolveFont()
