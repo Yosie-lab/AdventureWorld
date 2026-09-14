@@ -127,6 +127,14 @@ public class AdventurePlayerController : MonoBehaviour
             return;
         }
 
+        // 【K】キーまたは【F5】キーで手動クイックセーブ
+        bool savePressed = (kb != null && (kb.kKey.wasPressedThisFrame || kb.f5Key.wasPressedThisFrame));
+        try { if (Input.GetKeyDown(KeyCode.K) || Input.GetKeyDown(KeyCode.F5)) savePressed = true; } catch { }
+        if (savePressed)
+        {
+            AdventureSaveManager.Instance?.SaveGame("SAVEしました");
+        }
+
         Vector2 input = ReadMove(kb);
         if (AdventurePettingAction.Instance != null && AdventurePettingAction.Instance.IsPetting)
         {
