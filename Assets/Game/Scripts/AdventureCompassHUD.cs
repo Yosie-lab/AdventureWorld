@@ -248,7 +248,7 @@ public class AdventureCompassHUD : MonoBehaviour
                         _scrapNavText.color = nearest.itemColor;
                     }
                 }
-                else if (mgr.CollectedCount >= mgr.TotalScrapCount)
+                else if (mgr.CollectedCount >= AdventureScrapManager.TotalScrapCount)
                 {
                     _scrapNavText.text = "✦ 全ての漂着パーツ回収完了！";
                     _scrapNavText.color = new Color(0.35f, 1.0f, 0.85f, 0.95f);

@@ -525,7 +525,7 @@ public class AdventureScrapManager : MonoBehaviour
         // 2. もしリストが空だが未回収パーツが存在する場合、シーン内の実体から自動復元
         if (_activeItems.Count == 0 && CollectedCount < TotalScrapCount)
         {
-            var found = FindObjectsByType<AdventureScrapItem>(FindObjectsSortMode.None);
+            var found = FindObjectsByType<AdventureScrapItem>();
             foreach (var it in found)
             {
                 if (it != null && !it.IsCollected && !_collectedIds.Contains(it.itemId))
