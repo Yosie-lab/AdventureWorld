@@ -62,16 +62,31 @@ public class AdventureCameraFollow : MonoBehaviour
         var mouse = Mouse.current;
 
         bool isOpeningActive = !AdventureRustFloatOpening.IsGameStarted && FindAnyObjectByType<AdventureRustFloatOpening>() != null;
+        var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        bool isLeverNear = towerMgr != null && towerMgr.IsPlayerNearLever;
 
-        // エスケープでカーソル解放、画面クリックで確実にロック復帰（スタート前はクリックによる強制ロックを停止）
-        if (!isOpeningActive)
+        // レバーの近く、またはオープニング中はカーソルを常時自動解放・可視化（クリック操作を即座に可能に）
+        if (isOpeningActive || isLeverNear)
         {
-            if (kb != null && kb.escapeKey.wasPressedThisFrame)
+            if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+        }
+        else
+        {
+            // エスケープや左Altキー、または旧Inputでカーソル解放 ⇄ ロックを快適にトグル
+            bool toggleCursor = (kb != null && (kb.escapeKey.wasPressedThisFrame || kb.leftAltKey.wasPressedThisFrame));
+            try { if (Input.GetKeyDown(KeyCode.LeftAlt) || Input.GetKeyDown(KeyCode.Escape)) toggleCursor = true; } catch { }
+
+            if (toggleCursor)
             {
                 bool locked = Cursor.lockState != CursorLockMode.Locked;
                 Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
                 Cursor.visible = !locked;
             }
+            // 画面クリックでロック復帰（レバー付近やUI表示中は絶対に強制ロックしない）
             else if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked)
             {
                 LockCursor();
