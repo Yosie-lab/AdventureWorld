@@ -260,7 +260,7 @@ public class AdventureScrapHUD : MonoBehaviour
         else if (count < 12)
             goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>スーパーグライダー完成</b></color> <color=#00E5FF><b>({count}/12)</b></color>";
         else if (!AdventureSanctuaryTowerManager.IsCanopyBroken)
-            goalText = "<color=#00E5FF><b>✦ 全パーツ回収完了！</b></color> <color=#FFFFFF>中央タワー頂上へ</color>";
+            goalText = "<color=#00E5FF><b>✦ 全パーツ回収完了！</b></color> <color=#FFFFFF>中央タワーの黄金レバーへ</color>";
         else
             goalText = "<color=#FFD700><b>✦ 天蓋崩壊！</b></color> <color=#FFFFFF>光の柱から空の裂け目へダイブ！</color>";
 
@@ -281,9 +281,24 @@ public class AdventureScrapHUD : MonoBehaviour
                 subInfo = "<color=#B0BEC5>📍 全てのパーツを発見しました</color>";
             }
         }
+        else if (count >= 12 && !AdventureSanctuaryTowerManager.IsCanopyBroken)
+        {
+            Vector3 leverPos = new Vector3(512f, 63.2f, 501.5f);
+            if (player != null)
+            {
+                Vector3 diff = leverPos - player.transform.position;
+                var (cardinal, hint) = GetDirectionParts(diff);
+                float dist = Vector3.Distance(player.transform.position, leverPos);
+                subInfo = $"<color=#80D8FF><b>📍 目標:</b></color> <color=#FFEB3B><b>中央タワー正面レバー（{cardinal}）</b></color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color>";
+            }
+            else
+            {
+                subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFEB3B><b>中央タワー正面広場の黄金レバー</b></color>";
+            }
+        }
         else if (count >= 12)
         {
-            subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFEB3B><b>中央タワー頂上</b></color>";
+            subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFD700><b>タワー中心の光の柱</b></color>";
         }
 
         _tickerText.text = $"{goalText}\n{subInfo}";

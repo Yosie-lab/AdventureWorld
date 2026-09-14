@@ -71,105 +71,168 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _audio.maxDistance = 50f;
     }
 
+    readonly Vector3 _mainLeverPos = new Vector3(512f, 63.2f, 501.5f); // オベリスク南側正面・白亜テラスの特等席
+    readonly Vector3 _topLeverPos = new Vector3(512f, 137.2f, 512f);    // オベリスク天面頂上
+    Transform _topLeverHandle;
+
+    public Vector3 MainLeverPosition => _mainLeverPos;
+
     void BuildTowerLever()
     {
-        var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
-        Vector3 towerCenter = new Vector3(512f, 62f, 512f);
-        if (land != null)
-        {
-            towerCenter.y = land.SampleHeight(towerCenter) + land.transform.position.y;
-        }
-
-        var root = new GameObject("SanctuaryLeverStructure");
-        root.transform.SetParent(transform, false);
-        root.transform.position = towerCenter;
+        // 既存の古いオブジェクトがあれば破棄して再構築
+        var old = GameObject.Find("SanctuaryLeverStructure");
+        if (old != null) Destroy(old);
+        var oldTop = GameObject.Find("SanctuaryTopLeverStructure");
+        if (oldTop != null) Destroy(oldTop);
 
         var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
 
-        // 1. 白亜とチタンの台座（直径3.2m、高さ1.1m）
+        // ── 1. メインレバー（中央オベリスク南側正面・白亜広場） ──
+        var root = new GameObject("SanctuaryLeverStructure");
+        root.transform.SetParent(transform, false);
+        root.transform.position = _mainLeverPos;
+
+        // 白亜とチタンの円形台座（直径3.6m、高さ0.8m）
         var pedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         pedestal.name = "LeverPedestal";
         pedestal.transform.SetParent(root.transform, false);
-        pedestal.transform.localPosition = new Vector3(0f, 0.55f, 0f);
-        pedestal.transform.localScale = new Vector3(3.2f, 0.55f, 3.2f);
+        pedestal.transform.localPosition = new Vector3(0f, 0.4f, 0f);
+        pedestal.transform.localScale = new Vector3(3.6f, 0.4f, 3.6f);
         var pedMr = pedestal.GetComponent<MeshRenderer>();
         if (pedMr != null)
         {
             var mat = new Material(shader);
-            mat.SetColor("_BaseColor", new Color(0.92f, 0.95f, 0.98f)); // 純白の大理石
-            mat.SetFloat("_Smoothness", 0.9f);
+            mat.SetColor("_BaseColor", new Color(0.94f, 0.96f, 0.98f)); // 純白大理石
+            mat.SetFloat("_Smoothness", 0.92f);
             pedMr.material = mat;
         }
 
-        // 2. 真鍮の手動ギア基部（前時代の無骨な真鍮ハウジング）
+        // 真鍮の手動ギアハウジング
         var housing = GameObject.CreatePrimitive(PrimitiveType.Cube);
         housing.name = "BrassGearHousing";
         housing.transform.SetParent(root.transform, false);
-        housing.transform.localPosition = new Vector3(0f, 1.25f, 0f);
-        housing.transform.localScale = new Vector3(1.1f, 0.5f, 0.9f);
+        housing.transform.localPosition = new Vector3(0f, 1.05f, 0f);
+        housing.transform.localScale = new Vector3(1.2f, 0.55f, 0.95f);
         var hMr = housing.GetComponent<MeshRenderer>();
         if (hMr != null)
         {
             var mat = new Material(shader);
-            mat.SetColor("_BaseColor", new Color(0.78f, 0.58f, 0.22f)); // 深い真鍮・ブロンズ
+            mat.SetColor("_BaseColor", new Color(0.82f, 0.62f, 0.24f)); // 黄金真鍮
             mat.SetFloat("_Metallic", 0.95f);
-            mat.SetFloat("_Smoothness", 0.75f);
+            mat.SetFloat("_Smoothness", 0.78f);
             hMr.material = mat;
         }
 
-        // 3. アナログ真鍮レバー（手前へ45度倒せる可動ハンドル）
+        // アナログ真鍮レバー（手前へ倒せるハンドル）
         var leverPivot = new GameObject("LeverPivot");
         leverPivot.transform.SetParent(root.transform, false);
-        leverPivot.transform.localPosition = new Vector3(0f, 1.35f, 0f);
-        leverPivot.transform.localRotation = Quaternion.Euler(-25f, 0f, 0f); // 初期は奥に倒れている
+        leverPivot.transform.localPosition = new Vector3(0f, 1.25f, 0f);
+        leverPivot.transform.localRotation = Quaternion.Euler(-25f, 0f, 0f);
         _leverHandle = leverPivot.transform;
 
-        // シャフト（真鍮の棒）
+        // シャフト
         var shaft = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         shaft.name = "Shaft";
         shaft.transform.SetParent(_leverHandle, false);
         shaft.transform.localPosition = new Vector3(0f, 0.48f, 0f);
-        shaft.transform.localScale = new Vector3(0.12f, 0.48f, 0.12f);
+        shaft.transform.localScale = new Vector3(0.14f, 0.48f, 0.14f);
         var sMr = shaft.GetComponent<MeshRenderer>();
         if (sMr != null)
         {
             var mat = new Material(shader);
-            mat.SetColor("_BaseColor", new Color(0.85f, 0.68f, 0.28f));
+            mat.SetColor("_BaseColor", new Color(0.88f, 0.72f, 0.30f));
             mat.SetFloat("_Metallic", 0.92f);
             sMr.material = mat;
         }
         Destroy(shaft.GetComponent<Collider>());
 
-        // 赤い木製グリップ球（人間が手で握るための泥臭い温もり）
+        // 深紅の木製グリップ球
         var grip = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         grip.name = "GripBall";
         grip.transform.SetParent(_leverHandle, false);
         grip.transform.localPosition = new Vector3(0f, 0.98f, 0f);
-        grip.transform.localScale = Vector3.one * 0.32f;
+        grip.transform.localScale = Vector3.one * 0.36f;
         var gMr = grip.GetComponent<MeshRenderer>();
         if (gMr != null)
         {
             var mat = new Material(shader);
-            mat.SetColor("_BaseColor", new Color(0.75f, 0.18f, 0.14f)); // 深紅の木製グリップ
-            mat.SetFloat("_Smoothness", 0.6f);
+            mat.SetColor("_BaseColor", new Color(0.80f, 0.18f, 0.15f));
+            mat.SetFloat("_Smoothness", 0.65f);
             gMr.material = mat;
         }
         Destroy(grip.GetComponent<Collider>());
 
-        // 4. 発光インジケーターライト
+        // 天空へ向かってそびえる光の柱ビーコン（遠くや空からでも一目でわかる！）
+        var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        beacon.name = "LeverSkyBeacon";
+        beacon.transform.SetParent(root.transform, false);
+        beacon.transform.localPosition = new Vector3(0f, 35f, 0f);
+        beacon.transform.localScale = new Vector3(0.7f, 35f, 0.7f);
+        Destroy(beacon.GetComponent<Collider>());
+        var bRend = beacon.GetComponent<Renderer>();
+        if (bRend != null)
+        {
+            var bShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+            var bMat = new Material(bShader);
+            bMat.SetColor("_BaseColor", new Color(0.35f, 0.92f, 1.0f, 0.65f));
+            bRend.material = bMat;
+        }
+
+        // 発光インジケーターライト
         var lightGo = new GameObject("LeverIndicatorLight");
         lightGo.transform.SetParent(root.transform, false);
-        lightGo.transform.localPosition = new Vector3(0f, 2.0f, 0f);
+        lightGo.transform.localPosition = new Vector3(0f, 2.2f, 0f);
         _leverLight = lightGo.AddComponent<Light>();
         _leverLight.type = LightType.Point;
-        _leverLight.color = new Color(1.0f, 0.85f, 0.35f);
-        _leverLight.intensity = 2.5f;
-        _leverLight.range = 14f;
+        _leverLight.color = new Color(0.35f, 0.95f, 1.0f);
+        _leverLight.intensity = 3.5f;
+        _leverLight.range = 22f;
 
-        // 5. 接近判定コライダー
+        // 接近判定コライダー
         var col = root.AddComponent<SphereCollider>();
         col.isTrigger = true;
-        col.radius = 4.2f;
+        col.radius = 5.5f;
+
+        // ── 2. オベリスク頂上コンソール（標高137m・登り詰めたプレイヤー用） ──
+        var topRoot = new GameObject("SanctuaryTopLeverStructure");
+        topRoot.transform.SetParent(transform, false);
+        topRoot.transform.position = _topLeverPos;
+
+        var topPed = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        topPed.name = "TopPedestal";
+        topPed.transform.SetParent(topRoot.transform, false);
+        topPed.transform.localPosition = new Vector3(0f, 0.35f, 0f);
+        topPed.transform.localScale = new Vector3(3.0f, 0.35f, 3.0f);
+        var tMr = topPed.GetComponent<MeshRenderer>();
+        if (tMr != null) tMr.material = pedMr.material;
+
+        var topPivot = new GameObject("TopLeverPivot");
+        topPivot.transform.SetParent(topRoot.transform, false);
+        topPivot.transform.localPosition = new Vector3(0f, 1.1f, 0f);
+        topPivot.transform.localRotation = Quaternion.Euler(-25f, 0f, 0f);
+        _topLeverHandle = topPivot.transform;
+
+        var topShaft = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        topShaft.name = "TopShaft";
+        topShaft.transform.SetParent(_topLeverHandle, false);
+        topShaft.transform.localPosition = new Vector3(0f, 0.45f, 0f);
+        topShaft.transform.localScale = new Vector3(0.14f, 0.45f, 0.14f);
+        Destroy(topShaft.GetComponent<Collider>());
+        var tsMr = topShaft.GetComponent<MeshRenderer>();
+        if (tsMr != null) tsMr.material = sMr.material;
+
+        var topGrip = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        topGrip.name = "TopGripBall";
+        topGrip.transform.SetParent(_topLeverHandle, false);
+        topGrip.transform.localPosition = new Vector3(0f, 0.92f, 0f);
+        topGrip.transform.localScale = Vector3.one * 0.35f;
+        Destroy(topGrip.GetComponent<Collider>());
+        var tgMr = topGrip.GetComponent<MeshRenderer>();
+        if (tgMr != null) tgMr.material = gMr.material;
+
+        var topCol = topRoot.AddComponent<SphereCollider>();
+        topCol.isTrigger = true;
+        topCol.radius = 5.5f;
     }
 
     void Update()
@@ -186,9 +249,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         if (_leverPulled) return;
 
-        Vector3 leverPos = new Vector3(512f, 62f, 512f);
-        float dist = Vector3.Distance(player.transform.position, leverPos);
-        _playerNearby = dist < 4.5f;
+        float distMain = Vector3.Distance(player.transform.position, _mainLeverPos);
+        float distTop = Vector3.Distance(player.transform.position, _topLeverPos);
+        _playerNearby = (distMain < 5.8f) || (distTop < 5.8f);
 
         // キーストーン集積状態によるライトの演出
         var scrapMgr = AdventureScrapManager.Instance;
@@ -198,7 +261,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             if (allCollected)
             {
-                float pulse = 1.8f + Mathf.Sin(Time.time * 4.5f) * 0.8f;
+                float pulse = 2.2f + Mathf.Sin(Time.time * 4.5f) * 1.0f;
                 _leverLight.intensity = pulse;
                 _leverLight.color = new Color(0.35f, 0.95f, 1.0f); // 準備完了の鮮やかなシアン
             }
