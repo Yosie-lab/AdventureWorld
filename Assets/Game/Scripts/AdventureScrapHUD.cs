@@ -135,14 +135,14 @@ public class AdventureScrapHUD : MonoBehaviour
         bannerRt.anchorMin = new Vector2(0.5f, 0.0f);
         bannerRt.anchorMax = new Vector2(0.5f, 0.0f);
         bannerRt.pivot = new Vector2(0.5f, 0.0f);
-        bannerRt.anchoredPosition = new Vector2(0f, 75f); // 画面下部、足元より少し上
-        bannerRt.sizeDelta = new Vector2(720f, 105f);
+        bannerRt.anchoredPosition = new Vector2(0f, 85f); // 画面下部、足元より少し上
+        bannerRt.sizeDelta = new Vector2(1000f, 160f); // 1000pxのワイドな映画字幕ウィンドウ
 
         var bannerBg = _bannerGo.AddComponent<Image>();
-        bannerBg.color = new Color(0.03f, 0.06f, 0.12f, 0.90f);
+        bannerBg.color = new Color(0.02f, 0.05f, 0.10f, 0.94f);
         var bOutline = _bannerGo.AddComponent<Outline>();
-        bOutline.effectColor = new Color(0.35f, 0.85f, 0.95f, 0.6f);
-        bOutline.effectDistance = new Vector2(1.2f, -1.2f);
+        bOutline.effectColor = new Color(0.35f, 0.85f, 0.95f, 0.8f);
+        bOutline.effectDistance = new Vector2(1.8f, -1.8f);
 
         _bannerCg = _bannerGo.AddComponent<CanvasGroup>();
         _bannerCg.alpha = 0f;
@@ -152,17 +152,21 @@ public class AdventureScrapHUD : MonoBehaviour
         var bTextRt = bTextGo.AddComponent<RectTransform>();
         bTextRt.anchorMin = Vector2.zero;
         bTextRt.anchorMax = Vector2.one;
-        bTextRt.sizeDelta = new Vector2(-28f, -14f);
+        bTextRt.sizeDelta = new Vector2(-36f, -18f);
 
         _bannerText = bTextGo.AddComponent<Text>();
         _bannerText.font = _font;
-        _bannerText.fontSize = 15;
-        _bannerText.lineSpacing = 1.25f;
+        _bannerText.fontSize = 22; // 15ptから22ptへ大幅拡大！
+        _bannerText.lineSpacing = 1.30f;
         _bannerText.alignment = TextAnchor.MiddleCenter;
         _bannerText.horizontalOverflow = HorizontalWrapMode.Wrap;
         _bannerText.verticalOverflow = VerticalWrapMode.Overflow;
         _bannerText.supportRichText = true;
         _bannerText.color = Color.white;
+
+        var textOutline = bTextGo.AddComponent<Outline>();
+        textOutline.effectColor = new Color(0f, 0f, 0f, 0.95f);
+        textOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
         RefreshQuestDisplay();
     }
@@ -222,10 +226,10 @@ public class AdventureScrapHUD : MonoBehaviour
     {
         if (_bannerText != null)
         {
-            _bannerText.text = $"<color=#FFE066><b>✦ {title} ✦</b></color>\n" +
-                               $"<color=#EAEFF5>「{loreQuote}」</color>\n" +
-                               $"<color=#5CE1E6><b>▶ {unlockEffect}</b></color>";
-            _bannerTimer = 8.0f; // じっくり味わえる8秒間表示
+            _bannerText.text = $"<size=26><color=#FFE066><b>✦ {title} ✦</b></color></size>\n" +
+                               $"<size=20><color=#F0F4F8>「{loreQuote}」</color></size>\n" +
+                               $"<size=22><color=#5CE1E6><b>▶ {unlockEffect}</b></color></size>";
+            _bannerTimer = 11.0f; // 映画のようにじっくり味わえる11秒間表示
         }
         RefreshQuestDisplay();
     }

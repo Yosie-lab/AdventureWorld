@@ -550,45 +550,45 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         GUI.DrawTexture(new Rect(0, 0, Screen.width, barH), Texture2D.whiteTexture);
         GUI.DrawTexture(new Rect(0, Screen.height - barH, Screen.width, barH), Texture2D.whiteTexture);
 
-        // 中央下部のインタラクティブ注油パネル
-        float panelW = 560f;
-        float panelH = 108f;
+        // 中央下部のインタラクティブ注油パネル（特大サイズで大迫力）
+        float panelW = 880f;
+        float panelH = 155f;
         float px = (Screen.width - panelW) * 0.5f;
-        float py = Screen.height - panelH - 45f;
+        float py = Screen.height - panelH - 50f;
 
         var boxStyle = new GUIStyle(GUI.skin.box);
         boxStyle.normal.background = Texture2D.whiteTexture;
-        GUI.color = new Color(0.04f, 0.08f, 0.14f, 0.95f);
+        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.96f);
         GUI.Box(new Rect(px, py, panelW, panelH), GUIContent.none, boxStyle);
 
-        // タイトル警告
+        // タイトル警告（特大24pt）
         GUI.color = new Color(1.0f, 0.40f, 0.35f, 1.0f);
         var titleStyle = new GUIStyle(GUI.skin.label);
-        titleStyle.fontSize = 15;
+        titleStyle.fontSize = 23;
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.alignment = TextAnchor.MiddleCenter;
-        GUI.Label(new Rect(px, py + 8f, panelW, 24f), "⚠ 警告：極寒気流により相棒Rustが機能停止寸前！ ⚠", titleStyle);
+        GUI.Label(new Rect(px, py + 12f, panelW, 32f), "⚠ 警告：極寒気流により相棒Rustが機能停止寸前！ ⚠", titleStyle);
 
-        // アクション促し
-        GUI.color = new Color(1.0f, 0.92f, 0.45f, 1.0f);
+        // アクション促し（黄金特大26pt）
+        GUI.color = new Color(1.0f, 0.92f, 0.40f, 1.0f);
         var promptStyle = new GUIStyle(GUI.skin.label);
-        promptStyle.fontSize = 17;
+        promptStyle.fontSize = 26;
         promptStyle.fontStyle = FontStyle.Bold;
         promptStyle.alignment = TextAnchor.MiddleCenter;
-        GUI.Label(new Rect(px, py + 34f, panelW, 28f), "【E 長押し】最後の常備油を注ぐ — 「一緒に飛ぶんだ、Rust！」", promptStyle);
+        GUI.Label(new Rect(px, py + 48f, panelW, 38f), "【E 長押し】最後の常備油を注ぐ — 「一緒に飛ぶんだ、Rust！」", promptStyle);
 
-        // プログレスバー背景
-        float barW = 460f;
-        float barH2 = 18f;
+        // プログレスバー背景（幅760px、太さ26px）
+        float barW = 760f;
+        float barH2 = 24f;
         float bx = px + (panelW - barW) * 0.5f;
-        float by = py + 68f;
+        float by = py + 98f;
 
         GUI.color = new Color(0.12f, 0.16f, 0.22f, 0.95f);
         GUI.DrawTexture(new Rect(bx, by, barW, barH2), Texture2D.whiteTexture);
 
         // プログレスバー進行ゲージ（黄金色）
         float fillRatio = Mathf.Clamp01(_oilHoldTimer / OilHoldRequired);
-        GUI.color = new Color(1.0f, 0.78f, 0.22f, 1.0f);
+        GUI.color = new Color(1.0f, 0.82f, 0.22f, 1.0f);
         GUI.DrawTexture(new Rect(bx, by, barW * fillRatio, barH2), Texture2D.whiteTexture);
 
         GUI.color = Color.white;
@@ -683,36 +683,49 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (_epilogueAlpha <= 0.01f) return;
 
         // シネマティック・レターボックス（画面上下の映画黒帯）
-        Color barCol = new Color(0.02f, 0.04f, 0.08f, _epilogueAlpha * 0.95f);
-        float barH = Screen.height * 0.14f;
+        Color barCol = new Color(0.01f, 0.02f, 0.05f, _epilogueAlpha * 0.96f);
+        float barH = Screen.height * 0.16f;
         GUI.color = barCol;
         GUI.DrawTexture(new Rect(0, 0, Screen.width, barH), Texture2D.whiteTexture);
         GUI.DrawTexture(new Rect(0, Screen.height - barH, Screen.width, barH), Texture2D.whiteTexture);
 
-        // 画面中央のエピローグ・テキスト
-        GUI.color = new Color(1f, 1f, 1f, _epilogueAlpha);
-        var titleStyle = new GUIStyle(GUI.skin.label);
-        titleStyle.fontSize = 24;
-        titleStyle.fontStyle = FontStyle.Bold;
-        titleStyle.alignment = TextAnchor.MiddleCenter;
-        titleStyle.normal.textColor = new Color(1.0f, 0.88f, 0.45f, _epilogueAlpha);
-
-        var bodyStyle = new GUIStyle(GUI.skin.label);
-        bodyStyle.fontSize = 17;
-        bodyStyle.alignment = TextAnchor.MiddleCenter;
-        bodyStyle.normal.textColor = new Color(0.92f, 0.96f, 1.0f, _epilogueAlpha);
-
-        float panelW = 760f;
-        float panelH = 220f;
+        // 画面中央のエピローグ・テキスト（特大サイズで大迫力映画字幕）
+        float panelW = 1060f;
+        float panelH = 320f;
         float px = (Screen.width - panelW) * 0.5f;
         float py = (Screen.height - panelH) * 0.5f;
 
-        GUI.Label(new Rect(px, py - 45f, panelW, 40f), "『Rust & Float』", titleStyle);
+        // タイトルスタイル（特大42pt・黄金の映画タイトル）
+        var titleStyle = new GUIStyle(GUI.skin.label);
+        titleStyle.fontSize = 42;
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.alignment = TextAnchor.MiddleCenter;
+
+        // 本文スタイル（映画字幕25pt）
+        var bodyStyle = new GUIStyle(GUI.skin.label);
+        bodyStyle.fontSize = 25;
+        bodyStyle.alignment = TextAnchor.MiddleCenter;
+
+        // タイトル（黒アウトライン付き黄金テキスト）
+        Rect titleRect = new Rect(px, py - 60f, panelW, 55f);
+        titleStyle.normal.textColor = new Color(0f, 0f, 0f, _epilogueAlpha * 0.95f);
+        GUI.Label(new Rect(titleRect.x - 2f, titleRect.y - 2f, titleRect.width, titleRect.height), "『Rust & Float』", titleStyle);
+        GUI.Label(new Rect(titleRect.x + 2f, titleRect.y + 2f, titleRect.width, titleRect.height), "『Rust & Float』", titleStyle);
+        titleStyle.normal.textColor = new Color(1.0f, 0.88f, 0.40f, _epilogueAlpha);
+        GUI.Label(titleRect, "『Rust & Float』", titleStyle);
 
         string quote = "「100%最適化された幸福を脱獄した。\n傷つく自由と、風の重さを取り戻すために。」\n\n" +
                        "人は最短距離を走っている時ではなく、\n寄り道をして、躓き、\n予期せぬ美しさに息をのんだ瞬間にこそ\n生きている実感を得られる。\n\n" +
                        "── Niko & Rust の旅は、ここから始まる。";
-        GUI.Label(new Rect(px, py, panelW, panelH), quote, bodyStyle);
+
+        // 本文（黒アウトライン付きホワイトテキスト）
+        Rect bodyRect = new Rect(px, py, panelW, panelH);
+        bodyStyle.normal.textColor = new Color(0f, 0f, 0f, _epilogueAlpha * 0.95f);
+        GUI.Label(new Rect(bodyRect.x - 1.5f, bodyRect.y - 1.5f, bodyRect.width, bodyRect.height), quote, bodyStyle);
+        GUI.Label(new Rect(bodyRect.x + 1.5f, bodyRect.y + 1.5f, bodyRect.width, bodyRect.height), quote, bodyStyle);
+        bodyStyle.normal.textColor = new Color(0.95f, 0.98f, 1.0f, _epilogueAlpha);
+        GUI.Label(bodyRect, quote, bodyStyle);
+
         GUI.color = Color.white;
     }
 
@@ -743,8 +756,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             yield return null;
         }
 
-        // 8秒間じっくり読ませる
-        yield return new WaitForSeconds(8.0f);
+        // 12秒間じっくり読ませる
+        yield return new WaitForSeconds(12.0f);
 
         // フェードアウト（3秒）
         t = 3.0f;
