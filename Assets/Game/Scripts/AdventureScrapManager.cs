@@ -102,6 +102,10 @@ public class AdventureScrapManager : MonoBehaviour
         }
         _instance = this;
 
+        // 音量を少し控えめで心地よい音量（0.48f）に調整
+        if (chimeVolume > 0.48f)
+            chimeVolume = 0.48f;
+
         RestoreIdsFromList();
         SetupAudio();
     }
@@ -144,7 +148,7 @@ public class AdventureScrapManager : MonoBehaviour
     }
 
     [Header("Audio")]
-    [Range(0f, 1f)] public float chimeVolume = 0.68f;
+    [Range(0f, 1f)] public float chimeVolume = 0.48f;
 
     void LoadChimeClip()
     {

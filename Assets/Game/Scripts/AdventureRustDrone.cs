@@ -1106,12 +1106,17 @@ public class AdventureRustDrone : MonoBehaviour
         }
 #endif
 
-        if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.D) ||
-            Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.RightArrow) ||
-            Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.E))
+        // 2. 旧Inputの安全なフォールバック（New Input System環境での例外を抑止）
+        try
         {
-            return true;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.D) ||
+                Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.RightArrow) ||
+                Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.E))
+            {
+                return true;
+            }
         }
+        catch { }
 
         // 2. プレイヤーの移動距離検知 (キー入力以外でも歩行移動していれば確実に行動検知)
         var player = AdventurePlayerController.Instance;

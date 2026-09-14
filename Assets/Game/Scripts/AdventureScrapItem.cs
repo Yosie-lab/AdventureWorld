@@ -205,7 +205,7 @@ public class AdventureScrapItem : MonoBehaviour
     {
         _audioSource = gameObject.AddComponent<AudioSource>();
         _audioSource.spatialBlend = 0.0f; // 2D音響で耳元に気持ちよく響く
-        _audioSource.volume = 0.75f;
+        _audioSource.volume = 0.48f;
         _audioSource.playOnAwake = false;
 
         if (_collectClip == null)
