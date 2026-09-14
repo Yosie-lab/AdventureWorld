@@ -102,9 +102,9 @@ public class AdventureScrapManager : MonoBehaviour
         }
         _instance = this;
 
-        // 音量を少し控えめで心地よい音量（0.48f）に調整
-        if (chimeVolume > 0.48f)
-            chimeVolume = 0.48f;
+        // 音量を少し控えめで心地よい音量（0.32f）に調整
+        if (chimeVolume > 0.32f)
+            chimeVolume = 0.32f;
 
         RestoreIdsFromList();
         SetupAudio();
@@ -148,7 +148,7 @@ public class AdventureScrapManager : MonoBehaviour
     }
 
     [Header("Audio")]
-    [Range(0f, 1f)] public float chimeVolume = 0.48f;
+    [Range(0f, 1f)] public float chimeVolume = 0.32f;
 
     void LoadChimeClip()
     {
@@ -159,7 +159,7 @@ public class AdventureScrapManager : MonoBehaviour
             _fanfareClip = SynthesizeBrainReflexoChime();
     }
 
-    /// <summary>パーツ取得時の快感チャイム音（『脳リフレクソ』の神秘的なウインドチャイム）を再生</summary>
+    /// <summary>パーツ取得時の快感チャイム音（心洗われるヒーリングトーンチャイム）を再生</summary>
     public void PlayScrapCollectFanfare()
     {
         if (_fanfareClip == null)
@@ -174,13 +174,13 @@ public class AdventureScrapManager : MonoBehaviour
         }
     }
 
-    /// <summary>『脳リフレクソ』の白泡破裂時チャイムを進化させた、極上のクリスタルウィンドチャイム（C Maj9/Lydian＋物理倍音＋バイノーラルコーラス＋残響テール）の完全再現合成</summary>
+    /// <summary>『脳リフレクソ』の白泡破裂時チャイムを進化させた、極上のヒーリングトーンチャイム（Cメジャーペンタトニック＋ソフトアタック＋温かなオクターブ倍音＋雲海リバーブ）の合成</summary>
     static AudioClip SynthesizeBrainReflexoChime()
     {
         const int rate = 44100;
-        // C5, E5, G5, B5, C6, E6, G6, B6, D7 (多幸感・快感を最大化する9thトップノート)
-        float[] notes = { 523.25f, 659.25f, 783.99f, 987.77f, 1046.50f, 1318.51f, 1567.98f, 1975.53f, 2349.32f };
-        float[] delays = { 0.0f, 0.040f, 0.078f, 0.114f, 0.148f, 0.182f, 0.218f, 0.258f, 0.302f };
+        // C5, E5, G5, A5, C6, E6, G6, A6 (耳に極めて優しいペンタトニック)
+        float[] notes = { 523.25f, 659.25f, 783.99f, 880.00f, 1046.50f, 1318.51f, 1567.98f, 1760.00f };
+        float[] delays = { 0.0f, 0.046f, 0.090f, 0.132f, 0.174f, 0.218f, 0.264f, 0.312f };
         float duration = 3.2f;
         int totalSamples = (int)(rate * duration);
 
@@ -192,15 +192,15 @@ public class AdventureScrapManager : MonoBehaviour
             float freq = notes[idx];
             float startT = delays[idx];
             int startIdx = (int)(startT * rate);
-            float noteDur = 1.2f + idx * 0.15f;
+            float noteDur = 1.4f + idx * 0.12f;
             int noteSamples = (int)(noteDur * rate);
 
-            float panVal = ((idx % 2 * 2 - 1) * 0.45f) * (0.5f + 0.5f * (float)idx / notes.Length);
+            float panVal = ((idx % 2 * 2 - 1) * 0.32f) * (0.4f + 0.6f * (float)idx / notes.Length);
             float gainL = Mathf.Cos((panVal + 1.0f) * 0.25f * Mathf.PI);
             float gainR = Mathf.Sin((panVal + 1.0f) * 0.25f * Mathf.PI);
 
-            float detuneL = 1.0f - 0.0012f;
-            float detuneR = 1.0f + 0.0012f;
+            float detuneL = 1.0f - 0.0008f;
+            float detuneR = 1.0f + 0.0008f;
 
             for (int i = 0; i < noteSamples; i++)
             {
@@ -208,42 +208,44 @@ public class AdventureScrapManager : MonoBehaviour
                 if (destIdx >= totalSamples) break;
 
                 float t = (float)i / rate;
-                float envMain = (t < 0.003f) ? (t / 0.003f) : Mathf.Exp(-t * (4.2f - idx * 0.18f));
+                // 16msの滑らかなS字アタックで耳に痛い衝撃音を完全排除
+                float envMain = (t < 0.016f) 
+                    ? Mathf.Sin((t / 0.016f) * Mathf.PI * 0.5f) 
+                    : Mathf.Exp(-(t - 0.016f) * (3.6f - idx * 0.14f));
 
                 float sBaseL = Mathf.Sin(2.0f * Mathf.PI * (freq * detuneL) * t);
                 float sBaseR = Mathf.Sin(2.0f * Mathf.PI * (freq * detuneR) * t);
 
-                float sMode2 = Mathf.Sin(2.0f * Mathf.PI * (freq * 2.756f) * t) * Mathf.Exp(-t * 9.0f) * 0.28f;
-                float sMode3 = Mathf.Sin(2.0f * Mathf.PI * (freq * 5.404f) * t) * Mathf.Exp(-t * 18.0f) * 0.12f;
-                float sOct = Mathf.Sin(2.0f * Mathf.PI * (freq * 2.0f) * t) * Mathf.Exp(-t * 6.5f) * 0.22f;
+                float sOct = Mathf.Sin(2.0f * Mathf.PI * (freq * 2.0f) * t) * Mathf.Exp(-t * 5.5f) * 0.20f;
+                float sFifth = Mathf.Sin(2.0f * Mathf.PI * (freq * 3.0f) * t) * Mathf.Exp(-t * 7.5f) * 0.06f;
 
-                float sigL = (sBaseL + sMode2 + sMode3 + sOct) * envMain;
-                float sigR = (sBaseR + sMode2 + sMode3 + sOct) * envMain;
+                float sigL = (sBaseL + sOct + sFifth) * envMain;
+                float sigR = (sBaseR + sOct + sFifth) * envMain;
 
-                float amp = (idx < notes.Length - 1) ? 0.14f : 0.18f;
+                float amp = 0.12f * (1.0f - idx * 0.035f);
                 dryL[destIdx] += sigL * gainL * amp;
                 dryR[destIdx] += sigR * gainR * amp;
             }
         }
 
         // 空間ディレイ＆リバーブ
-        int d1 = (int)(0.180f * rate);
-        int d2 = (int)(0.260f * rate);
-        float feedback = 0.38f;
+        int d1 = (int)(0.190f * rate);
+        int d2 = (int)(0.275f * rate);
+        float feedback = 0.32f;
 
         float[] delBufL = new float[totalSamples + d1];
         float[] delBufR = new float[totalSamples + d2];
         float[] wetL = new float[totalSamples];
         float[] wetR = new float[totalSamples];
 
-        int[] combDelays = { (int)(0.029f * rate), (int)(0.037f * rate), (int)(0.043f * rate), (int)(0.051f * rate) };
+        int[] combDelays = { (int)(0.031f * rate), (int)(0.041f * rate), (int)(0.047f * rate), (int)(0.057f * rate) };
         float[][] combBufs = new float[4][] {
             new float[totalSamples + combDelays[0]],
             new float[totalSamples + combDelays[1]],
             new float[totalSamples + combDelays[2]],
             new float[totalSamples + combDelays[3]]
         };
-        float[] combGains = { 0.74f, 0.71f, 0.68f, 0.65f };
+        float[] combGains = { 0.70f, 0.67f, 0.64f, 0.60f };
 
         for (int n = 0; n < totalSamples; n++)
         {
@@ -252,8 +254,8 @@ public class AdventureScrapManager : MonoBehaviour
             delBufL[n + d1] = inDl;
             delBufR[n + d2] = inDr;
 
-            float delayOutL = (n >= d1 ? delBufL[n] : 0f) * 0.28f;
-            float delayOutR = (n >= d2 ? delBufR[n] : 0f) * 0.28f;
+            float delayOutL = (n >= d1 ? delBufL[n] : 0f) * 0.22f;
+            float delayOutR = (n >= d2 ? delBufR[n] : 0f) * 0.22f;
 
             float revIn = (dryL[n] + dryR[n]) * 0.5f;
             float revOut = 0f;
@@ -262,15 +264,15 @@ public class AdventureScrapManager : MonoBehaviour
                 int cd = combDelays[c];
                 float delayedC = n >= cd ? combBufs[c][n] : 0f;
                 combBufs[c][n + cd] = revIn + delayedC * combGains[c];
-                revOut += delayedC * 0.12f;
+                revOut += delayedC * 0.10f;
             }
 
-            wetL[n] = delayOutL + revOut * 0.55f;
-            wetR[n] = delayOutR + revOut * 0.55f;
+            wetL[n] = delayOutL + revOut * 0.45f;
+            wetR[n] = delayOutR + revOut * 0.45f;
         }
 
-        // ミックス & ローパスフィルター
-        float lpAlpha = 0.65f;
+        // ミックス & ローパスフィルター（約 4800Hz）
+        float lpAlpha = 0.50f;
         float sL = 0f, sR = 0f;
         float[] mixedL = new float[totalSamples];
         float[] mixedR = new float[totalSamples];
@@ -291,7 +293,7 @@ public class AdventureScrapManager : MonoBehaviour
             if (ar > maxPeak) maxPeak = ar;
         }
 
-        float scale = maxPeak > 0.0001f ? (0.86f / maxPeak) : 1.0f;
+        float scale = maxPeak > 0.0001f ? (0.72f / maxPeak) : 1.0f;
         float[] stereoData = new float[totalSamples * 2];
         for (int i = 0; i < totalSamples; i++)
         {
@@ -299,7 +301,7 @@ public class AdventureScrapManager : MonoBehaviour
             stereoData[i * 2 + 1] = mixedR[i] * scale;
         }
 
-        var clip = AudioClip.Create("BrainReflexoBlissChime", totalSamples, 2, rate, false);
+        var clip = AudioClip.Create("BrainReflexoHealingChime", totalSamples, 2, rate, false);
         clip.SetData(stereoData, 0);
         return clip;
     }
