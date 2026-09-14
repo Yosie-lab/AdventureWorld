@@ -23,6 +23,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     bool _epilogueTriggered = false;
     float _epilogueAlpha = 0f;
 
+    // ── 天蓋破壊ストーリーボード制御（じっくり読める待機モーダル） ──
+    bool _showSkybreakModal = false;
+    bool _skybreakModalClosed = false;
+
     // ── 【案1】クライマックス演出制御 ──
     bool _climaxCrisisStarted = false;
     bool _climaxOilInjected = false;
@@ -414,7 +418,13 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // 3. 上空の天蓋に幾何学シールドの亀裂（Hex Grid Skybreak）が炸裂！
         SpawnSkybreakCracks(new Vector3(512f, 150f, 512f));
 
-        // 4. シネマティック詩的ナレーション
+        // 4. 天蓋破壊シネマティック・ストーリーボードを表示（プレイヤーが読むまで完全に待機！）
+        _showSkybreakModal = true;
+        _skybreakModalClosed = false;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        // HUDにも記録
         if (AdventureScrapHUD.Instance != null)
         {
             AdventureScrapHUD.Instance.ShowPoeticLore(
@@ -424,6 +434,13 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             );
         }
 
+        // プレイヤーが「ダイブ！」ボタンまたはSpace/Enterを押すまで何分でもじっくり読める！
+        while (!_skybreakModalClosed)
+        {
+            yield return null;
+        }
+        _showSkybreakModal = false;
+
         // 5. タワー中央から上空180mの裂け目へ突き抜ける超巨大「天空スーパーサーマル」噴出！
         BuildSkybreakHyperUpdraft(new Vector3(512f, 62f, 512f));
 
@@ -432,7 +449,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             AdventurePettingAction.Instance.PetRust("ありがとうRust…！君がいたからここまで来られた。行こう！", 3.2f);
         }
 
-        yield return new WaitForSeconds(2.5f);
+        yield return new WaitForSeconds(2.0f);
 
         if (drone != null)
         {
@@ -500,6 +517,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void OnGUI()
     {
+        DrawSkybreakModalGUI();
         DrawClimaxCrisisGUI();
 
         if (_leverPulled || !_playerNearby)
@@ -712,6 +730,118 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         yield return new WaitForSeconds(1.8f);
         _epilogueTriggered = true;
         StartCoroutine(EpilogueSequenceRoutine());
+    }
+
+    void DrawSkybreakModalGUI()
+    {
+        if (!_showSkybreakModal) return;
+
+        // カーソルを確実に解放・表示してクリックできるようにする
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        // 全画面のシネマティック・ダークオーバーレイ（背後の視界を適度に落とし文字に没入）
+        GUI.color = new Color(0.01f, 0.02f, 0.05f, 0.88f);
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+
+        // 中央のシネマティック・ストーリーボード（幅960px, 高さ480px）
+        float bw = Mathf.Min(960f, Screen.width * 0.94f);
+        float bh = Mathf.Min(480f, Screen.height * 0.86f);
+        float bx = (Screen.width - bw) * 0.5f;
+        float by = (Screen.height - bh) * 0.5f;
+
+        // ボード背景（深藍色の重厚なメタルガラス調）
+        GUI.color = new Color(0.03f, 0.06f, 0.12f, 0.98f);
+        GUI.DrawTexture(new Rect(bx, by, bw, bh), Texture2D.whiteTexture);
+
+        // 黄金とシアンのアクセント二重枠線
+        GUI.color = new Color(0.35f, 0.92f, 1.0f, 0.9f);
+        GUI.DrawTexture(new Rect(bx, by, bw, 4f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx, by + bh - 4f, bw, 4f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx, by, 4f, bh), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx + bw - 4f, by, 4f, bh), Texture2D.whiteTexture);
+
+        // 黄金のコーナー装飾線
+        GUI.color = new Color(1.0f, 0.85f, 0.40f, 1.0f);
+        GUI.DrawTexture(new Rect(bx + 10f, by + 10f, bw - 20f, 1.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx + 10f, by + bh - 11.5f, bw - 20f, 1.5f), Texture2D.whiteTexture);
+
+        // 1. タイトル見出し（34pt 黄金太字）
+        var titleStyle = new GUIStyle(GUI.skin.label);
+        titleStyle.fontSize = 34;
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.alignment = TextAnchor.MiddleCenter;
+
+        string titleText = "✦ 天蓋崩壊：未知の荒野への跳躍 ✦";
+        Rect titleRect = new Rect(bx + 20f, by + 28f, bw - 40f, 50f);
+        // 黒アウトライン
+        titleStyle.normal.textColor = new Color(0f, 0f, 0f, 0.95f);
+        GUI.Label(new Rect(titleRect.x - 2f, titleRect.y - 2f, titleRect.width, titleRect.height), titleText, titleStyle);
+        GUI.Label(new Rect(titleRect.x + 2f, titleRect.y + 2f, titleRect.width, titleRect.height), titleText, titleStyle);
+        titleStyle.normal.textColor = new Color(1.0f, 0.86f, 0.38f, 1f);
+        GUI.Label(titleRect, titleText, titleStyle);
+
+        // 2. 本文ストーリー（22pt ゆったりした行間、クッキリ読める白文字）
+        var bodyStyle = new GUIStyle(GUI.skin.label);
+        bodyStyle.fontSize = 22;
+        bodyStyle.wordWrap = true;
+        bodyStyle.alignment = TextAnchor.MiddleCenter;
+
+        string bodyText =
+            "空が割れた。100%最適化された無痛の箱庭が、音を立てて崩れ去っていく。\n\n" +
+            "冷たい本物の風が頬を打つ。息が白くなり、胸が高鳴る。\n" +
+            "傷つく自由を抱きしめて……二人の翼で、あの未知の空へ！\n\n" +
+            "【タワー中央に吹き荒れる光のウインドピラーへ飛び込み、\n" +
+            "空の裂け目へと突き抜けよ！】";
+
+        Rect bodyRect = new Rect(bx + 35f, by + 90f, bw - 70f, bh - 190f);
+        bodyStyle.normal.textColor = new Color(0f, 0f, 0f, 0.95f);
+        GUI.Label(new Rect(bodyRect.x - 1.5f, bodyRect.y - 1.5f, bodyRect.width, bodyRect.height), bodyText, bodyStyle);
+        GUI.Label(new Rect(bodyRect.x + 1.5f, bodyRect.y + 1.5f, bodyRect.width, bodyRect.height), bodyText, bodyStyle);
+        bodyStyle.normal.textColor = new Color(0.94f, 0.98f, 1.0f, 1f);
+        GUI.Label(bodyRect, bodyText, bodyStyle);
+
+        // 3. 次へ進むダイブボタン（特大幅780px、高さ65px、25pt）
+        float btnW = Mathf.Min(780f, bw - 60f);
+        float btnH = 65f;
+        float btnX = (Screen.width - btnW) * 0.5f;
+        float btnY = by + bh - 85f;
+
+        // ボタン背景
+        GUI.color = new Color(0.10f, 0.42f, 0.78f, 0.95f);
+        GUI.DrawTexture(new Rect(btnX, btnY, btnW, btnH), Texture2D.whiteTexture);
+        GUI.color = new Color(1.0f, 0.88f, 0.40f, 1.0f);
+        GUI.DrawTexture(new Rect(btnX, btnY, btnW, 3f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(btnX, btnY + btnH - 3f, btnW, 3f), Texture2D.whiteTexture);
+
+        var btnStyle = new GUIStyle(GUI.skin.button);
+        btnStyle.fontSize = 25;
+        btnStyle.fontStyle = FontStyle.Bold;
+        btnStyle.alignment = TextAnchor.MiddleCenter;
+        btnStyle.normal.background = Texture2D.whiteTexture;
+
+        GUI.color = new Color(0f, 0f, 0f, 0.01f);
+        bool clicked = GUI.Button(new Rect(btnX, btnY, btnW, btnH), GUIContent.none, btnStyle);
+
+        var btnLabelStyle = new GUIStyle(GUI.skin.label);
+        btnLabelStyle.fontSize = 25;
+        btnLabelStyle.fontStyle = FontStyle.Bold;
+        btnLabelStyle.alignment = TextAnchor.MiddleCenter;
+
+        string btnMsg = "【Spaceキー または ここをクリック】空の裂け目へダイブ！";
+        btnLabelStyle.normal.textColor = new Color(0f, 0f, 0f, 0.95f);
+        GUI.Label(new Rect(btnX - 2f, btnY - 2f, btnW, btnH), btnMsg, btnLabelStyle);
+        GUI.Label(new Rect(btnX + 2f, btnY + 2f, btnW, btnH), btnMsg, btnLabelStyle);
+        btnLabelStyle.normal.textColor = new Color(1.0f, 0.95f, 0.75f, 1f);
+        GUI.Label(new Rect(btnX, btnY, btnW, btnH), btnMsg, btnLabelStyle);
+
+        // キーボード入力（Space, Return, Enter, E）またはボタンクリックで進行再開
+        if (clicked || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.E))
+        {
+            _skybreakModalClosed = true;
+        }
+
+        GUI.color = Color.white;
     }
 
     void DrawEpilogueGUI()
