@@ -211,6 +211,27 @@ public class AdventurePlayerController : MonoBehaviour
                     drone.SpeakCustom("海風の上昇気流をつかまえたよ！島の内陸へ飛んで帰ろう、Niko！", 4.5f);
                 }
             }
+            // 崖に囲まれた場所・すり鉢窪地・切り立った崖下からの「クリフ・カタパルト大跳躍」！
+            else if (CheckCliffSurround(out float cliffHop, out Vector3 cliffEscapeDir))
+            {
+                _hop = cliffHop;
+                _grounded = false;
+                _gliding = true;
+                _airborneTime = 1.0f;
+                _glideBoostTimer = 3.8f; // 崖の上へ飛び乗るための前進ブースト
+
+                // 崖の上・前進方向への推進ベクトル
+                float fwdSpeed = 10.5f;
+                _airMomentum = (cliffEscapeDir * 8.5f + transform.forward * 4.5f).normalized * fwdSpeed;
+                transform.rotation = Quaternion.LookRotation(_airMomentum);
+
+                // 相棒Rustの誘導ボイス
+                var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+                if (drone != null)
+                {
+                    drone.SpeakCustom("崖の上昇気流をつかまえたよ！一気に上へ登ろう、Niko！", 4.2f);
+                }
+            }
             else if (_grounded)
             {
                 _hop = Mathf.Sqrt(effectiveJumpHeight * -2f * gravity);
@@ -219,7 +240,17 @@ public class AdventurePlayerController : MonoBehaviour
             }
             else if (canDoubleJump && !_doubleJumpUsed && !_gliding)
             {
-                _hop = Mathf.Sqrt(effectiveJumpHeight * -1.8f * gravity);
+                if (CheckCliffSurround(out float airCliffHop, out Vector3 airCliffEscapeDir))
+                {
+                    _hop = airCliffHop * 0.9f;
+                    _gliding = true;
+                    _glideBoostTimer = 3.2f;
+                    _airMomentum = (airCliffEscapeDir * 8.0f + transform.forward * 4.0f).normalized * 9.5f;
+                }
+                else
+                {
+                    _hop = Mathf.Sqrt(effectiveJumpHeight * -1.8f * gravity);
+                }
                 _doubleJumpUsed = true;
             }
         }
@@ -648,6 +679,112 @@ public class AdventurePlayerController : MonoBehaviour
         // 2. 海水・波打ち際付近（海抜 <= waterY + 3.0f）
         if (pos.y <= waterY + 3.0f)
             return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// 周囲の崖（すり鉢窪地・切り立った崖下・谷底）を動的に判定し、崖の上へ一気に登るための上昇力と推進方向を算出
+    /// </summary>
+    public bool CheckCliffSurround(out float requiredHop, out Vector3 escapeDirection)
+    {
+        requiredHop = 0f;
+        escapeDirection = transform.forward;
+
+        if (_land == null) return false;
+
+        Vector3 myPos = transform.position;
+        float curY = myPos.y;
+
+        float maxSurroundHeight = curY;
+        Vector3 highestPointDir = transform.forward;
+        int higherDirectionsCount = 0;
+
+        // 8方向（前方、斜め前、左右、後方）
+        Vector3[] dirs = new Vector3[]
+        {
+            transform.forward,
+            (transform.forward + transform.right).normalized,
+            transform.right,
+            (-transform.forward + transform.right).normalized,
+            -transform.forward,
+            (-transform.forward - transform.right).normalized,
+            -transform.right,
+            (transform.forward - transform.right).normalized
+        };
+
+        // 近距離（3.5m）、中距離（7.5m）、遠距離（14.0m）を多重サンプリング
+        float[] sampleDistances = new float[] { 3.5f, 7.5f, 14.0f };
+
+        for (int d = 0; d < dirs.Length; d++)
+        {
+            Vector3 dir = dirs[d];
+            bool dirIsHigher = false;
+
+            for (int s = 0; s < sampleDistances.Length; s++)
+            {
+                float dist = sampleDistances[s];
+                Vector3 checkPos = myPos + dir * dist;
+                float h = _land.SampleHeight(checkPos) + _land.transform.position.y;
+
+                if (h > curY + 2.4f) // 足元より2.4m以上高い段差・崖
+                {
+                    dirIsHigher = true;
+                    if (h > maxSurroundHeight)
+                    {
+                        maxSurroundHeight = h;
+                        highestPointDir = dir;
+                    }
+                }
+            }
+
+            if (dirIsHigher)
+                higherDirectionsCount++;
+        }
+
+        // 正面の物理壁/急斜面Raycastチェック（目の前に切り立った岩壁・急峻な崖があるか）
+        bool facingSteepCliff = false;
+        RaycastHit wallHit;
+        if (Physics.Raycast(myPos + Vector3.up * 0.8f, transform.forward, out wallHit, 5.0f))
+        {
+            if (!wallHit.collider.isTrigger && Vector3.Dot(wallHit.normal, Vector3.up) < 0.65f)
+            {
+                facingSteepCliff = true; // 傾斜角50度以上の急峻な壁
+            }
+        }
+
+        float heightDiff = maxSurroundHeight - curY;
+
+        // 判定条件：
+        // 1. 周囲の3方向以上が崖に囲まれている（すり鉢・窪地・峡谷）
+        // 2. 正面が急な崖で、上に高低差がある（目の前の崖登り）
+        // 3. 周囲のいずれかの崖の高さが足元より2.8m以上高い
+        if (higherDirectionsCount >= 3 || facingSteepCliff || heightDiff >= 2.8f)
+        {
+            // 崖のてっぺんを余裕で飛び越える跳躍初速を物理計算！
+            // targetClearHeight = 崖の高さ + 5.5m（登りきって着地するための余裕マージン）
+            // v = sqrt(2 * |g| * targetClearHeight)
+            float targetClearHeight = Mathf.Clamp(Mathf.Max(heightDiff, 5.5f) + 5.5f, 10.0f, 32.0f);
+            requiredHop = Mathf.Sqrt(targetClearHeight * -2f * gravity);
+
+            // 推進方向：
+            // 正面に崖がある場合はその崖の上（正面）へ跳び乗る
+            // すり鉢状の場合は前進または崖の低い方向/高い方向へスムーズに脱出
+            if (facingSteepCliff || Vector3.Dot(transform.forward, highestPointDir) > 0.1f)
+            {
+                escapeDirection = transform.forward;
+            }
+            else if (higherDirectionsCount >= 6)
+            {
+                // 四方八方が完全に塞がれている場合は前方へ打ち上げ
+                escapeDirection = transform.forward;
+            }
+            else
+            {
+                escapeDirection = (transform.forward * 0.7f + highestPointDir * 0.3f).normalized;
+            }
+            return true;
+        }
 
         return false;
     }
