@@ -185,7 +185,7 @@ public class AdventureSaveManager : MonoBehaviour
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
-            drone.oilCount = Mathf.Max(drone.oilCount, data.oilCount);
+            drone.oilCount = Mathf.Max(1, Mathf.Max(drone.oilCount, data.oilCount));
         }
 
         // 3. プレイヤー位置の復元

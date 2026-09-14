@@ -673,63 +673,43 @@ public class AdventureRustDrone : MonoBehaviour
         }
     }
 
-    /// <summary>Nikoとの直接対話または手当て</summary>
+    /// <summary>Nikoとの直接対話または手当て（常備油により絶対に0にならず、いつでも手当て・全回復可能）</summary>
     void InteractWithNiko()
     {
         bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
 
-        // 1. 油を持っている場合は手当て・整備を確実に実行
-        if (oilCount > 0)
+        // 油所持は常に最低1個を保証（常備オイル）
+        oilCount = Mathf.Max(oilCount, 1);
+
+        // 予備オイル（2個以上）があれば1個消費し、最後の1個（常備油）は消費せず大切に保持
+        if (oilCount > 1)
         {
             oilCount--;
-            wellOiledUntil = Mathf.Max(wellOiledUntil, Time.time) + 90f; // 90秒間快調
-            _heatUntil = 0f;
-            _heat = 0f;
-
-            if (_happyBeepClip != null && _audio != null)
-                _audio.PlayOneShot(_happyBeepClip, 0.85f);
-
-            // NikoがRustを胸元で愛おしく撫でて手当て
-            if (AdventurePettingAction.Instance != null)
-            {
-                AdventurePettingAction.Instance.PetRust("よしよし、これで快調だね！いつもありがとう、Rust", 3.2f);
-            }
-            else
-            {
-                StartCoroutine(CheerSpinRoutine());
-            }
-            AdventureSaveManager.Instance?.SaveGame("整備と絆を記録しました");
-            return;
         }
 
-        // 2. 油が切れている場合でも、胸元で優しく抱きしめて励ますスキンシップ
-        if (needsOil && oilCount == 0)
-        {
-            if (_happyBeepClip != null && _audio != null)
-                _audio.PlayOneShot(_happyBeepClip, 0.65f);
+        // いつでも手当て＆全快調化（90秒快調を付与、熱・きしみ・引っかかりを即時完全解消）
+        wellOiledUntil = Mathf.Max(wellOiledUntil, Time.time) + 90f;
+        _heatUntil = 0f;
+        _heat = 0f;
+        _hitchUntil = 0f;
 
-            if (AdventurePettingAction.Instance != null)
-            {
-                AdventurePettingAction.Instance.PetRust("大丈夫だよRust。黒いオイルを見つけて必ず元気にしてあげるからね", 3.2f);
-            }
-            else
-            {
-                SpeakCustom("ピピッ…潤滑油が切れちゃった。僕が落とした黒いオイルのしずくを拾ってくれたら嬉しいな！", 4.5f);
-            }
-            AdventureSaveManager.Instance?.SaveGame("相棒との絆を記録しました");
-            return;
-        }
-
-        // 3. 通常のスキンシップ・撫でる
         if (_happyBeepClip != null && _audio != null)
-            _audio.PlayOneShot(_happyBeepClip, 0.75f);
+            _audio.PlayOneShot(_happyBeepClip, 0.85f);
 
+        // NikoがRustを胸元で愛おしく撫でて手当て
         if (AdventurePettingAction.Instance != null)
         {
-            AdventurePettingAction.Instance.PetRust("いい子だね、Rust。一緒に未知の空へ行こう", 3.2f);
-            AdventureSaveManager.Instance?.SaveGame("相棒との絆を記録しました");
-            return;
+            string msg = needsOil 
+                ? "よしよし、油をさしてピカピカに整備したよ！いつもありがとう、Rust" 
+                : "いい子だね、Rust。いつでも一緒だよ！";
+            AdventurePettingAction.Instance.PetRust(msg, 3.2f);
         }
+        else
+        {
+            StartCoroutine(CheerSpinRoutine());
+        }
+        AdventureSaveManager.Instance?.SaveGame("整備と絆を記録しました");
+    }
 
         var player = AdventurePlayerController.Instance;
         var scrapMgr = AdventureScrapManager.Instance;
@@ -1090,20 +1070,13 @@ public class AdventureRustDrone : MonoBehaviour
                 string prompt;
                 Color textColor;
 
-                if (oilCount > 0)
-                {
-                    prompt = needsOil 
-                        ? $"【E】油をさして手当て・撫でる（所持: {oilCount}）" 
-                        : $"【E】Rustを愛おしく撫でる（油所持: {oilCount}）";
-                    textColor = new Color(1.0f, 0.90f, 0.25f); // 鮮やかなゴールド
-                }
-                else
-                {
-                    prompt = needsOil 
-                        ? "【⚠ Rustが不調…油切れ（油滴を拾おう）】" 
-                        : "【E】Rustを愛おしく撫でる";
-                    textColor = needsOil ? new Color(1.0f, 0.55f, 0.15f) : new Color(0.40f, 0.96f, 1.0f);
-                }
+                oilCount = Mathf.Max(oilCount, 1);
+                string prompt = needsOil 
+                    ? $"【E】油をさして手当て・撫でる（常備油: {oilCount}）" 
+                    : $"【E】Rustを愛おしく撫でる（常備油: {oilCount}）";
+                Color textColor = needsOil 
+                    ? new Color(1.0f, 0.90f, 0.25f) // 鮮やかなゴールド
+                    : new Color(0.40f, 0.96f, 1.0f); // 爽やかなシアン
 
                 // セリフ本文と調和する上品で読みやすいフォント（20〜30pt）
                 int promptFontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.026f, 20f, 30f));
@@ -1159,15 +1132,10 @@ public class AdventureRustDrone : MonoBehaviour
                 status = "✦ Rust好調（整備済）";
                 bColor = new Color(0.45f, 0.95f, 0.65f); // エメラルドグリーン
             }
-            else if (oilCount > 0)
-            {
-                status = $"⚠ 要整備 (油: {oilCount})";
-                bColor = new Color(1.0f, 0.88f, 0.35f); // イエロー
-            }
             else
             {
-                status = "⚠ Rust不調 (油が必要)";
-                bColor = new Color(1.0f, 0.62f, 0.22f); // オレンジ
+                status = $"⚠ 要整備（【E】手当て / 油: {oilCount}）";
+                bColor = new Color(1.0f, 0.88f, 0.35f); // イエロー
             }
 
             GUIContent bContent = new GUIContent(status);
