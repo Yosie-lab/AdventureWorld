@@ -1,36 +1,61 @@
 using UnityEngine;
 
 /// <summary>
-/// 島に散らばる漂着パーツ（古代ギア・エネルギーコア）
+/// 『Rust & Float』島に散らばる漂着パーツ（古代ギア・エネルギーコア）
 /// 発光しながら優雅に浮遊・回転し、プレイヤーが近づくと吸い寄せられて気持ちよく取得できる
 /// </summary>
 public class AdventureScrapItem : MonoBehaviour
 {
+    // ── 基本設定 ──
     public int itemId;
     public string itemName = "古代のギア";
     public Color itemColor = new Color(1.0f, 0.78f, 0.28f); // 黄金に輝くギア
 
+    // ── パラメータ定数 ──
+    const float SpawnGuardDuration = 0.6f;     // スポーン直後の誤取得ガード時間（秒）
+    const float CollectDirectDist = 0.95f;     // 即時取得判定距離（3D球状）
+    const float CollectHorizontalDist = 0.85f; // 即時取得の水平距離
+    const float CollectVerticalDiff = 1.3f;    // 即時取得の許容高低差
+    const float MagnetStartDist = 2.8f;        // マグネット吸い寄せ開始距離
+    const float MagnetSpeed = 6.5f;            // 吸い寄せ移動速度
+    const float InteractCollectDist = 2.5f;    // Eキー（インタラクト）取得許容距離
+    const float DestroyDelayAfterCollect = 0.8f; // 回収演出後のオブジェクト破棄遅延
+
+    // ── 内部状態 ──
     Transform _model;
     Transform _beaconPillar;
-    Vector3 _initialPos;
+    Transform _carriedByDrone;
+    AdventurePlayerController _cachedPlayer;
+
     float _hoverOffset;
     float _spawnTime;
     bool _isCollected = false;
     public bool IsCollected => _isCollected;
-    AudioSource _audioSource;
-    static AudioClip _collectClip;
+
+    // 動的生成マテリアルのキャッシュ（破棄時のメモリリーク防止用）
+    Material _gearMat;
+    Material _coreMat;
+    Material _beaconMat;
 
     void Start()
     {
-        _initialPos = transform.position;
         _hoverOffset = Random.Range(0f, Mathf.PI * 2f);
         _spawnTime = Time.time;
 
         CreateModel();
         CreateBeacon();
         CreateIdleSparkles();
-        SetupAudio();
     }
+
+    void OnDestroy()
+    {
+        // 生成したマテリアルの安全なメモリ解放
+        if (_gearMat != null) Destroy(_gearMat);
+        if (_coreMat != null) Destroy(_coreMat);
+        if (_beaconMat != null) Destroy(_beaconMat);
+    }
+
+    #region ビジュアル生成
 
     void CreateModel()
     {
@@ -38,14 +63,15 @@ public class AdventureScrapItem : MonoBehaviour
         modelGo.transform.SetParent(transform, false);
         _model = modelGo.transform;
 
-        // ギア・コアの3Dモデル（視認性向上のため1.5倍サイズ：ハブ 0.85m）
+        // ギアのハブ（視認性の高いサイズ：直径0.85m）
         var hub = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         hub.name = "GearHub";
         hub.transform.SetParent(_model, false);
         hub.transform.localScale = new Vector3(0.85f, 0.12f, 0.85f);
         Destroy(hub.GetComponent<Collider>());
 
-        // 歯車用の突起（4つの突起、直径約1.15mの堂々たるシルエット）
+        // 歯車用の突起（4つの突起・直径約1.15mのシルエット）
+        _gearMat = CreateGearMaterial();
         for (int i = 0; i < 4; i++)
         {
             var tooth = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -54,8 +80,13 @@ public class AdventureScrapItem : MonoBehaviour
             tooth.transform.localRotation = Quaternion.Euler(0f, i * 45f, 0f);
             tooth.transform.localScale = new Vector3(1.15f, 0.10f, 0.26f);
             Destroy(tooth.GetComponent<Collider>());
-            ApplyMaterial(tooth.GetComponent<Renderer>());
+
+            var rend = tooth.GetComponent<Renderer>();
+            if (rend != null) rend.material = _gearMat;
         }
+
+        var hubRend = hub.GetComponent<Renderer>();
+        if (hubRend != null) hubRend.material = _gearMat;
 
         // 中心のエネルギーコア球体
         var core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -64,10 +95,11 @@ public class AdventureScrapItem : MonoBehaviour
         core.transform.localScale = Vector3.one * 0.44f;
         Destroy(core.GetComponent<Collider>());
 
-        ApplyMaterial(hub.GetComponent<Renderer>());
-        ApplyCoreMaterial(core.GetComponent<Renderer>());
+        _coreMat = CreateCoreMaterial();
+        var coreRend = core.GetComponent<Renderer>();
+        if (coreRend != null) coreRend.material = _coreMat;
 
-        // コライダー（接触取得用トリガー：直接触れた時に回収）
+        // 接触取得用トリガーコライダー
         var col = gameObject.AddComponent<SphereCollider>();
         col.isTrigger = true;
         col.radius = 0.85f;
@@ -75,7 +107,7 @@ public class AdventureScrapItem : MonoBehaviour
 
     void CreateBeacon()
     {
-        // 遠くからでも山や木立、タワー頂上から一目でわかる天空への光の柱（高さ60m）
+        // 遠景からでも一目で位置がわかる天空への光の柱（高さ60m）
         var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         beacon.name = "BeaconPillar";
         beacon.transform.SetParent(transform, false);
@@ -89,17 +121,18 @@ public class AdventureScrapItem : MonoBehaviour
             var shader = Shader.Find("Universal Render Pipeline/Unlit")
                 ?? Shader.Find("RustAndFloat/WhiteSmoke")
                 ?? Shader.Find("Sprites/Default");
-            var mat = new Material(shader);
-            mat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
+
+            _beaconMat = new Material(shader);
+            _beaconMat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
             Color bCol = itemColor;
             bCol.a = 0.70f;
-            mat.SetColor("_BaseColor", bCol);
-            mat.renderQueue = 3150;
-            rend.material = mat;
+            _beaconMat.SetColor("_BaseColor", bCol);
+            _beaconMat.renderQueue = 3150;
+            rend.material = _beaconMat;
         }
         _beaconPillar = beacon.transform;
 
-        // 周囲の地面や草木を照らし出す自発光ポイントライト
+        // 周囲を温かく照らす自発光ポイントライト
         var light = gameObject.AddComponent<Light>();
         light.type = LightType.Point;
         light.color = itemColor;
@@ -109,6 +142,11 @@ public class AdventureScrapItem : MonoBehaviour
 
     void CreateIdleSparkles()
     {
+        var particleShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("RustAndFloat/WhiteSmoke")
+            ?? Shader.Find("Sprites/Default");
+        var smokeTex = AdventureRustDrone.GetSoftSmokeTexture();
+
         // 1. アイテム周囲の浮遊スパークル
         var pGo = new GameObject("IdleSparkles");
         pGo.transform.SetParent(transform, false);
@@ -133,16 +171,13 @@ public class AdventureScrapItem : MonoBehaviour
         var rend = pGo.GetComponent<ParticleSystemRenderer>();
         if (rend != null)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                ?? Shader.Find("RustAndFloat/WhiteSmoke")
-                ?? Shader.Find("Sprites/Default");
-            var mat = new Material(shader);
-            mat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
+            var mat = new Material(particleShader);
+            mat.SetTexture("_BaseMap", smokeTex);
             mat.SetColor("_BaseColor", itemColor * 2.5f);
             rend.material = mat;
         }
 
-        // 2. 天に向かって垂直に昇る光の粒子ビーム（遠景からもハッキリ視認可能）
+        // 2. 天に向かって垂直に昇る光の粒子ビーム
         var beamGo = new GameObject("VerticalBeamSparkles");
         beamGo.transform.SetParent(transform, false);
         beamGo.transform.localPosition = Vector3.zero;
@@ -151,7 +186,7 @@ public class AdventureScrapItem : MonoBehaviour
         var mainBeam = psBeam.main;
         mainBeam.loop = true;
         mainBeam.startLifetime = 2.5f;
-        mainBeam.startSpeed = 12.0f; // 上空へぐんぐん昇る
+        mainBeam.startSpeed = 12.0f;
         mainBeam.startSize = 0.35f;
         mainBeam.startColor = itemColor * 2.2f;
         mainBeam.simulationSpace = ParticleSystemSimulationSpace.World;
@@ -163,62 +198,48 @@ public class AdventureScrapItem : MonoBehaviour
         shapeBeam.shapeType = ParticleSystemShapeType.Cone;
         shapeBeam.angle = 1.5f;
         shapeBeam.radius = 0.3f;
-        shapeBeam.rotation = new Vector3(-90f, 0f, 0f); // 真上に向ける
+        shapeBeam.rotation = new Vector3(-90f, 0f, 0f);
 
         var rendBeam = beamGo.GetComponent<ParticleSystemRenderer>();
         if (rendBeam != null)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                ?? Shader.Find("RustAndFloat/WhiteSmoke")
-                ?? Shader.Find("Sprites/Default");
-            var mat = new Material(shader);
-            mat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
+            var mat = new Material(particleShader);
+            mat.SetTexture("_BaseMap", smokeTex);
             mat.SetColor("_BaseColor", itemColor * 2.8f);
             rendBeam.material = mat;
         }
     }
 
-    void ApplyMaterial(Renderer rend)
+    Material CreateGearMaterial()
     {
-        if (rend == null) return;
         var mat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
         mat.SetColor("_BaseColor", itemColor);
         mat.SetFloat("_Metallic", 0.9f);
         mat.SetFloat("_Smoothness", 0.85f);
         mat.EnableKeyword("_EMISSION");
-        mat.SetColor("_EmissionColor", itemColor * 1.6f); // 強烈な黄金エミッション
-        rend.material = mat;
+        mat.SetColor("_EmissionColor", itemColor * 1.6f);
+        return mat;
     }
 
-    void ApplyCoreMaterial(Renderer rend)
+    Material CreateCoreMaterial()
     {
-        if (rend == null) return;
         var mat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
         Color cyanCore = new Color(0.2f, 0.95f, 1.0f);
         mat.SetColor("_BaseColor", cyanCore);
         mat.EnableKeyword("_EMISSION");
-        mat.SetColor("_EmissionColor", cyanCore * 2.8f); // 鮮やかなコア発光
-        rend.material = mat;
+        mat.SetColor("_EmissionColor", cyanCore * 2.8f);
+        return mat;
     }
 
-    void SetupAudio()
-    {
-        _audioSource = gameObject.AddComponent<AudioSource>();
-        _audioSource.spatialBlend = 0.0f; // 2D音響で耳元に気持ちよく響く
-        _audioSource.volume = 0.48f;
-        _audioSource.playOnAwake = false;
+    #endregion
 
-        if (_collectClip == null)
-            _collectClip = SynthesizeCollectChime();
-    }
-
-    Transform _carriedByDrone;
+    #region 更新と回収ロジック
 
     public void AttachToDrone(Transform drone)
     {
         _carriedByDrone = drone;
         if (_beaconPillar != null)
-            _beaconPillar.gameObject.SetActive(false); // 運搬中は柱を消してスマートに
+            _beaconPillar.gameObject.SetActive(false);
     }
 
     void Update()
@@ -249,35 +270,38 @@ public class AdventureScrapItem : MonoBehaviour
             _beaconPillar.localScale = new Vector3(0.22f * pulse, 5.0f, 0.22f * pulse);
         }
 
-        // プレイヤーへの吸い寄せ＆回収チェック（開始直後0.6秒間は誤取得防止ガード）
-        if (Time.time < _spawnTime + 0.6f) return;
+        // スポーン直後の誤取得防止ガード
+        if (Time.time < _spawnTime + SpawnGuardDuration) return;
 
-        var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
-        if (player != null)
+        // プレイヤー参照のキャッシュと接近判定
+        if (_cachedPlayer == null)
+            _cachedPlayer = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
+
+        if (_cachedPlayer != null)
         {
-            Vector3 playerPos = player.transform.position + Vector3.up * 0.95f;
+            Vector3 playerPos = _cachedPlayer.transform.position + Vector3.up * 0.95f;
             float dist = Vector3.Distance(transform.position, playerPos);
             float horizontalDist = Vector2.Distance(
                 new Vector2(transform.position.x, transform.position.z), 
-                new Vector2(player.transform.position.x, player.transform.position.z)
+                new Vector2(_cachedPlayer.transform.position.x, _cachedPlayer.transform.position.z)
             );
             float verticalDiff = Mathf.Abs(transform.position.y - playerPos.y);
 
-            // 1. 取得完了判定（身体に接触：中心間0.95m以内、または水平0.85m＆高低差1.3m以内）
-            if (dist < 0.95f || (horizontalDist < 0.85f && verticalDiff < 1.3f))
+            // 1. 即時取得判定（接触距離以内）
+            if (dist < CollectDirectDist || (horizontalDist < CollectHorizontalDist && verticalDiff < CollectVerticalDiff))
             {
                 Collect();
                 return;
             }
 
-            // 2. ふわっと近づくマグネット吸い寄せ（2.8m以内まで近づいた時のみ発動）
-            if (dist < 2.8f || (horizontalDist < 2.4f && verticalDiff < 2.0f))
+            // 2. ふわっと近づくマグネット吸い寄せ
+            if (dist < MagnetStartDist || (horizontalDist < 2.4f && verticalDiff < 2.0f))
             {
-                transform.position = Vector3.MoveTowards(transform.position, playerPos, Time.deltaTime * 6.5f);
+                transform.position = Vector3.MoveTowards(transform.position, playerPos, Time.deltaTime * MagnetSpeed);
             }
 
-            // 3. 近くにいる時にEキー（インタラクト）が押された場合も取得
-            if (player.InteractPressed && dist < 2.5f)
+            // 3. インタラクトキーによる取得
+            if (_cachedPlayer.InteractPressed && dist < InteractCollectDist)
             {
                 Collect();
                 return;
@@ -285,21 +309,13 @@ public class AdventureScrapItem : MonoBehaviour
         }
     }
 
-    void OnTriggerEnter(Collider other)
-    {
-        CheckColliderCollect(other);
-    }
-
-    void OnTriggerStay(Collider other)
-    {
-        CheckColliderCollect(other);
-    }
+    void OnTriggerEnter(Collider other) => CheckColliderCollect(other);
+    void OnTriggerStay(Collider other) => CheckColliderCollect(other);
 
     void CheckColliderCollect(Collider other)
     {
-        if (_isCollected) return;
-        if (Time.time < _spawnTime + 0.6f) return; // スポーン直後の誤判定を回避
-        if (other == null) return;
+        if (_isCollected || other == null) return;
+        if (Time.time < _spawnTime + SpawnGuardDuration) return;
 
         if (other.GetComponentInParent<AdventurePlayerController>() != null 
             || other.CompareTag("Player") 
@@ -314,33 +330,33 @@ public class AdventureScrapItem : MonoBehaviour
         if (_isCollected) return;
         _isCollected = true;
 
-        // 爽快なパーツ取得ファンファーレ音を確実に再生！
+        // 快感チャイム音の再生（ScrapManagerに一本化）
         if (AdventureScrapManager.Instance != null)
         {
             AdventureScrapManager.Instance.PlayScrapCollectFanfare();
         }
 
-        // 取得エフェクト（弾ける光のスパーク）
+        // 弾けるスパークル演出
         SpawnCollectParticles();
 
-        // ビジュアルモデルの非表示
+        // ビジュアルの非表示
         if (_model != null)
             _model.gameObject.SetActive(false);
 
-        // マネージャーへ通知
+        // 管理マネージャーへ回収通知
         if (AdventureScrapManager.Instance != null)
         {
             AdventureScrapManager.Instance.OnScrapCollected(this);
         }
 
-        // 成し遂げた時：NikoがRustを愛おしく撫でる
+        // NikoとRustのスキンシップアクション
         if (AdventurePettingAction.Instance != null && !AdventurePettingAction.Instance.IsPetting)
         {
             AdventurePettingAction.Instance.PetRust("やったねRust！パーツを見つけたよ！", 1.8f);
         }
 
-        // 音の再生完了後に自身を破棄
-        Destroy(gameObject, 0.8f);
+        // オブジェクト破棄
+        Destroy(gameObject, DestroyDelayAfterCollect);
     }
 
     void SpawnCollectParticles()
@@ -377,44 +393,5 @@ public class AdventureScrapItem : MonoBehaviour
         Destroy(pGo, 1.0f);
     }
 
-    /// <summary>「ティロリン♪」という爽快な和音チャイム（G5 - C6 - E6 - G6）の合成</summary>
-    static AudioClip SynthesizeCollectChime()
-    {
-        const int rate = 44100;
-        float duration = 0.45f;
-        int count = (int)(rate * duration);
-        float[] data = new float[count];
-
-        // G5 (784Hz), C6 (1046Hz), E6 (1318Hz), G6 (1568Hz) のアルペジオ
-        float[] notes = { 784f, 1046f, 1318f, 1568f };
-        float noteOffset = 0.045f; // 各音が少しずつ遅れて鳴る気持ちいいアルペジオ
-
-        for (int n = 0; n < notes.Length; n++)
-        {
-            float f = notes[n];
-            float startT = n * noteOffset;
-
-            for (int i = (int)(startT * rate); i < count; i++)
-            {
-                float t = (float)i / rate - startT;
-                float env = Mathf.Exp(-t * 8.5f) * Mathf.Sin(Mathf.Clamp01(t / 0.005f) * Mathf.PI * 0.5f);
-                float wave = Mathf.Sin(2f * Mathf.PI * f * t) + 0.25f * Mathf.Sin(2f * Mathf.PI * (f * 2f) * t);
-                data[i] += wave * env * 0.28f;
-            }
-        }
-
-        // ノーマライズ
-        float max = 0f;
-        for (int i = 0; i < count; i++)
-            if (Mathf.Abs(data[i]) > max) max = Mathf.Abs(data[i]);
-        if (max > 0.001f)
-        {
-            float scale = 0.88f / max;
-            for (int i = 0; i < count; i++) data[i] *= scale;
-        }
-
-        var ac = AudioClip.Create("ScrapCollectChime", count, 1, rate, false);
-        ac.SetData(data, 0);
-        return ac;
-    }
+    #endregion
 }
