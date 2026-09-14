@@ -711,36 +711,6 @@ public class AdventureRustDrone : MonoBehaviour
         AdventureSaveManager.Instance?.SaveGame("整備と絆を記録しました");
     }
 
-        var player = AdventurePlayerController.Instance;
-        var scrapMgr = AdventureScrapManager.Instance;
-        int scraps = scrapMgr != null ? scrapMgr.CollectedCount : 0;
-
-        string reply;
-        if (player != null && player.transform.position.y > 60f)
-        {
-            reply = "すごい見晴らしだね、Niko！ここから風に乗ったらどこまで飛べるかな？";
-        }
-        else if (player != null && player.transform.position.y < 9f)
-        {
-            reply = "波の音がするね…昔の世界から流れてきたものが砂に埋もれているみたい";
-        }
-        else if (scraps >= 6)
-        {
-            reply = "ギアの波長が合ってきたよ！島を一緒に巡れて嬉しいな、Niko";
-        }
-        else
-        {
-            string[] casualLines = {
-                "この島、静かで風が温かいね…一緒にのんびり行こう、Niko",
-                "ピピッ！何かな？ぼくはいつでもNikoの隣にいるよ",
-                "焦らなくていいんだよ。寄り道しながら、空と海を眺めよう"
-            };
-            reply = casualLines[Random.Range(0, casualLines.Length)];
-        }
-
-        SpeakCustom(reply, 4.5f);
-    }
-
     void BeginHeatBurst()
     {
         _heatUntil = Time.time + 4f;
