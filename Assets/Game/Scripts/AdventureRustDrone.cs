@@ -677,6 +677,13 @@ public class AdventureRustDrone : MonoBehaviour
                      || (pad != null && pad.buttonWest.wasPressedThisFrame)
                      || (player != null && player.InteractPressed);
 
+        // レバーの近くにいる場合はレバー操作（天蓋開放）を最優先し、Rustの手当て割り込みを抑止
+        var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        if (towerMgr != null && towerMgr.IsPlayerNearLever)
+        {
+            return;
+        }
+
         if (_isPlayerNear && ePressed && Time.time - _lastInteractTime > 0.35f)
         {
             _lastInteractTime = Time.time;

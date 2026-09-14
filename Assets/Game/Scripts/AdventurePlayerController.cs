@@ -120,7 +120,10 @@ public class AdventurePlayerController : MonoBehaviour
             return;
 
         var kb = GetKeyboard();
-        InteractPressed = kb != null && kb.eKey.wasPressedThisFrame;
+        InteractPressed = (kb != null && (kb.eKey.wasPressedThisFrame || kb.eKey.isPressed));
+        try { if (Input.GetKeyDown(KeyCode.E) || Input.GetKey(KeyCode.E)) InteractPressed = true; } catch { }
+        var pad = UnityEngine.InputSystem.Gamepad.current;
+        if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame)) InteractPressed = true;
         if (kb != null && kb.rKey.wasPressedThisFrame)
         {
             Teleport(spawnPosition);

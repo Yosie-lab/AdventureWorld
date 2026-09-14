@@ -235,6 +235,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         topCol.radius = 5.5f;
     }
 
+    public bool IsPlayerNearLever => _playerNearby && !_leverPulled;
+
     void Update()
     {
         var player = AdventurePlayerController.Instance;
@@ -251,7 +253,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         float distMain = Vector3.Distance(player.transform.position, _mainLeverPos);
         float distTop = Vector3.Distance(player.transform.position, _topLeverPos);
-        _playerNearby = (distMain < 5.8f) || (distTop < 5.8f);
+        _playerNearby = (distMain < 8.5f) || (distTop < 8.5f);
 
         // キーストーン集積状態によるライトの演出
         var scrapMgr = AdventureScrapManager.Instance;
@@ -272,11 +274,31 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             }
         }
 
-        // インタラクト（Eキー）入力
-        if (_playerNearby && player.InteractPressed)
+        // インタラクト（Eキー、スペースキー、Enterキー、または直接入力）判定
+        if (_playerNearby && (CheckLeverInputTriggered() || (player != null && player.InteractPressed)))
         {
             TryPullLever(allCollected);
         }
+    }
+
+    bool CheckLeverInputTriggered()
+    {
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.eKey.wasPressedThisFrame || kb.eKey.isPressed) return true;
+            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame) return true;
+        }
+        var pad = UnityEngine.InputSystem.Gamepad.current;
+        if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame)) return true;
+
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.E) || Input.GetKey(KeyCode.E)) return true;
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space)) return true;
+        }
+        catch { }
+        return false;
     }
 
     void TryPullLever(bool allCollected)
@@ -447,7 +469,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (allCollected)
         {
             style.normal.textColor = new Color(0.3f, 1.0f, 0.85f);
-            GUI.Box(new Rect(x, y, w, h), "【E】アナログ真鍮レバーを引く（天蓋破壊・脱出）", style);
+            if (GUI.Button(new Rect(x, y, w, h), "【Eキー または ここをクリック】真鍮レバーを引く（天蓋破壊・脱出）", style))
+            {
+                TryPullLever(true);
+            }
         }
         else
         {
