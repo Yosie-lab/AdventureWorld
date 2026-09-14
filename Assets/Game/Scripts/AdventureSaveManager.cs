@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -6,6 +7,8 @@ using System.Collections.Generic;
 /// <summary>
 /// 『Rust & Float』セーブ＆ロード管理システム
 /// パーツ収集状況、プレイヤー位置、能力アンロック、Rustの状態を自動/手動で安全に保存・復元
+/// Mac向けに【F5】/【Fn+F5】/【K】/【Cmd+S】の全ショートカットに対応し、
+/// 最前面uGUIバナーとクリスタルチャイム音で100%確実にセーブを通知
 /// </summary>
 public class AdventureSaveManager : MonoBehaviour
 {
@@ -36,11 +39,23 @@ public class AdventureSaveManager : MonoBehaviour
 
     static string SaveFilePath => Path.Combine(Application.persistentDataPath, "rust_and_float_save.json");
 
-    float _saveNotificationTimer = 0f;
-    string _saveNotificationText = "";
+    // uGUI 通知バナー
+    Canvas _canvas;
+    CanvasGroup _bannerCg;
+    Text _bannerTitleText;
+    Text _bannerSubText;
+    float _bannerTimer = 0f;
+
     static AudioClip _saveSoundClip;
     AudioSource _audioSource;
     Texture2D _bgTex;
+
+    // シーン開始時に自動で確実に常駐化
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void AutoInit()
+    {
+        Ensure();
+    }
 
     public static void Ensure()
     {
@@ -66,6 +81,7 @@ public class AdventureSaveManager : MonoBehaviour
         }
         Instance = this;
         SetupAudio();
+        CreateSaveUI();
     }
 
     void SetupAudio()
@@ -73,6 +89,7 @@ public class AdventureSaveManager : MonoBehaviour
         _audioSource = gameObject.AddComponent<AudioSource>();
         _audioSource.playOnAwake = false;
         _audioSource.spatialBlend = 0f; // 2Dステレオ
+        _audioSource.volume = 1.0f;
         if (_saveSoundClip == null)
         {
             _saveSoundClip = CreateSaveSound();
@@ -82,20 +99,120 @@ public class AdventureSaveManager : MonoBehaviour
     static AudioClip CreateSaveSound()
     {
         int sampleRate = 44100;
-        float duration = 0.32f;
+        float duration = 0.36f;
         int sampleCount = (int)(sampleRate * duration);
         float[] samples = new float[sampleCount];
         for (int i = 0; i < sampleCount; i++)
         {
             float t = (float)i / sampleRate;
             // 2音の心地よいクリスタルチャイム（前半: 587Hz=D5、後半: 880Hz=A5）
-            float freq = t < 0.12f ? 587.33f : 880.0f;
-            float env = Mathf.Exp(-t * 9f);
-            samples[i] = Mathf.Sin(2f * Mathf.PI * freq * t) * env * 0.4f;
+            float freq = t < 0.14f ? 587.33f : 880.0f;
+            float env = Mathf.Exp(-t * 7.5f);
+            samples[i] = Mathf.Sin(2f * Mathf.PI * freq * t) * env * 0.65f;
         }
         var clip = AudioClip.Create("SaveChime", sampleCount, 1, sampleRate, false);
         clip.SetData(samples, 0);
         return clip;
+    }
+
+    void CreateSaveUI()
+    {
+        var canvasGo = new GameObject("SaveManager_Canvas");
+        canvasGo.transform.SetParent(transform, false);
+
+        _canvas = canvasGo.AddComponent<Canvas>();
+        _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        _canvas.sortingOrder = 300; // 最前面に確実に表示
+
+        var scaler = canvasGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280f, 720f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        // バナーパネル（画面中央上部）
+        var bannerGo = new GameObject("SaveBannerPanel");
+        bannerGo.transform.SetParent(canvasGo.transform, false);
+
+        var rt = bannerGo.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.5f, 1f);
+        rt.anchorMax = new Vector2(0.5f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.anchoredPosition = new Vector2(0f, -50f);
+        rt.sizeDelta = new Vector2(460f, 64f);
+
+        // 背景
+        var bgImage = bannerGo.AddComponent<Image>();
+        bgImage.color = new Color(0.04f, 0.08f, 0.14f, 0.94f);
+
+        _bannerCg = bannerGo.AddComponent<CanvasGroup>();
+        _bannerCg.alpha = 0f;
+        _bannerCg.blocksRaycasts = false;
+
+        // 上部アクセントライン（エメラルドグリーン光彩）
+        var lineGo = new GameObject("AccentLine");
+        lineGo.transform.SetParent(bannerGo.transform, false);
+        var lineRt = lineGo.AddComponent<RectTransform>();
+        lineRt.anchorMin = new Vector2(0f, 1f);
+        lineRt.anchorMax = new Vector2(1f, 1f);
+        lineRt.pivot = new Vector2(0.5f, 1f);
+        lineRt.anchoredPosition = Vector2.zero;
+        lineRt.sizeDelta = new Vector2(0f, 3.5f);
+        var lineImg = lineGo.AddComponent<Image>();
+        lineImg.color = new Color(0.35f, 0.98f, 0.65f, 1.0f);
+
+        Font font = ResolveFont();
+
+        // タイトルテキスト
+        var titleGo = new GameObject("TitleText");
+        titleGo.transform.SetParent(bannerGo.transform, false);
+        var titleRt = titleGo.AddComponent<RectTransform>();
+        titleRt.anchorMin = new Vector2(0f, 0.35f);
+        titleRt.anchorMax = new Vector2(1f, 1f);
+        titleRt.sizeDelta = Vector2.zero;
+        titleRt.anchoredPosition = new Vector2(0f, -2f);
+
+        _bannerTitleText = titleGo.AddComponent<Text>();
+        _bannerTitleText.font = font;
+        _bannerTitleText.fontSize = 21;
+        _bannerTitleText.fontStyle = FontStyle.Bold;
+        _bannerTitleText.alignment = TextAnchor.MiddleCenter;
+        _bannerTitleText.color = new Color(0.40f, 0.98f, 0.70f, 1.0f);
+
+        var outline = titleGo.AddComponent<Outline>();
+        outline.effectColor = new Color(0f, 0f, 0f, 0.95f);
+        outline.effectDistance = new Vector2(1.5f, -1.5f);
+
+        // サブテキスト
+        var subGo = new GameObject("SubText");
+        subGo.transform.SetParent(bannerGo.transform, false);
+        var subRt = subGo.AddComponent<RectTransform>();
+        subRt.anchorMin = new Vector2(0f, 0f);
+        subRt.anchorMax = new Vector2(1f, 0.42f);
+        subRt.sizeDelta = Vector2.zero;
+        subRt.anchoredPosition = new Vector2(0f, 4f);
+
+        _bannerSubText = subGo.AddComponent<Text>();
+        _bannerSubText.font = font;
+        _bannerSubText.fontSize = 12;
+        _bannerSubText.alignment = TextAnchor.MiddleCenter;
+        _bannerSubText.color = new Color(0.85f, 0.92f, 0.98f, 0.90f);
+    }
+
+    static Font ResolveFont()
+    {
+        string[] fonts = {
+            "Hiragino Sans",
+            "Hiragino Kaku Gothic ProN",
+            "Arial Unicode MS",
+            "YuGothic",
+            "Arial"
+        };
+        foreach (var name in fonts)
+        {
+            var f = Font.CreateDynamicFontFromOSFont(name, 18);
+            if (f != null) return f;
+        }
+        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
     }
 
     void Start()
@@ -108,9 +225,8 @@ public class AdventureSaveManager : MonoBehaviour
 
     void Update()
     {
-        // F5キーで手動クイックセーブ
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && kb.f5Key.wasPressedThisFrame)
+        // Mac/Windows問わず確実に押せるセーブキー判定
+        if (CheckSaveKeyTriggered())
         {
             SaveGame("SAVEしました");
         }
@@ -123,14 +239,52 @@ public class AdventureSaveManager : MonoBehaviour
             SaveGame("オートセーブ完了");
         }
 
-        if (_saveNotificationTimer > 0f)
+        // uGUIバナーのフェードアニメーション
+        if (_bannerTimer > 0f)
         {
-            _saveNotificationTimer -= Time.deltaTime;
+            _bannerTimer -= Time.deltaTime;
+            if (_bannerCg != null)
+                _bannerCg.alpha = Mathf.MoveTowards(_bannerCg.alpha, 1.0f, Time.deltaTime * 6f);
+        }
+        else
+        {
+            if (_bannerCg != null)
+                _bannerCg.alpha = Mathf.MoveTowards(_bannerCg.alpha, 0.0f, Time.deltaTime * 2.5f);
         }
     }
 
+    /// <summary>MacのFnキー問題やショートカットに対応した万能セーブキー判定</summary>
+    bool CheckSaveKeyTriggered()
+    {
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null)
+        {
+            // 1. F5キー（通常または外付けキーボード）
+            if (kb.f5Key.wasPressedThisFrame) return true;
+
+            // 2. Kキー（MacでFnを押さずにワンキーで瞬時にセーブできる特等キー！）
+            if (kb.kKey.wasPressedThisFrame) return true;
+
+            // 3. Command + S または Ctrl + S（Mac/Windowsの王道セーブショートカット！）
+            bool modifier = kb.ctrlKey.isPressed || kb.commandKey.isPressed;
+            if (modifier && kb.sKey.wasPressedThisFrame) return true;
+        }
+
+        // 旧Inputフォールバック
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.F5) || Input.GetKeyDown(KeyCode.K))
+                return true;
+            if ((Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand) || Input.GetKey(KeyCode.LeftControl)) && Input.GetKeyDown(KeyCode.S))
+                return true;
+        }
+        catch { }
+
+        return false;
+    }
+
     /// <summary>ゲームの現状をJSONファイルに保存</summary>
-    public void SaveGame(string customMessage = "セーブしました")
+    public void SaveGame(string customMessage = "SAVEしました")
     {
         try
         {
@@ -146,18 +300,22 @@ public class AdventureSaveManager : MonoBehaviour
             }
 
             // 2. スクラップ収集状況
+            int scrapCount = 0;
             var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
             if (scrapMgr != null)
             {
                 data.collectedScrapIds = new List<int>(scrapMgr.GetCollectedIds());
                 data.collectedCount = scrapMgr.CollectedCount;
+                scrapCount = data.collectedCount;
             }
 
             // 3. Rustの油所持数
+            int oil = 1;
             var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
             if (drone != null)
             {
                 data.oilCount = drone.oilCount;
+                oil = drone.oilCount;
             }
 
             // 4. 天蓋レバーの進行状況
@@ -167,16 +325,34 @@ public class AdventureSaveManager : MonoBehaviour
             string json = JsonUtility.ToJson(data, true);
             File.WriteAllText(SaveFilePath, json);
 
-            ShowSaveNotification(customMessage);
-            if (_audioSource != null && _saveSoundClip != null)
-            {
-                _audioSource.PlayOneShot(_saveSoundClip, 0.7f);
-            }
+            // バナー表示＆サウンド再生
+            string subText = $"遺物パーツ: {scrapCount}個 ／ Rust常備油: {oil}個（【F5】または【K】キーで保存）";
+            ShowSaveNotification(customMessage, subText);
+            PlaySaveSound();
+
             Debug.Log($"[AdventureSaveManager] セーブ完了: {SaveFilePath} (パーツ: {data.collectedCount}個, 油: {data.oilCount})");
         }
         catch (Exception ex)
         {
             Debug.LogError($"[AdventureSaveManager] セーブ失敗: {ex.Message}");
+        }
+    }
+
+    void PlaySaveSound()
+    {
+        if (_saveSoundClip == null)
+            _saveSoundClip = CreateSaveSound();
+
+        // 1. AudioSourceコンポーネント再生
+        if (_audioSource != null && _saveSoundClip != null)
+        {
+            _audioSource.PlayOneShot(_saveSoundClip, 1.0f);
+        }
+
+        // 2. カメラリスナー位置での直接再生（聞こえない問題を二重で防止）
+        if (Camera.main != null && _saveSoundClip != null)
+        {
+            AudioSource.PlayClipAtPoint(_saveSoundClip, Camera.main.transform.position, 1.0f);
         }
     }
 
@@ -207,7 +383,6 @@ public class AdventureSaveManager : MonoBehaviour
 
     System.Collections.IEnumerator ApplySaveDataRoutine(SaveData data)
     {
-        // シーン初期化やマネージャーの起動を1フレーム待機
         yield return null;
 
         // 1. スクラップ収集状態の復元
@@ -232,84 +407,20 @@ public class AdventureSaveManager : MonoBehaviour
             player.transform.rotation = Quaternion.Euler(0f, data.rotY, 0f);
         }
 
-        ShowSaveNotification("セーブデータを復元しました");
+        ShowSaveNotification("セーブデータを復元しました", $"前回の冒険記録（パーツ: {data.collectedCount}個）を読み込みました");
         Debug.Log($"[AdventureSaveManager] ロード完了: パーツ{data.collectedCount}個, 位置{data.GetPosition()}");
     }
 
-    public void ShowSaveNotification(string text)
+    public void ShowSaveNotification(string title, string subText = "")
     {
-        _saveNotificationText = text;
-        _saveNotificationTimer = 3.0f;
-    }
-
-    void OnGUI()
-    {
-        if (_saveNotificationTimer <= 0f) return;
-
-        float alpha = 1f;
-        if (_saveNotificationTimer > 2.6f)
+        _bannerTimer = 3.2f;
+        if (_bannerTitleText != null)
         {
-            alpha = Mathf.Clamp01((3.0f - _saveNotificationTimer) / 0.4f);
+            _bannerTitleText.text = $"✦ {title} ✦";
         }
-        else if (_saveNotificationTimer < 0.6f)
+        if (_bannerSubText != null)
         {
-            alpha = Mathf.Clamp01(_saveNotificationTimer / 0.6f);
+            _bannerSubText.text = subText;
         }
-
-        // 画面上部中央（左上のクエスト目標や右上のRustバッジと被らず視界に飛び込む特等席）
-        int fontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.024f, 18f, 26f));
-        GUIStyle labelStyle = new GUIStyle(GUI.skin.label);
-        labelStyle.fontSize = fontSize;
-        labelStyle.fontStyle = FontStyle.Bold;
-        labelStyle.alignment = TextAnchor.MiddleCenter;
-
-        string displayMsg = $"✦ {_saveNotificationText} ✦";
-        Vector2 textSz = labelStyle.CalcSize(new GUIContent(displayMsg));
-
-        float width = Mathf.Max(340f, textSz.x + 64f);
-        float height = Mathf.Max(50f, fontSize + 24f);
-        float x = (Screen.width - width) * 0.5f;
-        float y = Mathf.Clamp(Screen.height * 0.11f, 65f, 100f);
-
-        Color prevColor = GUI.color;
-        GUI.color = new Color(1f, 1f, 1f, alpha);
-
-        // 半透明ダーク背景
-        if (_bgTex == null)
-        {
-            _bgTex = new Texture2D(1, 1);
-            _bgTex.SetPixel(0, 0, new Color(0.04f, 0.07f, 0.12f, 0.94f));
-            _bgTex.Apply();
-        }
-        Rect boxRect = new Rect(x, y, width, height);
-        GUI.DrawTexture(boxRect, _bgTex);
-
-        // エメラルドグリーンの光彩アクセントライン（上部と下部）
-        Color accentCol = new Color(0.35f, 0.98f, 0.65f, alpha);
-        Rect topLine = new Rect(x, y, width, 3f);
-        GUI.DrawTexture(topLine, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, accentCol, 0, 0);
-
-        // 黒アウトライン付きテキスト
-        DrawOutlinedText(boxRect, displayMsg, labelStyle, accentCol, new Color(0f, 0f, 0f, 0.95f * alpha));
-
-        GUI.color = prevColor;
-    }
-
-    void DrawOutlinedText(Rect r, string text, GUIStyle style, Color frontColor, Color outlineColor)
-    {
-        Color prev = style.normal.textColor;
-        style.normal.textColor = outlineColor;
-        for (int ox = -2; ox <= 2; ox++)
-        {
-            for (int oy = -2; oy <= 2; oy++)
-            {
-                if (ox == 0 && oy == 0) continue;
-                Rect offsetRect = new Rect(r.x + ox, r.y + oy, r.width, r.height);
-                GUI.Label(offsetRect, text, style);
-            }
-        }
-        style.normal.textColor = frontColor;
-        GUI.Label(r, text, style);
-        style.normal.textColor = prev;
     }
 }
