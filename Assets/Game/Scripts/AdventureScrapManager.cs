@@ -148,7 +148,7 @@ public class AdventureScrapManager : MonoBehaviour
     }
 
     [Header("Audio")]
-    [Range(0f, 1f)] public float chimeVolume = 0.18f;
+    [Range(0f, 1f)] public float chimeVolume = 0.10f;
 
     void LoadChimeClip()
     {
@@ -170,7 +170,7 @@ public class AdventureScrapManager : MonoBehaviour
 
         if (_audioSource != null && _fanfareClip != null)
         {
-            float vol = Mathf.Min(chimeVolume, 0.18f);
+            float vol = Mathf.Min(chimeVolume, 0.10f);
             _audioSource.PlayOneShot(_fanfareClip, vol);
         }
     }
