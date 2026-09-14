@@ -68,40 +68,55 @@ public class AdventureScrapHUD : MonoBehaviour
 
         _font = ResolveFont();
 
-        // ── 邪魔にならない極薄ミニマル1行クエストティッカー（画面上部コンパス直下・背景板なし） ──
+        // ── 画面左上の独立したクエスト＆最寄りパーツHUDカード（他UIと絶対に重ならない特等席） ──
         var panelGo = new GameObject("QuestTickerPanel");
         panelGo.transform.SetParent(canvasGo.transform, false);
         _questPanelRt = panelGo.AddComponent<RectTransform>();
-        _questPanelRt.anchorMin = new Vector2(0.5f, 1f);
-        _questPanelRt.anchorMax = new Vector2(0.5f, 1f);
-        _questPanelRt.pivot = new Vector2(0.5f, 1f);
-        _questPanelRt.anchoredPosition = new Vector2(0f, -40f); // コンパスのすぐ下
-        _questPanelRt.sizeDelta = new Vector2(620f, 26f);
+        _questPanelRt.anchorMin = new Vector2(0f, 1f);
+        _questPanelRt.anchorMax = new Vector2(0f, 1f);
+        _questPanelRt.pivot = new Vector2(0f, 1f);
+        _questPanelRt.anchoredPosition = new Vector2(24f, -24f); // 画面左上にゆったり配置
+        _questPanelRt.sizeDelta = new Vector2(360f, 54f);
 
-        // 背景板（四角い枠）は全廃！景色を一切遮らない透明設計
+        // どんな背景でもクッキリ読める半透明ダーク背景プレート
+        var panelBg = panelGo.AddComponent<Image>();
+        panelBg.color = new Color(0.04f, 0.08f, 0.14f, 0.88f);
+
+        // 左端のアクセントライン（サイバーシアン光彩）
+        var accentGo = new GameObject("LeftAccent");
+        accentGo.transform.SetParent(panelGo.transform, false);
+        var accRt = accentGo.AddComponent<RectTransform>();
+        accRt.anchorMin = new Vector2(0f, 0f);
+        accRt.anchorMax = new Vector2(0f, 1f);
+        accRt.pivot = new Vector2(0f, 0.5f);
+        accRt.anchoredPosition = Vector2.zero;
+        accRt.sizeDelta = new Vector2(3.5f, 0f);
+        var accImg = accentGo.AddComponent<Image>();
+        accImg.color = new Color(0.35f, 0.85f, 1.0f, 1.0f);
+
         _questCg = panelGo.AddComponent<CanvasGroup>();
-        _questCg.alpha = 0.85f;
+        _questCg.alpha = 0.95f;
 
-        // 1行の統合クエストテキスト（フチ取り付きでどんな背景でも美しく可読）
+        // 2行構成のクッキリしたクエストテキスト
         var textGo = new GameObject("TickerText");
         textGo.transform.SetParent(panelGo.transform, false);
         var tRt = textGo.AddComponent<RectTransform>();
         tRt.anchorMin = Vector2.zero;
         tRt.anchorMax = Vector2.one;
-        tRt.sizeDelta = Vector2.zero;
-        tRt.anchoredPosition = Vector2.zero;
+        tRt.sizeDelta = new Vector2(-24f, -8f);
+        tRt.anchoredPosition = new Vector2(8f, 0f);
 
         _tickerText = textGo.AddComponent<Text>();
         _tickerText.font = _font;
         _tickerText.fontSize = 13;
-        _tickerText.fontStyle = FontStyle.Bold;
-        _tickerText.alignment = TextAnchor.MiddleCenter;
-        _tickerText.color = new Color(0.92f, 0.98f, 1.0f, 0.95f);
-        _tickerText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        _tickerText.lineSpacing = 1.15f;
+        _tickerText.alignment = TextAnchor.MiddleLeft;
+        _tickerText.color = new Color(0.95f, 0.98f, 1.0f, 0.98f);
+        _tickerText.horizontalOverflow = HorizontalWrapMode.Wrap;
         _tickerText.verticalOverflow = VerticalWrapMode.Overflow;
 
         var outline = textGo.AddComponent<Outline>();
-        outline.effectColor = new Color(0f, 0.05f, 0.12f, 0.90f);
+        outline.effectColor = new Color(0f, 0.04f, 0.10f, 0.95f);
         outline.effectDistance = new Vector2(1.2f, -1.2f);
 
         // ── 詩的ロア・アップグレードバナー（画面下部中央・映画のようなシネマティック表示） ──
@@ -206,7 +221,7 @@ public class AdventureScrapHUD : MonoBehaviour
         RefreshQuestDisplay();
     }
 
-    /// <summary>画面上部コンパス直下に溶け込む、極薄1行のクエストティッカー</summary>
+    /// <summary>画面左上の独立カードに収まる、美しく整理された2行クエスト表示</summary>
     void RefreshQuestDisplay()
     {
         if (_tickerText == null) return;
@@ -215,8 +230,23 @@ public class AdventureScrapHUD : MonoBehaviour
         int count = scrapMgr != null ? scrapMgr.CollectedCount : 0;
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
 
-        // 最寄りパーツの方角
-        string radarInfo = "";
+        // 1行目：現在のメイン目標
+        string goalText;
+        if (count < 3)
+            goalText = $"<b><color=#FFE066>✦ 目標:</color></b> 漂着パーツ回収 (<b>{count}/3</b>)";
+        else if (count < 6)
+            goalText = $"<b><color=#FFE066>✦ 目標:</color></b> 反重力コア回収 (<b>{count}/6</b>) ▶ 二段ジャンプ解放";
+        else if (count < 9)
+            goalText = $"<b><color=#FFE066>✦ 目標:</color></b> 探知ソナー修復 (<b>{count}/9</b>) ▶ レーダー解放";
+        else if (count < 12)
+            goalText = $"<b><color=#FFE066>✦ 目標:</color></b> スーパーグライダー完成 (<b>{count}/12</b>)";
+        else if (!AdventureSanctuaryTowerManager.IsCanopyBroken)
+            goalText = "<b><color=#5CE1E6>✦ 全パーツ回収完了！</color></b> 中央タワー頂上へ";
+        else
+            goalText = "<b><color=#FFD700>✦ 天蓋崩壊！</color></b> 光の柱から空の裂け目へダイブ！";
+
+        // 2行目：最寄りパーツ探知（方角と距離）
+        string subInfo = "";
         var player = AdventurePlayerController.Instance;
         if (player != null && scrapMgr != null && count < 12)
         {
@@ -225,35 +255,19 @@ public class AdventureScrapHUD : MonoBehaviour
             {
                 Vector3 diff = nearest.transform.position - player.transform.position;
                 string dir = GetDirectionString(diff);
-                radarInfo = $"　|　📍 最寄り: {dir} 約{Mathf.RoundToInt(dist)}m";
+                subInfo = $"<color=#5CE1E6>📍 最寄り:</color> {dir} <color=#FFE066>約{Mathf.RoundToInt(dist)}m</color>";
+            }
+            else
+            {
+                subInfo = "<color=#A0C0D0>📍 全てのパーツを発見しました</color>";
             }
         }
+        else if (count >= 12)
+        {
+            subInfo = "<color=#5CE1E6>📍 目標地点:</color> 中央タワー頂上";
+        }
 
-        if (count < 3)
-        {
-            string rustStatus = (drone != null && Time.time < drone.wellOiledUntil) ? "☑ Rust快調" : "【E】Rustに油をさす";
-            _tickerText.text = $"✦ 目標: 漂着パーツ回収 ({count}/3)　〔{rustStatus}〕{radarInfo}";
-        }
-        else if (count < 6)
-        {
-            _tickerText.text = $"✦ 目標: 反重力コア回収 ({count}/6) ▶ 二段ジャンプ解放{radarInfo}";
-        }
-        else if (count < 9)
-        {
-            _tickerText.text = $"✦ 目標: 探知ソナー修復 ({count}/9) ▶ レーダー解放{radarInfo}";
-        }
-        else if (count < 12)
-        {
-            _tickerText.text = $"✦ 目標: スーパーグライダー完成 ({count}/12){radarInfo}";
-        }
-        else if (!AdventureSanctuaryTowerManager.IsCanopyBroken)
-        {
-            _tickerText.text = "✦ 全パーツ回収完了！島中央タワー頂上の【真鍮レバー】を引け！";
-        }
-        else
-        {
-            _tickerText.text = "✦ 天蓋崩壊！空の裂け目へ光のウインドピラーから大滑空ダイブせよ！";
-        }
+        _tickerText.text = $"{goalText}\n{subInfo}";
     }
 
     static string GetDirectionString(Vector3 diff)
