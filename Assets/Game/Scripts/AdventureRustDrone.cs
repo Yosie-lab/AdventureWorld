@@ -694,7 +694,7 @@ public class AdventureRustDrone : MonoBehaviour
         _hitchUntil = 0f;
 
         if (_happyBeepClip != null && _audio != null)
-            _audio.PlayOneShot(_happyBeepClip, 0.85f);
+            _audio.PlayOneShot(_happyBeepClip, 0.45f);
 
         // NikoがRustを胸元で愛おしく撫でて手当て
         if (AdventurePettingAction.Instance != null)

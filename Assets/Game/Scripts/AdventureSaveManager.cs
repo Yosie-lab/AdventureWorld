@@ -98,10 +98,16 @@ public class AdventureSaveManager : MonoBehaviour
 
     void SetupAudio()
     {
-        _audioSource = gameObject.AddComponent<AudioSource>();
-        _audioSource.playOnAwake = false;
-        _audioSource.spatialBlend = 0f; // 2Dステレオ
-        _audioSource.volume = 1.0f;
+        if (_audioSource == null)
+        {
+            _audioSource = gameObject.AddComponent<AudioSource>();
+            _audioSource.playOnAwake = false;
+            _audioSource.spatialBlend = 0f; // 2Dステレオ
+            _audioSource.volume = 1.0f;
+            _audioSource.priority = 0; // 最優先再生
+            _audioSource.bypassEffects = true;
+            _audioSource.bypassListenerEffects = true;
+        }
         if (_saveSoundClip == null)
         {
             _saveSoundClip = CreateSaveSound();
@@ -110,20 +116,53 @@ public class AdventureSaveManager : MonoBehaviour
 
     static AudioClip CreateSaveSound()
     {
-        int sampleRate = 44100;
-        float duration = 0.36f;
-        int sampleCount = (int)(sampleRate * duration);
-        float[] samples = new float[sampleCount];
-        for (int i = 0; i < sampleCount; i++)
+        const int rate = 44100;
+        const float duration = 0.85f;
+        int count = (int)(rate * duration);
+        float[] data = new float[count];
+
+        // A Major 9th の美しいクリスタルチャイム（F#5, A5, C#6, E6, A6）
+        float[] notes = { 739.99f, 880.00f, 1108.73f, 1318.51f, 1760.00f };
+        float offset = 0.055f; // ポ・ロ・ロ・ロ・ン♪
+
+        for (int n = 0; n < notes.Length; n++)
         {
-            float t = (float)i / sampleRate;
-            // 2音の心地よいクリスタルチャイム（前半: 587Hz=D5、後半: 880Hz=A5）
-            float freq = t < 0.14f ? 587.33f : 880.0f;
-            float env = Mathf.Exp(-t * 7.5f);
-            samples[i] = Mathf.Sin(2f * Mathf.PI * freq * t) * env * 0.65f;
+            float f = notes[n];
+            float startT = n * offset;
+            int startIdx = (int)(startT * rate);
+
+            for (int i = startIdx; i < count; i++)
+            {
+                float t = (float)(i - startIdx) / rate;
+                // クッキリした立ち上がり（アタック）と心地よい余韻
+                float attack = Mathf.Clamp01(t / 0.004f);
+                float decay = Mathf.Exp(-t * (n == notes.Length - 1 ? 4.0f : 6.5f));
+                float env = attack * decay;
+
+                // 基音 + オクターブ倍音 + 金属ベルきらめき成分
+                float wave = Mathf.Sin(2f * Mathf.PI * f * t)
+                           + 0.35f * Mathf.Sin(2f * Mathf.PI * (f * 2.0f) * t)
+                           + 0.15f * Mathf.Sin(2f * Mathf.PI * (f * 2.76f) * t);
+
+                data[i] += wave * env * 0.32f;
+            }
         }
-        var clip = AudioClip.Create("SaveChime", sampleCount, 1, sampleRate, false);
-        clip.SetData(samples, 0);
+
+        // ノーマライズ（最大振幅を 0.95 に最大化して確実に聞こえるようにする）
+        float max = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            float abs = Mathf.Abs(data[i]);
+            if (abs > max) max = abs;
+        }
+        if (max > 0.001f)
+        {
+            float scale = 0.95f / max;
+            for (int i = 0; i < count; i++) data[i] *= scale;
+        }
+
+        var clip = AudioClip.Create("SaveCrystalChime", count, 1, rate, false);
+        clip.SetData(data, 0);
         return clip;
     }
 
@@ -388,16 +427,23 @@ public class AdventureSaveManager : MonoBehaviour
         if (_saveSoundClip == null)
             _saveSoundClip = CreateSaveSound();
 
-        // 1. AudioSourceコンポーネント再生
+        if (_audioSource == null)
+            SetupAudio();
+
+        // 1. 2Dステレオでの直接再生
         if (_audioSource != null && _saveSoundClip != null)
         {
             _audioSource.PlayOneShot(_saveSoundClip, 1.0f);
         }
 
-        // 2. カメラリスナー位置での直接再生（聞こえない問題を二重で防止）
-        if (Camera.main != null && _saveSoundClip != null)
+        // 2. AudioListener（またはメインカメラ）位置での直接再生（聞こえない問題を完全に防止）
+        var listener = FindAnyObjectByType<AudioListener>();
+        Vector3 playPos = listener != null ? listener.transform.position 
+                        : (Camera.main != null ? Camera.main.transform.position : transform.position);
+
+        if (_saveSoundClip != null)
         {
-            AudioSource.PlayClipAtPoint(_saveSoundClip, Camera.main.transform.position, 1.0f);
+            AudioSource.PlayClipAtPoint(_saveSoundClip, playPos, 1.0f);
         }
     }
 
