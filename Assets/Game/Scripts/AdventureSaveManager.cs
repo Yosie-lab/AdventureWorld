@@ -253,29 +253,23 @@ public class AdventureSaveManager : MonoBehaviour
         }
     }
 
-    /// <summary>MacのFnキー問題やショートカットに対応した万能セーブキー判定</summary>
+    /// <summary>MacでFnを押さずにワンキーで確実にセーブできる【K】キー、および【F5】判定</summary>
     bool CheckSaveKeyTriggered()
     {
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null)
         {
-            // 1. F5キー（通常または外付けキーボード）
-            if (kb.f5Key.wasPressedThisFrame) return true;
-
-            // 2. Kキー（MacでFnを押さずにワンキーで瞬時にセーブできる特等キー！）
+            // 1. Kキー（Macで最も押しやすく、エディタ衝突ゼロのワンキーセーブ！）
             if (kb.kKey.wasPressedThisFrame) return true;
 
-            // 3. Command + S または Ctrl + S（Mac/Windowsの王道セーブショートカット！）
-            bool modifier = kb.ctrlKey.isPressed || kb.commandKey.isPressed;
-            if (modifier && kb.sKey.wasPressedThisFrame) return true;
+            // 2. F5キー（通常またはFn+F5）
+            if (kb.f5Key.wasPressedThisFrame) return true;
         }
 
         // 旧Inputフォールバック
         try
         {
-            if (Input.GetKeyDown(KeyCode.F5) || Input.GetKeyDown(KeyCode.K))
-                return true;
-            if ((Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand) || Input.GetKey(KeyCode.LeftControl)) && Input.GetKeyDown(KeyCode.S))
+            if (Input.GetKeyDown(KeyCode.K) || Input.GetKeyDown(KeyCode.F5))
                 return true;
         }
         catch { }
