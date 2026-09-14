@@ -31,6 +31,9 @@ public class AdventureRustDrone : MonoBehaviour
     // スクラップ収集・アップグレード対話
     string _speechText = "";
     float _speechTimer = 0f;
+    bool _waitingForPlayerAction = false;
+    float _speechShowTime = 0f;
+    Vector3 _speechPlayerStartPos = Vector3.zero;
     AudioClip _happyBeepClip;
     AudioClip _sonarBeepClip;
     float _sonarTimer = 0f;
@@ -131,8 +134,7 @@ public class AdventureRustDrone : MonoBehaviour
         oilCount = Mathf.Max(oilCount, 2); // ゲーム開始時に確実に2個以上油を所持
 
         // 起動時のあたたかい挨拶
-        _speechText = "ピピッ…！起動したよ、Niko。一緒に行こう！";
-        _speechTimer = 4.5f;
+        SetSpeech("ピピッ…！起動したよ、Niko。一緒に行こう！", 4.5f);
         _nextIdleTalk = Time.time + 20f;
     }
 
@@ -403,8 +405,7 @@ public class AdventureRustDrone : MonoBehaviour
             if (Time.time >= _nextGuideNotice)
             {
                 _nextGuideNotice = Time.time + 14f;
-                _speechText = "ピピピッ！あそこにパーツの反応があるよ！";
-                _speechTimer = 3.8f;
+                SetSpeech("ピピピッ！あそこにパーツの反応があるよ！", 3.8f);
                 if (_audio != null && _happyBeepClip != null)
                 {
                     _audio.pitch = 1.35f;
@@ -960,49 +961,50 @@ public class AdventureRustDrone : MonoBehaviour
         if (_audio != null && _happyBeepClip != null)
             _audio.PlayOneShot(_happyBeepClip, 0.5f);
 
+        string scrapSpeech = "";
         switch (count)
         {
             case 1:
-                _speechText = "ピピピッ！綺麗なギアだ…！指先が油で汚れても、この生身の手応えが嬉しいね、Niko！";
+                scrapSpeech = "ピピピッ！綺麗なギアだ…！指先が油で汚れても、この生身の手応えが嬉しいね、Niko！";
                 break;
             case 2:
-                _speechText = "微かに温かい光が残ってる…！最短ルートを走るだけじゃ出会えなかった宝物だね。";
+                scrapSpeech = "微かに温かい光が残ってる…！最短ルートを走るだけじゃ出会えなかった宝物だね。";
                 break;
             case 3:
-                _speechText = "ピキーン！歯車がカチリと噛み合ったよ…！僕らは今、自分の足で走ってるんだ！";
+                scrapSpeech = "ピキーン！歯車がカチリと噛み合ったよ…！僕らは今、自分の足で走ってるんだ！";
                 break;
             case 4:
-                _speechText = "ピピッ！また見つけたよ！少し寄り道した先に、こんな綺麗なパーツが眠ってたなんて！";
+                scrapSpeech = "ピピッ！また見つけたよ！少し寄り道した先に、こんな綺麗なパーツが眠ってたなんて！";
                 break;
             case 5:
-                _speechText = "煤けてるけど大丈夫。優しく拭いてあげたら、青く澄んだ光が戻ってきたよ…！";
+                scrapSpeech = "煤けてるけど大丈夫。優しく拭いてあげたら、青く澄んだ光が戻ってきたよ…！";
                 break;
             case 6:
-                _speechText = "ピロロ…！温かい光が胸に灯ったよ……心臓の鼓動みたいだ。空中でSpaceを押してみて！";
+                scrapSpeech = "ピロロ…！温かい光が胸に灯ったよ……心臓の鼓動みたいだ。空中でSpaceを押してみて！";
                 break;
             case 7:
-                _speechText = "歯車のひとつひとつに、昔の人の手の温もりが残っているみたいだね。";
+                scrapSpeech = "歯車のひとつひとつに、昔の人の手の温もりが残っているみたいだね。";
                 break;
             case 8:
-                _speechText = "ピロッ…！冷たい海風が心地いいね。僕たちの翼が少しずつ呼吸を取り戻してるよ。";
+                scrapSpeech = "ピロッ…！冷たい海風が心地いいね。僕たちの翼が少しずつ呼吸を取り戻してるよ。";
                 break;
             case 9:
-                _speechText = "ピピ…！古いメモリから子供たちの声が聞こえたよ。無駄な時間の中にこそ愛があったんだね！";
+                scrapSpeech = "ピピ…！古いメモリから子供たちの声が聞こえたよ。無駄な時間の中にこそ愛があったんだね！";
                 break;
             case 10:
-                _speechText = "森の木漏れ日、海の青さ…寄り道して迷った道こそが、本当の景色だったんだね。";
+                scrapSpeech = "森の木漏れ日、海の青さ…寄り道して迷った道こそが、本当の景色だったんだね。";
                 break;
             case 11:
-                _speechText = "あとひとつで全てが繋がるよ…！あの白亜のタワーの頂が、僕たちを呼んでいる！";
+                scrapSpeech = "あとひとつで全てが繋がるよ…！あの白亜のタワーの頂が、僕たちを呼んでいる！";
                 break;
             case 12:
-                _speechText = "ピキーッ！風の重さを取り戻したよ！冷たい向かい風は前へ進む証拠だ…行こう、中央タワーへ！";
+                scrapSpeech = "ピキーッ！風の重さを取り戻したよ！冷たい向かい風は前へ進む証拠だ…行こう、中央タワーへ！";
                 break;
             default:
-                _speechText = "ピピッ！ギアの波長が合ってきたよ！";
+                scrapSpeech = "ピピッ！ギアの波長が合ってきたよ！";
                 break;
         }
-        _speechTimer = 5.2f;
+        SetSpeech(scrapSpeech, 5.2f);
 
         // キーストーン節目（3, 6, 9, 12個）の特別アクション演出
         if (count == 3 || count == 6 || count == 9 || count == 12)
@@ -1045,8 +1047,7 @@ public class AdventureRustDrone : MonoBehaviour
             "ふわりと浮いたよ…！",
             "風を掴んだね…！すごいよ！"
         };
-        _speechText = glideStartLines[Random.Range(0, glideStartLines.Length)];
-        _speechTimer = 4.0f;
+        SetSpeech(glideStartLines[Random.Range(0, glideStartLines.Length)], 4.0f);
     }
 
     /// <summary>気流に乗った時のRustの穏やかなセリフ</summary>
@@ -1059,16 +1060,67 @@ public class AdventureRustDrone : MonoBehaviour
             "風に乗って、どこまでも行けそう",
             "島を見下ろすと、すごく綺麗だね"
         };
-        _speechText = windLines[Random.Range(0, windLines.Length)];
-        _speechTimer = 4.0f;
+        SetSpeech(windLines[Random.Range(0, windLines.Length)], 4.0f);
     }
 
-    /// <summary>指定したテキストを特大ダイアログで発話</summary>
+    /// <summary>指定したテキストを特大ダイアログで発話（プレイヤーが次の行動を起こすまで消えずに維持）</summary>
     public void SpeakCustom(string text, float duration = 4.5f)
     {
         _velocity += Vector3.up * 0.8f;
+        SetSpeech(text, duration);
+    }
+
+    /// <summary>セリフを表示し、プレイヤーが次の行動（WASD移動やジャンプなど）を起こすまで画面に維持</summary>
+    public void SetSpeech(string text, float duration = 4.5f)
+    {
         _speechText = text;
         _speechTimer = duration;
+        _waitingForPlayerAction = true;
+        _speechShowTime = 0f;
+        var player = AdventurePlayerController.Instance;
+        _speechPlayerStartPos = player != null ? player.transform.position : transform.position;
+    }
+
+    /// <summary>プレイヤーが次の行動を起こしたか判定（キー入力・コントローラー・移動検知）</summary>
+    bool CheckPlayerActionInput()
+    {
+        // 1. 移動・ジャンプ等のキー入力検知 (新旧Input両対応)
+#if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Keyboard.current != null)
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb.wKey.isPressed || kb.aKey.isPressed || kb.sKey.isPressed || kb.dKey.isPressed ||
+                kb.upArrowKey.isPressed || kb.leftArrowKey.isPressed || kb.downArrowKey.isPressed || kb.rightArrowKey.isPressed ||
+                kb.spaceKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)
+            {
+                return true;
+            }
+        }
+        if (UnityEngine.InputSystem.Gamepad.current != null)
+        {
+            var pad = UnityEngine.InputSystem.Gamepad.current;
+            if (pad.leftStick.ReadValue().sqrMagnitude > 0.04f || pad.buttonSouth.wasPressedThisFrame)
+            {
+                return true;
+            }
+        }
+#endif
+
+        if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.D) ||
+            Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.RightArrow) ||
+            Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.E))
+        {
+            return true;
+        }
+
+        // 2. プレイヤーの移動距離検知 (キー入力以外でも歩行移動していれば確実に行動検知)
+        var player = AdventurePlayerController.Instance;
+        if (player != null && Vector3.Distance(player.transform.position, _speechPlayerStartPos) > 0.8f)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>シネマティックストーリーボード表示時などにセリフ吹き出しを即時消去</summary>
@@ -1076,12 +1128,28 @@ public class AdventureRustDrone : MonoBehaviour
     {
         _speechTimer = 0f;
         _speechText = "";
+        _waitingForPlayerAction = false;
     }
 
     void UpdateSpeech()
     {
         if (_speechTimer > 0f)
-            _speechTimer -= Time.deltaTime;
+        {
+            if (_waitingForPlayerAction)
+            {
+                _speechShowTime += Time.deltaTime;
+                // 発話直後の誤消去防止（最低1.2秒は確実に表示キープ）
+                if (_speechShowTime >= 1.2f && CheckPlayerActionInput())
+                {
+                    _waitingForPlayerAction = false;
+                    _speechTimer = Mathf.Min(_speechTimer, 2.5f); // 次の行動を起こした後は2.5秒の余韻でフェードアウト
+                }
+            }
+            else
+            {
+                _speechTimer -= Time.deltaTime;
+            }
+        }
         else if (Time.time >= _nextIdleTalk)
         {
             _nextIdleTalk = Time.time + Random.Range(30f, 50f);
@@ -1093,8 +1161,7 @@ public class AdventureRustDrone : MonoBehaviour
                     "島を見下ろすと、すごく綺麗だね",
                     "わぁ…！風が気持ちいいね、Niko"
                 };
-                _speechText = glideLines[Random.Range(0, glideLines.Length)];
-                _speechTimer = 4.0f;
+                SetSpeech(glideLines[Random.Range(0, glideLines.Length)], 4.0f);
             }
             else
             {
@@ -1104,8 +1171,7 @@ public class AdventureRustDrone : MonoBehaviour
                     "この島の空気、すこし温かいね",
                     "ピピッ…何か光るものがあるかな？"
                 };
-                _speechText = exploreLines[Random.Range(0, exploreLines.Length)];
-                _speechTimer = 3.8f;
+                SetSpeech(exploreLines[Random.Range(0, exploreLines.Length)], 3.8f);
             }
         }
     }
@@ -1314,6 +1380,17 @@ public class AdventureRustDrone : MonoBehaviour
 
         Rect nameRect = new Rect(x + 28f, y + 10f, boxWidth - 56f, nameFontSize + 4f);
         DrawOutlinedText(nameRect, "✦ 相棒 Rust", nameStyle, new Color(0.35f, 0.92f, 0.98f, alpha), new Color(0f, 0f, 0f, 0.9f * alpha));
+
+        // 行動待ちヒント（右上に上品に表示）
+        if (_waitingForPlayerAction)
+        {
+            GUIStyle hintStyle = new GUIStyle(GUI.skin.label);
+            hintStyle.fontSize = Mathf.Max(12, Mathf.RoundToInt(nameFontSize * 0.82f));
+            hintStyle.alignment = TextAnchor.MiddleRight;
+            hintStyle.clipping = TextClipping.Overflow;
+            Rect hintRect = new Rect(x + 28f, y + 10f, boxWidth - 56f, nameFontSize + 4f);
+            DrawOutlinedText(hintRect, "（行動・移動で閉じます）", hintStyle, new Color(0.65f, 0.85f, 0.95f, alpha * 0.85f), new Color(0f, 0f, 0f, 0.85f * alpha));
+        }
 
         // 3. セリフ本文（大きくてはっきり読める・クリッピング防止）
         GUIStyle bodyStyle = new GUIStyle(GUI.skin.label);
