@@ -1390,74 +1390,74 @@ public class AdventureRustDrone : MonoBehaviour
         Destroy(go, 2.0f);
     }
 
-    /// <summary>Nikoの胸のワールド座標を高精度に取得（両胸バストの中点・両肩の中点・胸骨ボーン基準）</summary>
-    public Vector3 GetNikoChestPosition()
-    {
-        if (_lookAt == null) return transform.position;
+    Transform _cachedBreastL, _cachedBreastR;
+    Transform _cachedShoulderL, _cachedShoulderR;
+    Transform _cachedSpine003, _cachedSpine004, _cachedHead;
+    bool _bonesCached = false;
 
-        // 1. Nikoモデルの骨格ボーンから両胸・両肩・胸骨・首・頭を正確に特定
-        Transform breastL = null;
-        Transform breastR = null;
-        Transform shoulderL = null;
-        Transform shoulderR = null;
-        Transform spine003 = null;
-        Transform spine004 = null;
-        Transform head = null;
+    void CacheNikoBones()
+    {
+        if (_lookAt == null) return;
 
         foreach (var t in _lookAt.GetComponentsInChildren<Transform>())
         {
             string n = t.name.ToLower();
             if (n.Contains("breast") && (n.Contains(".l") || n.EndsWith("_l") || n.Contains("left")))
-                breastL = t;
+                _cachedBreastL = t;
             else if (n.Contains("breast") && (n.Contains(".r") || n.EndsWith("_r") || n.Contains("right")))
-                breastR = t;
+                _cachedBreastR = t;
             else if (n.Contains("shoulder") && (n.Contains(".l") || n.EndsWith("_l") || n.Contains("left")))
-                shoulderL = t;
+                _cachedShoulderL = t;
             else if (n.Contains("shoulder") && (n.Contains(".r") || n.EndsWith("_r") || n.Contains("right")))
-                shoulderR = t;
+                _cachedShoulderR = t;
             else if (n == "spine.003" || n.Contains("spine3") || n.Contains("spine_03") || n.Contains("chest"))
-                spine003 = t;
+                _cachedSpine003 = t;
             else if (n == "spine.004" || n.Contains("neck"))
-                spine004 = t;
+                _cachedSpine004 = t;
             else if (n.Contains("head"))
-                head = t;
+                _cachedHead = t;
+        }
+        _bonesCached = true;
+    }
+
+    /// <summary>Nikoの胸のワールド座標を高精度かつゼロアロケーションで取得</summary>
+    public Vector3 GetNikoChestPosition()
+    {
+        if (_lookAt == null) return transform.position;
+
+        if (!_bonesCached || (_cachedBreastL == null && _cachedShoulderL == null))
+        {
+            CacheNikoBones();
         }
 
         // 最優先: 両胸（breast.L と breast.R）の中点（100%正真正銘のバスト・胸の中央！）
-        if (breastL != null && breastR != null)
+        if (_cachedBreastL != null && _cachedBreastR != null)
         {
-            return (breastL.position + breastR.position) * 0.5f;
+            return (_cachedBreastL.position + _cachedBreastR.position) * 0.5f;
         }
-        if (breastL != null) return breastL.position;
-        if (breastR != null) return breastR.position;
+        if (_cachedBreastL != null) return _cachedBreastL.position;
+        if (_cachedBreastR != null) return _cachedBreastR.position;
 
         // 両肩の中点（鎖骨・胸骨の真上！）
-        if (shoulderL != null && shoulderR != null)
+        if (_cachedShoulderL != null && _cachedShoulderR != null)
         {
-            Vector3 midShoulder = (shoulderL.position + shoulderR.position) * 0.5f;
+            Vector3 midShoulder = (_cachedShoulderL.position + _cachedShoulderR.position) * 0.5f;
             return midShoulder - _lookAt.up * 0.08f; // 肩ラインから胸の中央へ約8cm下げる
         }
 
         // spine.003（胸骨ボーン）
-        if (spine003 != null)
-            return spine003.position;
+        if (_cachedSpine003 != null)
+            return _cachedSpine003.position;
 
         // 首（spine.004）から少し下
-        if (spine004 != null)
-            return spine004.position - _lookAt.up * 0.15f;
+        if (_cachedSpine004 != null)
+            return _cachedSpine004.position - _lookAt.up * 0.15f;
 
         // 頭（Head）から胸の高さへオフセット（約35cm下）
-        if (head != null)
-            return head.position - _lookAt.up * 0.35f;
+        if (_cachedHead != null)
+            return _cachedHead.position - _lookAt.up * 0.35f;
 
-        // 2. CharacterControllerの高さ基準（Nikoの身長1.55mの約78%が胸・バストの高さ）
-        var cc = _lookAt.GetComponent<CharacterController>();
-        if (cc != null)
-        {
-            return _lookAt.position + Vector3.up * (cc.height * 0.78f);
-        }
-
-        // 3. フォールバック（Nikoの原点 + 1.45m）
+        // フォールバック
         return _lookAt.position + Vector3.up * 1.45f;
     }
 }

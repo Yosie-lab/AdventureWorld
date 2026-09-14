@@ -122,9 +122,9 @@ public class AdventureCameraFollow : MonoBehaviour
         // 1. 回転はプレイヤーの入力に即座に1対1で忠実追従（遅延・ラグを完全排除）
         Quaternion currentRot = Quaternion.Euler(_pitch, _yaw, 0f);
 
-        // 2. 位置のスムーズダンピング（キャラクターの小刻みな足踏みや段差ショックだけを滑らかに吸収）
+        // 2. ピボット位置のスムーズダンピング（キャラクターの小刻みな段差ショックだけを滑らかに吸収）
         Vector3 targetPivot = target.position + Vector3.up * height;
-        _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, isGliding ? 0.07f : positionSmoothTime);
+        _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, isGliding ? 0.045f : positionSmoothTime);
 
         // 3. 画角（FOV）演出
         float targetFov = isGliding ? 64f : 60f;
@@ -136,33 +136,40 @@ public class AdventureCameraFollow : MonoBehaviour
         // 4. 障害物検知と距離のスムーズダンピング（壁際でのカメラのガクつき・急伸縮を防止）
         float desiredDist = isGliding ? (distance + 0.8f) : distance;
         float safeTargetDist = CalculateSafeDistance(_currentPivot, currentRot, desiredDist);
-        _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, 0.06f);
+        _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, 0.05f);
 
-        // 5. 最終カメラ位置の計算
+        // 5. 最終カメラ位置の計算（二重ダンピングを廃止し、ピボット基準で直結配置することで位相差振動・カクつきを完全根絶）
         Vector3 targetPos = _currentPivot + currentRot * new Vector3(0f, 0f, -_currentDistance);
-        targetPos.y = Mathf.Max(targetPos.y, target.position.y + 1.2f);
+        targetPos.y = Mathf.Max(targetPos.y, target.position.y + 1.1f);
 
         // 地面めり込み防止
         if (_land == null)
             _land = AdventureQuestLocations.FindLand();
         if (_land != null)
         {
-            float groundY = AdventureQuestLocations.GroundY(_land, targetPos.x, targetPos.z) + 0.85f;
-            targetPos.y = Mathf.Max(targetPos.y, groundY);
+            float groundY = AdventureQuestLocations.GroundY(_land, targetPos.x, targetPos.z) + 0.8f;
+            if (targetPos.y < groundY)
+            {
+                targetPos.y = groundY;
+            }
         }
 
-        // 位置の最終スムーズ追従（ブレを吸収しつつ遅れすぎない絶妙なバランス）
-        transform.position = Vector3.SmoothDamp(transform.position, targetPos, ref _posVelocity, isGliding ? 0.04f : 0.018f);
+        transform.position = targetPos;
         transform.rotation = currentRot;
     }
 
     float CalculateSafeDistance(Vector3 pivot, Quaternion rot, float maxDist)
     {
         Vector3 backDir = rot * Vector3.back;
-        float castRadius = 0.32f;
+        float castRadius = 0.30f;
         if (Physics.SphereCast(pivot, castRadius, backDir, out RaycastHit hit, maxDist, ~0, QueryTriggerInteraction.Ignore))
         {
-            return Mathf.Clamp(hit.distance - 0.15f, 0.9f, maxDist);
+            // プレイヤー自身やドローン、トリガーを誤検知して急激にズームイン・カクつくのを防止
+            if (target != null && (hit.transform == target || hit.transform.IsChildOf(target)))
+            {
+                return maxDist;
+            }
+            return Mathf.Clamp(hit.distance - 0.12f, 0.9f, maxDist);
         }
         return maxDist;
     }

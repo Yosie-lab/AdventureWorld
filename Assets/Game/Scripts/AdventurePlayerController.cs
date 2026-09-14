@@ -158,6 +158,12 @@ public class AdventurePlayerController : MonoBehaviour
             _airborneTime += Time.deltaTime;
         }
 
+        // 空中浮遊時や滑空中に岩や急斜面をかすめた際の段差乗り上げ誤爆（垂直スナップ・ガクつき）を完全防止
+        if (_cc != null)
+        {
+            _cc.stepOffset = _grounded ? 1.35f : 0f;
+        }
+
         float effectiveJumpHeight = jumpHeight * jumpMultiplier;
         if (kb != null && kb.spaceKey.wasPressedThisFrame)
         {
