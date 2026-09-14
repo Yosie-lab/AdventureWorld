@@ -38,8 +38,9 @@ public class AdventureSaveManager : MonoBehaviour
 
     float _saveNotificationTimer = 0f;
     string _saveNotificationText = "";
-    GUIStyle _saveNotificationStyle;
-    Texture2D _gearIconTex;
+    static AudioClip _saveSoundClip;
+    AudioSource _audioSource;
+    Texture2D _bgTex;
 
     public static void Ensure()
     {
@@ -64,6 +65,37 @@ public class AdventureSaveManager : MonoBehaviour
             return;
         }
         Instance = this;
+        SetupAudio();
+    }
+
+    void SetupAudio()
+    {
+        _audioSource = gameObject.AddComponent<AudioSource>();
+        _audioSource.playOnAwake = false;
+        _audioSource.spatialBlend = 0f; // 2Dステレオ
+        if (_saveSoundClip == null)
+        {
+            _saveSoundClip = CreateSaveSound();
+        }
+    }
+
+    static AudioClip CreateSaveSound()
+    {
+        int sampleRate = 44100;
+        float duration = 0.32f;
+        int sampleCount = (int)(sampleRate * duration);
+        float[] samples = new float[sampleCount];
+        for (int i = 0; i < sampleCount; i++)
+        {
+            float t = (float)i / sampleRate;
+            // 2音の心地よいクリスタルチャイム（前半: 587Hz=D5、後半: 880Hz=A5）
+            float freq = t < 0.12f ? 587.33f : 880.0f;
+            float env = Mathf.Exp(-t * 9f);
+            samples[i] = Mathf.Sin(2f * Mathf.PI * freq * t) * env * 0.4f;
+        }
+        var clip = AudioClip.Create("SaveChime", sampleCount, 1, sampleRate, false);
+        clip.SetData(samples, 0);
+        return clip;
     }
 
     void Start()
@@ -80,7 +112,7 @@ public class AdventureSaveManager : MonoBehaviour
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null && kb.f5Key.wasPressedThisFrame)
         {
-            SaveGame("クイックセーブ完了");
+            SaveGame("SAVEしました");
         }
 
         // 定期オートセーブ
@@ -88,7 +120,7 @@ public class AdventureSaveManager : MonoBehaviour
         if (_periodicSaveTimer <= 0f)
         {
             _periodicSaveTimer = 180f;
-            SaveGame("定期オートセーブ");
+            SaveGame("オートセーブ完了");
         }
 
         if (_saveNotificationTimer > 0f)
@@ -136,6 +168,10 @@ public class AdventureSaveManager : MonoBehaviour
             File.WriteAllText(SaveFilePath, json);
 
             ShowSaveNotification(customMessage);
+            if (_audioSource != null && _saveSoundClip != null)
+            {
+                _audioSource.PlayOneShot(_saveSoundClip, 0.7f);
+            }
             Debug.Log($"[AdventureSaveManager] セーブ完了: {SaveFilePath} (パーツ: {data.collectedCount}個, 油: {data.oilCount})");
         }
         catch (Exception ex)
@@ -203,44 +239,77 @@ public class AdventureSaveManager : MonoBehaviour
     public void ShowSaveNotification(string text)
     {
         _saveNotificationText = text;
-        _saveNotificationTimer = 2.8f;
+        _saveNotificationTimer = 3.0f;
     }
 
     void OnGUI()
     {
         if (_saveNotificationTimer <= 0f) return;
 
-        float alpha = Mathf.Clamp01(_saveNotificationTimer / 0.5f);
-        if (_saveNotificationTimer > 2.3f)
+        float alpha = 1f;
+        if (_saveNotificationTimer > 2.6f)
         {
-            alpha = Mathf.Clamp01((2.8f - _saveNotificationTimer) / 0.5f);
+            alpha = Mathf.Clamp01((3.0f - _saveNotificationTimer) / 0.4f);
+        }
+        else if (_saveNotificationTimer < 0.6f)
+        {
+            alpha = Mathf.Clamp01(_saveNotificationTimer / 0.6f);
         }
 
-        if (_saveNotificationStyle == null)
-        {
-            _saveNotificationStyle = new GUIStyle(GUI.skin.box);
-            _saveNotificationStyle.fontSize = 13;
-            _saveNotificationStyle.fontStyle = FontStyle.Bold;
-            _saveNotificationStyle.alignment = TextAnchor.MiddleCenter;
-            _saveNotificationStyle.normal.textColor = new Color(1.0f, 0.92f, 0.75f, 1f); // 温かなゴールドホワイト
+        // 画面上部中央（左上のクエスト目標や右上のRustバッジと被らず視界に飛び込む特等席）
+        int fontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.024f, 18f, 26f));
+        GUIStyle labelStyle = new GUIStyle(GUI.skin.label);
+        labelStyle.fontSize = fontSize;
+        labelStyle.fontStyle = FontStyle.Bold;
+        labelStyle.alignment = TextAnchor.MiddleCenter;
 
-            var bgTex = new Texture2D(1, 1);
-            bgTex.SetPixel(0, 0, new Color(0.10f, 0.12f, 0.16f, 0.88f)); // 半透明ダークスレート
-            bgTex.Apply();
-            _saveNotificationStyle.normal.background = bgTex;
-        }
+        string displayMsg = $"✦ {_saveNotificationText} ✦";
+        Vector2 textSz = labelStyle.CalcSize(new GUIContent(displayMsg));
+
+        float width = Mathf.Max(340f, textSz.x + 64f);
+        float height = Mathf.Max(50f, fontSize + 24f);
+        float x = (Screen.width - width) * 0.5f;
+        float y = Mathf.Clamp(Screen.height * 0.11f, 65f, 100f);
 
         Color prevColor = GUI.color;
         GUI.color = new Color(1f, 1f, 1f, alpha);
 
-        // 画面右上に通知ボックス
-        float width = 240f;
-        float height = 36f;
-        float x = Screen.width - width - 24f;
-        float y = 24f;
+        // 半透明ダーク背景
+        if (_bgTex == null)
+        {
+            _bgTex = new Texture2D(1, 1);
+            _bgTex.SetPixel(0, 0, new Color(0.04f, 0.07f, 0.12f, 0.94f));
+            _bgTex.Apply();
+        }
+        Rect boxRect = new Rect(x, y, width, height);
+        GUI.DrawTexture(boxRect, _bgTex);
 
-        GUI.Box(new Rect(x, y, width, height), $"✦ {_saveNotificationText}", _saveNotificationStyle);
+        // エメラルドグリーンの光彩アクセントライン（上部と下部）
+        Color accentCol = new Color(0.35f, 0.98f, 0.65f, alpha);
+        Rect topLine = new Rect(x, y, width, 3f);
+        GUI.DrawTexture(topLine, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, accentCol, 0, 0);
+
+        // 黒アウトライン付きテキスト
+        DrawOutlinedText(boxRect, displayMsg, labelStyle, accentCol, new Color(0f, 0f, 0f, 0.95f * alpha));
 
         GUI.color = prevColor;
+    }
+
+    void DrawOutlinedText(Rect r, string text, GUIStyle style, Color frontColor, Color outlineColor)
+    {
+        Color prev = style.normal.textColor;
+        style.normal.textColor = outlineColor;
+        for (int ox = -2; ox <= 2; ox++)
+        {
+            for (int oy = -2; oy <= 2; oy++)
+            {
+                if (ox == 0 && oy == 0) continue;
+                Rect offsetRect = new Rect(r.x + ox, r.y + oy, r.width, r.height);
+                GUI.Label(offsetRect, text, style);
+            }
+        }
+        style.normal.textColor = frontColor;
+        GUI.Label(r, text, style);
+        style.normal.textColor = prev;
     }
 }
