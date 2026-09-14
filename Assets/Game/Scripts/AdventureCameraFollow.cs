@@ -99,20 +99,78 @@ public class AdventureCameraFollow : MonoBehaviour
             _yaw = target.eulerAngles.y;
         }
 
-        // マウス視点操作（ダイレクト即時反映：遅延ゼロで指先の動きにピタッと追従、スタート前は待機）
-        bool isMouseActive = Cursor.lockState == CursorLockMode.Locked && !isOpeningActive;
-        if (mouse != null && isMouseActive)
+        // 1. マウス入力の取得（Input System + レガシーInputの多重サポート）
+        float mouseX = 0f;
+        float mouseY = 0f;
+        if (mouse != null)
         {
             Vector2 delta = mouse.delta.ReadValue();
-            if (delta.sqrMagnitude > 0.0001f)
+            mouseX = delta.x;
+            mouseY = delta.y;
+        }
+        if (Mathf.Abs(mouseX) < 0.001f && Mathf.Abs(mouseY) < 0.001f)
+        {
+            try
             {
-                _yaw += delta.x * sensitivity;
-                _pitch = Mathf.Clamp(_pitch - delta.y * sensitivity, pitchMin, pitchMax);
-                _lastMouseInputTime = Time.time;
+                mouseX = Input.GetAxis("Mouse X") * 10f;
+                mouseY = Input.GetAxis("Mouse Y") * 10f;
             }
+            catch { }
         }
 
-        // ゲームパッド右スティック対応
+        // カメラ旋回が有効かどうかの判定：
+        // ・カーソルロック中（通常プレイ中）：マウスを動かすだけで旋回
+        // ・カーソル解放中（説明ボード中、またはAltでカーソル表示中）：マウス右ボタンドラッグ、または中ボタンドラッグで自由に旋回
+        // ・さらに、ゲーム開始後は左クリックでもカーソルロックに復帰して旋回
+        bool isRightDragging = mouse != null && (mouse.rightButton.isPressed || mouse.middleButton.isPressed);
+        try { if (Input.GetMouseButton(1) || Input.GetMouseButton(2)) isRightDragging = true; } catch { }
+
+        bool isCursorLocked = Cursor.lockState == CursorLockMode.Locked;
+        bool canRotateByMouse = isCursorLocked || isRightDragging;
+
+        // ゲーム開始後、画面を左クリックした場合はカーソルロックを復帰
+        if (!isOpeningActive && mouse != null && mouse.leftButton.wasPressedThisFrame && !isCursorLocked)
+        {
+            LockCursor();
+            isCursorLocked = true;
+            canRotateByMouse = true;
+        }
+
+        if (canRotateByMouse && (Mathf.Abs(mouseX) > 0.001f || Mathf.Abs(mouseY) > 0.001f))
+        {
+            _yaw += mouseX * sensitivity;
+            _pitch = Mathf.Clamp(_pitch - mouseY * sensitivity, pitchMin, pitchMax);
+            _lastMouseInputTime = Time.time;
+        }
+
+        // 2. キーボードによるカメラアングル操作（矢印キー または I, J, K, L キー）
+        // マウスの状態やフォーカスに関わらず、いつでも確実にカメラアングルを変更できる
+        float keyYaw = 0f;
+        float keyPitch = 0f;
+        if (kb != null)
+        {
+            if (kb.leftArrowKey.isPressed || kb.jKey.isPressed) keyYaw -= 1f;
+            if (kb.rightArrowKey.isPressed || kb.lKey.isPressed) keyYaw += 1f;
+            if (kb.upArrowKey.isPressed || kb.iKey.isPressed) keyPitch -= 1f;
+            if (kb.downArrowKey.isPressed || kb.kKey.isPressed) keyPitch += 1f;
+        }
+        try
+        {
+            if (Input.GetKey(KeyCode.LeftArrow)) keyYaw -= 1f;
+            if (Input.GetKey(KeyCode.RightArrow)) keyYaw += 1f;
+            if (Input.GetKey(KeyCode.UpArrow)) keyPitch -= 1f;
+            if (Input.GetKey(KeyCode.DownArrow)) keyPitch += 1f;
+        }
+        catch { }
+
+        if (Mathf.Abs(keyYaw) > 0.01f || Mathf.Abs(keyPitch) > 0.01f)
+        {
+            _yaw += keyYaw * 95f * Time.deltaTime;
+            _pitch = Mathf.Clamp(_pitch - keyPitch * 75f * Time.deltaTime, pitchMin, pitchMax);
+            _lastMouseInputTime = Time.time;
+        }
+
+        // 3. ゲームパッド右スティック対応
         var pad = Gamepad.current;
         if (pad != null)
         {

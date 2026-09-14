@@ -153,7 +153,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         // 3. 上部操作ガイドを表示
         if (_guideText != null)
         {
-            _guideText.text = "【WASD】移動　【Space長押し】崖から滑空　【R】リセット";
+            _guideText.text = "【WASD】移動　【マウス / 矢印キー】視点　【Space長押し】崖から滑空　【R】リセット";
             _guideText.gameObject.SetActive(true);
         }
 

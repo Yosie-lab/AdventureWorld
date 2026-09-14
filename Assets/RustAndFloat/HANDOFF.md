@@ -126,7 +126,7 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
 - **2050冒頭セリフ**: `AdventureRustFloatOpening`。`AdventureRustFloatIsland.Start` がコンポーネントを付ける。
 - **操作ガイド＆コンパスHUD**:
   - 画面最上部中央にミニマルで上品な水平リボンコンパスHUD（`AdventureCompassHUD.cs`）を常時表示。カメラの旋回に合わせて日本語の方角（北、北東、東、南東、南、南西、西、北西）と度数が滑らかに追従し、北はシアン色で視認性抜群。邪魔にならない半透明デザイン。
-  - 操作ガイドはコンパスの下（y = -44f）に `【WASD】移動　【Space長押し】崖から滑空　【R】リセット` と表示。
+  - 操作ガイドはコンパスの下（y = -44f）に `【WASD】移動　【マウス / 矢印キー】視点　【Space長押し】崖から滑空　【R】リセット` と表示。
 
 ## 主要ファイル
 
