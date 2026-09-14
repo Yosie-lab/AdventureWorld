@@ -767,19 +767,20 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         GUI.DrawTexture(new Rect(bx + 12f, by + 10f, bw - 24f, 1.5f), Texture2D.whiteTexture);
         GUI.DrawTexture(new Rect(bx + 12f, by + bh - 11.5f, bw - 24f, 1.5f), Texture2D.whiteTexture);
 
-        // 1. タイトル見出し（特大40pt 黄金太字）
+        // 1. タイトル見出し（36pt 黄金・シャープな文字）
         var titleStyle = new GUIStyle(GUI.skin.label);
-        titleStyle.fontSize = 40;
+        titleStyle.fontSize = 36;
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.alignment = TextAnchor.MiddleCenter;
 
         string titleText = "✦ 天蓋崩壊：未知の荒野への跳躍 ✦";
-        Rect titleRect = new Rect(bx + 20f, by + 24f, bw - 40f, 55f);
-        DrawOutlinedTextMulti(titleRect, titleText, titleStyle, new Color(1.0f, 0.88f, 0.40f, 1f), new Color(0f, 0f, 0f, 0.98f), 2.5f);
+        Rect titleRect = new Rect(bx + 20f, by + 26f, bw - 40f, 50f);
+        DrawShadowedText(titleRect, titleText, titleStyle, new Color(1.0f, 0.88f, 0.40f, 1f), new Color(0f, 0f, 0f, 0.90f), 1.8f);
 
-        // 2. 本文ストーリー（特大28pt ゆったりした行間、クッキリ読める白文字）
+        // 2. 本文ストーリー（26pt 通常ウェイトで漢字の隙間が潰れないクリアな文字）
         var bodyStyle = new GUIStyle(GUI.skin.label);
-        bodyStyle.fontSize = 28;
+        bodyStyle.fontSize = 26;
+        bodyStyle.fontStyle = FontStyle.Normal; // 太字を解除して文字本来の美しい線をクリアに保つ
         bodyStyle.wordWrap = true;
         bodyStyle.alignment = TextAnchor.MiddleCenter;
 
@@ -791,14 +792,14 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             "【タワー中央に吹き荒れる光のウインドピラーへ飛び込み、\n" +
             "空の裂け目へと突き抜けよ！】";
 
-        Rect bodyRect = new Rect(bx + 35f, by + 92f, bw - 70f, bh - 200f);
-        DrawOutlinedTextMulti(bodyRect, bodyText, bodyStyle, new Color(0.96f, 0.99f, 1.0f, 1f), new Color(0f, 0f, 0f, 0.98f), 2.0f);
+        Rect bodyRect = new Rect(bx + 35f, by + 90f, bw - 70f, bh - 195f);
+        DrawShadowedText(bodyRect, bodyText, bodyStyle, new Color(0.96f, 0.98f, 1.0f, 1f), new Color(0f, 0f, 0f, 0.90f), 1.5f);
 
-        // 3. 次へ進むダイブボタン（特大820px、高さ72px、28pt）
+        // 3. 次へ進むダイブボタン（特大820px、高さ70px、25pt）
         float btnW = Mathf.Min(820f, bw - 60f);
-        float btnH = 72f;
+        float btnH = 70f;
         float btnX = (Screen.width - btnW) * 0.5f;
-        float btnY = by + bh - 94f;
+        float btnY = by + bh - 92f;
 
         // ボタン背景（半透明エメラルドブルー）
         GUI.color = new Color(0.08f, 0.38f, 0.72f, 0.88f);
@@ -808,7 +809,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         GUI.DrawTexture(new Rect(btnX, btnY + btnH - 3f, btnW, 3f), Texture2D.whiteTexture);
 
         var btnStyle = new GUIStyle(GUI.skin.button);
-        btnStyle.fontSize = 28;
+        btnStyle.fontSize = 25;
         btnStyle.fontStyle = FontStyle.Bold;
         btnStyle.alignment = TextAnchor.MiddleCenter;
         btnStyle.normal.background = Texture2D.whiteTexture;
@@ -817,12 +818,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         bool clicked = GUI.Button(new Rect(btnX, btnY, btnW, btnH), GUIContent.none, btnStyle);
 
         var btnLabelStyle = new GUIStyle(GUI.skin.label);
-        btnLabelStyle.fontSize = 28;
+        btnLabelStyle.fontSize = 25;
         btnLabelStyle.fontStyle = FontStyle.Bold;
         btnLabelStyle.alignment = TextAnchor.MiddleCenter;
 
         string btnMsg = "【Spaceキー または ここをクリック】空の裂け目へダイブ！";
-        DrawOutlinedTextMulti(new Rect(btnX, btnY, btnW, btnH), btnMsg, btnLabelStyle, new Color(1.0f, 0.95f, 0.75f, 1f), new Color(0f, 0f, 0f, 0.98f), 2.0f);
+        DrawShadowedText(new Rect(btnX, btnY, btnW, btnH), btnMsg, btnLabelStyle, new Color(1.0f, 0.95f, 0.75f, 1f), new Color(0f, 0f, 0f, 0.90f), 1.5f);
 
         // 新InputSystemでのキー入力（Space, Enter, Eキー、ゲームパッド）またはボタンクリックで進行再開
         bool keyPressed = false;
@@ -848,23 +849,19 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         GUI.color = Color.white;
     }
 
-    static void DrawOutlinedTextMulti(Rect rect, string text, GUIStyle style, Color textColor, Color outlineColor, float spread)
+    /// <summary>文字を太らせず、映画字幕のようにシャープで読みやすい上品なドロップシャドウ描画</summary>
+    static void DrawShadowedText(Rect rect, string text, GUIStyle style, Color textColor, Color shadowColor, float offset = 1.5f)
     {
         Color origColor = style.normal.textColor;
-        style.normal.textColor = outlineColor;
 
-        // 8方向アウトラインで景色が透けてもクッキリ
-        GUI.Label(new Rect(rect.x - spread, rect.y, rect.width, rect.height), text, style);
-        GUI.Label(new Rect(rect.x + spread, rect.y, rect.width, rect.height), text, style);
-        GUI.Label(new Rect(rect.x, rect.y - spread, rect.width, rect.height), text, style);
-        GUI.Label(new Rect(rect.x, rect.y + spread, rect.width, rect.height), text, style);
-        GUI.Label(new Rect(rect.x - spread, rect.y - spread, rect.width, rect.height), text, style);
-        GUI.Label(new Rect(rect.x + spread, rect.y - spread, rect.width, rect.height), text, style);
-        GUI.Label(new Rect(rect.x - spread, rect.y + spread, rect.width, rect.height), text, style);
-        GUI.Label(new Rect(rect.x + spread, rect.y + spread, rect.width, rect.height), text, style);
+        // 1. ソフトドロップシャドウ（下・右下へオフセットして文字を太らせず輪郭のみを自然に強調）
+        style.normal.textColor = shadowColor;
+        GUI.Label(new Rect(rect.x + offset, rect.y + offset, rect.width, rect.height), text, style);
 
+        // 2. 前景テキスト（フォント本来のシャープで繊細な美しさを描画）
         style.normal.textColor = textColor;
         GUI.Label(rect, text, style);
+
         style.normal.textColor = origColor;
     }
 
