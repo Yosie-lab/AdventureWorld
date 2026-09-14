@@ -23,6 +23,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     bool _epilogueTriggered = false;
     float _epilogueAlpha = 0f;
 
+    // ── 【案1】クライマックス演出制御 ──
+    bool _climaxCrisisStarted = false;
+    bool _climaxOilInjected = false;
+    float _oilHoldTimer = 0f;
+    const float OilHoldRequired = 1.2f;
+
     public static void Ensure()
     {
         var existing = Object.FindObjectsByType<AdventureSanctuaryTowerManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -171,11 +177,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var player = AdventurePlayerController.Instance;
         if (player == null) return;
 
-        // 天蓋破壊後の天空突破（Y >= 145m）エピローグダイブ検知
-        if (IsCanopyBroken && !_epilogueTriggered && player.transform.position.y >= 145f)
+        // 天蓋破壊後、高度120m付近でRust危機イベント（【案1】クライマックス）を開始
+        if (IsCanopyBroken && !_climaxCrisisStarted && player.transform.position.y >= 120f)
         {
-            _epilogueTriggered = true;
-            StartCoroutine(EpilogueSequenceRoutine());
+            _climaxCrisisStarted = true;
+            StartCoroutine(ClimaxCrisisSequenceRoutine());
         }
 
         if (_leverPulled) return;
@@ -354,6 +360,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void OnGUI()
     {
+        DrawClimaxCrisisGUI();
+
         if (_leverPulled || !_playerNearby)
         {
             DrawEpilogueGUI();
@@ -386,6 +394,145 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         DrawEpilogueGUI();
+    }
+
+    void DrawClimaxCrisisGUI()
+    {
+        if (!_climaxCrisisStarted || _climaxOilInjected) return;
+
+        // 映画のような上下黒帯
+        Color barCol = new Color(0.02f, 0.04f, 0.08f, 0.88f);
+        float barH = Screen.height * 0.12f;
+        GUI.color = barCol;
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, barH), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(0, Screen.height - barH, Screen.width, barH), Texture2D.whiteTexture);
+
+        // 中央下部のインタラクティブ注油パネル
+        float panelW = 560f;
+        float panelH = 108f;
+        float px = (Screen.width - panelW) * 0.5f;
+        float py = Screen.height - panelH - 45f;
+
+        var boxStyle = new GUIStyle(GUI.skin.box);
+        boxStyle.normal.background = Texture2D.whiteTexture;
+        GUI.color = new Color(0.04f, 0.08f, 0.14f, 0.95f);
+        GUI.Box(new Rect(px, py, panelW, panelH), GUIContent.none, boxStyle);
+
+        // タイトル警告
+        GUI.color = new Color(1.0f, 0.40f, 0.35f, 1.0f);
+        var titleStyle = new GUIStyle(GUI.skin.label);
+        titleStyle.fontSize = 15;
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.alignment = TextAnchor.MiddleCenter;
+        GUI.Label(new Rect(px, py + 8f, panelW, 24f), "⚠ 警告：極寒気流により相棒Rustが機能停止寸前！ ⚠", titleStyle);
+
+        // アクション促し
+        GUI.color = new Color(1.0f, 0.92f, 0.45f, 1.0f);
+        var promptStyle = new GUIStyle(GUI.skin.label);
+        promptStyle.fontSize = 17;
+        promptStyle.fontStyle = FontStyle.Bold;
+        promptStyle.alignment = TextAnchor.MiddleCenter;
+        GUI.Label(new Rect(px, py + 34f, panelW, 28f), "【E 長押し】最後の常備油を注ぐ — 「一緒に飛ぶんだ、Rust！」", promptStyle);
+
+        // プログレスバー背景
+        float barW = 460f;
+        float barH2 = 18f;
+        float bx = px + (panelW - barW) * 0.5f;
+        float by = py + 68f;
+
+        GUI.color = new Color(0.12f, 0.16f, 0.22f, 0.95f);
+        GUI.DrawTexture(new Rect(bx, by, barW, barH2), Texture2D.whiteTexture);
+
+        // プログレスバー進行ゲージ（黄金色）
+        float fillRatio = Mathf.Clamp01(_oilHoldTimer / OilHoldRequired);
+        GUI.color = new Color(1.0f, 0.78f, 0.22f, 1.0f);
+        GUI.DrawTexture(new Rect(bx, by, barW * fillRatio, barH2), Texture2D.whiteTexture);
+
+        GUI.color = Color.white;
+    }
+
+    IEnumerator ClimaxCrisisSequenceRoutine()
+    {
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        var player = AdventurePlayerController.Instance;
+
+        // 1. スローモーション化（息をのむ緊張感）
+        Time.timeScale = 0.35f;
+
+        // 2. Rustの危機演出開始（凍結・失速・悲痛な叫び）
+        if (drone != null)
+            drone.StartClimaxCrisis();
+
+        // 画面にシネマティックメッセージ
+        if (AdventureScrapHUD.Instance != null)
+        {
+            AdventureScrapHUD.Instance.ShowPoeticLore(
+                "緊急事態：凍てつく外気とRustの限界",
+                "天蓋の裂け目から吹き込む極寒の逆風が、相棒の古いギアを容赦なく凍らせていく。\n「Niko……僕のエンジンがもたない……僕を置いて、先に行って……！」",
+                "【E長押し】最後の常備油を注ぐ — 「一緒に飛ぶんだ、Rust！」"
+            );
+        }
+
+        // 3. プレイヤーの長押し入力待ち（またはタイムリミット救済）
+        float elapsed = 0f;
+        while (!_climaxOilInjected && elapsed < 12.0f)
+        {
+            elapsed += Time.unscaledDeltaTime;
+
+            bool eHolding = false;
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && kb.eKey.isPressed) eHolding = true;
+            try { if (Input.GetKey(KeyCode.E)) eHolding = true; } catch { }
+
+            if (eHolding)
+            {
+                _oilHoldTimer += Time.unscaledDeltaTime;
+                if (_oilHoldTimer >= OilHoldRequired)
+                {
+                    _climaxOilInjected = true;
+                }
+            }
+            else
+            {
+                _oilHoldTimer = Mathf.Max(0f, _oilHoldTimer - Time.unscaledDeltaTime * 1.5f);
+            }
+
+            yield return null;
+        }
+
+        // 4. 注油完了！Rustを抱きしめる
+        _climaxOilInjected = true;
+        if (drone != null)
+            drone.StartClimaxPetAndOil();
+
+        // 祈りと温もりの時間（1.2秒）
+        yield return new WaitForSecondsRealtime(1.2f);
+
+        // 5. 魂の再点火！オーバードライブ突入！
+        if (drone != null)
+            drone.TriggerClimaxOverdrive();
+
+        // タイムスケールを徐々に復元
+        float blend = 0f;
+        while (blend < 1f)
+        {
+            blend += Time.unscaledDeltaTime * 1.6f;
+            Time.timeScale = Mathf.Lerp(0.35f, 1.0f, blend);
+            yield return null;
+        }
+        Time.timeScale = 1.0f;
+
+        // 6. 二人の魂のロケットオーバードライブ推進力付与！
+        if (player != null)
+        {
+            player.ApplyGlideBoost(3.2f, 75f);
+            player.ApplyUpdraft(28f); // 一気に天蓋（高度150m以上）を突き破る！
+        }
+
+        // 7. 天蓋突破（高度150m超え）でエピローグへ
+        yield return new WaitForSeconds(1.8f);
+        _epilogueTriggered = true;
+        StartCoroutine(EpilogueSequenceRoutine());
     }
 
     void DrawEpilogueGUI()

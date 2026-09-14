@@ -424,6 +424,17 @@ public class AdventureRustDrone : MonoBehaviour
         Vector3 niko = _lookAt.position;
         Vector3 chest = GetNikoChestPosition();
 
+        // クライマックス危機時：Nikoの両腕に抱きとめられる位置（胸の正面）
+        if (IsClimaxCrisis)
+        {
+            return chest + _lookAt.forward * 0.42f - Vector3.up * 0.08f;
+        }
+        // クライマックス・オーバードライブ時：Nikoの右肩上に力強くドッキングして蒼炎噴射
+        if (IsClimaxOverdrive)
+        {
+            return chest + _lookAt.right * 0.55f + Vector3.up * 0.35f - _lookAt.forward * 0.15f;
+        }
+
         // 近くに未回収パーツがある場合、RustはNikoの少し前方（パーツ寄り）へ先行して合図
         if (_isPointingToScrap && _guidedScrap != null)
         {
@@ -709,6 +720,116 @@ public class AdventureRustDrone : MonoBehaviour
             StartCoroutine(CheerSpinRoutine());
         }
         AdventureSaveManager.Instance?.SaveGame("SAVEしました");
+    }
+
+    // ── 【クライマックス専用ステート＆演出】 ──
+    public bool IsClimaxCrisis { get; private set; } = false;
+    public bool IsClimaxOverdrive { get; private set; } = false;
+    ParticleSystem _climaxIceFx;
+    ParticleSystem _climaxJetFx;
+
+    /// <summary>クライマックス：天蓋目前でのRust機能停止・凍結危機を開始</summary>
+    public void StartClimaxCrisis()
+    {
+        IsClimaxCrisis = true;
+        CurrentState = RustState.Petting; // 通常追従から離脱
+        wellOiledUntil = 0f;
+        _heat = 0f;
+
+        // 冷気・火花エフェクト噴射
+        SpawnClimaxIceFx();
+
+        // 悲痛なアラートセリフ
+        SpeakCustom("キキキッ……！ Niko……外の気流が冷たすぎる……僕の古いギアが……凍りついて……", 4.5f);
+        PlayCreak(true);
+    }
+
+    /// <summary>Nikoに抱きとめられ、最後の油を注がれる瞬間の演出</summary>
+    public void StartClimaxPetAndOil()
+    {
+        // 黄金の治癒の光
+        SpawnGoldSparkles(transform.position, 35);
+        if (_climaxIceFx != null)
+            _climaxIceFx.Stop();
+
+        SpeakCustom("……あ……温かい油が……心臓に……！", 3.0f);
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = 1.0f;
+            _audio.PlayOneShot(_happyBeepClip, 0.6f);
+        }
+    }
+
+    /// <summary>魂の再点火！超高出力オーバードライブに突入</summary>
+    public void TriggerClimaxOverdrive()
+    {
+        IsClimaxCrisis = false;
+        IsClimaxOverdrive = true;
+        wellOiledUntil = Time.time + 9999f; // 永久快調
+        oilCount = 0; // 最後の1個を注ぎ切った証
+
+        // 眩しいエメラルドシアンの発光
+        if (_bodyMat != null)
+        {
+            _bodyMat.EnableKeyword("_EMISSION");
+            _bodyMat.SetColor("_EmissionColor", new Color(0.2f, 1.8f, 2.0f) * 3.5f);
+        }
+
+        // 背後から蒼いプラズマジェット噴射
+        SpawnClimaxJetFx();
+
+        // 魂の叫び
+        SpeakCustom("ピピッ！……ありがとうNiko！僕たちの翼は絶対に折れない！全出力で行くよ！！", 7.0f);
+
+        if (_audio != null)
+        {
+            _audio.pitch = 1.45f;
+            if (_happyBeepClip != null)
+                _audio.PlayOneShot(_happyBeepClip, 1.0f);
+        }
+    }
+
+    void SpawnClimaxIceFx()
+    {
+        if (_climaxIceFx != null)
+        {
+            _climaxIceFx.Play();
+            return;
+        }
+        var go = new GameObject("Rust_ClimaxIceFx");
+        go.transform.SetParent(transform, false);
+        _climaxIceFx = go.AddComponent<ParticleSystem>();
+        var main = _climaxIceFx.main;
+        main.duration = 5f;
+        main.loop = true;
+        main.startLifetime = 0.8f;
+        main.startSpeed = 1.5f;
+        main.startSize = 0.18f;
+        main.startColor = new Color(0.6f, 0.9f, 1.0f, 0.8f);
+        var emission = _climaxIceFx.emission;
+        emission.rateOverTime = 25f;
+    }
+
+    void SpawnClimaxJetFx()
+    {
+        if (_climaxJetFx != null)
+        {
+            _climaxJetFx.Play();
+            return;
+        }
+        var go = new GameObject("Rust_ClimaxJetFx");
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = new Vector3(0f, -0.1f, -0.25f);
+        _climaxJetFx = go.AddComponent<ParticleSystem>();
+        var main = _climaxJetFx.main;
+        main.duration = 10f;
+        main.loop = true;
+        main.startLifetime = 0.45f;
+        main.startSpeed = 8.5f;
+        main.startSize = 0.35f;
+        main.startColor = new Color(0.2f, 0.85f, 1.0f, 0.95f);
+        var emission = _climaxJetFx.emission;
+        emission.rateOverTime = 60f;
     }
 
     void BeginHeatBurst()
