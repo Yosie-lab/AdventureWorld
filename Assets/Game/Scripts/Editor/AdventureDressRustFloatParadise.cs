@@ -112,8 +112,8 @@ public static class AdventureDressRustFloatParadise
         Dress();
     }
 
-    [MenuItem("Adventure/📍 Reset Spawn to Meadow Plains (大草原のせせらぎ平原)")]
-    public static void ResetSpawnToMeadowPlains()
+    [MenuItem("Adventure/🏝️ Reset Spawn to West Beach (西側白砂ビーチ・座礁艇前)")]
+    public static void ResetSpawnToWestBeach()
     {
         if (EditorApplication.isPlaying)
         {
@@ -135,7 +135,24 @@ public static class AdventureDressRustFloatParadise
         EnsureSafeSpawnPosition(land, true);
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
-        Debug.Log("<color=#00FFAA><b>[RustAndFloat]</b> スポーン地点を大草原のせせらぎ池平原（265, 15.2, 330）へ再設定しました！</color>");
+        Debug.Log("<color=#00FFAA><b>[RustAndFloat]</b> スポーン地点を西側白砂ビーチ・座礁脱出艇の前（158, 6.5, 275）へ再設定しました！</color>");
+    }
+
+    [MenuItem("Adventure/🗑️ Delete Save Data (セーブ初期化・砂浜0個スタート)")]
+    public static void DeleteSaveDataMenu()
+    {
+        string path = System.IO.Path.Combine(Application.persistentDataPath, "rust_and_float_save.json");
+        if (System.IO.File.Exists(path))
+        {
+            System.IO.File.Delete(path);
+            Debug.Log("<color=#FFCC00><b>[RustAndFloat]</b> セーブデータを削除しました。次回Play時に砂浜からパーツ0個で新規スタートします。</color>");
+            EditorUtility.DisplayDialog("セーブ初期化", "セーブデータを削除しました。\n次回Play時に西側砂浜からパーツ0個でスタートします。", "OK");
+        }
+        else
+        {
+            Debug.Log("[RustAndFloat] セーブデータは存在しません（既に初期状態です）。");
+            EditorUtility.DisplayDialog("セーブ初期化", "セーブデータは既に存在しません（初期状態です）。", "OK");
+        }
     }
 
     static void EnsureSafeSpawnPosition(Terrain land, bool isGrand)
@@ -143,12 +160,12 @@ public static class AdventureDressRustFloatParadise
         var player = Object.FindObjectsByType<AdventurePlayerController>(FindObjectsInactive.Exclude).FirstOrDefault();
         if (player == null) return;
 
-        // 大草原のせせらぎ池のほとり（平坦で広大な緑の野原、標高約15m）
-        Vector3 safeSpawn = isGrand ? new Vector3(265f, 0f, 330f) : new Vector3(138f, 0f, 176f);
+        // 西側白砂ビーチ、座礁脱出艇（152, 6.2, 275）のすぐ東側
+        Vector3 safeSpawn = isGrand ? new Vector3(158f, 0f, 275f) : new Vector3(138f, 0f, 176f);
         float terrainH = land.SampleHeight(safeSpawn);
-        safeSpawn.y = terrainH + 0.15f;
+        safeSpawn.y = Mathf.Max(terrainH, 6.3f) + 0.15f;
 
-        Quaternion rot = isGrand ? Quaternion.Euler(0f, 55f, 0f) : Quaternion.identity;
+        Quaternion rot = isGrand ? Quaternion.Euler(0f, 75f, 0f) : Quaternion.identity;
         player.transform.SetPositionAndRotation(safeSpawn, rot);
         player.spawnPosition = safeSpawn;
 
@@ -160,7 +177,7 @@ public static class AdventureDressRustFloatParadise
         var cam = Camera.main ?? Object.FindObjectsByType<Camera>(FindObjectsInactive.Exclude).FirstOrDefault();
         if (cam != null)
         {
-            Vector3 camOffset = isGrand ? new Vector3(-5.5f, 3.2f, -5.5f) : new Vector3(0f, 4.5f, -10f);
+            Vector3 camOffset = isGrand ? new Vector3(-5.0f, 2.8f, -4.5f) : new Vector3(0f, 4.5f, -10f);
             cam.transform.position = safeSpawn + camOffset;
             cam.transform.LookAt(safeSpawn + Vector3.up * 1.4f);
             EditorUtility.SetDirty(cam.gameObject);

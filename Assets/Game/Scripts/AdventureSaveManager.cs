@@ -284,6 +284,13 @@ public class AdventureSaveManager : MonoBehaviour
             SaveGame("SAVEしました");
         }
 
+        // 【F8】キーで砂浜から0個で始めるニューゲームリセット
+        var kb = GetKeyboard();
+        if (kb != null && kb.f8Key.wasPressedThisFrame)
+        {
+            ResetToNewGame();
+        }
+
         // 定期オートセーブ
         _periodicSaveTimer -= Time.deltaTime;
         if (_periodicSaveTimer <= 0f)
@@ -510,6 +517,47 @@ public class AdventureSaveManager : MonoBehaviour
 
         ShowSaveNotification("セーブデータを復元しました", $"前回の冒険記録（パーツ: {data.collectedCount}個）を読み込みました");
         Debug.Log($"[AdventureSaveManager] ロード完了: パーツ{data.collectedCount}個, 位置{data.GetPosition()}");
+    }
+
+    /// <summary>セーブデータを初期化し、西側砂浜からパーツ0個で始めるニューゲームを実行</summary>
+    public void ResetToNewGame()
+    {
+        try
+        {
+            if (File.Exists(SaveFilePath))
+            {
+                File.Delete(SaveFilePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[AdventureSaveManager] セーブ削除警告: {ex.Message}");
+        }
+
+        // 1. パーツ状態を0個にリセットし砂浜から全再配置
+        var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
+        scrapMgr?.ResetAllScrapsForNewGame();
+
+        // 2. プレイヤーを西側白砂ビーチ（座礁脱出艇の前）へテレポート
+        var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
+        if (player != null)
+        {
+            Vector3 beachSpawn = new Vector3(158f, 6.5f, 275f);
+            player.spawnPosition = beachSpawn;
+            player.Teleport(beachSpawn);
+            player.transform.rotation = Quaternion.Euler(0f, 75f, 0f);
+        }
+
+        // 3. Rustの油をリセット
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+        {
+            drone.oilCount = 1;
+            drone.SpeakCustom("うぅ……Niko、大丈夫……？僕たち生きてる！すぐ目の前の脱出艇の脇に、光るギアが落ちてるよ！", 6.0f);
+        }
+
+        ShowSaveNotification("新規冒険を開始しました", "西側砂浜からパーツ0個でスタート！");
+        Debug.Log("[AdventureSaveManager] ニューゲーム開始：西側砂浜（158, 6.5, 275）からパーツ0個で再スタートしました。");
     }
 
     public void ShowSaveNotification(string title, string subText = "")

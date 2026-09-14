@@ -6,6 +6,7 @@ using UnityEngine;
 /// </summary>
 public class AdventureRustOilDrop : MonoBehaviour
 {
+    public int amount = 1;
     Transform _visual;
     bool _isCollected = false;
     static AudioClip _pickupClip;
@@ -98,7 +99,7 @@ public class AdventureRustOilDrop : MonoBehaviour
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
-            drone.AddOil(1);
+            drone.AddOil(amount);
         }
 
         Destroy(gameObject, 0.35f);

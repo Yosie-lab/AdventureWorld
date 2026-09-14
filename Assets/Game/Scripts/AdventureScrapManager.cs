@@ -26,29 +26,36 @@ public class AdventureScrapManager : MonoBehaviour
 
     readonly List<Vector3> _scrapSpawnPositions = new List<Vector3>
     {
-        // 1. スタート地点の目の前（開始時に正面視界に即入るチュートリアル用）
-        new Vector3(270f, 0f, 334f),
-        // 2. 西側白砂ビーチの漂着木陰
-        new Vector3(185f, 0f, 315f),
-        // 3. 西側岬の波打ち際
-        new Vector3(125f, 0f, 385f),
-        // 4. 南西大河の飛び石の岩の上
-        new Vector3(280f, 0f, 235f),
-        // 5. 草原池の対岸の花畑
-        new Vector3(315f, 0f, 345f),
-        // 6. カルデラ湖畔の睡蓮の木陰
-        new Vector3(385f, 0f, 425f),
-        // 7. 中央オアシス湧水池の岩の上
-        new Vector3(482f, 0f, 460f),
-        // 8. 東の深林大渓流の巨大苔岩
-        new Vector3(580f, 0f, 460f),
-        // 9. 東部大樹海の古樹の根元
+        // ── Stage 1: 白砂ビーチ・海辺（パーツ 0〜3個 → ダッシュ速度UP解禁！） ──
+        // 1. 【砂浜】二人の座礁漂着艇のハッチ脇（開始直後に正面に光り輝くチュートリアル）
+        new Vector3(154f, 0f, 273f),
+        // 2. 【砂浜】初日の焚き火キャンプ跡の木陰
+        new Vector3(182f, 0f, 332f),
+        // 3. 【砂浜】南西の岬・砂浜から内陸大草原への登り口
+        new Vector3(195f, 0f, 230f),
+
+        // ── Stage 2: 西側大草原・せせらぎ池（パーツ 4〜6個 → 二段ジャンプ解禁！） ──
+        // 4. 【大草原】草原の入り口・小道沿い
+        new Vector3(240f, 0f, 290f),
+        // 5. 【大草原】憩いのせせらぎ池の畔
+        new Vector3(290f, 0f, 325f),
+        // 6. 【大草原】南西大河の飛び石の岩の上
+        new Vector3(330f, 0f, 240f),
+
+        // ── Stage 3: カルデラ湖・深林渓流・大樹海（パーツ 7〜9個 → 探知ソナー解禁！） ──
+        // 7. 【カルデラ湖】湖東岸・睡蓮の木陰
+        new Vector3(390f, 0f, 430f),
+        // 8. 【深林渓流】東の山岳渓谷激流の巨大苔岩
+        new Vector3(540f, 0f, 440f),
+        // 9. 【大樹海】東部巨木原生林の古樹の根元
         new Vector3(680f, 0f, 520f),
-        // 10. 北東高地の見晴らし岩
+
+        // ── Stage 4: 北の高地・大滑空崖・中央タワー（パーツ 10〜12個 → 大滑空完成！） ──
+        // 10. 【北東高地】絶景の見晴らし岩
         new Vector3(640f, 0f, 650f),
-        // 11. 北の大滑空崖のジャンプ台先端
+        // 11. 【北の大滑空崖】標高92mジャンプ台先端
         new Vector3(512f, 0f, 725f),
-        // 12. サンクチュアリ中央広場（オベリスク南側正面・白亜テラスの特等席）
+        // 12. 【中央タワー】サンクチュアリ中央広場・白亜テラス南側正面
         new Vector3(512f, 0f, 496f)
     };
 
@@ -240,18 +247,26 @@ public class AdventureScrapManager : MonoBehaviour
 
         var root = new GameObject("ScrapItemsRoot");
 
-        // プレイヤーの実際のスポーン位置に連動した序盤の探索導線
-        List<Vector3> positions = new List<Vector3>(_scrapSpawnPositions);
-        // 1. スタート直後の正面視界（前方10.5m・右2.5m：開始した瞬間に画面中央に必ず光り輝く）
-        positions[0] = new Vector3(pSpawn.x + 2.5f, 0f, pSpawn.z + 10.5f);
-        // 2. スタート小道沿いの小高い岩場（前方約35m）
-        positions[1] = new Vector3(pSpawn.x + 6f, 0f, pSpawn.z + 36f);
-        // 3. 西側白砂ビーチの座礁漂着艇のすぐ脇（外の世界から持ち出したコア）
-        positions[2] = new Vector3(154f, 0f, 273f);
-
-        for (int i = 0; i < positions.Count; i++)
+        // 海岸から内陸へと続く12個のストーリープログレッション配置
+        string[] itemNames = new string[]
         {
-            Vector3 pos = positions[i];
+            "古代の推進黄金ギア",       // 1. 座礁艇
+            "耐熱スタビライザー",         // 2. 焚き火キャンプ跡
+            "海風のエネルギーコア",       // 3. 砂浜岬 (★3個: ダッシュ速度UP)
+            "反重力サスペンション",       // 4. 草原小道
+            "清流の共鳴プリズム",         // 5. せせらぎ池
+            "跳躍反重力コア",             // 6. 大河飛び石 (★6個: 二段ジャンプ)
+            "水冷コンデンサー",           // 7. カルデラ湖
+            "高周波ソナークリスタル",     // 8. 深林渓流
+            "古代探知コア",               // 9. 大樹海 (★9個: 探知ソナー)
+            "超伝導エアフォイル",         // 10. 北東高地
+            "高空ジェットスラスター",     // 11. 北の大滑空崖
+            "天蓋開放マスターコア"        // 12. 中央タワー (★12個: 大滑空完成)
+        };
+
+        for (int i = 0; i < _scrapSpawnPositions.Count; i++)
+        {
+            Vector3 pos = _scrapSpawnPositions[i];
             // Raycastで地面や白亜テラス床・岩の天面を確実に捉えて配置
             Vector3 rayOrigin = new Vector3(pos.x, 200f, pos.z);
             if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 250f))
@@ -278,21 +293,19 @@ public class AdventureScrapManager : MonoBehaviour
 
             var item = scrapGo.AddComponent<AdventureScrapItem>();
             item.itemId = scrapId;
+            item.itemName = (i < itemNames.Length) ? itemNames[i] : ("古代パーツ #" + scrapId);
 
             // アイテムのバリエーション（ギア・コア・プリズム）
             if (i % 3 == 0)
             {
-                item.itemName = "古代の黄金ギア";
                 item.itemColor = new Color(1.0f, 0.78f, 0.22f); // 黄金
             }
             else if (i % 3 == 1)
             {
-                item.itemName = "エネルギーコア";
                 item.itemColor = new Color(0.25f, 0.95f, 0.85f); // シアンエメラルド
             }
             else
             {
-                item.itemName = "推進スタビライザー";
                 item.itemColor = new Color(1.0f, 0.45f, 0.85f); // マゼンタピンク
             }
 
@@ -498,5 +511,28 @@ public class AdventureScrapManager : MonoBehaviour
 
         distance = minDist;
         return nearest;
+    }
+
+    /// <summary>新規冒険（ニューゲーム）用に収集状態を0個に完全リセットして全パーツを砂浜から再配置</summary>
+    public void ResetAllScrapsForNewGame()
+    {
+        _collectedCount = 0;
+        _collectedIds.Clear();
+        _collectedList.Clear();
+
+        // 既存のアイテムを全破棄
+        foreach (var item in _activeItems)
+        {
+            if (item != null && item.gameObject != null)
+                Destroy(item.gameObject);
+        }
+        _activeItems.Clear();
+
+        var root = GameObject.Find("ScrapItemsRoot");
+        if (root != null) Destroy(root);
+
+        // 再生成
+        SpawnAllScraps();
+        AdventureScrapHUD.Instance?.OnCollect("", 0, TotalScrapCount);
     }
 }

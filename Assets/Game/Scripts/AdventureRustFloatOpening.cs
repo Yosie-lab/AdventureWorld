@@ -15,10 +15,11 @@ public class AdventureRustFloatOpening : MonoBehaviour
     const string SubTitleText = "〜 2050 静かなる脱出 〜";
     const string StoryText =
         "西暦2050年。100%最適化された無痛の幸福を脱獄した。\n\n" +
+        "荒波を越え、気がつくとこの波静かな白砂のビーチに打ち上げられていた。\n" +
         "頬を打つ冷たい潮風も、駆け抜けた足の痛みさえ、\n" +
         "ここではすべてが生きている証そのものだ。\n\n" +
-        "……隣には、草臥れたスクラップとして捨てられていた旧型ドローン、Rust。\n" +
-        "忘れかけた自由な蒼穹（そら）へ、一緒に飛び立とう。";
+        "……隣には、スクラップ寸前で連れ出した相棒ドローン、Rust。\n" +
+        "島を巡って翼を直し、あの自由な蒼穹（そら）へ飛び立とう。";
 
     GameObject _canvasGo;
     GameObject _overlayGo;
@@ -131,11 +132,11 @@ public class AdventureRustFloatOpening : MonoBehaviour
             _guideText.gameObject.SetActive(true);
         }
 
-        // 4. 相棒Rustが元気に応答（最初の光るパーツへ誘導）
+        // 4. 相棒Rustが元気に応答（砂浜漂着とすぐ目の前の脱出艇のパーツへ誘導）
         var rust = FindAnyObjectByType<AdventureRustDrone>();
         if (rust != null)
         {
-            rust.SpeakCustom("ピピッ！すぐ正面に光る古代ギアがあるよ！拾いに行こう Niko！", 5.0f);
+            rust.SpeakCustom("うぅ……Niko、大丈夫……？僕たち生きてる！すぐ目の前の脱出艇の脇に、光るギアが落ちてるよ！", 6.0f);
         }
     }
 

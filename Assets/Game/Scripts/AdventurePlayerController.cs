@@ -108,10 +108,27 @@ public class AdventurePlayerController : MonoBehaviour
         if (scene != "RustAndFlat" && scene != "RustAndFloat")
             AdventureMarkerCleanup.RemoveFloatingWaterSurfaces();
         CacheTerrains();
-        if (spawnPosition == Vector3.zero)
+
+        // 『Rust & Float』の正式スポーン地点：西側白砂ビーチ（二人の座礁脱出艇の目の前）
+        bool isRustFloat = (scene == "RustAndFlat" || scene == "RustAndFloat");
+        if (isRustFloat)
+        {
+            // 西側白砂ビーチ、座礁艇（152, 6.2, 275）のすぐ東側
+            spawnPosition = new Vector3(158f, 6.5f, 275f);
+        }
+        else if (spawnPosition == Vector3.zero)
+        {
             spawnPosition = transform.position;
+        }
+
         spawnPosition = Stick(spawnPosition);
         Teleport(spawnPosition);
+
+        // 初期向き：内陸（東・大草原・中央タワー方向）を向く
+        if (isRustFloat)
+        {
+            transform.rotation = Quaternion.Euler(0f, 75f, 0f);
+        }
     }
 
     void Update()
