@@ -741,50 +741,45 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
-        // 全画面のシネマティック・ダークオーバーレイ（背後の視界を適度に落とし文字に没入）
-        GUI.color = new Color(0.01f, 0.02f, 0.05f, 0.88f);
+        // 全画面の半透明オーバーレイ（背景の割れた空や世界が奥に美しく透ける）
+        GUI.color = new Color(0.01f, 0.02f, 0.05f, 0.35f);
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
 
-        // 中央のシネマティック・ストーリーボード（幅980px, 高さ510px）
-        float bw = Mathf.Min(980f, Screen.width * 0.94f);
-        float bh = Mathf.Min(510f, Screen.height * 0.88f);
+        // 中央のシネマティック・ストーリーボード（幅1060px, 高さ560px）
+        float bw = Mathf.Min(1060f, Screen.width * 0.95f);
+        float bh = Mathf.Min(560f, Screen.height * 0.90f);
         float bx = (Screen.width - bw) * 0.5f;
         float by = (Screen.height - bh) * 0.5f;
 
-        // ボード背景（深藍色の重厚なメタルガラス調）
-        GUI.color = new Color(0.03f, 0.06f, 0.12f, 0.98f);
+        // ボード背景（美しい半透明ダークガラス調 70%アルファ）
+        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.70f);
         GUI.DrawTexture(new Rect(bx, by, bw, bh), Texture2D.whiteTexture);
 
         // 黄金とシアンのアクセント二重枠線
-        GUI.color = new Color(0.35f, 0.92f, 1.0f, 0.9f);
-        GUI.DrawTexture(new Rect(bx, by, bw, 4f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(bx, by + bh - 4f, bw, 4f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(bx, by, 4f, bh), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(bx + bw - 4f, by, 4f, bh), Texture2D.whiteTexture);
+        GUI.color = new Color(0.35f, 0.92f, 1.0f, 0.92f);
+        GUI.DrawTexture(new Rect(bx, by, bw, 3.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx, by + bh - 3.5f, bw, 3.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx, by, 3.5f, bh), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx + bw - 3.5f, by, 3.5f, bh), Texture2D.whiteTexture);
 
         // 黄金のコーナー装飾線
-        GUI.color = new Color(1.0f, 0.85f, 0.40f, 1.0f);
-        GUI.DrawTexture(new Rect(bx + 10f, by + 10f, bw - 20f, 1.5f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(bx + 10f, by + bh - 11.5f, bw - 20f, 1.5f), Texture2D.whiteTexture);
+        GUI.color = new Color(1.0f, 0.85f, 0.40f, 0.85f);
+        GUI.DrawTexture(new Rect(bx + 12f, by + 10f, bw - 24f, 1.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx + 12f, by + bh - 11.5f, bw - 24f, 1.5f), Texture2D.whiteTexture);
 
-        // 1. タイトル見出し（34pt 黄金太字）
+        // 1. タイトル見出し（特大40pt 黄金太字）
         var titleStyle = new GUIStyle(GUI.skin.label);
-        titleStyle.fontSize = 34;
+        titleStyle.fontSize = 40;
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.alignment = TextAnchor.MiddleCenter;
 
         string titleText = "✦ 天蓋崩壊：未知の荒野への跳躍 ✦";
-        Rect titleRect = new Rect(bx + 20f, by + 26f, bw - 40f, 48f);
-        // 黒アウトライン
-        titleStyle.normal.textColor = new Color(0f, 0f, 0f, 0.95f);
-        GUI.Label(new Rect(titleRect.x - 2f, titleRect.y - 2f, titleRect.width, titleRect.height), titleText, titleStyle);
-        GUI.Label(new Rect(titleRect.x + 2f, titleRect.y + 2f, titleRect.width, titleRect.height), titleText, titleStyle);
-        titleStyle.normal.textColor = new Color(1.0f, 0.86f, 0.38f, 1f);
-        GUI.Label(titleRect, titleText, titleStyle);
+        Rect titleRect = new Rect(bx + 20f, by + 24f, bw - 40f, 55f);
+        DrawOutlinedTextMulti(titleRect, titleText, titleStyle, new Color(1.0f, 0.88f, 0.40f, 1f), new Color(0f, 0f, 0f, 0.98f), 2.5f);
 
-        // 2. 本文ストーリー（22pt ゆったりした行間、クッキリ読める白文字）
+        // 2. 本文ストーリー（特大28pt ゆったりした行間、クッキリ読める白文字）
         var bodyStyle = new GUIStyle(GUI.skin.label);
-        bodyStyle.fontSize = 22;
+        bodyStyle.fontSize = 28;
         bodyStyle.wordWrap = true;
         bodyStyle.alignment = TextAnchor.MiddleCenter;
 
@@ -796,28 +791,24 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             "【タワー中央に吹き荒れる光のウインドピラーへ飛び込み、\n" +
             "空の裂け目へと突き抜けよ！】";
 
-        Rect bodyRect = new Rect(bx + 35f, by + 86f, bw - 70f, bh - 195f);
-        bodyStyle.normal.textColor = new Color(0f, 0f, 0f, 0.95f);
-        GUI.Label(new Rect(bodyRect.x - 1.5f, bodyRect.y - 1.5f, bodyRect.width, bodyRect.height), bodyText, bodyStyle);
-        GUI.Label(new Rect(bodyRect.x + 1.5f, bodyRect.y + 1.5f, bodyRect.width, bodyRect.height), bodyText, bodyStyle);
-        bodyStyle.normal.textColor = new Color(0.94f, 0.98f, 1.0f, 1f);
-        GUI.Label(bodyRect, bodyText, bodyStyle);
+        Rect bodyRect = new Rect(bx + 35f, by + 92f, bw - 70f, bh - 200f);
+        DrawOutlinedTextMulti(bodyRect, bodyText, bodyStyle, new Color(0.96f, 0.99f, 1.0f, 1f), new Color(0f, 0f, 0f, 0.98f), 2.0f);
 
-        // 3. 次へ進むダイブボタン（特大幅780px、高さ65px、25pt）
-        float btnW = Mathf.Min(780f, bw - 60f);
-        float btnH = 65f;
+        // 3. 次へ進むダイブボタン（特大820px、高さ72px、28pt）
+        float btnW = Mathf.Min(820f, bw - 60f);
+        float btnH = 72f;
         float btnX = (Screen.width - btnW) * 0.5f;
-        float btnY = by + bh - 85f;
+        float btnY = by + bh - 94f;
 
-        // ボタン背景
-        GUI.color = new Color(0.10f, 0.42f, 0.78f, 0.95f);
+        // ボタン背景（半透明エメラルドブルー）
+        GUI.color = new Color(0.08f, 0.38f, 0.72f, 0.88f);
         GUI.DrawTexture(new Rect(btnX, btnY, btnW, btnH), Texture2D.whiteTexture);
-        GUI.color = new Color(1.0f, 0.88f, 0.40f, 1.0f);
+        GUI.color = new Color(1.0f, 0.88f, 0.40f, 0.95f);
         GUI.DrawTexture(new Rect(btnX, btnY, btnW, 3f), Texture2D.whiteTexture);
         GUI.DrawTexture(new Rect(btnX, btnY + btnH - 3f, btnW, 3f), Texture2D.whiteTexture);
 
         var btnStyle = new GUIStyle(GUI.skin.button);
-        btnStyle.fontSize = 25;
+        btnStyle.fontSize = 28;
         btnStyle.fontStyle = FontStyle.Bold;
         btnStyle.alignment = TextAnchor.MiddleCenter;
         btnStyle.normal.background = Texture2D.whiteTexture;
@@ -826,24 +817,55 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         bool clicked = GUI.Button(new Rect(btnX, btnY, btnW, btnH), GUIContent.none, btnStyle);
 
         var btnLabelStyle = new GUIStyle(GUI.skin.label);
-        btnLabelStyle.fontSize = 25;
+        btnLabelStyle.fontSize = 28;
         btnLabelStyle.fontStyle = FontStyle.Bold;
         btnLabelStyle.alignment = TextAnchor.MiddleCenter;
 
         string btnMsg = "【Spaceキー または ここをクリック】空の裂け目へダイブ！";
-        btnLabelStyle.normal.textColor = new Color(0f, 0f, 0f, 0.95f);
-        GUI.Label(new Rect(btnX - 2f, btnY - 2f, btnW, btnH), btnMsg, btnLabelStyle);
-        GUI.Label(new Rect(btnX + 2f, btnY + 2f, btnW, btnH), btnMsg, btnLabelStyle);
-        btnLabelStyle.normal.textColor = new Color(1.0f, 0.95f, 0.75f, 1f);
-        GUI.Label(new Rect(btnX, btnY, btnW, btnH), btnMsg, btnLabelStyle);
+        DrawOutlinedTextMulti(new Rect(btnX, btnY, btnW, btnH), btnMsg, btnLabelStyle, new Color(1.0f, 0.95f, 0.75f, 1f), new Color(0f, 0f, 0f, 0.98f), 2.0f);
 
-        // キーボード入力（Space, Return, Enter, E）またはボタンクリックで進行再開
-        if (clicked || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.E))
+        // 新InputSystemでのキー入力（Space, Enter, Eキー、ゲームパッド）またはボタンクリックで進行再開
+        bool keyPressed = false;
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)
+            {
+                keyPressed = true;
+            }
+        }
+        var pad = UnityEngine.InputSystem.Gamepad.current;
+        if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame))
+        {
+            keyPressed = true;
+        }
+
+        if (clicked || keyPressed)
         {
             _skybreakModalClosed = true;
         }
 
         GUI.color = Color.white;
+    }
+
+    static void DrawOutlinedTextMulti(Rect rect, string text, GUIStyle style, Color textColor, Color outlineColor, float spread)
+    {
+        Color origColor = style.normal.textColor;
+        style.normal.textColor = outlineColor;
+
+        // 8方向アウトラインで景色が透けてもクッキリ
+        GUI.Label(new Rect(rect.x - spread, rect.y, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x + spread, rect.y, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x, rect.y - spread, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x, rect.y + spread, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x - spread, rect.y - spread, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x + spread, rect.y - spread, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x - spread, rect.y + spread, rect.width, rect.height), text, style);
+        GUI.Label(new Rect(rect.x + spread, rect.y + spread, rect.width, rect.height), text, style);
+
+        style.normal.textColor = textColor;
+        GUI.Label(rect, text, style);
+        style.normal.textColor = origColor;
     }
 
     void DrawEpilogueGUI()
