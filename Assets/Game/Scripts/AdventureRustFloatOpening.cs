@@ -29,8 +29,10 @@ public class AdventureRustFloatOpening : MonoBehaviour
     Button _playButton;
     RectTransform _playBtnRt;
     Image _playBtnImg;
-    bool _isClosing = false;
-    float _openTime = 0f;
+    public bool IsModalBoardOpen()
+    {
+        return !IsGameStarted && _modalBoard != null && _modalBoard.activeSelf && !_isClosing;
+    }
 
     void Awake()
     {
@@ -41,6 +43,20 @@ public class AdventureRustFloatOpening : MonoBehaviour
     {
         _openTime = Time.realtimeSinceStartup;
         BuildHud();
+
+        // もしセーブデータや進行状態で既にパーツを1個以上取得している場合、オープニングボードは自動スキップ
+        var scrapMgr = FindAnyObjectByType<AdventureScrapManager>();
+        if (scrapMgr != null && scrapMgr.CollectedCount > 0)
+        {
+            if (_overlayGo != null) _overlayGo.SetActive(false);
+            if (_modalBoard != null) _modalBoard.SetActive(false);
+            IsGameStarted = true;
+            if (_guideText != null) _guideText.gameObject.SetActive(true);
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+            return;
+        }
+
         // スタート前はマウスカーソルを表示・アンロック
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -252,14 +268,14 @@ public class AdventureRustFloatOpening : MonoBehaviour
         // 1. 画面最上部中央の水平リボンコンパスHUD
         AdventureCompassHUD.Create(_canvasGo.transform, font);
 
-        // 2. 上部中央の操作ガイド（コンパス・パーツナビと被らないよう y=-68f に配置）
-        _guideText = MakeText(_canvasGo.transform, "Guide", Vector2.zero, new Vector2(0.5f, 1f), new Vector2(980f, 32f), 14, TextAnchor.UpperCenter, font);
+        // 2. 上部中央の操作ガイド（コンパス・パーツナビと一切被らないよう y=-86f にゆったり配置）
+        _guideText = MakeText(_canvasGo.transform, "Guide", Vector2.zero, new Vector2(0.5f, 1f), new Vector2(980f, 32f), 13, TextAnchor.UpperCenter, font);
         var guideRt = _guideText.rectTransform;
         guideRt.anchorMin = new Vector2(0.5f, 1f);
         guideRt.anchorMax = new Vector2(0.5f, 1f);
         guideRt.pivot = new Vector2(0.5f, 1f);
-        guideRt.anchoredPosition = new Vector2(0f, -68f);
-        guideRt.sizeDelta = new Vector2(980f, 32f);
+        guideRt.anchoredPosition = new Vector2(0f, -86f);
+        guideRt.sizeDelta = new Vector2(980f, 26f);
         _guideText.horizontalOverflow = HorizontalWrapMode.Overflow;
         _guideText.verticalOverflow = VerticalWrapMode.Overflow;
         _guideText.color = new Color(0.9f, 0.95f, 1f, 0.75f);

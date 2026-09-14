@@ -312,32 +312,60 @@ public class AdventureCompassHUD : MonoBehaviour
                     // カメラ正面から見たパーツへの符号付き角度（-180° 〜 +180°）
                     float angle = Vector3.SignedAngle(camFwd, toScrap, Vector3.up);
 
-                    // コンパスリボン上に「✦」マーカーをダイレクト描画！
+                    // パーツへの絶対方角（北・東・南・西）
+                    float scrapYaw = (Quaternion.LookRotation(toScrap).eulerAngles.y + 360f) % 360f;
+                    string scrapCardinal = GetCardinal(scrapYaw);
+
+                    // コンパスリボン上に「✦」マーカーをダイレクト描画！（画面外の時は左右端にエッジクランプして方向案内）
                     if (_scrapMarkerRt != null)
                     {
+                        _scrapMarkerRt.gameObject.SetActive(true);
                         if (Mathf.Abs(angle) <= 65f)
                         {
-                            _scrapMarkerRt.gameObject.SetActive(true);
+                            // 視野内：正確な方角位置にプロット
                             _scrapMarkerRt.anchoredPosition = new Vector2(angle * PixelsPerDegree, -1f);
                             if (_scrapMarkerText != null)
+                            {
+                                _scrapMarkerText.text = Mathf.Abs(angle) < 8f ? "★" : "✦";
                                 _scrapMarkerText.color = nearest.itemColor;
+                            }
+                        }
+                        else if (angle > 65f)
+                        {
+                            // 右側画面外：右端にクランプして「✦▶」表示
+                            _scrapMarkerRt.anchoredPosition = new Vector2(150f, -1f);
+                            if (_scrapMarkerText != null)
+                            {
+                                _scrapMarkerText.text = "✦▶";
+                                Color c = nearest.itemColor;
+                                c.a = 0.75f + 0.25f * Mathf.Sin(Time.time * 6f); // 脈動で注意喚起
+                                _scrapMarkerText.color = c;
+                            }
                         }
                         else
                         {
-                            _scrapMarkerRt.gameObject.SetActive(false);
+                            // 左側画面外：左端にクランプして「◀✦」表示
+                            _scrapMarkerRt.anchoredPosition = new Vector2(-150f, -1f);
+                            if (_scrapMarkerText != null)
+                            {
+                                _scrapMarkerText.text = "◀✦";
+                                Color c = nearest.itemColor;
+                                c.a = 0.75f + 0.25f * Mathf.Sin(Time.time * 6f); // 脈動で注意喚起
+                                _scrapMarkerText.color = c;
+                            }
                         }
                     }
 
-                    // テキストによる誘導表示
+                    // テキストによる誘導表示（方角・距離・相対方向を明確に伝達）
                     if (_scrapNavText != null)
                     {
                         string arrow;
                         if (Mathf.Abs(angle) < 18f) arrow = "▲ 正面";
-                        else if (angle >= 18f && angle < 155f) arrow = "▶ 右";
-                        else if (angle <= -18f && angle > -155f) arrow = "◀ 左";
-                        else arrow = "▼ 後方";
+                        else if (angle >= 18f && angle < 155f) arrow = "▶ 右方向";
+                        else if (angle <= -18f && angle > -155f) arrow = "◀ 左方向";
+                        else arrow = "▼ 背後";
 
-                        _scrapNavText.text = $"✦ {nearest.itemName}  {Mathf.RoundToInt(dist)}m  [{arrow}]";
+                        _scrapNavText.text = $"✦ {nearest.itemName}  約{Mathf.RoundToInt(dist)}m（{scrapCardinal}方角） [{arrow}]";
                         _scrapNavText.color = nearest.itemColor;
                     }
                 }

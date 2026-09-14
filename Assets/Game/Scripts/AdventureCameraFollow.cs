@@ -61,12 +61,14 @@ public class AdventureCameraFollow : MonoBehaviour
         var kb = Keyboard.current;
         var mouse = Mouse.current;
 
-        bool isOpeningActive = !AdventureRustFloatOpening.IsGameStarted && FindAnyObjectByType<AdventureRustFloatOpening>() != null;
+        // 実際にモーダル説明ボードが画面に表示されているかどうかの厳密な判定
+        var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
+        bool isModalBoardOpen = opening != null && opening.IsModalBoardOpen();
         var towerMgr = AdventureSanctuaryTowerManager.Instance;
         bool isLeverNear = towerMgr != null && towerMgr.IsPlayerNearLever;
 
-        // レバーの近く、またはオープニング中はカーソルを常時自動解放・可視化（クリック操作を即座に可能に）
-        if (isOpeningActive || isLeverNear)
+        // モーダルボード表示中、またはレバー付近でのみカーソルを解放
+        if (isModalBoardOpen || isLeverNear)
         {
             if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
             {
@@ -76,7 +78,7 @@ public class AdventureCameraFollow : MonoBehaviour
         }
         else
         {
-            // エスケープや左Altキー、または旧Inputでカーソル解放 ⇄ ロックを快適にトグル
+            // エスケープや左Altキーでカーソル解放 ⇄ ロックを手動切り替え
             bool toggleCursor = (kb != null && (kb.escapeKey.wasPressedThisFrame || kb.leftAltKey.wasPressedThisFrame));
             try { if (Input.GetKeyDown(KeyCode.LeftAlt) || Input.GetKeyDown(KeyCode.Escape)) toggleCursor = true; } catch { }
 
@@ -86,8 +88,8 @@ public class AdventureCameraFollow : MonoBehaviour
                 Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
                 Cursor.visible = !locked;
             }
-            // 画面クリックでロック復帰（レバー付近やUI表示中は絶対に強制ロックしない）
-            else if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked)
+            // 画面クリックで即座にカーソルロック復帰（いつでも視点操作を再開）
+            else if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
             {
                 LockCursor();
             }
@@ -118,23 +120,13 @@ public class AdventureCameraFollow : MonoBehaviour
             catch { }
         }
 
-        // カメラ旋回が有効かどうかの判定：
-        // ・カーソルロック中（通常プレイ中）：マウスを動かすだけで旋回
-        // ・カーソル解放中（説明ボード中、またはAltでカーソル表示中）：マウス右ボタンドラッグ、または中ボタンドラッグで自由に旋回
-        // ・さらに、ゲーム開始後は左クリックでもカーソルロックに復帰して旋回
+        // モーダルボードが画面に出ていない時は、マウス移動だけで100%確実にカメラ旋回！
+        // （右ドラッグでも、カーソルロック中でも、通常のマウス移動でも確実に視点が追従）
         bool isRightDragging = mouse != null && (mouse.rightButton.isPressed || mouse.middleButton.isPressed);
         try { if (Input.GetMouseButton(1) || Input.GetMouseButton(2)) isRightDragging = true; } catch { }
 
         bool isCursorLocked = Cursor.lockState == CursorLockMode.Locked;
-        bool canRotateByMouse = isCursorLocked || isRightDragging;
-
-        // ゲーム開始後、画面を左クリックした場合はカーソルロックを復帰
-        if (!isOpeningActive && mouse != null && mouse.leftButton.wasPressedThisFrame && !isCursorLocked)
-        {
-            LockCursor();
-            isCursorLocked = true;
-            canRotateByMouse = true;
-        }
+        bool canRotateByMouse = !isModalBoardOpen || isRightDragging || isCursorLocked;
 
         if (canRotateByMouse && (Mathf.Abs(mouseX) > 0.001f || Mathf.Abs(mouseY) > 0.001f))
         {
