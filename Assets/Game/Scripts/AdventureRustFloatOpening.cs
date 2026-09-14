@@ -53,25 +53,45 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (Time.realtimeSinceStartup - _openTime < 0.6f)
             return;
 
-        // スタート前は常にカーソルを表示
+        // スタート前は常にカーソルを表示（じっくり読める状態を維持）
         if (Cursor.lockState != CursorLockMode.None)
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
 
-        // キーボード（Space, Enter）、マウスクリック、ゲームパッドのいずれでもスタート可能
+        // 行動を起こした時（WASD移動、Enter/Space決定、ゲームパッド移動/ボタン）に初めてゲーム開始
         var kb = Keyboard.current;
         var pad = Gamepad.current;
-        var mouse = Mouse.current;
         bool triggerPlay = false;
 
-        if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.leftButton.isPressed))
-            triggerPlay = true;
-        if (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame))
-            triggerPlay = true;
-        if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.startButton.wasPressedThisFrame))
-            triggerPlay = true;
+        if (kb != null)
+        {
+            // WASD・矢印キーで行動（移動）を起こした時
+            if (kb.wKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame || 
+                kb.sKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame ||
+                kb.upArrowKey.wasPressedThisFrame || kb.downArrowKey.wasPressedThisFrame ||
+                kb.leftArrowKey.wasPressedThisFrame || kb.rightArrowKey.wasPressedThisFrame)
+            {
+                triggerPlay = true;
+            }
+
+            // 明示的な決定キー（Space, Enter）
+            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)
+            {
+                triggerPlay = true;
+            }
+        }
+
+        if (pad != null)
+        {
+            // ゲームパッドで歩き出すかボタンを押した時
+            if (pad.leftStick.ReadValue().sqrMagnitude > 0.2f || 
+                pad.buttonSouth.wasPressedThisFrame || pad.startButton.wasPressedThisFrame)
+            {
+                triggerPlay = true;
+            }
+        }
 
         if (triggerPlay)
         {
@@ -88,9 +108,14 @@ public class AdventureRustFloatOpening : MonoBehaviour
             return;
 
         Event e = Event.current;
-        if (e != null && (e.type == EventType.MouseDown || (e.type == EventType.KeyDown && (e.keyCode == KeyCode.Space || e.keyCode == KeyCode.Return))))
+        // レガシーEventでもWASDやSpace/Returnキーのみを検知（マウスクリックでの誤爆消失を防止）
+        if (e != null && e.type == EventType.KeyDown)
         {
-            OnPlayButtonClicked();
+            if (e.keyCode == KeyCode.W || e.keyCode == KeyCode.A || e.keyCode == KeyCode.S || e.keyCode == KeyCode.D ||
+                e.keyCode == KeyCode.Space || e.keyCode == KeyCode.Return)
+            {
+                OnPlayButtonClicked();
+            }
         }
     }
 
@@ -287,9 +312,9 @@ public class AdventureRustFloatOpening : MonoBehaviour
         btnLabel.raycastTarget = false; // ラベルがクリック判定を遮らない
 
         // ボタン下の補助テキスト
-        var hintText = MakeText(_modalBoard.transform, "PlayHint", new Vector2(0f, 12f), new Vector2(0.5f, 0f), new Vector2(400f, 18f), 11, TextAnchor.MiddleCenter, font);
+        var hintText = MakeText(_modalBoard.transform, "PlayHint", new Vector2(0f, 12f), new Vector2(0.5f, 0f), new Vector2(520f, 18f), 11, TextAnchor.MiddleCenter, font);
         hintText.color = new Color(0.80f, 0.88f, 0.96f, 0.70f);
-        hintText.text = "（クリック または Space / Enter でスタート）";
+        hintText.text = "（【WASD】で移動開始 / 【PLAYボタン】または Space・Enter でスタート）";
         hintText.raycastTarget = false;
     }
 

@@ -143,6 +143,9 @@ public class AdventureScrapManager : MonoBehaviour
         }
     }
 
+    [Header("Audio")]
+    [Range(0f, 1f)] public float chimeVolume = 0.68f;
+
     void LoadChimeClip()
     {
 #if UNITY_EDITOR
@@ -163,7 +166,7 @@ public class AdventureScrapManager : MonoBehaviour
 
         if (_audioSource != null && _fanfareClip != null)
         {
-            _audioSource.PlayOneShot(_fanfareClip, 0.90f);
+            _audioSource.PlayOneShot(_fanfareClip, chimeVolume);
         }
     }
 
@@ -237,7 +240,7 @@ public class AdventureScrapManager : MonoBehaviour
             if (ar > maxVal) maxVal = ar;
         }
 
-        float scale = maxVal > 0.001f ? (0.85f / maxVal) : 1.0f;
+        float scale = maxVal > 0.001f ? (0.70f / maxVal) : 1.0f;
         float[] stereoData = new float[totalSamples * 2];
         for (int i = 0; i < totalSamples; i++)
         {
