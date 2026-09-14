@@ -29,6 +29,9 @@ public class AdventureRustFloatOpening : MonoBehaviour
     Button _playButton;
     RectTransform _playBtnRt;
     Image _playBtnImg;
+    bool _isClosing = false;
+    float _openTime = 0f;
+
     public bool IsModalBoardOpen()
     {
         return !IsGameStarted && _modalBoard != null && _modalBoard.activeSelf && !_isClosing;
