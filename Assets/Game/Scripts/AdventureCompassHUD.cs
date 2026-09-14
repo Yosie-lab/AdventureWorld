@@ -68,7 +68,7 @@ public class AdventureCompassHUD : MonoBehaviour
         _tapeRt.sizeDelta = new Vector2(TotalTapeWidth * 4f, 26f);
 
         // 方角マーカーをテープ内に生成 (-360° 〜 720°)
-        string[] cardinals = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
+        string[] cardinals = { "北", "北東", "東", "南東", "南", "南西", "西", "北西" };
         int[] angles = { 0, 45, 90, 135, 180, 225, 270, 315 };
 
         for (int cycle = -1; cycle <= 2; cycle++)
@@ -92,12 +92,12 @@ public class AdventureCompassHUD : MonoBehaviour
                 txt.alignment = TextAnchor.MiddleCenter;
                 txt.text = cardinals[i];
 
-                if (cardinals[i] == "N")
+                if (cardinals[i] == "北")
                     txt.color = new Color(0.25f, 0.95f, 1f, 0.95f); // 北は鮮やかなシアン
                 else if (cardinals[i].Length == 1)
-                    txt.color = new Color(0.92f, 0.95f, 1f, 0.85f); // E, S, W
+                    txt.color = new Color(0.92f, 0.95f, 1f, 0.85f); // 東、南、西
                 else
-                    txt.color = new Color(0.70f, 0.78f, 0.85f, 0.60f); // NE, SE, SW, NW
+                    txt.color = new Color(0.70f, 0.78f, 0.85f, 0.60f); // 北東、南東、南西、北西
 
                 var outline = textGo.AddComponent<Outline>();
                 outline.effectColor = new Color(0f, 0f, 0f, 0.6f);
@@ -160,7 +160,7 @@ public class AdventureCompassHUD : MonoBehaviour
         _headingBadgeText.fontStyle = FontStyle.Bold;
         _headingBadgeText.alignment = TextAnchor.MiddleCenter;
         _headingBadgeText.color = new Color(0.85f, 0.95f, 1f, 0.85f);
-        _headingBadgeText.text = "N  0°";
+        _headingBadgeText.text = "北  0°";
         var badgeOutline = badgeGo.AddComponent<Outline>();
         badgeOutline.effectColor = new Color(0f, 0f, 0f, 0.7f);
         badgeOutline.effectDistance = new Vector2(1f, -1f);
@@ -254,13 +254,13 @@ public class AdventureCompassHUD : MonoBehaviour
 
     static string GetCardinal(float yaw)
     {
-        if (yaw >= 337.5f || yaw < 22.5f) return "N";
-        if (yaw >= 22.5f && yaw < 67.5f) return "NE";
-        if (yaw >= 67.5f && yaw < 112.5f) return "E";
-        if (yaw >= 112.5f && yaw < 157.5f) return "SE";
-        if (yaw >= 157.5f && yaw < 202.5f) return "S";
-        if (yaw >= 202.5f && yaw < 247.5f) return "SW";
-        if (yaw >= 247.5f && yaw < 292.5f) return "W";
-        return "NW";
+        if (yaw >= 337.5f || yaw < 22.5f) return "北";
+        if (yaw >= 22.5f && yaw < 67.5f) return "北東";
+        if (yaw >= 67.5f && yaw < 112.5f) return "東";
+        if (yaw >= 112.5f && yaw < 157.5f) return "南東";
+        if (yaw >= 157.5f && yaw < 202.5f) return "南";
+        if (yaw >= 202.5f && yaw < 247.5f) return "南西";
+        if (yaw >= 247.5f && yaw < 292.5f) return "西";
+        return "北西";
     }
 }
