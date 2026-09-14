@@ -1037,10 +1037,8 @@ public class AdventureRustDrone : MonoBehaviour
             if (screenPos.z > 0.2f)
             {
                 bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
-                string prompt;
-                Color textColor;
-
                 oilCount = Mathf.Max(oilCount, 1);
+
                 string prompt = needsOil 
                     ? $"【E】油をさして手当て・撫でる（常備油: {oilCount}）" 
                     : $"【E】Rustを愛おしく撫でる（常備油: {oilCount}）";

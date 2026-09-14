@@ -538,7 +538,7 @@ public class AdventurePlayerController : MonoBehaviour
         return pos;
     }
 
-    void Teleport(Vector3 pos)
+    public void Teleport(Vector3 pos)
     {
         pos = Stick(pos);
         _cc.enabled = false;
