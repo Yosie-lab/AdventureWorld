@@ -122,7 +122,7 @@ public class AdventureBeachWavesManager : MonoBehaviour
 
         if (_waveClip == null)
         {
-            LoadAudioClip();
+            LoadAudioClips();
             if (_waveClip != null)
             {
                 if (_waveSourceA != null) { _waveSourceA.clip = _waveClip; _waveSourceA.Play(); }
