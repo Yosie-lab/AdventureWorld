@@ -368,23 +368,33 @@ public class AdventureSaveManager : MonoBehaviour
                 scrapCount = data.collectedCount;
             }
 
-            // 【超重要安全ガード】もし未初期化やドメインリロード事故でscrapCountが0だが、
-            // 既存ファイルにパーツ収集記録（>0）がある場合、既存のパーツデータを絶対に消さずに保護維持する！
-            if (scrapCount == 0 && File.Exists(SaveFilePath))
+            // 【超重要安全ガード】もし未初期化やドメインリロード事故でscrapCountが既存ファイルより少ない場合、
+            // 既存のパーツデータを絶対に消さずに保護維持・補完する！
+            if (File.Exists(SaveFilePath))
             {
                 try
                 {
                     string oldJson = File.ReadAllText(SaveFilePath);
                     var oldData = JsonUtility.FromJson<SaveData>(oldJson);
-                    if (oldData != null && (oldData.collectedCount > 0 || (oldData.collectedScrapIds != null && oldData.collectedScrapIds.Count > 0)))
+                    if (oldData != null)
                     {
-                        data.collectedScrapIds = new List<int>(oldData.collectedScrapIds);
-                        data.collectedCount = Mathf.Max(oldData.collectedCount, data.collectedScrapIds.Count);
-                        scrapCount = data.collectedCount;
-                        Debug.LogWarning($"[AdventureSaveManager] 安全ガード発動: メモリ上のパーツが0件のため、既存セーブのパーツ記録({scrapCount}個)を保護維持しました。");
+                        if (oldData.collectedCount > scrapCount)
+                        {
+                            data.collectedScrapIds = new List<int>(oldData.collectedScrapIds);
+                            data.collectedCount = oldData.collectedCount;
+                            scrapCount = data.collectedCount;
+                            Debug.LogWarning($"[AdventureSaveManager] 安全ガード発動: メモリ上のパーツ({scrapMgr?.CollectedCount})が既存記録({oldData.collectedCount})より少ないため、既存記録を保護維持しました。");
+                        }
                     }
                 }
                 catch { }
+            }
+
+            // リストが空だが個数がある場合の自動補完（1〜scrapCount）
+            if (data.collectedScrapIds.Count == 0 && data.collectedCount > 0)
+            {
+                for (int i = 1; i <= data.collectedCount; i++)
+                    data.collectedScrapIds.Add(i);
             }
 
             // 3. Rustの油所持数

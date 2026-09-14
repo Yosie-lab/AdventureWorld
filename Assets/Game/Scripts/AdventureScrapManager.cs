@@ -7,10 +7,20 @@ using System.Collections.Generic;
 public class AdventureScrapManager : MonoBehaviour
 {
     static AdventureScrapManager _instance;
-    public static AdventureScrapManager Instance => _instance;
+    public static AdventureScrapManager Instance
+    {
+        get
+        {
+            if (_instance != null) return _instance;
+            _instance = FindAnyObjectByType<AdventureScrapManager>();
+            if (_instance == null) Ensure();
+            return _instance;
+        }
+    }
 
     public const int TotalScrapCount = 12;
-    public int CollectedCount { get; private set; } = 0;
+    [SerializeField] int _collectedCount = 0;
+    public int CollectedCount => Mathf.Max(_collectedCount, Mathf.Max(_collectedIds != null ? _collectedIds.Count : 0, _collectedList != null ? _collectedList.Count : 0));
     public int collectedCount => CollectedCount;
     public bool hasPetRadar => CollectedCount >= 9;
 
@@ -46,7 +56,20 @@ public class AdventureScrapManager : MonoBehaviour
     [SerializeField] List<int> _collectedList = new List<int>();
     readonly HashSet<int> _collectedIds = new HashSet<int>();
 
-    public IEnumerable<int> GetCollectedIds() => _collectedIds;
+    public IEnumerable<int> GetCollectedIds()
+    {
+        RestoreIdsFromList();
+        if (_collectedIds.Count == 0 && _collectedCount > 0)
+        {
+            for (int i = 1; i <= _collectedCount; i++)
+            {
+                _collectedIds.Add(i);
+                if (_collectedList != null && !_collectedList.Contains(i))
+                    _collectedList.Add(i);
+            }
+        }
+        return _collectedIds;
+    }
 
     public static void Ensure()
     {
@@ -72,15 +95,24 @@ public class AdventureScrapManager : MonoBehaviour
         }
         _instance = this;
 
-        // ドメインリロードやシーン再読込時にシリアライズされたリストからHashSetを完全復元
+        RestoreIdsFromList();
+        SetupAudio();
+    }
+
+    void OnEnable()
+    {
+        if (_instance == null) _instance = this;
+        RestoreIdsFromList();
+    }
+
+    void RestoreIdsFromList()
+    {
         if (_collectedList != null && _collectedList.Count > 0)
         {
             foreach (var id in _collectedList)
                 _collectedIds.Add(id);
-            CollectedCount = _collectedIds.Count;
+            _collectedCount = Mathf.Max(_collectedCount, _collectedIds.Count);
         }
-
-        SetupAudio();
     }
 
     AudioSource _audioSource;
@@ -273,10 +305,10 @@ public class AdventureScrapManager : MonoBehaviour
         // 1. 爽快なパーツ取得ファンファーレ音（シュピーン！ド・ミ・ソ・ド・ミ・ソ・ド〜〜〜ン♪）を再生！
         PlayScrapCollectFanfare();
 
-        CollectedCount++;
         _collectedIds.Add(item.itemId);
         if (!_collectedList.Contains(item.itemId))
             _collectedList.Add(item.itemId);
+        _collectedCount = Mathf.Max(_collectedCount + 1, _collectedIds.Count);
         _activeItems.Remove(item);
 
         // HUDに通知
@@ -325,7 +357,7 @@ public class AdventureScrapManager : MonoBehaviour
             }
         }
 
-        CollectedCount = _collectedIds.Count;
+        _collectedCount = Mathf.Max(_collectedCount, _collectedIds.Count);
 
         // 既に生成されているアクティブアイテムから回収済みIDのものを消去
         for (int i = _activeItems.Count - 1; i >= 0; i--)

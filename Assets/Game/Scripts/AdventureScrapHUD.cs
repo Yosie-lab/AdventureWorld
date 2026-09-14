@@ -9,7 +9,15 @@ using UnityEngine.UI;
 public class AdventureScrapHUD : MonoBehaviour
 {
     static AdventureScrapHUD _instance;
-    public static AdventureScrapHUD Instance => _instance;
+    public static AdventureScrapHUD Instance
+    {
+        get
+        {
+            if (_instance != null) return _instance;
+            _instance = FindAnyObjectByType<AdventureScrapHUD>();
+            return _instance;
+        }
+    }
 
     Canvas _canvas;
     Font _font;
@@ -27,6 +35,7 @@ public class AdventureScrapHUD : MonoBehaviour
 
     bool _isHidden = false;
     float _radarUpdateTimer = 0f;
+    int _lastKnownCount = 0;
 
     public static void Ensure()
     {
@@ -226,8 +235,18 @@ public class AdventureScrapHUD : MonoBehaviour
     {
         if (_tickerText == null) return;
 
-        var scrapMgr = AdventureScrapManager.Instance;
-        int count = scrapMgr != null ? scrapMgr.CollectedCount : 0;
+        var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
+        int count = scrapMgr != null ? scrapMgr.CollectedCount : _lastKnownCount;
+        if (count > _lastKnownCount)
+        {
+            _lastKnownCount = count;
+        }
+        else if (count == 0 && _lastKnownCount > 0)
+        {
+            // ドメインリロード等で一時的に0が返った場合の防壁
+            count = _lastKnownCount;
+        }
+
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
 
         // 1行目：現在のメイン目標
