@@ -26,6 +26,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     // ── 天蓋破壊ストーリーボード制御（じっくり読める待機モーダル） ──
     bool _showSkybreakModal = false;
     bool _skybreakModalClosed = false;
+    public bool IsSkybreakModalActive => _showSkybreakModal;
 
     // ── 【案1】クライマックス演出制御 ──
     bool _climaxCrisisStarted = false;
@@ -418,21 +419,21 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // 3. 上空の天蓋に幾何学シールドの亀裂（Hex Grid Skybreak）が炸裂！
         SpawnSkybreakCracks(new Vector3(512f, 150f, 512f));
 
+        // 他のセリフ吹き出し・HUDバナーを即座に非表示にして、画面中央のボードだけに集中させる
+        if (drone != null)
+        {
+            drone.ClearSpeech();
+        }
+        if (AdventureScrapHUD.Instance != null)
+        {
+            AdventureScrapHUD.Instance.HideBannerImmediately();
+        }
+
         // 4. 天蓋破壊シネマティック・ストーリーボードを表示（プレイヤーが読むまで完全に待機！）
         _showSkybreakModal = true;
         _skybreakModalClosed = false;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-
-        // HUDにも記録
-        if (AdventureScrapHUD.Instance != null)
-        {
-            AdventureScrapHUD.Instance.ShowPoeticLore(
-                "天蓋破壊：未知の荒野への跳躍",
-                "空が割れた。100%最適化された無痛の箱庭が、音を立てて崩れ去っていく。\n冷たい本物の風が頬を打つ。傷つく自由を抱きしめて……飛べ、Niko！",
-                "【大空の裂け目へダイブ！】中央タワーの光のウインドピラーから跳躍せよ！"
-            );
-        }
 
         // プレイヤーが「ダイブ！」ボタンまたはSpace/Enterを押すまで何分でもじっくり読める！
         while (!_skybreakModalClosed)
@@ -744,9 +745,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         GUI.color = new Color(0.01f, 0.02f, 0.05f, 0.88f);
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
 
-        // 中央のシネマティック・ストーリーボード（幅960px, 高さ480px）
-        float bw = Mathf.Min(960f, Screen.width * 0.94f);
-        float bh = Mathf.Min(480f, Screen.height * 0.86f);
+        // 中央のシネマティック・ストーリーボード（幅980px, 高さ510px）
+        float bw = Mathf.Min(980f, Screen.width * 0.94f);
+        float bh = Mathf.Min(510f, Screen.height * 0.88f);
         float bx = (Screen.width - bw) * 0.5f;
         float by = (Screen.height - bh) * 0.5f;
 
@@ -773,7 +774,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         titleStyle.alignment = TextAnchor.MiddleCenter;
 
         string titleText = "✦ 天蓋崩壊：未知の荒野への跳躍 ✦";
-        Rect titleRect = new Rect(bx + 20f, by + 28f, bw - 40f, 50f);
+        Rect titleRect = new Rect(bx + 20f, by + 26f, bw - 40f, 48f);
         // 黒アウトライン
         titleStyle.normal.textColor = new Color(0f, 0f, 0f, 0.95f);
         GUI.Label(new Rect(titleRect.x - 2f, titleRect.y - 2f, titleRect.width, titleRect.height), titleText, titleStyle);
@@ -790,11 +791,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         string bodyText =
             "空が割れた。100%最適化された無痛の箱庭が、音を立てて崩れ去っていく。\n\n" +
             "冷たい本物の風が頬を打つ。息が白くなり、胸が高鳴る。\n" +
+            "『空が……割れるよ、Niko！ つかまって！！』\n" +
             "傷つく自由を抱きしめて……二人の翼で、あの未知の空へ！\n\n" +
             "【タワー中央に吹き荒れる光のウインドピラーへ飛び込み、\n" +
             "空の裂け目へと突き抜けよ！】";
 
-        Rect bodyRect = new Rect(bx + 35f, by + 90f, bw - 70f, bh - 190f);
+        Rect bodyRect = new Rect(bx + 35f, by + 86f, bw - 70f, bh - 195f);
         bodyStyle.normal.textColor = new Color(0f, 0f, 0f, 0.95f);
         GUI.Label(new Rect(bodyRect.x - 1.5f, bodyRect.y - 1.5f, bodyRect.width, bodyRect.height), bodyText, bodyStyle);
         GUI.Label(new Rect(bodyRect.x + 1.5f, bodyRect.y + 1.5f, bodyRect.width, bodyRect.height), bodyText, bodyStyle);

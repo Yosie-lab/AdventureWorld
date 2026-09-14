@@ -192,6 +192,14 @@ public class AdventureScrapHUD : MonoBehaviour
             RefreshQuestDisplay();
         }
 
+        // 天蓋破壊シネマティックストーリーボード表示中はバナーを即座に非表示
+        if (AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.IsSkybreakModalActive)
+        {
+            _bannerTimer = 0f;
+            if (_bannerCg != null) _bannerCg.alpha = 0f;
+            return;
+        }
+
         // アップグレードバナーのフェード制御
         if (_bannerTimer > 0f)
         {
@@ -203,6 +211,16 @@ public class AdventureScrapHUD : MonoBehaviour
         {
             if (_bannerCg != null)
                 _bannerCg.alpha = Mathf.MoveTowards(_bannerCg.alpha, 0.0f, Time.deltaTime * 2.0f);
+        }
+    }
+
+    /// <summary>シネマティックストーリーボード表示時などにHUDバナーを即座に消去</summary>
+    public void HideBannerImmediately()
+    {
+        _bannerTimer = 0f;
+        if (_bannerCg != null)
+        {
+            _bannerCg.alpha = 0f;
         }
     }
 

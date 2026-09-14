@@ -1071,6 +1071,13 @@ public class AdventureRustDrone : MonoBehaviour
         _speechTimer = duration;
     }
 
+    /// <summary>シネマティックストーリーボード表示時などにセリフ吹き出しを即時消去</summary>
+    public void ClearSpeech()
+    {
+        _speechTimer = 0f;
+        _speechText = "";
+    }
+
     void UpdateSpeech()
     {
         if (_speechTimer > 0f)
@@ -1260,6 +1267,10 @@ public class AdventureRustDrone : MonoBehaviour
 
         // 3. セリフダイアログ表示（視認性抜群＆文字欠け防止設計）
         if (_speechTimer <= 0f || string.IsNullOrEmpty(_speechText))
+            return;
+
+        // 天蓋破壊シネマティックストーリーボード表示中はボードと重ならないよう抑制
+        if (AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.IsSkybreakModalActive)
             return;
 
         // しっかり大きく読みやすいシネマフォント設計（1080pで約30〜31pt）
