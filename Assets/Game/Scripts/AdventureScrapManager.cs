@@ -174,122 +174,124 @@ public class AdventureScrapManager : MonoBehaviour
         }
     }
 
-    /// <summary>『脳リフレクソ』の白泡破裂時チャイム（playFeverStartSound：神秘的なウインドチャイム＋1000Hzハイパスフィルター付きステレオディレイ）の完全再現合成</summary>
+    /// <summary>『脳リフレクソ』の白泡破裂時チャイムを進化させた、極上のクリスタルウィンドチャイム（C Maj9/Lydian＋物理倍音＋バイノーラルコーラス＋残響テール）の完全再現合成</summary>
     static AudioClip SynthesizeBrainReflexoChime()
     {
         const int rate = 44100;
-        float[] chimeScale = { 523.25f, 659.25f, 783.99f, 987.77f, 1046.50f, 1318.51f, 1567.98f, 1975.53f }; // C5, E5, G5, B5, C6, E6, G6, B6
-        float offset = 0.055f;
-        float noteDur = 0.70f;
-        float duration = chimeScale.Length * offset + 2.2f;
+        // C5, E5, G5, B5, C6, E6, G6, B6, D7 (多幸感・快感を最大化する9thトップノート)
+        float[] notes = { 523.25f, 659.25f, 783.99f, 987.77f, 1046.50f, 1318.51f, 1567.98f, 1975.53f, 2349.32f };
+        float[] delays = { 0.0f, 0.040f, 0.078f, 0.114f, 0.148f, 0.182f, 0.218f, 0.258f, 0.302f };
+        float duration = 3.2f;
         int totalSamples = (int)(rate * duration);
 
         float[] dryL = new float[totalSamples];
         float[] dryR = new float[totalSamples];
-        float[] sendL = new float[totalSamples];
-        float[] sendR = new float[totalSamples];
 
-        for (int idx = 0; idx < chimeScale.Length; idx++)
+        for (int idx = 0; idx < notes.Length; idx++)
         {
-            float freq = chimeScale[idx];
-            float playTime = idx * offset;
-            int startSample = (int)(playTime * rate);
+            float freq = notes[idx];
+            float startT = delays[idx];
+            int startIdx = (int)(startT * rate);
+            float noteDur = 1.2f + idx * 0.15f;
             int noteSamples = (int)(noteDur * rate);
 
-            // 音が進むにつれて左右に広がる等電力パンニング
-            float panOffset = (idx % 2 == 0 ? 0.35f : -0.35f) * ((float)idx / chimeScale.Length);
-            float pan = Mathf.Clamp(panOffset, -1f, 1f);
-            float x = (pan + 1f) * 0.5f;
-            float gainL = Mathf.Cos(x * Mathf.PI * 0.5f);
-            float gainR = Mathf.Sin(x * Mathf.PI * 0.5f);
+            float panVal = ((idx % 2 * 2 - 1) * 0.45f) * (0.5f + 0.5f * (float)idx / notes.Length);
+            float gainL = Mathf.Cos((panVal + 1.0f) * 0.25f * Mathf.PI);
+            float gainR = Mathf.Sin((panVal + 1.0f) * 0.25f * Mathf.PI);
+
+            float detuneL = 1.0f - 0.0012f;
+            float detuneR = 1.0f + 0.0012f;
 
             for (int i = 0; i < noteSamples; i++)
             {
-                int targetIdx = startSample + i;
-                if (targetIdx >= totalSamples) break;
+                int destIdx = startIdx + i;
+                if (destIdx >= totalSamples) break;
 
                 float t = (float)i / rate;
-                // メイン音: 25msリニアアタック、0.7s指数減衰
-                float gainMain = (t <= 0.025f)
-                    ? (0.06f * (t / 0.025f))
-                    : (0.06f * Mathf.Pow(0.0001f / 0.06f, (t - 0.025f) / (noteDur - 0.025f)));
+                float envMain = (t < 0.003f) ? (t / 0.003f) : Mathf.Exp(-t * (4.2f - idx * 0.18f));
 
-                float drift = freq * (1.0f + 0.002f * Mathf.Clamp01(t / 0.6f));
-                float oscMain = Mathf.Sin(2.0f * Mathf.PI * drift * t);
+                float sBaseL = Mathf.Sin(2.0f * Mathf.PI * (freq * detuneL) * t);
+                float sBaseR = Mathf.Sin(2.0f * Mathf.PI * (freq * detuneR) * t);
 
-                // 倍音: 1オクターブ上、35msアタック、0.49s減衰
-                float hDur = noteDur * 0.7f;
-                float gainHigh = (t <= 0.035f)
-                    ? (0.015f * (t / 0.035f))
-                    : (t <= hDur ? (0.015f * Mathf.Pow(0.0001f / 0.015f, (t - 0.035f) / (hDur - 0.035f))) : 0f);
+                float sMode2 = Mathf.Sin(2.0f * Mathf.PI * (freq * 2.756f) * t) * Mathf.Exp(-t * 9.0f) * 0.28f;
+                float sMode3 = Mathf.Sin(2.0f * Mathf.PI * (freq * 5.404f) * t) * Mathf.Exp(-t * 18.0f) * 0.12f;
+                float sOct = Mathf.Sin(2.0f * Mathf.PI * (freq * 2.0f) * t) * Mathf.Exp(-t * 6.5f) * 0.22f;
 
-                float oscHigh = Mathf.Sin(2.0f * Mathf.PI * (freq * 2.0f) * t);
+                float sigL = (sBaseL + sMode2 + sMode3 + sOct) * envMain;
+                float sigR = (sBaseR + sMode2 + sMode3 + sOct) * envMain;
 
-                float sig = oscMain * gainMain + oscHigh * gainHigh;
-                dryL[targetIdx] += sig * gainL;
-                dryR[targetIdx] += sig * gainR;
-                sendL[targetIdx] += sig * gainL;
-                sendR[targetIdx] += sig * gainR;
+                float amp = (idx < notes.Length - 1) ? 0.14f : 0.18f;
+                dryL[destIdx] += sigL * gainL * amp;
+                dryR[destIdx] += sigR * gainR * amp;
             }
         }
 
-        // 1000Hz Highpass Biquad Filter & Delay (240ms, Feedback 48%, DelayMix 25%)
-        int delaySamples = (int)(0.24f * rate);
-        float feedback = 0.48f;
-        float delayMix = 0.25f;
+        // 空間ディレイ＆リバーブ
+        int d1 = (int)(0.180f * rate);
+        int d2 = (int)(0.260f * rate);
+        float feedback = 0.38f;
 
-        float fc = 1000f;
-        float q = 0.7071f;
-        float w0 = 2.0f * Mathf.PI * fc / rate;
-        float alpha = Mathf.Sin(w0) / (2.0f * q);
-        float cosW0 = Mathf.Cos(w0);
+        float[] delBufL = new float[totalSamples + d1];
+        float[] delBufR = new float[totalSamples + d2];
+        float[] wetL = new float[totalSamples];
+        float[] wetR = new float[totalSamples];
 
-        float b0 = (1.0f + cosW0) * 0.5f;
-        float b1 = -(1.0f + cosW0);
-        float b2 = (1.0f + cosW0) * 0.5f;
-        float a0 = 1.0f + alpha;
-        float a1 = -2.0f * cosW0;
-        float a2 = 1.0f - alpha;
-
-        b0 /= a0; b1 /= a0; b2 /= a0; a1 /= a0; a2 /= a0;
-
-        float[] delayL = new float[totalSamples + delaySamples];
-        float[] delayR = new float[totalSamples + delaySamples];
-        float x1L = 0f, x2L = 0f, y1L = 0f, y2L = 0f;
-        float x1R = 0f, x2R = 0f, y1R = 0f, y2R = 0f;
-
-        float[] mixedL = new float[totalSamples];
-        float[] mixedR = new float[totalSamples];
+        int[] combDelays = { (int)(0.029f * rate), (int)(0.037f * rate), (int)(0.043f * rate), (int)(0.051f * rate) };
+        float[][] combBufs = new float[4][] {
+            new float[totalSamples + combDelays[0]],
+            new float[totalSamples + combDelays[1]],
+            new float[totalSamples + combDelays[2]],
+            new float[totalSamples + combDelays[3]]
+        };
+        float[] combGains = { 0.74f, 0.71f, 0.68f, 0.65f };
 
         for (int n = 0; n < totalSamples; n++)
         {
-            float delInL = n >= delaySamples ? delayL[n] : 0f;
-            float delInR = n >= delaySamples ? delayR[n] : 0f;
+            float inDl = dryL[n] + (n >= d2 ? delBufR[n] * feedback : 0f);
+            float inDr = dryR[n] + (n >= d1 ? delBufL[n] * feedback : 0f);
+            delBufL[n + d1] = inDl;
+            delBufR[n + d2] = inDr;
 
-            float y0L = b0 * delInL + b1 * x1L + b2 * x2L - a1 * y1L - a2 * y2L;
-            x2L = x1L; x1L = delInL; y2L = y1L; y1L = y0L;
+            float delayOutL = (n >= d1 ? delBufL[n] : 0f) * 0.28f;
+            float delayOutR = (n >= d2 ? delBufR[n] : 0f) * 0.28f;
 
-            float y0R = b0 * delInR + b1 * x1R + b2 * x2R - a1 * y1R - a2 * y2R;
-            x2R = x1R; x1R = delInR; y2R = y1R; y1R = y0R;
+            float revIn = (dryL[n] + dryR[n]) * 0.5f;
+            float revOut = 0f;
+            for (int c = 0; c < 4; c++)
+            {
+                int cd = combDelays[c];
+                float delayedC = n >= cd ? combBufs[c][n] : 0f;
+                combBufs[c][n + cd] = revIn + delayedC * combGains[c];
+                revOut += delayedC * 0.12f;
+            }
 
-            delayL[n + delaySamples] = sendL[n] + y0L * feedback;
-            delayR[n + delaySamples] = sendR[n] + y0R * feedback;
-
-            mixedL[n] = dryL[n] + y0L * delayMix;
-            mixedR[n] = dryR[n] + y0R * delayMix;
+            wetL[n] = delayOutL + revOut * 0.55f;
+            wetR[n] = delayOutR + revOut * 0.55f;
         }
 
-        // ノーマライズ（ピーク 0.85）
-        float maxVal = 0f;
+        // ミックス & ローパスフィルター
+        float lpAlpha = 0.65f;
+        float sL = 0f, sR = 0f;
+        float[] mixedL = new float[totalSamples];
+        float[] mixedR = new float[totalSamples];
+        float maxPeak = 0f;
+
         for (int i = 0; i < totalSamples; i++)
         {
-            float al = Mathf.Abs(mixedL[i]);
-            float ar = Mathf.Abs(mixedR[i]);
-            if (al > maxVal) maxVal = al;
-            if (ar > maxVal) maxVal = ar;
+            float mL = dryL[i] + wetL[i];
+            float mR = dryR[i] + wetR[i];
+            sL += lpAlpha * (mL - sL);
+            sR += lpAlpha * (mR - sR);
+            mixedL[i] = sL;
+            mixedR[i] = sR;
+
+            float al = Mathf.Abs(sL);
+            float ar = Mathf.Abs(sR);
+            if (al > maxPeak) maxPeak = al;
+            if (ar > maxPeak) maxPeak = ar;
         }
 
-        float scale = maxVal > 0.0001f ? (0.85f / maxVal) : 1.0f;
+        float scale = maxPeak > 0.0001f ? (0.86f / maxPeak) : 1.0f;
         float[] stereoData = new float[totalSamples * 2];
         for (int i = 0; i < totalSamples; i++)
         {
@@ -297,7 +299,7 @@ public class AdventureScrapManager : MonoBehaviour
             stereoData[i * 2 + 1] = mixedR[i] * scale;
         }
 
-        var clip = AudioClip.Create("BrainReflexoWhiteBubbleChime", totalSamples, 2, rate, false);
+        var clip = AudioClip.Create("BrainReflexoBlissChime", totalSamples, 2, rate, false);
         clip.SetData(stereoData, 0);
         return clip;
     }
