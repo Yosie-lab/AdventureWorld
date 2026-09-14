@@ -291,6 +291,23 @@ public class AdventureSaveManager : MonoBehaviour
             ResetToNewGame();
         }
 
+        // 【6】キー（またはテンキー6）でパーツ6個状態（カルデラ湖手前・二段ジャンプ解禁済み）へ即座にセット＆再試行
+        if (kb != null && (kb.digit6Key.wasPressedThisFrame || kb.numpad6Key.wasPressedThisFrame))
+        {
+            RollbackToScrapCount(6);
+        }
+        else
+        {
+            try
+            {
+                if (Input.GetKeyDown(KeyCode.Alpha6) || Input.GetKeyDown(KeyCode.Keypad6))
+                {
+                    RollbackToScrapCount(6);
+                }
+            }
+            catch { }
+        }
+
         // 定期オートセーブ
         _periodicSaveTimer -= Time.deltaTime;
         if (_periodicSaveTimer <= 0f)
@@ -349,6 +366,54 @@ public class AdventureSaveManager : MonoBehaviour
         return false;
     }
 
+    public static bool AllowRollback = false;
+
+    /// <summary>パーツ収集状態を指定個数（例: 6個）に巻き戻し、プレイヤーを適正位置へ移動してセーブを更新</summary>
+    public void RollbackToScrapCount(int targetCount)
+    {
+        AllowRollback = true;
+        try
+        {
+            var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
+            if (scrapMgr != null)
+            {
+                scrapMgr.ResetToCount(targetCount);
+            }
+
+            var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
+            // 6個目の大河飛び石の先（カルデラ湖へ向かう小道: x=340, z=260）
+            Vector3 targetPos = new Vector3(340f, 46f, 260f);
+            if (targetCount <= 3)
+            {
+                targetPos = new Vector3(195f, 5f, 230f); // 砂浜〜草原登り口
+            }
+            else if (targetCount >= 9)
+            {
+                targetPos = new Vector3(680f, 50f, 520f); // 大樹海
+            }
+
+            var terrain = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
+            if (terrain != null)
+            {
+                float h = terrain.SampleHeight(targetPos) + terrain.transform.position.y;
+                targetPos.y = h + 1.2f;
+            }
+
+            if (player != null)
+            {
+                player.Teleport(targetPos);
+                player.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
+            }
+
+            SaveGame($"パーツ{targetCount}個の状態にセットしました");
+            Debug.Log($"[AdventureSaveManager] パーツ{targetCount}個の状態にロールバック完了（位置: {targetPos}）");
+        }
+        finally
+        {
+            AllowRollback = false;
+        }
+    }
+
     /// <summary>ゲームの現状をJSONファイルに保存</summary>
     public void SaveGame(string customMessage = "SAVEしました")
     {
@@ -376,8 +441,8 @@ public class AdventureSaveManager : MonoBehaviour
             }
 
             // 【超重要安全ガード】もし未初期化やドメインリロード事故でscrapCountが既存ファイルより少ない場合、
-            // 既存のパーツデータを絶対に消さずに保護維持・補完する！
-            if (File.Exists(SaveFilePath))
+            // 既存のパーツデータを絶対に消さずに保護維持・補完する！（明示的なRollback時はスキップ）
+            if (File.Exists(SaveFilePath) && !AllowRollback)
             {
                 try
                 {

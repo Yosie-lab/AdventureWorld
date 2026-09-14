@@ -611,9 +611,22 @@ public class AdventureScrapManager : MonoBehaviour
     /// <summary>新規冒険（ニューゲーム）用に収集状態を0個に完全リセットして全パーツを砂浜から再配置</summary>
     public void ResetAllScrapsForNewGame()
     {
-        _collectedCount = 0;
+        ResetToCount(0);
+    }
+
+    /// <summary>指定個数（例: 6個）の取得状態に巻き戻し、それ以降のパーツを全て再配置</summary>
+    public void ResetToCount(int targetCount)
+    {
+        targetCount = Mathf.Clamp(targetCount, 0, TotalScrapCount);
+        _collectedCount = targetCount;
         _collectedIds.Clear();
         _collectedList.Clear();
+
+        for (int i = 1; i <= targetCount; i++)
+        {
+            _collectedIds.Add(i);
+            _collectedList.Add(i);
+        }
 
         // 既存のアイテムを全破棄
         foreach (var item in _activeItems)
@@ -626,8 +639,13 @@ public class AdventureScrapManager : MonoBehaviour
         var root = GameObject.Find("ScrapItemsRoot");
         if (root != null) Destroy(root);
 
-        // 再生成
+        // 未取得パーツ（targetCount + 1 〜 TotalScrapCount）を全再生成
         SpawnAllScraps();
-        AdventureScrapHUD.Instance?.OnCollect("", 0, TotalScrapCount);
+
+        // 獲得数に応じた能力アンロックを一括同期
+        ApplyAllUpgradesForCount(targetCount);
+
+        // HUDを更新
+        AdventureScrapHUD.Instance?.OnCollect("", targetCount, TotalScrapCount);
     }
 }
