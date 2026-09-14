@@ -14,6 +14,7 @@ public class AdventureScrapItem : MonoBehaviour
     Transform _beaconPillar;
     Vector3 _initialPos;
     float _hoverOffset;
+    float _spawnTime;
     bool _isCollected = false;
     public bool IsCollected => _isCollected;
     AudioSource _audioSource;
@@ -23,6 +24,7 @@ public class AdventureScrapItem : MonoBehaviour
     {
         _initialPos = transform.position;
         _hoverOffset = Random.Range(0f, Mathf.PI * 2f);
+        _spawnTime = Time.time;
 
         CreateModel();
         CreateBeacon();
@@ -65,10 +67,10 @@ public class AdventureScrapItem : MonoBehaviour
         ApplyMaterial(hub.GetComponent<Renderer>());
         ApplyCoreMaterial(core.GetComponent<Renderer>());
 
-        // コライダー（接近感知用トリガー：5.5m以内で確実に吸い寄せ開始）
+        // コライダー（接触取得用トリガー：直接触れた時に回収）
         var col = gameObject.AddComponent<SphereCollider>();
         col.isTrigger = true;
-        col.radius = 5.5f;
+        col.radius = 0.85f;
     }
 
     void CreateBeacon()
@@ -247,7 +249,9 @@ public class AdventureScrapItem : MonoBehaviour
             _beaconPillar.localScale = new Vector3(0.22f * pulse, 5.0f, 0.22f * pulse);
         }
 
-        // プレイヤーへの吸い寄せ＆回収チェック（最大5.5m以内）
+        // プレイヤーへの吸い寄せ＆回収チェック（開始直後0.6秒間は誤取得防止ガード）
+        if (Time.time < _spawnTime + 0.6f) return;
+
         var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
         if (player != null)
         {
@@ -259,21 +263,21 @@ public class AdventureScrapItem : MonoBehaviour
             );
             float verticalDiff = Mathf.Abs(transform.position.y - playerPos.y);
 
-            // 1. 取得完了判定（中心間1.85m以内、または水平1.6m＆高低差2.5m以内で確実に即取得！）
-            if (dist < 1.85f || (horizontalDist < 1.6f && verticalDiff < 2.5f))
+            // 1. 取得完了判定（身体に接触：中心間0.95m以内、または水平0.85m＆高低差1.3m以内）
+            if (dist < 0.95f || (horizontalDist < 0.85f && verticalDiff < 1.3f))
             {
                 Collect();
                 return;
             }
 
-            // 2. スムーズで強力なマグネット吸い寄せ（5.5m以内）
-            if (dist < 5.5f || (horizontalDist < 4.8f && verticalDiff < 4.5f))
+            // 2. ふわっと近づくマグネット吸い寄せ（2.8m以内まで近づいた時のみ発動）
+            if (dist < 2.8f || (horizontalDist < 2.4f && verticalDiff < 2.0f))
             {
-                transform.position = Vector3.MoveTowards(transform.position, playerPos, Time.deltaTime * 14.0f);
+                transform.position = Vector3.MoveTowards(transform.position, playerPos, Time.deltaTime * 6.5f);
             }
 
-            // 3. 近くにいる時にEキー（インタラクト）が押された場合も確実に即時取得
-            if (player.InteractPressed && dist < 4.5f)
+            // 3. 近くにいる時にEキー（インタラクト）が押された場合も取得
+            if (player.InteractPressed && dist < 2.5f)
             {
                 Collect();
                 return;
@@ -294,6 +298,7 @@ public class AdventureScrapItem : MonoBehaviour
     void CheckColliderCollect(Collider other)
     {
         if (_isCollected) return;
+        if (Time.time < _spawnTime + 0.6f) return; // スポーン直後の誤判定を回避
         if (other == null) return;
 
         if (other.GetComponentInParent<AdventurePlayerController>() != null 

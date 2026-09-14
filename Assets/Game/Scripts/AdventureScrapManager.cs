@@ -27,8 +27,8 @@ public class AdventureScrapManager : MonoBehaviour
     readonly List<Vector3> _scrapSpawnPositions = new List<Vector3>
     {
         // ── Stage 1: 白砂ビーチ・海辺（パーツ 0〜3個 → ダッシュ速度UP解禁！） ──
-        // 1. 【砂浜】二人の座礁漂着艇のハッチ脇（開始直後に正面に光り輝くチュートリアル）
-        new Vector3(154f, 0f, 273f),
+        // 1. 【砂浜】二人の座礁漂着艇の先、波打ち際の白砂（開始時に視界の正面9m先で光り輝く）
+        new Vector3(167f, 0f, 277f),
         // 2. 【砂浜】初日の焚き火キャンプ跡の木陰
         new Vector3(182f, 0f, 332f),
         // 3. 【砂浜】南西の岬・砂浜から内陸大草原への登り口
