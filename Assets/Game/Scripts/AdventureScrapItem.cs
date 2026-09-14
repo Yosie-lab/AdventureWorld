@@ -65,20 +65,20 @@ public class AdventureScrapItem : MonoBehaviour
         ApplyMaterial(hub.GetComponent<Renderer>());
         ApplyCoreMaterial(core.GetComponent<Renderer>());
 
-        // コライダー（接近感知用トリガー：4.5m以内で確実に吸い寄せ開始）
+        // コライダー（接近感知用トリガー：5.5m以内で確実に吸い寄せ開始）
         var col = gameObject.AddComponent<SphereCollider>();
         col.isTrigger = true;
-        col.radius = 4.5f;
+        col.radius = 5.5f;
     }
 
     void CreateBeacon()
     {
-        // 遠くからでも山や木立の向こうから一目でわかる天空への光の柱（高さ35m）
+        // 遠くからでも山や木立、タワー頂上から一目でわかる天空への光の柱（高さ60m）
         var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         beacon.name = "BeaconPillar";
         beacon.transform.SetParent(transform, false);
-        beacon.transform.localPosition = new Vector3(0f, 17.5f, 0f);
-        beacon.transform.localScale = new Vector3(0.40f, 17.5f, 0.40f);
+        beacon.transform.localPosition = new Vector3(0f, 30f, 0f);
+        beacon.transform.localScale = new Vector3(0.60f, 30f, 0.60f);
         Destroy(beacon.GetComponent<Collider>());
 
         var rend = beacon.GetComponent<Renderer>();

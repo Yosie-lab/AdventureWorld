@@ -38,8 +38,8 @@ public class AdventureScrapManager : MonoBehaviour
         new Vector3(640f, 0f, 650f),
         // 11. 北の大滑空崖のジャンプ台先端
         new Vector3(512f, 0f, 725f),
-        // 12. サンクチュアリ中央の石畳テラス
-        new Vector3(512f, 0f, 512f)
+        // 12. サンクチュアリ中央広場（オベリスク南側正面・白亜テラスの特等席）
+        new Vector3(512f, 0f, 496f)
     };
 
     readonly List<AdventureScrapItem> _activeItems = new List<AdventureScrapItem>();
@@ -99,9 +99,15 @@ public class AdventureScrapManager : MonoBehaviour
         for (int i = 0; i < positions.Count; i++)
         {
             Vector3 pos = positions[i];
-            if (land != null)
+            // Raycastで地面や白亜テラス床・岩の天面を確実に捉えて配置
+            Vector3 rayOrigin = new Vector3(pos.x, 200f, pos.z);
+            if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 250f))
             {
-                pos.y = land.SampleHeight(pos) + land.transform.position.y + 1.35f;
+                pos.y = hit.point.y + 1.45f;
+            }
+            else if (land != null)
+            {
+                pos.y = land.SampleHeight(pos) + land.transform.position.y + 1.45f;
             }
             else
             {
