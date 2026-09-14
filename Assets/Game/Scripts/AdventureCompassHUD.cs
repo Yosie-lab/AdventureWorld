@@ -4,10 +4,13 @@ using System.Collections.Generic;
 
 /// <summary>
 /// 『Rust & Float』専用の水平リボンコンパスHUD（DeltaAngle方式・完全シームレス・パーツマーカー連動）
-/// 360度の境界（北）でもワープせず滑らかに回転し、リボン上にパーツの方向アイコンもリアルタイム表示する
+/// プレイヤーの追従カメラと100%完全同期し、360度どこを向いても滑らかに方角・角度・パーツ位置を案内する
 /// </summary>
 public class AdventureCompassHUD : MonoBehaviour
 {
+    static AdventureCompassHUD _instance;
+    public static AdventureCompassHUD Instance => _instance;
+
     Camera _cam;
     Text _headingBadgeText;
     Text _scrapNavText;
@@ -16,7 +19,7 @@ public class AdventureCompassHUD : MonoBehaviour
     Text _scrapMarkerText;
 
     const float PixelsPerDegree = 2.4f; // 1度あたりのピクセル幅（表示視野角 約±68度）
-    const float HalfWidth = 162f;       // コンパスの有効表示半幅 (324px / 2)
+    const float RibbonHalfWidth = 160f; // コンパス枠の表示半幅
 
     struct CompassElement
     {
@@ -27,60 +30,106 @@ public class AdventureCompassHUD : MonoBehaviour
 
     readonly List<CompassElement> _elements = new List<CompassElement>();
 
-    public static AdventureCompassHUD Create(Transform parent, Font font)
+    /// <summary>コンパスHUDがシーン内に確実に存在することを保証する</summary>
+    public static AdventureCompassHUD Ensure(Transform parent = null, Font font = null)
     {
-        var hudGo = new GameObject("CompassHUD");
-        hudGo.transform.SetParent(parent, false);
+        if (_instance != null && _instance.gameObject != null)
+            return _instance;
+
+        var existing = FindAnyObjectByType<AdventureCompassHUD>();
+        if (existing != null)
+        {
+            _instance = existing;
+            return _instance;
+        }
+
+        if (parent == null)
+        {
+            var scrapHud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
+            if (scrapHud != null)
+            {
+                var canvas = scrapHud.GetComponentInChildren<Canvas>();
+                if (canvas != null) parent = canvas.transform;
+            }
+        }
+
+        if (parent == null)
+        {
+            var canvasGo = GameObject.Find("RustFloatHUD") ?? GameObject.Find("ScrapHUD_Canvas");
+            if (canvasGo != null) parent = canvasGo.transform;
+        }
+
+        return Create(parent, font);
+    }
+
+    public static AdventureCompassHUD Create(Transform parent, Font font = null)
+    {
+        if (font == null) font = ResolveSafeFont();
+
+        var hudGo = new GameObject("CompassHUD", typeof(RectTransform));
+        if (parent != null)
+        {
+            hudGo.transform.SetParent(parent, false);
+        }
 
         var hud = hudGo.AddComponent<AdventureCompassHUD>();
         hud.BuildUI(font);
+        _instance = hud;
         return hud;
+    }
+
+    void Awake()
+    {
+        _instance = this;
     }
 
     void BuildUI(Font font)
     {
         // 1. コンパス外枠ルート（画面最上部中央）
-        var rootRt = gameObject.AddComponent<RectTransform>();
+        var rootRt = GetComponent<RectTransform>();
         rootRt.anchorMin = new Vector2(0.5f, 1f);
         rootRt.anchorMax = new Vector2(0.5f, 1f);
         rootRt.pivot = new Vector2(0.5f, 1f);
         rootRt.anchoredPosition = new Vector2(0f, -8f);
-        rootRt.sizeDelta = new Vector2(340f, 26f);
+        rootRt.sizeDelta = new Vector2(360f, 28f);
 
-        // 背景（半透明のダークグラデーションバー）
+        // 背景プレート（半透明の深藍ダークグラデーション）
         var bg = gameObject.AddComponent<Image>();
-        bg.color = new Color(0.04f, 0.07f, 0.12f, 0.55f);
+        bg.color = new Color(0.03f, 0.06f, 0.11f, 0.88f);
 
-        // 下部の細い境界ライン（爽やかなシアンの光彩）
-        var borderBottom = new GameObject("BorderBottom");
+        // 上部ライン（サイバーグロー）
+        var borderTop = new GameObject("BorderTop", typeof(RectTransform));
+        borderTop.transform.SetParent(transform, false);
+        var topRt = borderTop.GetComponent<RectTransform>();
+        topRt.anchorMin = new Vector2(0f, 1f);
+        topRt.anchorMax = new Vector2(1f, 1f);
+        topRt.pivot = new Vector2(0.5f, 1f);
+        topRt.anchoredPosition = Vector2.zero;
+        topRt.sizeDelta = new Vector2(0f, 1.2f);
+        var topImg = borderTop.AddComponent<Image>();
+        topImg.color = new Color(0.35f, 0.85f, 1.0f, 0.45f);
+
+        // 下部ライン（爽やかなシアンの光彩）
+        var borderBottom = new GameObject("BorderBottom", typeof(RectTransform));
         borderBottom.transform.SetParent(transform, false);
-        var bRt = borderBottom.AddComponent<RectTransform>();
+        var bRt = borderBottom.GetComponent<RectTransform>();
         bRt.anchorMin = new Vector2(0f, 0f);
         bRt.anchorMax = new Vector2(1f, 0f);
         bRt.pivot = new Vector2(0.5f, 0f);
         bRt.anchoredPosition = Vector2.zero;
-        bRt.sizeDelta = new Vector2(0f, 1.5f);
+        bRt.sizeDelta = new Vector2(0f, 1.8f);
         var bImg = borderBottom.AddComponent<Image>();
-        bImg.color = new Color(0.35f, 0.85f, 0.98f, 0.50f);
+        bImg.color = new Color(0.35f, 0.90f, 1.0f, 0.75f);
 
-        // マスク領域（左右のクリップ用）
-        var maskGo = new GameObject("CompassMask");
-        maskGo.transform.SetParent(transform, false);
-        var maskRt = maskGo.AddComponent<RectTransform>();
-        maskRt.anchorMin = Vector2.zero;
-        maskRt.anchorMax = Vector2.one;
-        maskRt.sizeDelta = Vector2.zero;
-        maskGo.AddComponent<RectMask2D>();
-
-        // コンパステープコンテナ
-        var ribbonGo = new GameObject("CompassRibbon");
-        ribbonGo.transform.SetParent(maskGo.transform, false);
-        _ribbonContainer = ribbonGo.AddComponent<RectTransform>();
+        // コンパステープコンテナ（RectMask2Dを使わず、コード側の表示判定で安全にクリッピング）
+        var ribbonGo = new GameObject("CompassRibbon", typeof(RectTransform));
+        ribbonGo.transform.SetParent(transform, false);
+        _ribbonContainer = ribbonGo.GetComponent<RectTransform>();
         _ribbonContainer.anchorMin = new Vector2(0.5f, 0.5f);
         _ribbonContainer.anchorMax = new Vector2(0.5f, 0.5f);
         _ribbonContainer.pivot = new Vector2(0.5f, 0.5f);
         _ribbonContainer.anchoredPosition = Vector2.zero;
-        _ribbonContainer.sizeDelta = new Vector2(340f, 26f);
+        _ribbonContainer.sizeDelta = new Vector2(360f, 28f);
 
         // 方角マーカー（8方位：0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°）
         string[] cardinals = { "北", "北東", "東", "南東", "南", "南西", "西", "北西" };
@@ -88,47 +137,47 @@ public class AdventureCompassHUD : MonoBehaviour
 
         for (int i = 0; i < cardinals.Length; i++)
         {
-            var elemGo = new GameObject("Card_" + cardinals[i]);
+            var elemGo = new GameObject("Card_" + cardinals[i], typeof(RectTransform));
             elemGo.transform.SetParent(_ribbonContainer, false);
-            var eRt = elemGo.AddComponent<RectTransform>();
-            eRt.sizeDelta = new Vector2(44f, 24f);
+            var eRt = elemGo.GetComponent<RectTransform>();
+            eRt.sizeDelta = new Vector2(44f, 26f);
 
             var txt = elemGo.AddComponent<Text>();
             txt.font = font;
-            txt.fontSize = cardinals[i].Length == 1 ? 13 : 11;
+            txt.fontSize = cardinals[i].Length == 1 ? 14 : 11;
             txt.fontStyle = FontStyle.Bold;
             txt.alignment = TextAnchor.MiddleCenter;
             txt.text = cardinals[i];
             txt.raycastTarget = false;
 
             if (cardinals[i] == "北")
-                txt.color = new Color(0.25f, 0.98f, 1.0f, 0.98f); // 北は鮮やかな発光シアン
+                txt.color = new Color(0.20f, 0.95f, 1.0f, 1.0f); // 北は鮮やかなシアン発光
             else if (cardinals[i].Length == 1)
-                txt.color = new Color(0.92f, 0.96f, 1.0f, 0.90f); // 東、南、西
+                txt.color = new Color(0.95f, 0.98f, 1.0f, 0.92f); // 東、南、西
             else
-                txt.color = new Color(0.72f, 0.82f, 0.90f, 0.65f); // 北東、南東、南西、北西
+                txt.color = new Color(0.72f, 0.84f, 0.94f, 0.70f); // 北東、南東、南西、北西
 
             var outline = elemGo.AddComponent<Outline>();
-            outline.effectColor = new Color(0f, 0f, 0f, 0.85f);
+            outline.effectColor = new Color(0f, 0.02f, 0.06f, 0.95f);
             outline.effectDistance = new Vector2(1f, -1f);
 
             _elements.Add(new CompassElement { TargetAngle = angles[i], Rt = eRt, Txt = txt });
 
-            // 15度ごとの目盛りドット（8方位の間に2つずつ配置）
+            // 15度ごとの目盛りドット
             for (int sub = 1; sub < 3; sub++)
             {
                 float subAngle = (angles[i] + sub * 15f) % 360f;
-                var dotGo = new GameObject("Tick_" + subAngle);
+                var dotGo = new GameObject("Tick_" + subAngle, typeof(RectTransform));
                 dotGo.transform.SetParent(_ribbonContainer, false);
-                var dRt = dotGo.AddComponent<RectTransform>();
+                var dRt = dotGo.GetComponent<RectTransform>();
                 dRt.sizeDelta = new Vector2(16f, 16f);
 
                 var dTxt = dotGo.AddComponent<Text>();
                 dTxt.font = font;
-                dTxt.fontSize = 9;
+                dTxt.fontSize = 10;
                 dTxt.alignment = TextAnchor.MiddleCenter;
                 dTxt.text = "·";
-                dTxt.color = new Color(0.65f, 0.80f, 0.92f, 0.50f);
+                dTxt.color = new Color(0.60f, 0.78f, 0.90f, 0.55f);
                 dTxt.raycastTarget = false;
 
                 _elements.Add(new CompassElement { TargetAngle = subAngle, Rt = dRt, Txt = dTxt });
@@ -136,111 +185,115 @@ public class AdventureCompassHUD : MonoBehaviour
         }
 
         // 2. コンパスリボン上に表示されるリアルタイム「パーツ探知マーカー（✦）」
-        var smGo = new GameObject("CompassScrapMarker");
+        var smGo = new GameObject("CompassScrapMarker", typeof(RectTransform));
         smGo.transform.SetParent(_ribbonContainer, false);
-        _scrapMarkerRt = smGo.AddComponent<RectTransform>();
-        _scrapMarkerRt.sizeDelta = new Vector2(28f, 22f);
+        _scrapMarkerRt = smGo.GetComponent<RectTransform>();
+        _scrapMarkerRt.sizeDelta = new Vector2(36f, 26f);
         _scrapMarkerText = smGo.AddComponent<Text>();
         _scrapMarkerText.font = font;
-        _scrapMarkerText.fontSize = 13;
+        _scrapMarkerText.fontSize = 15;
         _scrapMarkerText.fontStyle = FontStyle.Bold;
         _scrapMarkerText.alignment = TextAnchor.MiddleCenter;
         _scrapMarkerText.text = "✦";
         _scrapMarkerText.color = new Color(1.0f, 0.88f, 0.25f, 1f);
         _scrapMarkerText.raycastTarget = false;
         var smOutline = smGo.AddComponent<Outline>();
-        smOutline.effectColor = new Color(0f, 0f, 0f, 0.95f);
-        smOutline.effectDistance = new Vector2(1f, -1f);
+        smOutline.effectColor = new Color(0f, 0f, 0f, 0.98f);
+        smOutline.effectDistance = new Vector2(1.2f, -1.2f);
         smGo.SetActive(false);
 
         // 3. 中央インジケーター（▼ マーカー）
-        var needleGo = new GameObject("CompassNeedle");
+        var needleGo = new GameObject("CompassNeedle", typeof(RectTransform));
         needleGo.transform.SetParent(transform, false);
-        var nRt = needleGo.AddComponent<RectTransform>();
+        var nRt = needleGo.GetComponent<RectTransform>();
         nRt.anchorMin = new Vector2(0.5f, 1f);
         nRt.anchorMax = new Vector2(0.5f, 1f);
         nRt.pivot = new Vector2(0.5f, 1f);
         nRt.anchoredPosition = new Vector2(0f, 1f);
-        nRt.sizeDelta = new Vector2(24f, 14f);
+        nRt.sizeDelta = new Vector2(24f, 16f);
         var nTxt = needleGo.AddComponent<Text>();
         nTxt.font = font;
-        nTxt.fontSize = 11;
+        nTxt.fontSize = 12;
         nTxt.fontStyle = FontStyle.Bold;
         nTxt.alignment = TextAnchor.UpperCenter;
         nTxt.text = "▼";
-        nTxt.color = new Color(0.25f, 0.98f, 1.0f, 0.95f);
+        nTxt.color = new Color(0.20f, 0.95f, 1.0f, 0.98f);
         nTxt.raycastTarget = false;
         var nOutline = needleGo.AddComponent<Outline>();
-        nOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
+        nOutline.effectColor = new Color(0f, 0f, 0f, 0.90f);
         nOutline.effectDistance = new Vector2(1f, -1f);
 
         // 4. 中央下部の方角・角度デジタルバッジ（例: "北  15°"）
-        var badgeGo = new GameObject("HeadingBadge");
+        var badgeGo = new GameObject("HeadingBadge", typeof(RectTransform));
         badgeGo.transform.SetParent(transform, false);
-        var bBadgeRt = badgeGo.AddComponent<RectTransform>();
+        var bBadgeRt = badgeGo.GetComponent<RectTransform>();
         bBadgeRt.anchorMin = new Vector2(0.5f, 0f);
         bBadgeRt.anchorMax = new Vector2(0.5f, 0f);
         bBadgeRt.pivot = new Vector2(0.5f, 1f);
         bBadgeRt.anchoredPosition = new Vector2(0f, -4f);
-        bBadgeRt.sizeDelta = new Vector2(120f, 16f);
+        bBadgeRt.sizeDelta = new Vector2(160f, 18f);
 
         _headingBadgeText = badgeGo.AddComponent<Text>();
         _headingBadgeText.font = font;
-        _headingBadgeText.fontSize = 11;
+        _headingBadgeText.fontSize = 12;
         _headingBadgeText.fontStyle = FontStyle.Bold;
         _headingBadgeText.alignment = TextAnchor.MiddleCenter;
-        _headingBadgeText.color = new Color(0.88f, 0.96f, 1.0f, 0.90f);
+        _headingBadgeText.color = new Color(0.88f, 0.96f, 1.0f, 0.92f);
         _headingBadgeText.text = "北  0°";
         _headingBadgeText.raycastTarget = false;
         var badgeOutline = badgeGo.AddComponent<Outline>();
-        badgeOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
+        badgeOutline.effectColor = new Color(0f, 0f, 0f, 0.90f);
         badgeOutline.effectDistance = new Vector2(1f, -1f);
 
-        // 5. 最寄り漂着パーツの方向・距離ナビゲーションバッジ（デジタルバッジの下に綺麗に配置）
-        var navGo = new GameObject("ScrapNavBadge");
+        // 5. 最寄り漂着パーツの方向・距離ナビゲーションバッジ（デジタルバッジの下に配置）
+        var navGo = new GameObject("ScrapNavBadge", typeof(RectTransform));
         navGo.transform.SetParent(transform, false);
-        var navRt = navGo.AddComponent<RectTransform>();
+        var navRt = navGo.GetComponent<RectTransform>();
         navRt.anchorMin = new Vector2(0.5f, 0f);
         navRt.anchorMax = new Vector2(0.5f, 0f);
         navRt.pivot = new Vector2(0.5f, 1f);
-        navRt.anchoredPosition = new Vector2(0f, -22f); // バッジと重ならない安全クリアランス
-        navRt.sizeDelta = new Vector2(380f, 20f);
+        navRt.anchoredPosition = new Vector2(0f, -24f);
+        navRt.sizeDelta = new Vector2(460f, 22f);
 
         _scrapNavText = navGo.AddComponent<Text>();
         _scrapNavText.font = font;
-        _scrapNavText.fontSize = 11;
+        _scrapNavText.fontSize = 12;
         _scrapNavText.fontStyle = FontStyle.Bold;
         _scrapNavText.alignment = TextAnchor.MiddleCenter;
-        _scrapNavText.color = new Color(1.0f, 0.88f, 0.28f, 0.95f);
+        _scrapNavText.color = new Color(1.0f, 0.88f, 0.28f, 0.98f);
         _scrapNavText.text = "✦ 最寄りの漂着パーツを探知中…";
         _scrapNavText.raycastTarget = false;
         var navOutline = navGo.AddComponent<Outline>();
-        navOutline.effectColor = new Color(0f, 0f, 0f, 0.90f);
+        navOutline.effectColor = new Color(0f, 0f, 0f, 0.95f);
         navOutline.effectDistance = new Vector2(1f, -1f);
     }
 
     Camera GetActiveCamera()
     {
-        if (_cam != null && _cam.isActiveAndEnabled)
-            return _cam;
+        // 1. プレイヤー追従カメラを最優先（プレイヤーの視点と完全同期）
+        var follow = FindAnyObjectByType<AdventureCameraFollow>();
+        if (follow != null)
+        {
+            var c = follow.GetComponent<Camera>() ?? follow.GetComponentInChildren<Camera>();
+            if (c != null && c.isActiveAndEnabled)
+            {
+                _cam = c;
+                return _cam;
+            }
+        }
 
+        // 2. Camera.main
         if (Camera.main != null && Camera.main.isActiveAndEnabled)
         {
             _cam = Camera.main;
             return _cam;
         }
 
-        var follow = FindAnyObjectByType<AdventureCameraFollow>();
-        if (follow != null)
-        {
-            var cam = follow.GetComponent<Camera>();
-            if (cam != null && cam.isActiveAndEnabled)
-            {
-                _cam = cam;
-                return _cam;
-            }
-        }
+        // 3. 既存の有効カメラ
+        if (_cam != null && _cam.isActiveAndEnabled)
+            return _cam;
 
+        // 4. シーン内のアクティブカメラ探索
         var cams = FindObjectsByType<Camera>(FindObjectsInactive.Exclude);
         foreach (var c in cams)
         {
@@ -270,11 +323,11 @@ public class AdventureCompassHUD : MonoBehaviour
             var elem = _elements[i];
             float delta = Mathf.DeltaAngle(yaw, elem.TargetAngle);
 
-            if (Mathf.Abs(delta) <= 70f)
+            if (Mathf.Abs(delta) <= 68f)
             {
                 elem.Rt.gameObject.SetActive(true);
                 float x = delta * PixelsPerDegree;
-                elem.Rt.anchoredPosition = new Vector2(x, -1f);
+                elem.Rt.anchoredPosition = new Vector2(x, 0f);
             }
             else
             {
@@ -316,41 +369,41 @@ public class AdventureCompassHUD : MonoBehaviour
                     float scrapYaw = (Quaternion.LookRotation(toScrap).eulerAngles.y + 360f) % 360f;
                     string scrapCardinal = GetCardinal(scrapYaw);
 
-                    // コンパスリボン上に「✦」マーカーをダイレクト描画！（画面外の時は左右端にエッジクランプして方向案内）
+                    // コンパスリボン上に「✦」マーカーをダイレクト描画
                     if (_scrapMarkerRt != null)
                     {
                         _scrapMarkerRt.gameObject.SetActive(true);
                         if (Mathf.Abs(angle) <= 65f)
                         {
                             // 視野内：正確な方角位置にプロット
-                            _scrapMarkerRt.anchoredPosition = new Vector2(angle * PixelsPerDegree, -1f);
+                            _scrapMarkerRt.anchoredPosition = new Vector2(angle * PixelsPerDegree, 0f);
                             if (_scrapMarkerText != null)
                             {
-                                _scrapMarkerText.text = Mathf.Abs(angle) < 8f ? "★" : "✦";
+                                _scrapMarkerText.text = Mathf.Abs(angle) < 6f ? "★" : "✦";
                                 _scrapMarkerText.color = nearest.itemColor;
                             }
                         }
                         else if (angle > 65f)
                         {
                             // 右側画面外：右端にクランプして「✦▶」表示
-                            _scrapMarkerRt.anchoredPosition = new Vector2(150f, -1f);
+                            _scrapMarkerRt.anchoredPosition = new Vector2(RibbonHalfWidth - 10f, 0f);
                             if (_scrapMarkerText != null)
                             {
                                 _scrapMarkerText.text = "✦▶";
                                 Color c = nearest.itemColor;
-                                c.a = 0.75f + 0.25f * Mathf.Sin(Time.time * 6f); // 脈動で注意喚起
+                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 7f); // 脈動
                                 _scrapMarkerText.color = c;
                             }
                         }
                         else
                         {
                             // 左側画面外：左端にクランプして「◀✦」表示
-                            _scrapMarkerRt.anchoredPosition = new Vector2(-150f, -1f);
+                            _scrapMarkerRt.anchoredPosition = new Vector2(-RibbonHalfWidth + 10f, 0f);
                             if (_scrapMarkerText != null)
                             {
                                 _scrapMarkerText.text = "◀✦";
                                 Color c = nearest.itemColor;
-                                c.a = 0.75f + 0.25f * Mathf.Sin(Time.time * 6f); // 脈動で注意喚起
+                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 7f); // 脈動
                                 _scrapMarkerText.color = c;
                             }
                         }
@@ -399,7 +452,7 @@ public class AdventureCompassHUD : MonoBehaviour
         }
     }
 
-    static string GetCardinal(float yaw)
+    public static string GetCardinal(float yaw)
     {
         if (yaw >= 337.5f || yaw < 22.5f) return "北";
         if (yaw >= 22.5f && yaw < 67.5f) return "北東";
@@ -409,5 +462,48 @@ public class AdventureCompassHUD : MonoBehaviour
         if (yaw >= 202.5f && yaw < 247.5f) return "南西";
         if (yaw >= 247.5f && yaw < 292.5f) return "西";
         return "北西";
+    }
+
+    public static Font ResolveSafeFont()
+    {
+        var anyText = FindAnyObjectByType<Text>();
+        if (anyText != null && anyText.font != null)
+            return anyText.font;
+
+        string[] fonts = {
+            "Hiragino Sans",
+            "Hiragino Kaku Gothic ProN",
+            "Yu Gothic UI",
+            "YuGothic",
+            "Meiryo",
+            "Noto Sans CJK JP",
+            "Arial Unicode MS",
+            "Arial"
+        };
+        foreach (var name in fonts)
+        {
+            try
+            {
+                var f = Font.CreateDynamicFontFromOSFont(name, 14);
+                if (f != null) return f;
+            }
+            catch { }
+        }
+
+        try
+        {
+            var f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (f != null) return f;
+        }
+        catch { }
+
+        try
+        {
+            var f = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            if (f != null) return f;
+        }
+        catch { }
+
+        return Font.CreateDynamicFontFromOSFont("Arial", 14);
     }
 }

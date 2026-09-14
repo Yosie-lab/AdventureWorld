@@ -565,48 +565,101 @@ public class AdventureScrapManager : MonoBehaviour
         return item != null ? item.transform : null;
     }
 
-    /// <summary>最寄りの未取得アイテム実体を返す（破棄済み参照の自動排除＆自動リカバリー付き）</summary>
+    /// <summary>最寄りの未取得アイテム実体を返す（重複自動排除＆ストーリープログレッション優先＆破棄参照自動リカバリー）</summary>
     public AdventureScrapItem GetNearestScrapItem(Vector3 playerPos, out float distance)
     {
-        // 1. 破棄済み・回収済みの不正参照をリストからクリーンアップ
-        _activeItems.RemoveAll(it => it == null || it.gameObject == null || it.IsCollected || _collectedIds.Contains(it.itemId));
+        // 1. 重複インスタンスの検知とクリーンアップ（同一IDが複数あれば余分を即時削除）
+        var foundItems = FindObjectsByType<AdventureScrapItem>(FindObjectsInactive.Exclude);
+        var seenIds = new List<int>();
+        _activeItems.Clear();
 
-        // 2. もしリストが空だが未回収パーツが存在する場合、シーン内の実体から自動復元
-        if (_activeItems.Count == 0 && CollectedCount < TotalScrapCount)
+        foreach (var it in foundItems)
         {
-            var found = FindObjectsByType<AdventureScrapItem>();
-            foreach (var it in found)
+            if (it == null || it.gameObject == null || it.IsCollected || _collectedIds.Contains(it.itemId))
             {
-                if (it != null && !it.IsCollected && !_collectedIds.Contains(it.itemId))
+                if (it != null && (it.IsCollected || _collectedIds.Contains(it.itemId)))
                 {
-                    if (!_activeItems.Contains(it))
-                        _activeItems.Add(it);
+                    Destroy(it.gameObject);
                 }
+                continue;
             }
 
-            // シーン内にも実体が存在しない場合は即座に再生成
-            if (_activeItems.Count == 0 && CollectedCount < TotalScrapCount)
+            if (seenIds.Contains(it.itemId))
             {
-                SpawnAllScraps();
+                // 重複オブジェクトを削除
+                Destroy(it.gameObject);
+            }
+            else
+            {
+                seenIds.Add(it.itemId);
+                _activeItems.Add(it);
             }
         }
 
+        // 2. もし未回収パーツがシーン内に不足している場合、再生成
+        if (_activeItems.Count == 0 && CollectedCount < TotalScrapCount)
+        {
+            SpawnAllScraps();
+        }
+
+        if (_activeItems.Count == 0)
+        {
+            distance = 0f;
+            return null;
+        }
+
+        // 3. 【ストーリープログレッション優先探索】
+        // プレイヤーの進行ステージ（Stage 1: 1〜3, Stage 2: 4〜6, Stage 3: 7〜9, Stage 4: 10〜12）
+        // 現在の未取得パーツのうち、最も若い未取得ID（例: パーツ8）または現在ステージ内の未取得パーツを最優先！
+        int minUncollectedId = TotalScrapCount + 1;
+        foreach (var it in _activeItems)
+        {
+            if (it.itemId < minUncollectedId) minUncollectedId = it.itemId;
+        }
+
+        // 現在ステージの最大ID（1〜3なら3、4〜6なら6、7〜9なら9、10〜12なら12）
+        int currentStageMaxId = ((minUncollectedId - 1) / 3 + 1) * 3;
+
+        // まず現在ステージ内のパーツ（例: 7〜9）の中から最寄りを検索
         AdventureScrapItem nearest = null;
         float minDist = float.MaxValue;
 
+        // 第1優先：現在ステージ内のパーツ
         for (int i = 0; i < _activeItems.Count; i++)
         {
             var it = _activeItems[i];
             if (it == null || it.IsCollected) continue;
-            float d = Vector3.Distance(playerPos, it.transform.position);
-            if (d < minDist)
+            if (it.itemId <= currentStageMaxId)
             {
-                minDist = d;
-                nearest = it;
+                float d = Vector3.Distance(playerPos, it.transform.position);
+                // 次のストーリー順のパーツほど重み付けで少し優先
+                float weightedDist = d + (it.itemId - minUncollectedId) * 12f;
+                if (weightedDist < minDist)
+                {
+                    minDist = weightedDist;
+                    nearest = it;
+                }
             }
         }
 
-        distance = minDist;
+        // もし現在ステージ内に見つからなければ、全体から最寄りを選択
+        if (nearest == null)
+        {
+            minDist = float.MaxValue;
+            for (int i = 0; i < _activeItems.Count; i++)
+            {
+                var it = _activeItems[i];
+                if (it == null || it.IsCollected) continue;
+                float d = Vector3.Distance(playerPos, it.transform.position);
+                if (d < minDist)
+                {
+                    minDist = d;
+                    nearest = it;
+                }
+            }
+        }
+
+        distance = nearest != null ? Vector3.Distance(playerPos, nearest.transform.position) : 0f;
         return nearest;
     }
 

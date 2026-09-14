@@ -75,7 +75,8 @@ public class AdventureScrapHUD : MonoBehaviour
 
         _font = ResolveFont();
 
-        _font = ResolveFont();
+        // ── 画面最上部中央の水平リボンコンパスHUD（常時確実な起動を保証） ──
+        AdventureCompassHUD.Ensure(canvasGo.transform, _font);
 
         // ── 画面左上の独立したクエスト＆最寄りパーツHUDカード（他UIと絶対に重ならない特等席） ──
         var panelGo = new GameObject("QuestTickerPanel");
