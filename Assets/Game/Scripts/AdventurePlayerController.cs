@@ -144,6 +144,7 @@ public class AdventurePlayerController : MonoBehaviour
         if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame)) InteractPressed = true;
         if (kb != null && kb.rKey.wasPressedThisFrame)
         {
+            ForceGroundReset(); // まず宙ぶらり状態を即座に解除
             Teleport(spawnPosition);
             return;
         }
@@ -168,9 +169,22 @@ public class AdventurePlayerController : MonoBehaviour
         // ブースト中は無条件で大空へ飛び上がり、接地判定や滑空ディレイを完全バイパス
         if (_glideBoostTimer > 0f)
         {
-            _grounded = false;
-            _gliding = true;
-            _airborneTime = Mathf.Max(_airborneTime, 1.0f);
+            // 地面に着地していたらブーストを即座にキャンセル（宙で止まる問題を防止）
+            if (_cc.isGrounded && _hop <= 0.05f && !TooSteep() && !StandingOnSeafloor())
+            {
+                _glideBoostTimer = 0f;
+                _grounded = true;
+                _gliding = false;
+                _doubleJumpUsed = false;
+                _airborneTime = 0f;
+                if (_hop < 0f) _hop = -2f;
+            }
+            else
+            {
+                _grounded = false;
+                _gliding = true;
+                _airborneTime = Mathf.Max(_airborneTime, 1.0f);
+            }
         }
         else if (Floating() || (_cc.isGrounded && _hop <= 0.05f && !TooSteep() && !StandingOnSeafloor()))
         {
@@ -562,14 +576,25 @@ public class AdventurePlayerController : MonoBehaviour
     public void Teleport(Vector3 pos)
     {
         pos = Stick(pos);
-        _cc.enabled = false;
+        if (_cc != null) _cc.enabled = false;
         transform.position = pos;
-        _cc.enabled = true;
+        if (_cc != null) _cc.enabled = true;
+        ForceGroundReset();
+    }
+
+    /// <summary>ブースト・滑空・ホップ状態を強制リセットして地上に着地させる（宙で止まった際の緊急回復）</summary>
+    public void ForceGroundReset()
+    {
         _hop = 0f;
         _grounded = true;
         _gliding = false;
+        _glideBoostTimer = 0f;
+        _glideBoostMultiplier = 1.0f;
         _airborneTime = 0f;
         _airMomentum = Vector3.zero;
+        _doubleJumpUsed = false;
+        _updraftTimer = 0f;
+        _updraftLift = 0f;
     }
 
     void CacheTerrains()
