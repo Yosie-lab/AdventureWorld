@@ -192,7 +192,7 @@ public class AdventureCompassHUD : MonoBehaviour
     void Update()
     {
         if (_cam == null)
-            _cam = Camera.main;
+            _cam = Camera.main ?? FindAnyObjectByType<Camera>();
         if (_cam == null || _tapeRt == null)
             return;
 
@@ -214,7 +214,7 @@ public class AdventureCompassHUD : MonoBehaviour
         // 最寄り漂着パーツへの方向と距離のリアルタイムナビゲーション
         if (_scrapNavText != null)
         {
-            var mgr = AdventureScrapManager.Instance;
+            var mgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
             var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
             if (mgr != null && player != null)
             {
@@ -228,7 +228,7 @@ public class AdventureCompassHUD : MonoBehaviour
                     Vector3 toScrap = (nearest.transform.position - player.transform.position);
                     toScrap.y = 0f;
 
-                    if (toScrap.sqrMagnitude > 0.01f)
+                    if (toScrap.sqrMagnitude > 0.04f)
                     {
                         toScrap.Normalize();
                         float angle = Vector3.SignedAngle(camFwd, toScrap, Vector3.up);
@@ -242,11 +242,21 @@ public class AdventureCompassHUD : MonoBehaviour
                         _scrapNavText.text = $"✦ {nearest.itemName}  {(int)dist}m  [{arrow}]";
                         _scrapNavText.color = nearest.itemColor;
                     }
+                    else
+                    {
+                        _scrapNavText.text = $"✦ {nearest.itemName}  [★ 足元]";
+                        _scrapNavText.color = nearest.itemColor;
+                    }
                 }
-                else
+                else if (mgr.CollectedCount >= mgr.TotalScrapCount)
                 {
                     _scrapNavText.text = "✦ 全ての漂着パーツ回収完了！";
                     _scrapNavText.color = new Color(0.35f, 1.0f, 0.85f, 0.95f);
+                }
+                else
+                {
+                    _scrapNavText.text = "✦ 最寄りの漂着パーツを探知中…";
+                    _scrapNavText.color = new Color(1.0f, 0.85f, 0.35f, 0.85f);
                 }
             }
         }

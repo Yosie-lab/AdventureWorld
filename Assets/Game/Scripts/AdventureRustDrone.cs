@@ -388,7 +388,7 @@ public class AdventureRustDrone : MonoBehaviour
 
     void UpdateGuide()
     {
-        var mgr = AdventureScrapManager.Instance;
+        var mgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
         if (mgr == null || _lookAt == null)
         {
             _guidedScrap = null;
@@ -397,14 +397,15 @@ public class AdventureRustDrone : MonoBehaviour
         }
 
         var nearest = mgr.GetNearestScrapItem(_lookAt.position, out float dist);
-        if (nearest != null && dist <= 22f && !nearest.IsCollected)
+        // 35m以内のパーツを鋭敏に探知してプレイヤーに案内
+        if (nearest != null && dist <= 35f && !nearest.IsCollected)
         {
             _guidedScrap = nearest;
             _isPointingToScrap = true;
 
             if (Time.time >= _nextGuideNotice)
             {
-                _nextGuideNotice = Time.time + 14f;
+                _nextGuideNotice = Time.time + 12f;
                 SetSpeech("ピピピッ！あそこにパーツの反応があるよ！", 3.8f);
                 if (_audio != null && _happyBeepClip != null)
                 {
@@ -1183,24 +1184,27 @@ public class AdventureRustDrone : MonoBehaviour
 
     void UpdateSonar()
     {
-        var mgr = AdventureScrapManager.Instance;
-        if (mgr == null || !mgr.hasPetRadar)
-            return;
+        var mgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
+        if (mgr == null) return;
+
+        // レーダー未解放（パーツ9個未満）でも近距離（25m）で探知反応し、解放後は60mの超広域に強化
+        bool hasRadar = mgr.hasPetRadar;
+        float maxDist = hasRadar ? 60f : 25f;
 
         var nearest = mgr.GetNearestScrap(transform.position, out float dist);
-        if (nearest == null || dist > 45f)
+        if (nearest == null || dist > maxDist)
             return;
 
         _sonarTimer -= Time.deltaTime;
         if (_sonarTimer <= 0f)
         {
-            float rate = Mathf.Lerp(1.0f, 2.8f, 1f - Mathf.Clamp01(dist / 45f));
-            _sonarTimer = 3.2f / rate;
+            float rate = Mathf.Lerp(1.0f, hasRadar ? 3.0f : 2.0f, 1f - Mathf.Clamp01(dist / maxDist));
+            _sonarTimer = (hasRadar ? 2.5f : 3.5f) / rate;
 
             if (_audio != null && _sonarBeepClip != null)
             {
-                _audio.pitch = Mathf.Lerp(0.9f, 1.35f, 1f - Mathf.Clamp01(dist / 45f));
-                _audio.PlayOneShot(_sonarBeepClip, 0.32f);
+                _audio.pitch = Mathf.Lerp(hasRadar ? 1.0f : 0.85f, 1.45f, 1f - Mathf.Clamp01(dist / maxDist));
+                _audio.PlayOneShot(_sonarBeepClip, hasRadar ? 0.38f : 0.28f);
             }
         }
     }

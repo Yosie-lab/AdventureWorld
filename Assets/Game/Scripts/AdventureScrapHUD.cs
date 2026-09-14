@@ -288,7 +288,7 @@ public class AdventureScrapHUD : MonoBehaviour
 
         // 2行目：最寄りパーツ探知（方角と距離）
         string subInfo = "";
-        var player = AdventurePlayerController.Instance;
+        var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
         if (player != null && scrapMgr != null && count < 12)
         {
             var nearest = scrapMgr.GetNearestScrapItem(player.transform.position, out float dist);
@@ -300,7 +300,7 @@ public class AdventureScrapHUD : MonoBehaviour
             }
             else
             {
-                subInfo = "<color=#B0BEC5>📍 全てのパーツを発見しました</color>";
+                subInfo = "<color=#B0BEC5>📍 最寄りのパーツを探知中…</color>";
             }
         }
         else if (count >= 12 && !AdventureSanctuaryTowerManager.IsCanopyBroken)

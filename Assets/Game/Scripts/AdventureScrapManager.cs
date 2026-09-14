@@ -516,16 +516,39 @@ public class AdventureScrapManager : MonoBehaviour
         return item != null ? item.transform : null;
     }
 
-    /// <summary>最寄りの未取得アイテム実体を返す</summary>
+    /// <summary>最寄りの未取得アイテム実体を返す（破棄済み参照の自動排除＆自動リカバリー付き）</summary>
     public AdventureScrapItem GetNearestScrapItem(Vector3 playerPos, out float distance)
     {
+        // 1. 破棄済み・回収済みの不正参照をリストからクリーンアップ
+        _activeItems.RemoveAll(it => it == null || it.gameObject == null || it.IsCollected || _collectedIds.Contains(it.itemId));
+
+        // 2. もしリストが空だが未回収パーツが存在する場合、シーン内の実体から自動復元
+        if (_activeItems.Count == 0 && CollectedCount < TotalScrapCount)
+        {
+            var found = FindObjectsByType<AdventureScrapItem>(FindObjectsSortMode.None);
+            foreach (var it in found)
+            {
+                if (it != null && !it.IsCollected && !_collectedIds.Contains(it.itemId))
+                {
+                    if (!_activeItems.Contains(it))
+                        _activeItems.Add(it);
+                }
+            }
+
+            // シーン内にも実体が存在しない場合は即座に再生成
+            if (_activeItems.Count == 0 && CollectedCount < TotalScrapCount)
+            {
+                SpawnAllScraps();
+            }
+        }
+
         AdventureScrapItem nearest = null;
         float minDist = float.MaxValue;
 
         for (int i = 0; i < _activeItems.Count; i++)
         {
             var it = _activeItems[i];
-            if (it == null) continue;
+            if (it == null || it.IsCollected) continue;
             float d = Vector3.Distance(playerPos, it.transform.position);
             if (d < minDist)
             {
