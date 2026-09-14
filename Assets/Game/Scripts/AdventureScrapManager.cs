@@ -139,96 +139,114 @@ public class AdventureScrapManager : MonoBehaviour
         }
         if (_fanfareClip == null)
         {
-            _fanfareClip = SynthesizeFanfare();
+            LoadChimeClip();
         }
     }
 
-    /// <summary>パーツ取得時の快感ファンファーレジングル（ド・ミ・ソ・ド・ミ・ソ・ド〜〜〜ン♪）を再生</summary>
+    void LoadChimeClip()
+    {
+#if UNITY_EDITOR
+        _fanfareClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFloat/Audio/Ambience/brain_reflexo_chime.wav");
+#endif
+        if (_fanfareClip == null)
+            _fanfareClip = SynthesizeBrainReflexoChime();
+    }
+
+    /// <summary>パーツ取得時の快感チャイム音（『脳リフレクソ』の神秘的なウインドチャイム）を再生</summary>
     public void PlayScrapCollectFanfare()
     {
         if (_fanfareClip == null)
-            _fanfareClip = SynthesizeFanfare();
+            LoadChimeClip();
 
         if (_audioSource == null)
             SetupAudio();
 
         if (_audioSource != null && _fanfareClip != null)
         {
-            _audioSource.PlayOneShot(_fanfareClip, 1.0f);
-        }
-
-        // リスナー位置での直接再生も保険で同時に実行（100%確実に聞こえる）
-        var listener = FindAnyObjectByType<AudioListener>();
-        Vector3 playPos = listener != null ? listener.transform.position
-                        : (Camera.main != null ? Camera.main.transform.position : transform.position);
-
-        if (_fanfareClip != null)
-        {
-            AudioSource.PlayClipAtPoint(_fanfareClip, playPos, 1.0f);
+            _audioSource.PlayOneShot(_fanfareClip, 0.90f);
         }
     }
 
-    static AudioClip SynthesizeFanfare()
+    /// <summary>『脳リフレクソ』の神秘的なウインドチャイム・スイープ音（C5-B6のペンタトニックスケール＋ステレオ残響）の合成</summary>
+    static AudioClip SynthesizeBrainReflexoChime()
     {
         const int rate = 44100;
-        const float duration = 1.25f; // 余韻たっぷりの1.25秒
-        int count = (int)(rate * duration);
-        float[] data = new float[count];
+        float[] chimeScale = { 523.25f, 659.25f, 783.99f, 987.77f, 1046.50f, 1318.51f, 1567.98f, 1975.53f }; // C5, E5, G5, B5, C6, E6, G6, B6
+        float offset = 0.055f;
+        float duration = chimeScale.Length * offset + 2.0f; // 約2.44秒の豊かな余韻
+        int totalSamples = (int)(rate * duration);
 
-        // ゼルダのような快感ファンファーレアルペジオ（C5, E5, G5, C6, E6, G6, C7）
-        float[] notes = { 523.25f, 659.25f, 783.99f, 1046.50f, 1318.51f, 1567.98f, 2093.00f };
-        float offset = 0.048f; // タ・ラ・ラ・ラ・ラ・ラ・ラ〜〜〜ン♪
+        float[] leftDry = new float[totalSamples];
+        float[] rightDry = new float[totalSamples];
 
-        for (int n = 0; n < notes.Length; n++)
+        for (int idx = 0; idx < chimeScale.Length; idx++)
         {
-            float f = notes[n];
-            float startT = n * offset;
-            int startIdx = (int)(startT * rate);
-            bool isLast = (n == notes.Length - 1);
+            float freq = chimeScale[idx];
+            float startT = idx * offset;
+            int startSample = (int)(startT * rate);
+            float pan = (idx % 2 == 0 ? 0.35f : -0.35f) * ((float)idx / chimeScale.Length);
+            float panAngle = (pan + 1.0f) * 0.25f * Mathf.PI;
+            float leftGain = Mathf.Cos(panAngle);
+            float rightGain = Mathf.Sin(panAngle);
 
-            for (int i = startIdx; i < count; i++)
+            float noteDur = 0.95f;
+            int noteSamples = (int)(noteDur * rate);
+
+            for (int i = 0; i < noteSamples; i++)
             {
-                float t = (float)(i - startIdx) / rate;
-                // クッキリした立ち上がり（アタック）と心地よい余韻（最後の音は長く美しく響く）
-                float attack = Mathf.Clamp01(t / 0.0035f);
-                float decay = Mathf.Exp(-t * (isLast ? 3.2f : 6.0f));
+                int targetIdx = startSample + i;
+                if (targetIdx >= totalSamples) break;
+
+                float t = (float)i / rate;
+                float attack = Mathf.Clamp01(t / 0.025f);
+                float decay = Mathf.Exp(-t * 3.8f);
                 float env = attack * decay;
 
-                // 豊潤な倍音構成（基音 + 第2倍音 + クリスタルベルのきらめき成分）
-                float wave = Mathf.Sin(2f * Mathf.PI * f * t)
-                           + 0.40f * Mathf.Sin(2f * Mathf.PI * (f * 2.0f) * t)
-                           + 0.20f * Mathf.Sin(2f * Mathf.PI * (f * 3.0f) * t)
-                           + 0.12f * Mathf.Sin(2f * Mathf.PI * (f * 2.76f) * t);
+                float drift = 1.0f + 0.002f * Mathf.Clamp01(t / 0.6f);
+                float mainWave = Mathf.Sin(2.0f * Mathf.PI * (freq * drift) * t);
 
-                data[i] += wave * env * (isLast ? 0.45f : 0.28f);
+                float hAttack = Mathf.Clamp01(t / 0.035f);
+                float hDecay = Mathf.Exp(-t * 5.8f);
+                float harmonicWave = 0.24f * Mathf.Sin(2.0f * Mathf.PI * (freq * 2.0f) * t) * hAttack * hDecay;
+
+                float noteSig = mainWave * env + harmonicWave;
+                leftDry[targetIdx] += noteSig * leftGain;
+                rightDry[targetIdx] += noteSig * rightGain;
             }
         }
 
-        // シュピーン！という透明なクリスタルインパクト音（0〜0.15秒）
-        for (int i = 0; i < (int)(0.15f * rate); i++)
+        // 240ms のステレオピンポンディレイ（残響）
+        int delaySamples = (int)(rate * 0.24f);
+        float feedback = 0.45f;
+        float[] leftOut = (float[])leftDry.Clone();
+        float[] rightOut = (float[])rightDry.Clone();
+
+        for (int i = delaySamples; i < totalSamples; i++)
         {
-            float t = (float)i / rate;
-            float sparkEnv = Mathf.Exp(-t * 22f);
-            float sparkSweep = 2400f - t * 8000f;
-            float sparkWave = Mathf.Sin(2f * Mathf.PI * sparkSweep * t);
-            data[i] += sparkWave * sparkEnv * 0.25f;
+            leftOut[i] += rightOut[i - delaySamples] * feedback * 0.40f;
+            rightOut[i] += leftOut[i - delaySamples] * feedback * 0.40f;
         }
 
-        // ノーマライズ（最大振幅を 0.98 に最大化）
-        float max = 0f;
-        for (int i = 0; i < count; i++)
+        // ノーマライズ
+        float maxVal = 0f;
+        for (int i = 0; i < totalSamples; i++)
         {
-            float abs = Mathf.Abs(data[i]);
-            if (abs > max) max = abs;
-        }
-        if (max > 0.001f)
-        {
-            float scale = 0.98f / max;
-            for (int i = 0; i < count; i++) data[i] *= scale;
+            float al = Mathf.Abs(leftOut[i]);
+            float ar = Mathf.Abs(rightOut[i]);
+            if (al > maxVal) maxVal = al;
+            if (ar > maxVal) maxVal = ar;
         }
 
-        var clip = AudioClip.Create("ScrapCollectFanfare", count, 1, rate, false);
-        clip.SetData(data, 0);
+        float scale = maxVal > 0.001f ? (0.85f / maxVal) : 1.0f;
+        float[] stereoData = new float[totalSamples * 2];
+        for (int i = 0; i < totalSamples; i++)
+        {
+            stereoData[i * 2] = leftOut[i] * scale;
+            stereoData[i * 2 + 1] = rightOut[i] * scale;
+        }
+
+        var clip = AudioClip.Create("BrainReflexoChime", totalSamples, 2, rate, false);
+        clip.SetData(stereoData, 0);
         return clip;
     }
 
