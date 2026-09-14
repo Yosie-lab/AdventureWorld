@@ -246,8 +246,8 @@ public class AdventureScrapManager : MonoBehaviour
         positions[0] = new Vector3(pSpawn.x + 2.5f, 0f, pSpawn.z + 10.5f);
         // 2. スタート小道沿いの小高い岩場（前方約35m）
         positions[1] = new Vector3(pSpawn.x + 6f, 0f, pSpawn.z + 36f);
-        // 3. 西側白砂ビーチへと続く丘の木陰（約72m先）
-        positions[2] = new Vector3(pSpawn.x - 18f, 0f, pSpawn.z + 72f);
+        // 3. 西側白砂ビーチの座礁漂着艇のすぐ脇（外の世界から持ち出したコア）
+        positions[2] = new Vector3(154f, 0f, 273f);
 
         for (int i = 0; i < positions.Count; i++)
         {

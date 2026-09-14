@@ -95,6 +95,7 @@ public class AdventurePlayerController : MonoBehaviour
         AdventureBeachFlotsamManager.Ensure();
         AdventureLakeVisualEnhancer.Ensure();
         AdventureBeachEscapeManager.Ensure();
+        AdventureBeachNarrativeManager.Ensure();
         AdventureSanctuaryTowerManager.Ensure();
         AdventureMusicDirector.Ensure();
         AdventureCloudDrift.EnsureCloudSystem();
