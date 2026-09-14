@@ -191,9 +191,62 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // 接近判定コライダー
         var col = root.AddComponent<SphereCollider>();
         col.isTrigger = true;
-        col.radius = 5.5f;
+        // ── 2. 西側レバー（中央オベリスク西側・カルデラ湖側広場・プレイヤー正面） ──
+        var westRoot = new GameObject("SanctuaryWestLeverStructure");
+        westRoot.transform.SetParent(transform, false);
+        westRoot.transform.position = new Vector3(501.5f, 63.2f, 512f);
 
-        // ── 2. オベリスク頂上コンソール（標高137m・登り詰めたプレイヤー用） ──
+        var westPed = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        westPed.name = "WestPedestal";
+        westPed.transform.SetParent(westRoot.transform, false);
+        westPed.transform.localPosition = new Vector3(0f, 0.4f, 0f);
+        westPed.transform.localScale = new Vector3(3.6f, 0.4f, 3.6f);
+        var wPedMr = westPed.GetComponent<MeshRenderer>();
+        if (wPedMr != null) wPedMr.material = pedMr.material;
+
+        var westHousing = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        westHousing.name = "WestBrassGearHousing";
+        westHousing.transform.SetParent(westRoot.transform, false);
+        westHousing.transform.localPosition = new Vector3(0f, 1.05f, 0f);
+        westHousing.transform.localScale = new Vector3(0.95f, 0.55f, 1.2f);
+        var whMr = westHousing.GetComponent<MeshRenderer>();
+        if (whMr != null) whMr.material = hMr.material;
+
+        var westPivot = new GameObject("WestLeverPivot");
+        westPivot.transform.SetParent(westRoot.transform, false);
+        westPivot.transform.localPosition = new Vector3(0f, 1.25f, 0f);
+        westPivot.transform.localRotation = Quaternion.Euler(0f, 0f, -25f);
+        _topLeverHandle = westPivot.transform;
+
+        var westShaft = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        westShaft.name = "WestShaft";
+        westShaft.transform.SetParent(westPivot.transform, false);
+        westShaft.transform.localPosition = new Vector3(0f, 0.48f, 0f);
+        westShaft.transform.localScale = new Vector3(0.14f, 0.48f, 0.14f);
+        Destroy(westShaft.GetComponent<Collider>());
+        var wsMr = westShaft.GetComponent<MeshRenderer>();
+        if (wsMr != null) wsMr.material = sMr.material;
+
+        var westGrip = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        westGrip.name = "WestGripBall";
+        westGrip.transform.SetParent(westPivot.transform, false);
+        westGrip.transform.localPosition = new Vector3(0f, 0.98f, 0f);
+        westGrip.transform.localScale = Vector3.one * 0.36f;
+        Destroy(westGrip.GetComponent<Collider>());
+        var wgMr = westGrip.GetComponent<MeshRenderer>();
+        if (wgMr != null) wgMr.material = gMr.material;
+
+        // 西側光のビーコン柱
+        var westBeacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        westBeacon.name = "WestLeverSkyBeacon";
+        westBeacon.transform.SetParent(westRoot.transform, false);
+        westBeacon.transform.localPosition = new Vector3(0f, 35f, 0f);
+        westBeacon.transform.localScale = new Vector3(0.7f, 35f, 0.7f);
+        Destroy(westBeacon.GetComponent<Collider>());
+        var wbRend = westBeacon.GetComponent<Renderer>();
+        if (wbRend != null && bRend != null) wbRend.material = bRend.material;
+
+        // ── 3. オベリスク頂上コンソール（標高137m・登り詰めたプレイヤー用） ──
         var topRoot = new GameObject("SanctuaryTopLeverStructure");
         topRoot.transform.SetParent(transform, false);
         topRoot.transform.position = _topLeverPos;
@@ -210,11 +263,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         topPivot.transform.SetParent(topRoot.transform, false);
         topPivot.transform.localPosition = new Vector3(0f, 1.1f, 0f);
         topPivot.transform.localRotation = Quaternion.Euler(-25f, 0f, 0f);
-        _topLeverHandle = topPivot.transform;
 
         var topShaft = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         topShaft.name = "TopShaft";
-        topShaft.transform.SetParent(_topLeverHandle, false);
+        topShaft.transform.SetParent(topPivot.transform, false);
         topShaft.transform.localPosition = new Vector3(0f, 0.45f, 0f);
         topShaft.transform.localScale = new Vector3(0.14f, 0.45f, 0.14f);
         Destroy(topShaft.GetComponent<Collider>());
@@ -223,7 +275,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         var topGrip = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         topGrip.name = "TopGripBall";
-        topGrip.transform.SetParent(_topLeverHandle, false);
+        topGrip.transform.SetParent(topPivot.transform, false);
         topGrip.transform.localPosition = new Vector3(0f, 0.92f, 0f);
         topGrip.transform.localScale = Vector3.one * 0.35f;
         Destroy(topGrip.GetComponent<Collider>());
@@ -251,9 +303,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         if (_leverPulled) return;
 
-        float distMain = Vector3.Distance(player.transform.position, _mainLeverPos);
+        // ── 判定：白亜テラス広場全体（半径36m以内、標高58m〜78m）にいるか、またはオベリスク天面頂上にいるか ──
+        Vector2 pXZ = new Vector2(player.transform.position.x, player.transform.position.z);
+        float distFromCenter = Vector2.Distance(pXZ, new Vector2(512f, 512f));
+        bool onTerrace = (distFromCenter < 36f && player.transform.position.y >= 58f && player.transform.position.y <= 78f);
         float distTop = Vector3.Distance(player.transform.position, _topLeverPos);
-        _playerNearby = (distMain < 8.5f) || (distTop < 8.5f);
+        _playerNearby = onTerrace || (distTop < 8.5f);
 
         // キーストーン集積状態によるライトの演出
         var scrapMgr = AdventureScrapManager.Instance;
