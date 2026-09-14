@@ -227,7 +227,6 @@ public class AdventureScrapManager : MonoBehaviour
             player.glideFallSpeed = -1.35f;
         }
     }
-    }
 
     void CheckUpgrades()
     {
