@@ -43,6 +43,7 @@ public class AdventureScrapManager : MonoBehaviour
     };
 
     readonly List<AdventureScrapItem> _activeItems = new List<AdventureScrapItem>();
+    [SerializeField] List<int> _collectedList = new List<int>();
     readonly HashSet<int> _collectedIds = new HashSet<int>();
 
     public IEnumerable<int> GetCollectedIds() => _collectedIds;
@@ -70,6 +71,14 @@ public class AdventureScrapManager : MonoBehaviour
             return;
         }
         _instance = this;
+
+        // ドメインリロードやシーン再読込時にシリアライズされたリストからHashSetを完全復元
+        if (_collectedList != null && _collectedList.Count > 0)
+        {
+            foreach (var id in _collectedList)
+                _collectedIds.Add(id);
+            CollectedCount = _collectedIds.Count;
+        }
     }
 
     void Start()
@@ -151,6 +160,8 @@ public class AdventureScrapManager : MonoBehaviour
     {
         CollectedCount++;
         _collectedIds.Add(item.itemId);
+        if (!_collectedList.Contains(item.itemId))
+            _collectedList.Add(item.itemId);
         _activeItems.Remove(item);
 
         // HUDに通知
@@ -177,14 +188,28 @@ public class AdventureScrapManager : MonoBehaviour
     }
 
     /// <summary>セーブデータから収集済みパーツ一覧を適用し、能力とHUDを復元</summary>
-    public void ApplyLoadedScraps(List<int> loadedIds)
+    public void ApplyLoadedScraps(List<int> loadedIds, int fallbackCount = 0)
     {
-        if (loadedIds == null) return;
-
-        foreach (var id in loadedIds)
+        if (loadedIds != null && loadedIds.Count > 0)
         {
-            _collectedIds.Add(id);
+            foreach (var id in loadedIds)
+            {
+                _collectedIds.Add(id);
+                if (!_collectedList.Contains(id))
+                    _collectedList.Add(id);
+            }
         }
+        else if (fallbackCount > 0)
+        {
+            // フェイルセーフ：リストが空だが個数記録がある場合、ID 1〜fallbackCount を自動補完
+            for (int i = 1; i <= fallbackCount; i++)
+            {
+                _collectedIds.Add(i);
+                if (!_collectedList.Contains(i))
+                    _collectedList.Add(i);
+            }
+        }
+
         CollectedCount = _collectedIds.Count;
 
         // 既に生成されているアクティブアイテムから回収済みIDのものを消去

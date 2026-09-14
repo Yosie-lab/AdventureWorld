@@ -329,6 +329,25 @@ public class AdventureSaveManager : MonoBehaviour
                 scrapCount = data.collectedCount;
             }
 
+            // 【超重要安全ガード】もし未初期化やドメインリロード事故でscrapCountが0だが、
+            // 既存ファイルにパーツ収集記録（>0）がある場合、既存のパーツデータを絶対に消さずに保護維持する！
+            if (scrapCount == 0 && File.Exists(SaveFilePath))
+            {
+                try
+                {
+                    string oldJson = File.ReadAllText(SaveFilePath);
+                    var oldData = JsonUtility.FromJson<SaveData>(oldJson);
+                    if (oldData != null && (oldData.collectedCount > 0 || (oldData.collectedScrapIds != null && oldData.collectedScrapIds.Count > 0)))
+                    {
+                        data.collectedScrapIds = new List<int>(oldData.collectedScrapIds);
+                        data.collectedCount = Mathf.Max(oldData.collectedCount, data.collectedScrapIds.Count);
+                        scrapCount = data.collectedCount;
+                        Debug.LogWarning($"[AdventureSaveManager] 安全ガード発動: メモリ上のパーツが0件のため、既存セーブのパーツ記録({scrapCount}個)を保護維持しました。");
+                    }
+                }
+                catch { }
+            }
+
             // 3. Rustの油所持数
             int oil = 1;
             var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
@@ -340,6 +359,12 @@ public class AdventureSaveManager : MonoBehaviour
 
             // 4. 天蓋レバーの進行状況
             data.isCanopyBroken = AdventureSanctuaryTowerManager.IsCanopyBroken;
+
+            // 直前ファイルの自動バックアップ（.bak）を作成
+            if (File.Exists(SaveFilePath))
+            {
+                try { File.Copy(SaveFilePath, SaveFilePath + ".bak", true); } catch { }
+            }
 
             // JSONシリアライズしてファイル書き出し
             string json = JsonUtility.ToJson(data, true);
@@ -405,11 +430,11 @@ public class AdventureSaveManager : MonoBehaviour
     {
         yield return null;
 
-        // 1. スクラップ収集状態の復元
+        // 1. スクラップ収集状態の復元（万が一リストが空でもcollectedCountから自動補完復元）
         var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
         if (scrapMgr != null)
         {
-            scrapMgr.ApplyLoadedScraps(data.collectedScrapIds);
+            scrapMgr.ApplyLoadedScraps(data.collectedScrapIds, data.collectedCount);
         }
 
         // 2. Rustの油の復元
