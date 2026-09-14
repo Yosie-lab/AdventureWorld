@@ -698,6 +698,7 @@ public class AdventureRustDrone : MonoBehaviour
             {
                 StartCoroutine(CheerSpinRoutine());
             }
+            AdventureSaveManager.Instance?.SaveGame("整備と絆を記録しました");
             return;
         }
 
@@ -715,6 +716,7 @@ public class AdventureRustDrone : MonoBehaviour
             {
                 SpeakCustom("ピピッ…潤滑油が切れちゃった。僕が落とした黒いオイルのしずくを拾ってくれたら嬉しいな！", 4.5f);
             }
+            AdventureSaveManager.Instance?.SaveGame("相棒との絆を記録しました");
             return;
         }
 
@@ -725,6 +727,7 @@ public class AdventureRustDrone : MonoBehaviour
         if (AdventurePettingAction.Instance != null)
         {
             AdventurePettingAction.Instance.PetRust("いい子だね、Rust。一緒に未知の空へ行こう", 3.2f);
+            AdventureSaveManager.Instance?.SaveGame("相棒との絆を記録しました");
             return;
         }
 

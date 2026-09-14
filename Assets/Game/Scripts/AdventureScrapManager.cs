@@ -43,6 +43,9 @@ public class AdventureScrapManager : MonoBehaviour
     };
 
     readonly List<AdventureScrapItem> _activeItems = new List<AdventureScrapItem>();
+    readonly HashSet<int> _collectedIds = new HashSet<int>();
+
+    public IEnumerable<int> GetCollectedIds() => _collectedIds;
 
     public static void Ensure()
     {
@@ -105,12 +108,17 @@ public class AdventureScrapManager : MonoBehaviour
                 pos.y = 15f;
             }
 
-            var scrapGo = new GameObject("ScrapItem_" + (i + 1));
+            int scrapId = i + 1;
+            // 既にセーブデータで取得済みの場合は生成をスキップ
+            if (_collectedIds.Contains(scrapId))
+                continue;
+
+            var scrapGo = new GameObject("ScrapItem_" + scrapId);
             scrapGo.transform.SetParent(root.transform, false);
             scrapGo.transform.position = pos;
 
             var item = scrapGo.AddComponent<AdventureScrapItem>();
-            item.itemId = i + 1;
+            item.itemId = scrapId;
 
             // アイテムのバリエーション（ギア・コア・プリズム）
             if (i % 3 == 0)
@@ -136,6 +144,7 @@ public class AdventureScrapManager : MonoBehaviour
     public void OnScrapCollected(AdventureScrapItem item)
     {
         CollectedCount++;
+        _collectedIds.Add(item.itemId);
         _activeItems.Remove(item);
 
         // HUDに通知
@@ -153,6 +162,71 @@ public class AdventureScrapManager : MonoBehaviour
 
         // 段階的なアップグレード判定
         CheckUpgrades();
+
+        // オートセーブを実行！
+        if (AdventureSaveManager.Instance != null)
+        {
+            AdventureSaveManager.Instance.SaveGame($"パーツ発見！({CollectedCount}/{TotalScrapCount})");
+        }
+    }
+
+    /// <summary>セーブデータから収集済みパーツ一覧を適用し、能力とHUDを復元</summary>
+    public void ApplyLoadedScraps(List<int> loadedIds)
+    {
+        if (loadedIds == null) return;
+
+        foreach (var id in loadedIds)
+        {
+            _collectedIds.Add(id);
+        }
+        CollectedCount = _collectedIds.Count;
+
+        // 既に生成されているアクティブアイテムから回収済みIDのものを消去
+        for (int i = _activeItems.Count - 1; i >= 0; i--)
+        {
+            var it = _activeItems[i];
+            if (it != null && _collectedIds.Contains(it.itemId))
+            {
+                _activeItems.RemoveAt(i);
+                Destroy(it.gameObject);
+            }
+        }
+
+        // HUDを同期
+        if (AdventureScrapHUD.Instance != null)
+        {
+            AdventureScrapHUD.Instance.OnCollect("", CollectedCount, TotalScrapCount);
+        }
+
+        // アンロック能力を一括復元
+        ApplyAllUpgradesForCount(CollectedCount);
+    }
+
+    /// <summary>獲得数に応じたアンロック能力を全適用</summary>
+    public void ApplyAllUpgradesForCount(int count)
+    {
+        var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
+        if (player == null) return;
+
+        if (count >= 3)
+        {
+            player.runSpeed = 9.4f;
+            player.turnSpeed = 16.0f;
+        }
+        if (count >= 6)
+        {
+            player.canDoubleJump = true;
+        }
+        if (count >= 9)
+        {
+            player.hasPetRadar = true;
+        }
+        if (count >= 12)
+        {
+            player.glideForwardSpeed = 11.5f;
+            player.glideFallSpeed = -1.35f;
+        }
+    }
     }
 
     void CheckUpgrades()

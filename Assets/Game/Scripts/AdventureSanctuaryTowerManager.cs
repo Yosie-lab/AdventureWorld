@@ -231,6 +231,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // 天蓋破壊シークエンス開始！
         _leverPulled = true;
         IsCanopyBroken = true;
+        AdventureSaveManager.Instance?.SaveGame("天蓋開放・到達記録を保存しました");
         StartCoroutine(SkybreakSequenceRoutine());
     }
 
