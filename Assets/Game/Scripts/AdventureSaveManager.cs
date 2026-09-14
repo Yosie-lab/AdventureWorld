@@ -143,50 +143,7 @@ public class AdventureSaveManager : MonoBehaviour
 
         canvasGo.AddComponent<GraphicRaycaster>();
 
-        // 常設クリックセーブボタン（マウスでワンクリックしても即セーブ可能！）
-        var btnGo = new GameObject("QuickSaveButton");
-        btnGo.transform.SetParent(canvasGo.transform, false);
-        var btnRt = btnGo.AddComponent<RectTransform>();
-        btnRt.anchorMin = new Vector2(1f, 1f);
-        btnRt.anchorMax = new Vector2(1f, 1f);
-        btnRt.pivot = new Vector2(1f, 1f);
-        btnRt.anchoredPosition = new Vector2(-28f, -90f);
-        btnRt.sizeDelta = new Vector2(136f, 34f);
-
-        var btnImg = btnGo.AddComponent<Image>();
-        btnImg.color = new Color(0.04f, 0.08f, 0.14f, 0.90f);
-
-        var btnLineGo = new GameObject("BtnLine");
-        btnLineGo.transform.SetParent(btnGo.transform, false);
-        var bLineRt = btnLineGo.AddComponent<RectTransform>();
-        bLineRt.anchorMin = new Vector2(0f, 0f);
-        bLineRt.anchorMax = new Vector2(1f, 0f);
-        bLineRt.sizeDelta = new Vector2(0f, 2f);
-        var bLineImg = btnLineGo.AddComponent<Image>();
-        bLineImg.color = new Color(0.35f, 0.98f, 0.65f, 0.9f);
-
-        var btn = btnGo.AddComponent<Button>();
-        btn.onClick.AddListener(() => {
-            SaveGame("SAVEしました");
-        });
-
         Font font = ResolveFont();
-
-        var btnTextGo = new GameObject("BtnText");
-        btnTextGo.transform.SetParent(btnGo.transform, false);
-        var btnTextRt = btnTextGo.AddComponent<RectTransform>();
-        btnTextRt.anchorMin = Vector2.zero;
-        btnTextRt.anchorMax = Vector2.one;
-        btnTextRt.sizeDelta = Vector2.zero;
-        btnTextRt.anchoredPosition = Vector2.zero;
-
-        var btnText = btnTextGo.AddComponent<Text>();
-        btnText.font = font;
-        btnText.fontSize = 13;
-        btnText.fontStyle = FontStyle.Bold;
-        btnText.alignment = TextAnchor.MiddleCenter;
-        btnText.color = new Color(0.40f, 0.98f, 0.70f, 1.0f);
-        btnText.text = "💾 セーブ【K】";
 
         // バナーパネル（画面中央上部）
         var bannerGo = new GameObject("SaveBannerPanel");
@@ -389,7 +346,7 @@ public class AdventureSaveManager : MonoBehaviour
             File.WriteAllText(SaveFilePath, json);
 
             // バナー表示＆サウンド再生
-            string subText = $"遺物パーツ: {scrapCount}個 ／ Rust常備油: {oil}個（【F5】または【K】キーで保存）";
+            string subText = $"遺物パーツ: {scrapCount}個 ／ Rust常備油: {oil}個（Rustと絆を結びました）";
             ShowSaveNotification(customMessage, subText);
             PlaySaveSound();
 

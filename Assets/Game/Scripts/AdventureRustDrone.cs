@@ -708,7 +708,7 @@ public class AdventureRustDrone : MonoBehaviour
         {
             StartCoroutine(CheerSpinRoutine());
         }
-        AdventureSaveManager.Instance?.SaveGame("整備と絆を記録しました");
+        AdventureSaveManager.Instance?.SaveGame("SAVEしました");
     }
 
     void BeginHeatBurst()
@@ -1040,8 +1040,8 @@ public class AdventureRustDrone : MonoBehaviour
                 oilCount = Mathf.Max(oilCount, 1);
 
                 string prompt = needsOil 
-                    ? $"【E】油をさして手当て・撫でる（常備油: {oilCount}）" 
-                    : $"【E】Rustを愛おしく撫でる（常備油: {oilCount}）";
+                    ? $"【E】油をさして手当て＆セーブ（常備油: {oilCount}）" 
+                    : $"【E】Rustを撫でてセーブ（常備油: {oilCount}）";
                 Color textColor = needsOil 
                     ? new Color(1.0f, 0.90f, 0.25f) // 鮮やかなゴールド
                     : new Color(0.40f, 0.96f, 1.0f); // 爽やかなシアン
@@ -1102,7 +1102,7 @@ public class AdventureRustDrone : MonoBehaviour
             }
             else
             {
-                status = $"⚠ 要整備（【E】手当て / 油: {oilCount}）";
+                status = $"⚠ 要整備（【E】手当て＆セーブ / 油: {oilCount}）";
                 bColor = new Color(1.0f, 0.88f, 0.35f); // イエロー
             }
 
