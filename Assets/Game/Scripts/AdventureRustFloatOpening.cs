@@ -27,6 +27,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
     CanvasGroup _modalCg;
     Text _guideText;
     Button _playButton;
+    RectTransform _playBtnRt;
+    Image _playBtnImg;
     bool _isClosing = false;
     float _openTime = 0f;
 
@@ -49,8 +51,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (IsGameStarted || _isClosing)
             return;
 
-        // 起動直後（0.6秒間）はエディタのPlayクリックやウィンドウフォーカスの余韻による即時誤爆を防止
-        if (Time.realtimeSinceStartup - _openTime < 0.6f)
+        // 起動直後（0.3秒間）はエディタのPlayクリックの余韻による即時誤爆を防止
+        if (Time.realtimeSinceStartup - _openTime < 0.3f)
             return;
 
         // スタート前は常にカーソルを表示（じっくり読める状態を維持）
@@ -60,10 +62,55 @@ public class AdventureRustFloatOpening : MonoBehaviour
             Cursor.visible = true;
         }
 
-        // 行動を起こした時（WASD移動、Enter/Space決定、ゲームパッド移動/ボタン）に初めてゲーム開始
+        bool triggerPlay = false;
+
+        // 1. マウスによる「▶ PLAY」ボタンのダイレクトクリック＆ホバー判定
+        // EventSystemやInputModuleのバインド状態に関わらず、ボタンの四角形内をクリックしたら100%確実に反応する
+        Vector2 mousePos = Vector2.zero;
+        bool hasMouse = false;
+        var mouse = Mouse.current;
+        if (mouse != null)
+        {
+            mousePos = mouse.position.ReadValue();
+            hasMouse = true;
+        }
+        else
+        {
+            try
+            {
+                mousePos = Input.mousePosition;
+                hasMouse = true;
+            }
+            catch { }
+        }
+
+        if (_playBtnRt != null && hasMouse)
+        {
+            // ボタン領域にマウスがあるか判定
+            bool isHovered = RectTransformUtility.RectangleContainsScreenPoint(_playBtnRt, mousePos, null);
+
+            // ホバー時のビジュアルフィードバック（明るく発光し、ボタンが少し弾む）
+            if (_playBtnImg != null)
+            {
+                _playBtnImg.color = isHovered 
+                    ? new Color(0.20f, 0.90f, 1.0f, 1.0f) 
+                    : new Color(0.12f, 0.58f, 0.68f, 0.92f);
+                _playBtnRt.localScale = isHovered ? Vector3.one * 1.06f : Vector3.one;
+            }
+
+            // ボタン上での左クリック検知
+            bool mouseLeftClicked = (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.leftButton.wasReleasedThisFrame));
+            try { if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonUp(0)) mouseLeftClicked = true; } catch { }
+
+            if (isHovered && mouseLeftClicked)
+            {
+                triggerPlay = true;
+            }
+        }
+
+        // 2. 行動を起こした時（WASD移動、Enter/Space決定、ゲームパッド移動/ボタン）
         var kb = Keyboard.current;
         var pad = Gamepad.current;
-        bool triggerPlay = false;
 
         if (kb != null)
         {
@@ -104,12 +151,25 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (IsGameStarted || _isClosing)
             return;
 
-        if (Time.realtimeSinceStartup - _openTime < 0.4f)
+        if (Time.realtimeSinceStartup - _openTime < 0.2f)
             return;
 
         Event e = Event.current;
-        // レガシーEventでもWASDやSpace/Returnキーのみを検知（マウスクリックでの誤爆消失を防止）
-        if (e != null && e.type == EventType.KeyDown)
+        if (e == null) return;
+
+        // OnGUIでのPLAYボタンクリック直接検知（保険）
+        if (e.type == EventType.MouseDown && e.button == 0 && _playBtnRt != null)
+        {
+            Vector2 screenPos = new Vector2(e.mousePosition.x, Screen.height - e.mousePosition.y);
+            if (RectTransformUtility.RectangleContainsScreenPoint(_playBtnRt, screenPos, null))
+            {
+                OnPlayButtonClicked();
+                return;
+            }
+        }
+
+        // キーボード入力検知
+        if (e.type == EventType.KeyDown)
         {
             if (e.keyCode == KeyCode.W || e.keyCode == KeyCode.A || e.keyCode == KeyCode.S || e.keyCode == KeyCode.D ||
                 e.keyCode == KeyCode.Space || e.keyCode == KeyCode.Return)
@@ -172,7 +232,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         {
             var esGo = new GameObject("EventSystem");
             esGo.AddComponent<UnityEngine.EventSystems.EventSystem>();
-            esGo.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            var uiModule = esGo.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            try { uiModule.AssignDefaultActions(); } catch { }
         }
 
         _canvasGo = new GameObject("RustFloatHUD");
@@ -280,24 +341,24 @@ public class AdventureRustFloatOpening : MonoBehaviour
         // 5. 【▶ PLAY】ボタン（文章の下・ボード最下部にすっきり配置、文章に一切被らない）
         var btnGo = new GameObject("PlayButton");
         btnGo.transform.SetParent(_modalBoard.transform, false);
-        var btnRt = btnGo.AddComponent<RectTransform>();
-        btnRt.anchorMin = new Vector2(0.5f, 0f);
-        btnRt.anchorMax = new Vector2(0.5f, 0f);
-        btnRt.pivot = new Vector2(0.5f, 0f);
-        btnRt.anchoredPosition = new Vector2(0f, 32f); // ボード下端から32px上に配置（文章との間隔十分）
-        btnRt.sizeDelta = new Vector2(150f, 36f);
+        _playBtnRt = btnGo.AddComponent<RectTransform>();
+        _playBtnRt.anchorMin = new Vector2(0.5f, 0f);
+        _playBtnRt.anchorMax = new Vector2(0.5f, 0f);
+        _playBtnRt.pivot = new Vector2(0.5f, 0f);
+        _playBtnRt.anchoredPosition = new Vector2(0f, 32f); // ボード下端から32px上に配置（文章との間隔十分）
+        _playBtnRt.sizeDelta = new Vector2(180f, 42f);
 
-        var btnImg = btnGo.AddComponent<Image>();
-        btnImg.color = new Color(0.12f, 0.58f, 0.68f, 0.92f);
-        btnImg.raycastTarget = true; // ボタン自身のみレイキャストを受け取る
+        _playBtnImg = btnGo.AddComponent<Image>();
+        _playBtnImg.color = new Color(0.12f, 0.58f, 0.68f, 0.95f);
+        _playBtnImg.raycastTarget = true; // ボタン自身のみレイキャストを受け取る
 
         var btnOutline = btnGo.AddComponent<Outline>();
-        btnOutline.effectColor = new Color(0.40f, 0.95f, 1.0f, 0.7f);
-        btnOutline.effectDistance = new Vector2(1.2f, -1.2f);
+        btnOutline.effectColor = new Color(0.40f, 0.95f, 1.0f, 0.8f);
+        btnOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
         _playButton = btnGo.AddComponent<Button>();
         var colors = _playButton.colors;
-        colors.normalColor = new Color(0.12f, 0.58f, 0.68f, 0.92f);
+        colors.normalColor = new Color(0.12f, 0.58f, 0.68f, 0.95f);
         colors.highlightedColor = new Color(0.20f, 0.88f, 0.98f, 1f);
         colors.pressedColor = new Color(0.08f, 0.45f, 0.55f, 1f);
         colors.selectedColor = colors.highlightedColor;
@@ -305,7 +366,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         _playButton.onClick.AddListener(OnPlayButtonClicked);
 
         // ボタン内ラベル
-        var btnLabel = MakeText(btnGo.transform, "BtnLabel", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(150f, 36f), 14, TextAnchor.MiddleCenter, font);
+        var btnLabel = MakeText(btnGo.transform, "BtnLabel", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(180f, 42f), 15, TextAnchor.MiddleCenter, font);
         btnLabel.fontStyle = FontStyle.Bold;
         btnLabel.color = Color.white;
         btnLabel.text = "▶  PLAY";
