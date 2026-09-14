@@ -511,31 +511,67 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var scrapMgr = AdventureScrapManager.Instance;
         bool allCollected = scrapMgr != null && scrapMgr.CollectedCount >= 12;
 
-        var style = new GUIStyle(GUI.skin.box);
-        style.fontSize = 17;
-        style.fontStyle = FontStyle.Bold;
-        style.alignment = TextAnchor.MiddleCenter;
-
-        float w = 480f;
-        float h = 42f;
+        // 特大で押しやすいシネマティック操作ボタン（幅840px、高さ75px、フォント28pt）
+        float w = 840f;
+        float h = 75f;
         float x = (Screen.width - w) * 0.5f;
-        float y = Screen.height - 135f;
+        float y = Screen.height - 150f;
+
+        // ボタンの背景ボックス
+        var boxRect = new Rect(x, y, w, h);
+        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.95f);
+        GUI.DrawTexture(boxRect, Texture2D.whiteTexture);
+
+        // アクセント枠線
+        Color accentCol = allCollected ? new Color(0.35f, 0.95f, 1.0f, 0.9f) : new Color(1.0f, 0.85f, 0.40f, 0.9f);
+        GUI.color = accentCol;
+        GUI.DrawTexture(new Rect(x, y, w, 3.5f), Texture2D.whiteTexture); // 上枠線
+        GUI.DrawTexture(new Rect(x, y + h - 3.5f, w, 3.5f), Texture2D.whiteTexture); // 下枠線
+
+        var btnStyle = new GUIStyle(GUI.skin.button);
+        btnStyle.fontSize = 28; // 17ptから28ptへ特大化！
+        btnStyle.fontStyle = FontStyle.Bold;
+        btnStyle.alignment = TextAnchor.MiddleCenter;
+        btnStyle.normal.background = Texture2D.whiteTexture;
 
         if (allCollected)
         {
-            style.normal.textColor = new Color(0.3f, 1.0f, 0.85f);
-            if (GUI.Button(new Rect(x, y, w, h), "【Eキー または ここをクリック】真鍮レバーを引く（天蓋破壊・脱出）", style))
+            // 特大ボタン（Eキーまたはマウスクリックで即座に起動）
+            GUI.color = new Color(0f, 0f, 0f, 0.01f); // 背景は透明（背面のDrawTextureを見せる）
+            if (GUI.Button(boxRect, GUIContent.none, btnStyle))
             {
                 TryPullLever(true);
             }
+
+            // 黒アウトライン付き特大テキスト描画
+            GUI.color = Color.white;
+            var labelStyle = new GUIStyle(GUI.skin.label);
+            labelStyle.fontSize = 28;
+            labelStyle.fontStyle = FontStyle.Bold;
+            labelStyle.alignment = TextAnchor.MiddleCenter;
+
+            string btnText = "【Eキー または ここをクリック】真鍮レバーを引く（天蓋破壊・脱出）";
+            // 黒アウトライン
+            labelStyle.normal.textColor = new Color(0f, 0f, 0f, 0.95f);
+            GUI.Label(new Rect(x - 2f, y - 2f, w, h), btnText, labelStyle);
+            GUI.Label(new Rect(x + 2f, y + 2f, w, h), btnText, labelStyle);
+            // 本文（輝くエメラルドシアン）
+            labelStyle.normal.textColor = new Color(0.35f, 0.98f, 0.88f, 1.0f);
+            GUI.Label(boxRect, btnText, labelStyle);
         }
         else
         {
             int count = scrapMgr != null ? scrapMgr.CollectedCount : 0;
-            style.normal.textColor = new Color(1.0f, 0.85f, 0.45f);
-            GUI.Box(new Rect(x, y, w, h), $"【E】真鍮レバーを調べる（要：遺物パーツ 12個 / 現在 {count}個）", style);
+            GUI.color = Color.white;
+            var labelStyle = new GUIStyle(GUI.skin.label);
+            labelStyle.fontSize = 24;
+            labelStyle.fontStyle = FontStyle.Bold;
+            labelStyle.alignment = TextAnchor.MiddleCenter;
+            labelStyle.normal.textColor = new Color(1.0f, 0.85f, 0.45f);
+            GUI.Label(boxRect, $"【E】真鍮レバーを調べる（要：遺物パーツ 12個 / 現在 {count}個）", labelStyle);
         }
 
+        GUI.color = Color.white;
         DrawEpilogueGUI();
     }
 
