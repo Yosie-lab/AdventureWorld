@@ -382,18 +382,18 @@ public class AdventureRustFloatOpening : MonoBehaviour
         _playBtnRt.sizeDelta = new Vector2(180f, 42f);
 
         _playBtnImg = btnGo.AddComponent<Image>();
-        _playBtnImg.color = new Color(0.12f, 0.58f, 0.68f, 0.95f);
+        _playBtnImg.color = new Color(0.12f, 0.58f, 0.68f, 0.45f); // 上品な半透明シアンガラス
         _playBtnImg.raycastTarget = true; // ボタン自身のみレイキャストを受け取る
 
         var btnOutline = btnGo.AddComponent<Outline>();
-        btnOutline.effectColor = new Color(0.40f, 0.95f, 1.0f, 0.8f);
+        btnOutline.effectColor = new Color(0.40f, 0.95f, 1.0f, 0.45f); // 繊細な半透明シアン光彩
         btnOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
         _playButton = btnGo.AddComponent<Button>();
         var colors = _playButton.colors;
-        colors.normalColor = new Color(0.12f, 0.58f, 0.68f, 0.95f);
-        colors.highlightedColor = new Color(0.20f, 0.88f, 0.98f, 1f);
-        colors.pressedColor = new Color(0.08f, 0.45f, 0.55f, 1f);
+        colors.normalColor = new Color(0.12f, 0.58f, 0.68f, 0.45f);
+        colors.highlightedColor = new Color(0.20f, 0.88f, 0.98f, 0.70f);
+        colors.pressedColor = new Color(0.08f, 0.45f, 0.55f, 0.75f);
         colors.selectedColor = colors.highlightedColor;
         _playButton.colors = colors;
         _playButton.onClick.AddListener(OnPlayButtonClicked);
