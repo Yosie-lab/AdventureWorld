@@ -6,6 +6,7 @@ using System.Collections.Generic;
 /// 『Rust & Float』専用の水平リボンコンパスHUD（DeltaAngle方式・完全シームレス・パーツマーカー連動）
 /// プレイヤーの追従カメラと100%完全同期し、360度どこを向いても滑らかに方角・角度・パーツ位置を案内する
 /// </summary>
+[DefaultExecutionOrder(50)] // CameraFollow(0)の後に方位を読む
 public class AdventureCompassHUD : MonoBehaviour
 {
     static AdventureCompassHUD _instance;
@@ -33,13 +34,24 @@ public class AdventureCompassHUD : MonoBehaviour
     /// <summary>コンパスHUDがシーン内に確実に存在することを保証する</summary>
     public static AdventureCompassHUD Ensure(Transform parent = null, Font font = null)
     {
-        if (_instance != null && _instance.gameObject != null)
-            return _instance;
+        // 二重生成を掃除して1つだけ残す
+        var all = Object.FindObjectsByType<AdventureCompassHUD>(FindObjectsInactive.Include);
+        AdventureCompassHUD keep = _instance;
+        if (keep == null || keep.gameObject == null)
+            keep = all.Length > 0 ? all[0] : null;
 
-        var existing = FindAnyObjectByType<AdventureCompassHUD>();
-        if (existing != null)
+        for (int i = 0; i < all.Length; i++)
         {
-            _instance = existing;
+            if (all[i] == null || all[i] == keep)
+                continue;
+            Object.Destroy(all[i].gameObject);
+        }
+
+        if (keep != null && keep.gameObject != null)
+        {
+            _instance = keep;
+            if (!keep.gameObject.activeSelf)
+                keep.gameObject.SetActive(true);
             return _instance;
         }
 
@@ -64,13 +76,16 @@ public class AdventureCompassHUD : MonoBehaviour
 
     public static AdventureCompassHUD Create(Transform parent, Font font = null)
     {
+        // 既存があれば新規を作らず再利用
+        var existing = Object.FindObjectsByType<AdventureCompassHUD>(FindObjectsInactive.Include);
+        if (existing.Length > 0)
+            return Ensure(parent, font);
+
         if (font == null) font = ResolveSafeFont();
 
         var hudGo = new GameObject("CompassHUD", typeof(RectTransform));
         if (parent != null)
-        {
             hudGo.transform.SetParent(parent, false);
-        }
 
         var hud = hudGo.AddComponent<AdventureCompassHUD>();
         hud.BuildUI(font);
@@ -90,8 +105,8 @@ public class AdventureCompassHUD : MonoBehaviour
         rootRt.anchorMin = new Vector2(0.5f, 1f);
         rootRt.anchorMax = new Vector2(0.5f, 1f);
         rootRt.pivot = new Vector2(0.5f, 1f);
-        rootRt.anchoredPosition = new Vector2(0f, -8f);
-        rootRt.sizeDelta = new Vector2(360f, 28f);
+        rootRt.anchoredPosition = new Vector2(0f, -10f);
+        rootRt.sizeDelta = new Vector2(420f, 34f);
 
         // 背景プレート（半透明の深藍ダークグラデーション）
         var bg = gameObject.AddComponent<Image>();
@@ -313,8 +328,13 @@ public class AdventureCompassHUD : MonoBehaviour
         if (cam == null)
             return;
 
-        // カメラの水平方位角 (0°〜360°)
-        float yaw = cam.transform.eulerAngles.y;
+        // 追従カメラの論理ヨーを優先（transform との1フレームズレを防ぐ）
+        float yaw;
+        var follow = cam.GetComponent<AdventureCameraFollow>();
+        if (follow != null)
+            yaw = follow.CurrentYaw;
+        else
+            yaw = cam.transform.eulerAngles.y;
         yaw = (yaw % 360f + 360f) % 360f;
 
         // 1. 各方角要素のシームレス配置（DeltaAngle方式：境界でのワープが物理的にゼロ）

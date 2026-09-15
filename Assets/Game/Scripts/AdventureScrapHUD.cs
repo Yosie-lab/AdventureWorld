@@ -140,13 +140,16 @@ public class AdventureScrapHUD : MonoBehaviour
         bannerRt.sizeDelta = new Vector2(1000f, 160f); // 1000pxのワイドな映画字幕ウィンドウ
 
         var bannerBg = _bannerGo.AddComponent<Image>();
-        bannerBg.color = new Color(0.02f, 0.05f, 0.10f, 0.94f);
+        bannerBg.color = new Color(0.02f, 0.05f, 0.10f, 0.62f);
+        bannerBg.raycastTarget = false;
         var bOutline = _bannerGo.AddComponent<Outline>();
-        bOutline.effectColor = new Color(0.35f, 0.85f, 0.95f, 0.8f);
+        bOutline.effectColor = new Color(0.35f, 0.85f, 0.95f, 0.55f);
         bOutline.effectDistance = new Vector2(1.8f, -1.8f);
 
         _bannerCg = _bannerGo.AddComponent<CanvasGroup>();
         _bannerCg.alpha = 0f;
+        _bannerCg.blocksRaycasts = false;
+        _bannerCg.interactable = false;
 
         var bTextGo = new GameObject("BannerText");
         bTextGo.transform.SetParent(_bannerGo.transform, false);
@@ -201,6 +204,15 @@ public class AdventureScrapHUD : MonoBehaviour
             return;
         }
 
+        // レバー操作中は下部バナーを出さない（最後のパーツ取得ロアがレバーボタンを塞ぐのを防ぐ）
+        var towerNear = AdventureSanctuaryTowerManager.Instance;
+        if (towerNear != null && towerNear.IsPlayerNearLever)
+        {
+            _bannerTimer = 0f;
+            if (_bannerCg != null) _bannerCg.alpha = 0f;
+            return;
+        }
+
         // アップグレードバナーのフェード制御
         if (_bannerTimer > 0f)
         {
@@ -243,6 +255,11 @@ public class AdventureScrapHUD : MonoBehaviour
     /// <summary>世界観仕様書に基づく詩的ロアモーダル（タイトル・詩的ナレーション・機能アンロック）を表示</summary>
     public void ShowPoeticLore(string title, string loreQuote, string unlockEffect)
     {
+        // レバー前ではバナーを出さず、操作を塞がない
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null && tower.IsPlayerNearLever)
+            return;
+
         if (_bannerText != null)
         {
             _bannerText.text = $"<size=26><color=#FFE066><b>✦ {title} ✦</b></color></size>\n" +

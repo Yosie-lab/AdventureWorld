@@ -28,6 +28,7 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
 
     // ── 読み物UI制御 ──
     bool _isShowingModal = false;
+    public bool IsShowingModal => _isShowingModal;
     string _modalTitle = "";
     string _modalSubTitle = "";
     string _modalBody = "";
@@ -409,8 +410,8 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         float bx = (Screen.width - bw) * 0.5f;
         float by = (Screen.height - bh) * 0.5f;
 
-        // 深藍色の半透明ダークガラス
-        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.88f);
+        // 深藍色の半透明ダークガラス（透明度を上げて背後の景色を残す）
+        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.68f);
         GUI.DrawTexture(new Rect(bx, by, bw, bh), Texture2D.whiteTexture);
 
         // 黄金とエメラルドシアンのフレーム

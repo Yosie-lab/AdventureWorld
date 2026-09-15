@@ -20,6 +20,7 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
 
     float _soloTimer = 2.0f;
     readonly Queue<GameObject> _pool = new Queue<GameObject>();
+    bool _mutedForEndingSequence;
 
     [Header("Volume & Frequency")]
     [Range(0f, 1f)] public float bgVolume = 0.24f;
@@ -110,6 +111,8 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
 
     void Update()
     {
+        if (_mutedForEndingSequence) return;
+
         if (_playerTransform == null)
         {
             var player = FindObjectOfType<AdventurePlayerController>();
@@ -126,6 +129,78 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
             _soloTimer = Random.Range(minSoloInterval, maxSoloInterval);
             SpawnRandomCicadaSound();
         }
+    }
+
+    /// <summary>天蓋開放〜エンディング中は蝉・虫の声を完全に止める</summary>
+    public void MuteForEndingSequence()
+    {
+        if (_mutedForEndingSequence) return;
+        _mutedForEndingSequence = true;
+
+        if (_bgAmbienceSourceA != null)
+        {
+            _bgAmbienceSourceA.Stop();
+            _bgAmbienceSourceA.volume = 0f;
+            _bgAmbienceSourceA.mute = true;
+        }
+        if (_bgAmbienceSourceB != null)
+        {
+            _bgAmbienceSourceB.Stop();
+            _bgAmbienceSourceB.volume = 0f;
+            _bgAmbienceSourceB.mute = true;
+        }
+
+        // 再生中の3Dワンショット蝉を停止
+        _pool.Clear();
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            var child = transform.GetChild(i);
+            if (child == null) continue;
+            var src = child.GetComponent<AudioSource>();
+            if (src != null) src.Stop();
+            child.gameObject.SetActive(false);
+            _pool.Enqueue(child.gameObject);
+        }
+
+        MuteWorldCicadaSources();
+    }
+
+    static void MuteWorldCicadaSources()
+    {
+        var sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < sources.Length; i++)
+        {
+            var src = sources[i];
+            if (src == null) continue;
+            if (!IsCicadaOrInsectSource(src)) continue;
+            src.Stop();
+            src.mute = true;
+            src.volume = 0f;
+        }
+    }
+
+    static bool IsCicadaOrInsectSource(AudioSource src)
+    {
+        string n = src.gameObject.name;
+        if (n.IndexOf("Cicada", System.StringComparison.OrdinalIgnoreCase) >= 0) return true;
+        if (n.IndexOf("Meadow", System.StringComparison.OrdinalIgnoreCase) >= 0) return true;
+        if (n.Contains("虫") || n.Contains("蝉") || n.Contains("セミ")) return true;
+
+        // 親階層（森配置の Cicadas / MeadowInsects）
+        Transform t = src.transform.parent;
+        while (t != null)
+        {
+            string pn = t.name;
+            if (pn.IndexOf("Cicada", System.StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (pn.IndexOf("MeadowInsect", System.StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            t = t.parent;
+        }
+
+        if (src.clip == null) return false;
+        string c = src.clip.name;
+        return c.Contains("セミ") || c.Contains("蝉") || c.Contains("コオロギ")
+            || c.Contains("ヒグラシ") || c.Contains("雑木林") || c.Contains("田舎道")
+            || c.IndexOf("Cicada", System.StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     void SpawnRandomCicadaSound()

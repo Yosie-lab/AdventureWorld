@@ -24,39 +24,115 @@ public class AdventureScrapManager : MonoBehaviour
     public int collectedCount => CollectedCount;
     public bool hasPetRadar => CollectedCount >= 9;
 
-    readonly List<Vector3> _scrapSpawnPositions = new List<Vector3>
+    const string PrefKeyScrapLayout = "RustAndFloat_ScrapLayoutXZ";
+    const float MinDistFromPrevious = 28f;
+    const float MinDistBetweenScraps = 22f;
+
+    /// <summary>現行プレイで使うXZ配置（Yはスポーン時に地面合わせ）</summary>
+    readonly List<Vector3> _scrapSpawnPositions = new List<Vector3>(12);
+
+    /// <summary>
+    /// 各パーツの候補座標プール（同一ステージ内で複数地点）。
+    /// インデックス0が既定レイアウト。ニューゲームでは前回と違う候補を選ぶ。
+    /// </summary>
+    static readonly Vector3[][] ScrapCandidatePools =
     {
-        // ── Stage 1: 白砂ビーチ・海辺（パーツ 0〜3個 → ダッシュ速度UP解禁！） ──
-        // 1. 【砂浜】二人の座礁漂着艇の先、波打ち際の白砂（開始時に視界の正面9m先で光り輝く）
-        new Vector3(167f, 0f, 277f),
-        // 2. 【砂浜】初日の焚き火キャンプ跡の木陰
-        new Vector3(182f, 0f, 332f),
-        // 3. 【砂浜】南西の岬・砂浜から内陸大草原への登り口
-        new Vector3(195f, 0f, 230f),
-
-        // ── Stage 2: 西側大草原・せせらぎ池（パーツ 4〜6個 → 二段ジャンプ解禁！） ──
-        // 4. 【大草原】草原の入り口・小道沿い
-        new Vector3(240f, 0f, 290f),
-        // 5. 【大草原】憩いのせせらぎ池の畔
-        new Vector3(290f, 0f, 325f),
-        // 6. 【大草原】南西大河の飛び石の岩の上
-        new Vector3(330f, 0f, 240f),
-
-        // ── Stage 3: カルデラ湖・深林渓流・大樹海（パーツ 7〜9個 → 探知ソナー解禁！） ──
-        // 7. 【カルデラ湖】湖東岸・睡蓮の木陰
-        new Vector3(390f, 0f, 430f),
-        // 8. 【深林渓流】東の山岳渓谷激流の巨大苔岩
-        new Vector3(540f, 0f, 440f),
-        // 9. 【大樹海】東部巨木原生林の古樹の根元
-        new Vector3(680f, 0f, 520f),
-
-        // ── Stage 4: 北の高地・大滑空崖・中央タワー（パーツ 10〜12個 → 大滑空完成！） ──
-        // 10. 【北東高地】絶景の見晴らし岩
-        new Vector3(640f, 0f, 650f),
-        // 11. 【北の大滑空崖】標高92mジャンプ台先端
-        new Vector3(512f, 0f, 725f),
-        // 12. 【中央タワー】サンクチュアリ中央広場・白亜テラス南側正面
-        new Vector3(512f, 0f, 496f)
+        // 1. 砂浜スタート付近（視界内の別地点）
+        new[]
+        {
+            new Vector3(167f, 0f, 277f),
+            new Vector3(175f, 0f, 268f),
+            new Vector3(158f, 0f, 288f),
+            new Vector3(172f, 0f, 292f),
+        },
+        // 2. 焚き火キャンプ周辺
+        new[]
+        {
+            new Vector3(182f, 0f, 332f),
+            new Vector3(198f, 0f, 318f),
+            new Vector3(170f, 0f, 345f),
+            new Vector3(190f, 0f, 350f),
+        },
+        // 3. 南西岬・砂浜登り口
+        new[]
+        {
+            new Vector3(195f, 0f, 230f),
+            new Vector3(210f, 0f, 245f),
+            new Vector3(185f, 0f, 215f),
+            new Vector3(220f, 0f, 225f),
+        },
+        // 4. 大草原入り口
+        new[]
+        {
+            new Vector3(240f, 0f, 290f),
+            new Vector3(255f, 0f, 305f),
+            new Vector3(228f, 0f, 270f),
+            new Vector3(265f, 0f, 280f),
+        },
+        // 5. せせらぎ池周辺
+        new[]
+        {
+            new Vector3(290f, 0f, 325f),
+            new Vector3(305f, 0f, 340f),
+            new Vector3(275f, 0f, 310f),
+            new Vector3(300f, 0f, 300f),
+        },
+        // 6. 大河飛び石周辺
+        new[]
+        {
+            new Vector3(330f, 0f, 240f),
+            new Vector3(345f, 0f, 255f),
+            new Vector3(315f, 0f, 225f),
+            new Vector3(350f, 0f, 230f),
+        },
+        // 7. カルデラ湖周辺
+        new[]
+        {
+            new Vector3(390f, 0f, 430f),
+            new Vector3(410f, 0f, 450f),
+            new Vector3(375f, 0f, 415f),
+            new Vector3(430f, 0f, 420f),
+        },
+        // 8. 深林渓流周辺
+        new[]
+        {
+            new Vector3(540f, 0f, 440f),
+            new Vector3(560f, 0f, 455f),
+            new Vector3(520f, 0f, 425f),
+            new Vector3(555f, 0f, 420f),
+        },
+        // 9. 大樹海
+        new[]
+        {
+            new Vector3(680f, 0f, 520f),
+            new Vector3(700f, 0f, 540f),
+            new Vector3(655f, 0f, 500f),
+            new Vector3(690f, 0f, 490f),
+        },
+        // 10. 北東高地
+        new[]
+        {
+            new Vector3(640f, 0f, 650f),
+            new Vector3(660f, 0f, 670f),
+            new Vector3(620f, 0f, 635f),
+            new Vector3(655f, 0f, 625f),
+        },
+        // 11. 北の大滑空崖周辺
+        new[]
+        {
+            new Vector3(512f, 0f, 725f),
+            new Vector3(535f, 0f, 710f),
+            new Vector3(490f, 0f, 715f),
+            new Vector3(520f, 0f, 695f),
+        },
+        // 12. 中央タワー白亜テラス周辺
+        new[]
+        {
+            new Vector3(512f, 0f, 496f),
+            new Vector3(500f, 0f, 508f),
+            new Vector3(524f, 0f, 508f),
+            new Vector3(512f, 0f, 524f),
+        },
     };
 
     readonly List<AdventureScrapItem> _activeItems = new List<AdventureScrapItem>();
@@ -106,6 +182,7 @@ public class AdventureScrapManager : MonoBehaviour
         if (chimeVolume > 0.05f)
             chimeVolume = 0.05f;
 
+        EnsureSpawnLayoutLoaded();
         RestoreIdsFromList();
         SetupAudio();
     }
@@ -415,6 +492,14 @@ public class AdventureScrapManager : MonoBehaviour
         // 段階的なアップグレード判定
         CheckUpgrades();
 
+        // 12個達成：巨大レバーを確実に操作可能にする
+        if (CollectedCount >= TotalScrapCount)
+        {
+            var tower = AdventureSanctuaryTowerManager.Instance
+                        ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
+            tower?.OnAllScrapsCollectedForLever();
+        }
+
         // オートセーブを実行！
         if (AdventureSaveManager.Instance != null)
         {
@@ -468,11 +553,19 @@ public class AdventureScrapManager : MonoBehaviour
         ApplyAllUpgradesForCount(CollectedCount);
     }
 
-    /// <summary>獲得数に応じたアンロック能力を全適用</summary>
+    /// <summary>獲得数に応じたアンロック能力を全適用（少ない場合は基本能力へ戻す）</summary>
     public void ApplyAllUpgradesForCount(int count)
     {
         var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
         if (player == null) return;
+
+        // 基本能力へ一度戻してから段階解放（ニューゲーム時の巻き戻し用）
+        player.runSpeed = 7.8f;
+        player.turnSpeed = 14f;
+        player.canDoubleJump = false;
+        player.hasPetRadar = false;
+        player.glideForwardSpeed = 7.2f;
+        player.glideFallSpeed = -2.4f;
 
         if (count >= 3)
         {
@@ -664,15 +757,151 @@ public class AdventureScrapManager : MonoBehaviour
         return nearest;
     }
 
-    /// <summary>新規冒険（ニューゲーム）用に収集状態を0個に完全リセットして全パーツを砂浜から再配置</summary>
+    /// <summary>新規冒険（ニューゲーム）用：収集0個＋前回と違う配置で全パーツを再配置</summary>
     public void ResetAllScrapsForNewGame()
     {
+        ReshuffleSpawnLayoutForNewGame();
         ResetToCount(0);
+    }
+
+    void EnsureSpawnLayoutLoaded()
+    {
+        _scrapSpawnPositions.Clear();
+        if (TryLoadLayoutFromPrefs(_scrapSpawnPositions) && _scrapSpawnPositions.Count == TotalScrapCount)
+            return;
+        ApplyDefaultSpawnLayout();
+    }
+
+    void ApplyDefaultSpawnLayout()
+    {
+        FillDefaultLayout(_scrapSpawnPositions);
+        SaveLayoutToPrefs(_scrapSpawnPositions);
+    }
+
+    static void FillDefaultLayout(List<Vector3> into)
+    {
+        into.Clear();
+        for (int i = 0; i < TotalScrapCount; i++)
+            into.Add(ScrapCandidatePools[i][0]);
+    }
+
+    public void ReshuffleSpawnLayoutForNewGame()
+    {
+        var previous = new List<Vector3>(TotalScrapCount);
+        if (!TryLoadLayoutFromPrefs(previous) || previous.Count != TotalScrapCount)
+            FillDefaultLayout(previous);
+
+        var next = new List<Vector3>(TotalScrapCount);
+        for (int i = 0; i < TotalScrapCount; i++)
+            next.Add(PickDifferentCandidate(i, previous[i], next));
+
+        _scrapSpawnPositions.Clear();
+        _scrapSpawnPositions.AddRange(next);
+        SaveLayoutToPrefs(_scrapSpawnPositions);
+        Debug.Log("[AdventureScrapManager] ニューゲーム：パーツ12個を前回と異なる配置に再抽選しました");
+    }
+
+    Vector3 PickDifferentCandidate(int index, Vector3 previous, List<Vector3> alreadyPicked)
+    {
+        var pool = ScrapCandidatePools[index];
+        int n = pool.Length;
+        // Fisher–Yates（配列上でシャッフル、アロケーション削減）
+        var order = new int[n];
+        for (int i = 0; i < n; i++) order[i] = i;
+        for (int i = n - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            (order[i], order[j]) = (order[j], order[i]);
+        }
+
+        Vector3 best = pool[order[0]];
+        float bestScore = -1f;
+
+        for (int o = 0; o < n; o++)
+        {
+            Vector3 cand = pool[order[o]];
+            float distPrev = FlatDist(cand, previous);
+            bool farFromPrev = distPrev >= MinDistFromPrevious;
+            bool farFromOthers = true;
+            for (int k = 0; k < alreadyPicked.Count; k++)
+            {
+                if (FlatDist(cand, alreadyPicked[k]) < MinDistBetweenScraps)
+                {
+                    farFromOthers = false;
+                    break;
+                }
+            }
+
+            float score = distPrev + (farFromOthers ? 50f : 0f) + (farFromPrev ? 100f : 0f);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = cand;
+            }
+            if (farFromPrev && farFromOthers)
+                return cand;
+        }
+
+        for (int o = 0; o < n; o++)
+        {
+            Vector3 cand = pool[order[o]];
+            if (FlatDist(cand, previous) > 0.5f)
+                return cand;
+        }
+        return best;
+    }
+
+    static float FlatDist(Vector3 a, Vector3 b)
+    {
+        float dx = a.x - b.x;
+        float dz = a.z - b.z;
+        return Mathf.Sqrt(dx * dx + dz * dz);
+    }
+
+    static bool TryLoadLayoutFromPrefs(List<Vector3> into)
+    {
+        into.Clear();
+        string raw = PlayerPrefs.GetString(PrefKeyScrapLayout, "");
+        if (string.IsNullOrEmpty(raw)) return false;
+
+        string[] parts = raw.Split(';');
+        if (parts.Length != TotalScrapCount) return false;
+
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        for (int i = 0; i < parts.Length; i++)
+        {
+            string[] xz = parts[i].Split(',');
+            if (xz.Length != 2) return false;
+            if (!float.TryParse(xz[0], System.Globalization.NumberStyles.Float, culture, out float x))
+                return false;
+            if (!float.TryParse(xz[1], System.Globalization.NumberStyles.Float, culture, out float z))
+                return false;
+            into.Add(new Vector3(x, 0f, z));
+        }
+        return true;
+    }
+
+    static void SaveLayoutToPrefs(List<Vector3> layout)
+    {
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        var sb = new System.Text.StringBuilder(128);
+        for (int i = 0; i < layout.Count; i++)
+        {
+            if (i > 0) sb.Append(';');
+            sb.Append(layout[i].x.ToString("F1", culture));
+            sb.Append(',');
+            sb.Append(layout[i].z.ToString("F1", culture));
+        }
+        PlayerPrefs.SetString(PrefKeyScrapLayout, sb.ToString());
+        PlayerPrefs.Save();
     }
 
     /// <summary>指定個数（例: 6個）の取得状態に巻き戻し、それ以降のパーツを全て再配置</summary>
     public void ResetToCount(int targetCount)
     {
+        if (_scrapSpawnPositions.Count != TotalScrapCount)
+            EnsureSpawnLayoutLoaded();
+
         targetCount = Mathf.Clamp(targetCount, 0, TotalScrapCount);
         _collectedCount = targetCount;
         _collectedIds.Clear();
@@ -684,7 +913,6 @@ public class AdventureScrapManager : MonoBehaviour
             _collectedList.Add(i);
         }
 
-        // 既存のアイテムを全破棄
         foreach (var item in _activeItems)
         {
             if (item != null && item.gameObject != null)
@@ -695,13 +923,8 @@ public class AdventureScrapManager : MonoBehaviour
         var root = GameObject.Find("ScrapItemsRoot");
         if (root != null) Destroy(root);
 
-        // 未取得パーツ（targetCount + 1 〜 TotalScrapCount）を全再生成
         SpawnAllScraps();
-
-        // 獲得数に応じた能力アンロックを一括同期
         ApplyAllUpgradesForCount(targetCount);
-
-        // HUDを更新
         AdventureScrapHUD.Instance?.OnCollect("", targetCount, TotalScrapCount);
     }
 }

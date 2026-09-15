@@ -68,34 +68,73 @@ public class AdventureMusicDirector : MonoBehaviour
 
     void Update()
     {
-        // 天蓋破壊（真鍮レバー操作）フラグを監視
+        // 天蓋破壊フラグを監視（F9再演でフラグが戻ったあとも再トリガー可）
         if (!_hasSwitchedToSkybreak && AdventureSanctuaryTowerManager.IsCanopyBroken)
+            PlaySkybreakTheme(force: false);
+    }
+
+    /// <summary>F9再演などで天蓋前に戻すとき、BGM切替フラグをリセット</summary>
+    public void ResetSkybreakMusicState()
+    {
+        _hasSwitchedToSkybreak = false;
+        if (_bgmSourceB != null && _bgmSourceB.isPlaying)
         {
-            _hasSwitchedToSkybreak = true;
-            TriggerSkybreakMusic();
+            _bgmSourceB.Stop();
+            _bgmSourceB.volume = 0f;
         }
+        if (_bgmSourceA != null && _ambientThemeClip != null)
+        {
+            if (!_bgmSourceA.isPlaying)
+            {
+                _bgmSourceA.clip = _ambientThemeClip;
+                _bgmSourceA.Play();
+            }
+            StartCoroutine(FadeVolume(_bgmSourceA, 0.26f, 1.2f));
+        }
+    }
+
+    /// <summary>天空突破BGMへ切替。force=true で再演時も必ず再生（クリップ再生成）</summary>
+    public void PlaySkybreakTheme(bool force = false)
+    {
+        if (!force && _hasSwitchedToSkybreak) return;
+        if (force || _skybreakThemeClip == null)
+        {
+            _skybreakThemeClip = GenerateSkybreakTheme();
+            if (_skybreakThemeClip == null) return;
+        }
+
+        _hasSwitchedToSkybreak = true;
+        TriggerSkybreakMusic();
     }
 
     void TriggerSkybreakMusic()
     {
         if (_skybreakThemeClip == null) return;
 
-        // 通常BGMをフェードアウトし、天空突破BGMを壮大にフェードイン
-        StartCoroutine(FadeVolume(_bgmSourceA, 0f, 2.0f));
+        StopAllCoroutines();
+        if (_ambientThemeClip != null && _bgmSourceA != null && !_bgmSourceA.isPlaying)
+        {
+            _bgmSourceA.clip = _ambientThemeClip;
+            _bgmSourceA.Play();
+        }
+
+        StartCoroutine(FadeVolume(_bgmSourceA, 0f, 1.2f));
 
         _bgmSourceB.clip = _skybreakThemeClip;
         _bgmSourceB.time = 0f;
+        _bgmSourceB.volume = 0f;
         _bgmSourceB.Play();
-        StartCoroutine(FadeVolume(_bgmSourceB, 0.38f, 2.5f));
+        StartCoroutine(FadeVolume(_bgmSourceB, 0.50f, 1.0f));
     }
 
     IEnumerator FadeVolume(AudioSource src, float targetVol, float duration)
     {
+        if (src == null) yield break;
         float startVol = src.volume;
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             src.volume = Mathf.Lerp(startVol, targetVol, elapsed / duration);
             yield return null;
         }
@@ -211,13 +250,13 @@ public class AdventureMusicDirector : MonoBehaviour
         int totalSamples = Mathf.FloorToInt(sampleRate * duration);
         float[] samples = new float[totalSamples * 2];
 
-        // D Major / Bm の壮大なシンセ＆ブラス進行 (D -> F#m -> G -> A)
+        // 壮大なシンセ＆ブラス進行 (D -> F#m -> Em -> Gm)
         float[][] chordRoots = new float[][]
         {
             new float[] { 146.83f, 220.00f, 293.66f, 369.99f, 440.00f }, // D
             new float[] { 185.00f, 220.00f, 277.18f, 369.99f, 554.37f }, // F#m
-            new float[] { 196.00f, 246.94f, 293.66f, 392.00f, 493.88f }, // G
-            new float[] { 220.00f, 277.18f, 329.63f, 440.00f, 554.37f }  // A
+            new float[] { 164.81f, 196.00f, 246.94f, 329.63f, 493.88f }, // Em
+            new float[] { 196.00f, 233.08f, 293.66f, 392.00f, 466.16f }  // Gm
         };
 
         for (int i = 0; i < totalSamples; i++)

@@ -599,7 +599,12 @@ public class AdventureSaveManager : MonoBehaviour
             Debug.LogWarning($"[AdventureSaveManager] セーブ削除警告: {ex.Message}");
         }
 
-        // 1. パーツ状態を0個にリセットし砂浜から全再配置
+        // 天蓋・クリア進行を完全リセット
+        var tower = AdventureSanctuaryTowerManager.Instance
+                    ?? FindAnyObjectByType<AdventureSanctuaryTowerManager>();
+        tower?.ResetProgressForNewGame();
+
+        // 1. パーツ状態を0個にリセットし、前回と違う場所へ全再配置
         var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
         scrapMgr?.ResetAllScrapsForNewGame();
 
@@ -611,6 +616,7 @@ public class AdventureSaveManager : MonoBehaviour
             player.spawnPosition = beachSpawn;
             player.Teleport(beachSpawn);
             player.transform.rotation = Quaternion.Euler(0f, 75f, 0f);
+            player.SetAutoGlideMode(false);
         }
 
         // 3. Rustの油をリセット
@@ -618,11 +624,12 @@ public class AdventureSaveManager : MonoBehaviour
         if (drone != null)
         {
             drone.oilCount = 1;
-            drone.SpeakCustom("うぅ……Niko、大丈夫……？僕たち生きてる！すぐ目の前の脱出艇の脇に、光るギアが落ちてるよ！", 6.0f);
+            drone.ResetClimaxState();
+            drone.SpeakCustom("うぅ……Niko、大丈夫……？僕たち生きてる！近くに光るギアがあるよ——今回は前と違う場所に流れ着いてるみたい！", 6.5f);
         }
 
-        ShowSaveNotification("新規冒険を開始しました", "西側砂浜からパーツ0個でスタート！");
-        Debug.Log("[AdventureSaveManager] ニューゲーム開始：西側砂浜（158, 6.5, 275）からパーツ0個で再スタートしました。");
+        ShowSaveNotification("新規冒険を開始しました", "パーツ配置を刷新！砂浜から0個スタート");
+        Debug.Log("[AdventureSaveManager] ニューゲーム開始：パーツ配置を前回と異なる場所に再抽選しました。");
     }
 
     public void ShowSaveNotification(string title, string subText = "")

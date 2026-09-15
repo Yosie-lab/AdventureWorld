@@ -13,6 +13,9 @@ public class AdventureCameraFollow : MonoBehaviour
     [Header("位置スムージング（段差・揺れの吸収）")]
     public float positionSmoothTime = 0.04f;
 
+    [Header("シネマティック用")]
+    public float CurrentYaw { get; private set; }
+
     float _yaw;
     float _pitch = 12f;
     float _lastMouseInputTime;
@@ -27,11 +30,30 @@ public class AdventureCameraFollow : MonoBehaviour
     Terrain _land;
     Camera _cam;
 
+    // クライマックス〜エピローグ用シネマティック追従
+    bool _cinematic;
+    float _cinematicBlend;
+    const float CinematicDistance = 5.0f;
+    const float CinematicHeight = 1.6f;
+    const float CinematicFov = 70f;
+    const float CinematicBlendSpeed = 1.35f;
+
+    /// <summary>天蓋クライマックス〜エピローグ中は後方広め・広角の映画カメラへブレンド</summary>
+    public void SetCinematicMode(bool enabled)
+    {
+        _cinematic = enabled;
+        if (!enabled)
+            _cinematicBlend = 0f;
+    }
+
+    public bool IsCinematic => _cinematic;
+
     void Start()
     {
         if (target != null)
         {
             _yaw = target.eulerAngles.y;
+            CurrentYaw = _yaw;
             _currentPivot = target.position + Vector3.up * height;
         }
         _currentDistance = distance;
@@ -66,9 +88,10 @@ public class AdventureCameraFollow : MonoBehaviour
         bool isModalBoardOpen = opening != null && opening.IsModalBoardOpen();
         var towerMgr = AdventureSanctuaryTowerManager.Instance;
         bool isLeverNear = towerMgr != null && towerMgr.IsPlayerNearLever;
+        bool isScriptBoard = towerMgr != null && towerMgr.IsSkybreakModalActive;
 
-        // モーダルボード表示中、またはレバー付近でのみカーソルを解放
-        if (isModalBoardOpen || isLeverNear)
+        // モーダル／台本ボード／レバー付近ではカーソル解放（クリックで次へ進める）
+        if (isModalBoardOpen || isLeverNear || isScriptBoard)
         {
             if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
             {
@@ -176,36 +199,59 @@ public class AdventureCameraFollow : MonoBehaviour
         }
 
         bool isGliding = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.IsGliding;
+        bool isAutoGlide = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.IsAutoGliding;
 
-        // 滑空中の背後オートフォロー（マウス操作から1.2秒以上経過している場合のみ優美にアシスト）
-        if (isGliding && (Time.time - _lastMouseInputTime > 1.2f))
+        float blendTarget = _cinematic ? 1f : 0f;
+        _cinematicBlend = Mathf.MoveTowards(_cinematicBlend, blendTarget, CinematicBlendSpeed * Time.unscaledDeltaTime);
+        float cine = _cinematicBlend;
+
+        // シネマ／オートグライド中は背後フォローを強め、後頭部ドアップを避ける
+        float followIdle = cine > 0.2f || isAutoGlide ? 0.35f : 1.2f;
+        float followRate = cine > 0.2f || isAutoGlide ? 55f : 36f;
+        if ((isGliding || isAutoGlide) && (Time.time - _lastMouseInputTime > followIdle))
         {
             float targetHeading = target.eulerAngles.y;
-            _yaw = Mathf.MoveTowardsAngle(_yaw, targetHeading, 36f * Time.deltaTime);
+            _yaw = Mathf.MoveTowardsAngle(_yaw, targetHeading, followRate * Time.deltaTime);
+            if (cine > 0.01f)
+                _pitch = Mathf.MoveTowards(_pitch, Mathf.Lerp(12f, 8f, cine), 24f * Time.deltaTime);
+        }
+
+        // シネマ中はマウス旋回を弱めて映画構図を崩しにくくする
+        if (cine > 0.4f && !isAutoGlide)
+        {
+            // 入力は上で加算済み。ピッチだけ映画用レンジに緩くクランプ
+            _pitch = Mathf.Clamp(_pitch, -6f, 22f);
         }
 
         // 1. 回転はプレイヤーの入力に即座に1対1で忠実追従（遅延・ラグを完全排除）
+        CurrentYaw = _yaw;
         Quaternion currentRot = Quaternion.Euler(_pitch, _yaw, 0f);
 
         // 2. ピボット位置のスムーズダンピング（キャラクターの小刻みな段差ショックだけを滑らかに吸収）
-        Vector3 targetPivot = target.position + Vector3.up * height;
-        _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, isGliding ? 0.045f : positionSmoothTime);
+        float useHeight = Mathf.Lerp(height, CinematicHeight, cine);
+        Vector3 targetPivot = target.position + Vector3.up * useHeight;
+        float pivotSmooth = isAutoGlide ? 0.08f : (isGliding ? 0.045f : positionSmoothTime);
+        _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, pivotSmooth);
 
         // 3. 画角（FOV）演出
-        float targetFov = isGliding ? 64f : 60f;
+        float targetFov = Mathf.Lerp(isGliding ? 64f : 60f, CinematicFov, cine);
         if (_cam != null)
         {
-            _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, targetFov, 8f * Time.deltaTime);
+            _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, targetFov, (cine > 0.01f ? 18f : 8f) * Time.deltaTime);
         }
 
         // 4. 障害物検知と距離のスムーズダンピング（壁際でのカメラのガクつき・急伸縮を防止）
-        float desiredDist = isGliding ? (distance + 0.8f) : distance;
+        float desiredDist = Mathf.Lerp(isGliding ? (distance + 0.8f) : distance, CinematicDistance, cine);
         float safeTargetDist = CalculateSafeDistance(_currentPivot, currentRot, desiredDist);
-        _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, 0.05f);
+        // シネマ中は後頭部に寄らないよう、障害物で詰めても最低3.2mを確保
+        if (cine > 0.2f)
+            safeTargetDist = Mathf.Max(safeTargetDist, Mathf.Lerp(0.9f, 3.2f, cine));
+        _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, cine > 0.2f ? 0.12f : 0.05f);
 
         // 5. 最終カメラ位置の計算（二重ダンピングを廃止し、ピボット基準で直結配置することで位相差振動・カクつきを完全根絶）
         Vector3 targetPos = _currentPivot + currentRot * new Vector3(0f, 0f, -_currentDistance);
-        targetPos.y = Mathf.Max(targetPos.y, target.position.y + 1.1f);
+        float minCamY = Mathf.Lerp(1.1f, 1.35f, cine);
+        targetPos.y = Mathf.Max(targetPos.y, target.position.y + minCamY);
 
         // 地面めり込み防止
         if (_land == null)

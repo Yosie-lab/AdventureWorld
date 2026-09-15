@@ -51,6 +51,19 @@ public class AdventureRustFloatOpening : MonoBehaviour
         return !IsGameStarted && _modalBoard != null && _modalBoard.activeSelf && !_isClosing;
     }
 
+    /// <summary>レバー操作などゲームプレイ優先時にオープニングボードを強制閉じ</summary>
+    public void ForceDismissForGameplay()
+    {
+        if (_isClosing && IsGameStarted) return;
+        _isClosing = true;
+        IsGameStarted = true;
+        if (_overlayGo != null) _overlayGo.SetActive(false);
+        if (_modalBoard != null) _modalBoard.SetActive(false);
+        if (_guideText != null) _guideText.gameObject.SetActive(true);
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+    }
+
     void Awake()
     {
         _isGameStarted = false;
@@ -324,9 +337,9 @@ public class AdventureRustFloatOpening : MonoBehaviour
         boardRt.anchoredPosition = new Vector2(0f, 15f);
         boardRt.sizeDelta = new Vector2(660f, 400f); // ボタンをボード最下部にゆったり収める
 
-        // ボード背景（半透明感を保ちつつ文字コントラストをくっきり深めた深紺ガラス）
+        // ボード背景（レバー操作や景色を塞がないよう透明度を高めに）
         var boardImg = _modalBoard.AddComponent<Image>();
-        boardImg.color = new Color(0.03f, 0.06f, 0.11f, 0.76f);
+        boardImg.color = new Color(0.03f, 0.06f, 0.11f, 0.58f);
         boardImg.raycastTarget = false;
 
         // 外枠線アウトライン（繊細なガラスの光彩エッジ）

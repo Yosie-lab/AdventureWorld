@@ -78,6 +78,12 @@ public class AdventurePlayerController : MonoBehaviour
     public bool IsGrounded   => _grounded;
     public bool IsInAir      => !_grounded;
     public bool IsBoostActive => _glideBoostTimer > 0f;
+    public bool IsAutoGliding => _autoGlide;
+
+    bool  _autoGlide;
+    float _autoGlideAltitude = 120f;
+    const float AutoGlideYawRate = 16f;
+    const float AutoGlideCruiseSpeed = 7.2f;
 
     // ═══════════════════════════════════════════════════════════════════
     // Unity ライフサイクル
@@ -275,6 +281,14 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>接地状態を更新する（ブーストタイマー考慮）</summary>
     void UpdateGroundedState()
     {
+        if (_autoGlide)
+        {
+            _grounded = false;
+            _gliding = true;
+            _airborneTime = Mathf.Max(_airborneTime, 1f);
+            return;
+        }
+
         if (_glideBoostTimer > 0f)
         {
             // ブースト中でも着地していればタイマーを即キャンセル（宙で止まるバグを防止）
@@ -312,6 +326,14 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>ジャンプ処理（湖脱出・砂浜サーマル・崖カタパルト・通常・二段ジャンプ）</summary>
     void HandleJump(Keyboard kb)
     {
+        // 天蓋レバー操作中／台本ボード表示中は Space をジャンプに使わない
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null)
+        {
+            if (tower.IsSkybreakModalActive) return;
+            if (tower.IsPlayerNearLever && tower.IsLeverReadyToOpen) return;
+        }
+
         bool jumpPressed = kb != null && kb.spaceKey.wasPressedThisFrame;
         try { if (Input.GetKeyDown(KeyCode.Space)) jumpPressed = true; } catch { }
         if (!jumpPressed) return;
@@ -393,6 +415,13 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>滑空状態フラグを更新する</summary>
     void UpdateGlidingState(bool holdGlide)
     {
+        if (_autoGlide)
+        {
+            _gliding = true;
+            _grounded = false;
+            return;
+        }
+
         if (_glideBoostTimer > 0f)
         {
             _gliding  = true;
@@ -479,6 +508,9 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>滑空中の移動量計算（ヨー・バンク・ピッチ・サーマル）</summary>
     Vector3 ComputeGlideHorizontal(Vector2 input)
     {
+        if (_autoGlide)
+            return ComputeAutoGlideHorizontal();
+
         // ボーストタイマーを進める
         if (_glideBoostTimer > 0f)
             _glideBoostTimer -= Time.deltaTime;
@@ -660,6 +692,7 @@ public class AdventurePlayerController : MonoBehaviour
         _hop                 = 0f;
         _grounded            = true;
         _gliding             = false;
+        _autoGlide           = false;
         _glideBoostTimer     = 0f;
         _glideBoostMultiplier = 1.0f;
         _airborneTime        = 0f;
@@ -698,6 +731,46 @@ public class AdventurePlayerController : MonoBehaviour
         _updraftLift  = liftForce;
         _updraftTimer = 0.25f;
         if (!_grounded) _gliding = true;
+    }
+
+    /// <summary>エピローグ用：高度を保ちながら雄大に水平旋回するオートグライド</summary>
+    Vector3 ComputeAutoGlideHorizontal()
+    {
+        float currentYaw = transform.eulerAngles.y + AutoGlideYawRate * Time.deltaTime;
+        transform.rotation = Quaternion.Euler(2f, currentYaw, -8f);
+
+        Vector3 forward = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+        if (forward.sqrMagnitude < 0.001f)
+            forward = Vector3.forward;
+        forward.Normalize();
+
+        float cruise = AutoGlideCruiseSpeed * moveSpeedMultiplier;
+        _airMomentum = Vector3.MoveTowards(_airMomentum, forward * cruise, 6f * Time.deltaTime);
+
+        float dy = _autoGlideAltitude - transform.position.y;
+        float targetFall = Mathf.Clamp(dy * 2.8f, -1.2f, 3.8f);
+        _hop = Mathf.MoveTowards(_hop, targetFall, 10f * Time.deltaTime);
+        return _airMomentum;
+    }
+
+    /// <summary>エピローグ中のオートグライド（高度115〜125mで水平旋回）。手を離しても墜落しない</summary>
+    public void SetAutoGlideMode(bool enabled, float altitude = 120f)
+    {
+        _autoGlide = enabled;
+        _autoGlideAltitude = Mathf.Clamp(altitude, 115f, 125f);
+        if (!enabled)
+            return;
+
+        _grounded = false;
+        _gliding = true;
+        _airborneTime = 1f;
+        _glideBoostTimer = Mathf.Max(_glideBoostTimer, 2f);
+        if (transform.position.y < _autoGlideAltitude - 8f)
+            _hop = Mathf.Max(_hop, 10f);
+        Vector3 fwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+        if (fwd.sqrMagnitude < 0.01f)
+            fwd = Vector3.forward;
+        _airMomentum = fwd.normalized * AutoGlideCruiseSpeed;
     }
 
     /// <summary>天蓋破壊後のハイパーサーマル等で、地上歩行からでも自動的に大空へ射出・滑空開始させる強力な打ち上げ</summary>
