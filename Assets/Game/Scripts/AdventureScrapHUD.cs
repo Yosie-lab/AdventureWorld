@@ -282,6 +282,8 @@ public class AdventureScrapHUD : MonoBehaviour
             goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>探知ソナー修復</b></color> <color=#00E5FF><b>({count}/9)</b></color> <color=#FFD54F>▶ レーダー解放</color>";
         else if (count < 12)
             goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>スーパーグライダー完成</b></color> <color=#00E5FF><b>({count}/12)</b></color>";
+        else if (AdventureSanctuaryTowerManager.IsGameCleared)
+            goalText = "<color=#FFE066><b>✦ GAME CLEAR！</b></color> <color=#FFFFFF>箱庭からの脱獄達成！</color>";
         else if (!AdventureSanctuaryTowerManager.IsCanopyBroken)
             goalText = "<color=#00E5FF><b>✦ 全パーツ回収完了！</b></color> <color=#FFFFFF>中央タワーの黄金レバーへ</color>";
         else
@@ -322,6 +324,28 @@ public class AdventureScrapHUD : MonoBehaviour
             else
             {
                 subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFEB3B><b>中央タワー白亜テラスの黄金レバー</b></color>";
+            }
+        }
+        else if (count >= 12 && AdventureSanctuaryTowerManager.IsGameCleared)
+        {
+            Vector3 towerCenter = new Vector3(512f, 63.2f, 512f);
+            if (player != null)
+            {
+                float dist = Vector3.Distance(player.transform.position, towerCenter);
+                if (dist < 28f)
+                {
+                    subInfo = "<size=15><color=#FFE066><b>✨ 中央の光の柱へ！</b></color> <color=#80D8FF>（大空へ無限再跳躍できます）</color></size>";
+                }
+                else
+                {
+                    Vector3 diff = towerCenter - player.transform.position;
+                    var (cardinal, hint) = GetDirectionParts(diff);
+                    subInfo = $"<color=#80D8FF><b>📍 自由飛行探索中:</b></color> <color=#FFD700><b>タワー中心の光の柱（{cardinal} 約{Mathf.RoundToInt(dist)}m）で大空へ再ダイブ！</b></color>";
+                }
+            }
+            else
+            {
+                subInfo = "<color=#80D8FF><b>📍 自由飛行探索中:</b></color> <color=#FFD700><b>タワー中心からいつでも大空へ再ダイブ！</b></color>";
             }
         }
         else if (count >= 12)

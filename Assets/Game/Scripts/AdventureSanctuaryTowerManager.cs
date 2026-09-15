@@ -23,6 +23,19 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
     }
 
+    static bool _isGameCleared = false;
+    const string PrefKeyGameCleared = "RustAndFloat_GameCleared";
+    public static bool IsGameCleared
+    {
+        get => _isGameCleared || PlayerPrefs.GetInt(PrefKeyGameCleared, 0) == 1;
+        set
+        {
+            _isGameCleared = value;
+            PlayerPrefs.SetInt(PrefKeyGameCleared, value ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+    }
+
     Transform _leverHandle;
     Light _leverLight;
     readonly System.Collections.Generic.List<Transform> _allLeverHandles = new System.Collections.Generic.List<Transform>();
@@ -35,6 +48,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     bool _playerNearby = false;
     bool _epilogueTriggered = false;
     float _epilogueAlpha = 0f;
+    bool _showGameClearModal = false;
 
     // ── 天蓋破壊ストーリーボード制御（じっくり読める待機モーダル） ──
     bool _showSkybreakModal = false;
@@ -46,6 +60,14 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     bool _climaxOilInjected = false;
     float _oilHoldTimer = 0f;
     const float OilHoldRequired = 1.2f;
+
+    public bool ClimaxCrisisStarted => _climaxCrisisStarted;
+    public bool ClimaxOilInjected => _climaxOilInjected;
+    public bool EpilogueTriggered => _epilogueTriggered;
+    public float EpilogueAlpha => _epilogueAlpha;
+    public bool ShowGameClearModal => _showGameClearModal;
+
+
 
     public static void Ensure()
     {
@@ -287,6 +309,15 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             _climaxCrisisStarted = true;
             StartCoroutine(ClimaxCrisisSequenceRoutine());
+        }
+
+        if (IsGameCleared)
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && (kb.tabKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame))
+            {
+                _showGameClearModal = !_showGameClearModal;
+            }
         }
 
         if (_leverPulled) return;
@@ -547,6 +578,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         DrawSkybreakModalGUI();
         DrawClimaxCrisisGUI();
+        DrawGameClearModalGUI();
 
         if (_leverPulled || !_playerNearby)
         {
@@ -945,6 +977,135 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         GUI.color = Color.white;
     }
 
+    void DrawGameClearModalGUI()
+    {
+        if (!_showGameClearModal) return;
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        // 全画面の半透明オーバーレイ
+        GUI.color = new Color(0.01f, 0.02f, 0.05f, 0.55f);
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+
+        // 中央のシネマティック・リザルトカード（幅940px, 高さ540px）
+        float bw = Mathf.Min(940f, Screen.width * 0.95f);
+        float bh = Mathf.Min(540f, Screen.height * 0.90f);
+        float bx = (Screen.width - bw) * 0.5f;
+        float by = (Screen.height - bh) * 0.5f;
+
+        // カード背景（半透明ダークガラス調 92%アルファ）
+        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.94f);
+        GUI.DrawTexture(new Rect(bx, by, bw, bh), Texture2D.whiteTexture);
+
+        // 黄金とシアンのアクセント二重枠線
+        GUI.color = new Color(0.35f, 0.92f, 1.0f, 0.95f);
+        GUI.DrawTexture(new Rect(bx, by, bw, 3.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx, by + bh - 3.5f, bw, 3.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx, by, 3.5f, bh), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx + bw - 3.5f, by, 3.5f, bh), Texture2D.whiteTexture);
+
+        GUI.color = new Color(1.0f, 0.85f, 0.40f, 0.85f);
+        GUI.DrawTexture(new Rect(bx + 12f, by + 10f, bw - 24f, 1.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx + 12f, by + bh - 11.5f, bw - 24f, 1.5f), Texture2D.whiteTexture);
+
+        // 1. タイトル見出し
+        var titleStyle = new GUIStyle(GUI.skin.label);
+        titleStyle.fontSize = 36;
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.alignment = TextAnchor.MiddleCenter;
+        DrawShadowedText(new Rect(bx + 20f, by + 24f, bw - 40f, 48f), "✦ 『Rust & Float』 GAME CLEAR ✦", titleStyle, new Color(1.0f, 0.88f, 0.40f, 1f), Color.black, 2.0f);
+
+        // 2. 本文ストーリー
+        var subStyle = new GUIStyle(GUI.skin.label);
+        subStyle.fontSize = 20;
+        subStyle.alignment = TextAnchor.MiddleCenter;
+        DrawShadowedText(new Rect(bx + 30f, by + 78f, bw - 60f, 32f), "天蓋の檻を打ち破り、二人は未知なる本物の風の待つ空へ羽ばたいた。", subStyle, new Color(0.85f, 0.95f, 1.0f, 0.95f), Color.black, 1.5f);
+
+        // 3. 達成リザルト情報ボックス
+        float rx = bx + 40f;
+        float ry = by + 125f;
+        float rw = bw - 80f;
+        float rh = 240f;
+        GUI.color = new Color(0.04f, 0.08f, 0.15f, 0.85f);
+        GUI.DrawTexture(new Rect(rx, ry, rw, rh), Texture2D.whiteTexture);
+
+        var statStyle = new GUIStyle(GUI.skin.label);
+        statStyle.fontSize = 22;
+        statStyle.alignment = TextAnchor.MiddleLeft;
+
+        DrawShadowedText(new Rect(rx + 24f, ry + 18f, rw - 48f, 34f), "✦ 漂着古代パーツ回収： 12 / 12  <color=#69F0AE><b>【完全修復 COMPLETE】</b></color>", statStyle, Color.white, Color.black, 1.5f);
+        DrawShadowedText(new Rect(rx + 24f, ry + 60f, rw - 48f, 34f), "✦ 相棒Rustの機能： 二段ジャンプ・超滑空・探知ソナー・魂の点火", statStyle, new Color(0.9f, 0.95f, 1f), Color.black, 1.5f);
+        DrawShadowedText(new Rect(rx + 24f, ry + 102f, rw - 48f, 34f), "✦ 解放された世界： 未知の地球・連なる山脈パノラマ・無限天空", statStyle, new Color(0.9f, 0.95f, 1f), Color.black, 1.5f);
+        DrawShadowedText(new Rect(rx + 24f, ry + 144f, rw - 48f, 40f), "「ありがとう、Niko。僕たちの翼で、どこまでも行こう……！」", statStyle, new Color(1.0f, 0.90f, 0.45f), Color.black, 1.5f);
+        DrawShadowedText(new Rect(rx + 24f, ry + 190f, rw - 48f, 32f), "※クリア後も島を自由に探索でき、タワー中心から何度でも大空へダイブ可能です。", statStyle, new Color(0.65f, 0.85f, 0.95f, 0.85f), Color.black, 1.2f);
+
+        // 4. アクションボタン
+        float btnW = (bw - 100f) * 0.5f;
+        float btnH = 65f;
+        float btnY = by + bh - 95f;
+
+        var btnStyle1 = new GUIStyle(GUI.skin.button);
+        btnStyle1.fontSize = 24;
+        btnStyle1.fontStyle = FontStyle.Bold;
+        btnStyle1.alignment = TextAnchor.MiddleCenter;
+
+        // ボタン1: 大空へダイブして自由に飛ぶ
+        GUI.color = new Color(0.20f, 0.75f, 0.95f, 0.95f);
+        if (GUI.Button(new Rect(bx + 40f, btnY, btnW, btnH), "✨ 大空へダイブ！【Space】", btnStyle1))
+        {
+            RelaunchIntoSky();
+        }
+
+        // ボタン2: 閉じて自由探索
+        GUI.color = new Color(0.25f, 0.35f, 0.45f, 0.95f);
+        if (GUI.Button(new Rect(bx + 60f + btnW, btnY, btnW, btnH), "閉じる【E / Esc】", btnStyle1))
+        {
+            _showGameClearModal = false;
+        }
+
+        // キーボードショートカット
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.spaceKey.wasPressedThisFrame)
+            {
+                RelaunchIntoSky();
+            }
+            else if (kb.eKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
+            {
+                _showGameClearModal = false;
+            }
+        }
+
+        GUI.color = Color.white;
+    }
+
+    /// <summary>ゲームクリアリザルト画面を直接開く</summary>
+    public void OpenGameClearModal()
+    {
+        _showGameClearModal = true;
+    }
+
+    /// <summary>クリア後に何度でも大空へ飛び立てるリダイブ処理</summary>
+    public void RelaunchIntoSky()
+    {
+        _showGameClearModal = false;
+        var player = AdventurePlayerController.Instance;
+        if (player != null)
+        {
+            // タワー上空の光柱へワープし、大空へ打ち上げ＆スーパー滑空
+            player.transform.position = new Vector3(512f, 110f, 512f);
+            player.ApplyLaunchUpdraft(25f, 25f);
+            player.ApplyGlideBoost(3.0f, 65f);
+        }
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+        {
+            drone.SpeakCustom("いっくよー！大空へダイブ！！", 5.0f);
+        }
+    }
+
     IEnumerator EpilogueSequenceRoutine()
     {
         var player = AdventurePlayerController.Instance;
@@ -972,8 +1133,17 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             yield return null;
         }
 
-        // 12秒間じっくり読ませる
-        yield return new WaitForSeconds(12.0f);
+        // 12秒間じっくり読ませる（その間も高度が落ちすぎないよう優しい上昇風を付与）
+        float elapsedReading = 0f;
+        while (elapsedReading < 12.0f)
+        {
+            elapsedReading += Time.deltaTime;
+            if (player != null && player.transform.position.y < 85f)
+            {
+                player.ApplyLaunchUpdraft(14f);
+            }
+            yield return null;
+        }
 
         // フェードアウト（3秒）
         t = 3.0f;
@@ -984,6 +1154,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             yield return null;
         }
         _epilogueAlpha = 0f;
+
+        // ★ ゲームクリア達成！リザルトモーダルを起動
+        IsGameCleared = true;
+        _showGameClearModal = true;
     }
 
     /// <summary>天蓋の割れ目の外側に広がる「未知の地球・荒野の山脈シルエット」と光芒を生成</summary>
