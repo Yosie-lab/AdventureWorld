@@ -937,28 +937,34 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         GUI.DrawTexture(new Rect(0, 0, Screen.width, barH), Texture2D.whiteTexture);
         GUI.DrawTexture(new Rect(0, Screen.height - barH, Screen.width, barH), Texture2D.whiteTexture);
 
-        // 画面中央のエピローグ・テキスト（特大サイズで大迫力映画字幕）
-        float panelW = 1060f;
-        float panelH = 320f;
+        // 画面中央のエピローグ・テキスト（大画面でも堂々と読みやすい特大シネマサイズ）
+        float panelW = Mathf.Min(1420f, Screen.width * 0.94f);
+        float panelH = Mathf.Min(500f, Screen.height * 0.60f);
         float px = (Screen.width - panelW) * 0.5f;
-        float py = (Screen.height - panelH) * 0.5f;
+        float py = (Screen.height - panelH) * 0.5f + 20f;
 
-        // タイトルスタイル（特大42pt・黄金の映画タイトル）
+        // 画面解像度に応じた特大ダイナミックフォント（フルHDでタイトル56pt、本文36pt）
+        int titleFontSize = Mathf.Max(48, Mathf.RoundToInt(Screen.height * 0.052f));
+        int bodyFontSize = Mathf.Max(35, Mathf.RoundToInt(Screen.height * 0.034f));
+
+        // タイトルスタイル（特大56pt・黄金の映画タイトル）
         var titleStyle = new GUIStyle(GUI.skin.label);
-        titleStyle.fontSize = 42;
+        titleStyle.fontSize = titleFontSize;
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.alignment = TextAnchor.MiddleCenter;
 
-        // 本文スタイル（映画字幕25pt）
+        // 本文スタイル（映画字幕35〜36pt・太字でくっきり読みやすい）
         var bodyStyle = new GUIStyle(GUI.skin.label);
-        bodyStyle.fontSize = 25;
+        bodyStyle.fontSize = bodyFontSize;
+        bodyStyle.fontStyle = FontStyle.Bold;
         bodyStyle.alignment = TextAnchor.MiddleCenter;
+        bodyStyle.wordWrap = true;
 
         // タイトル（黒アウトライン付き黄金テキスト）
-        Rect titleRect = new Rect(px, py - 60f, panelW, 55f);
+        Rect titleRect = new Rect(px, py - titleFontSize * 1.55f, panelW, titleFontSize * 1.4f);
         titleStyle.normal.textColor = new Color(0f, 0f, 0f, _epilogueAlpha * 0.95f);
-        GUI.Label(new Rect(titleRect.x - 2f, titleRect.y - 2f, titleRect.width, titleRect.height), "『Rust & Float』", titleStyle);
-        GUI.Label(new Rect(titleRect.x + 2f, titleRect.y + 2f, titleRect.width, titleRect.height), "『Rust & Float』", titleStyle);
+        GUI.Label(new Rect(titleRect.x - 2.5f, titleRect.y - 2.5f, titleRect.width, titleRect.height), "『Rust & Float』", titleStyle);
+        GUI.Label(new Rect(titleRect.x + 2.5f, titleRect.y + 2.5f, titleRect.width, titleRect.height), "『Rust & Float』", titleStyle);
         titleStyle.normal.textColor = new Color(1.0f, 0.88f, 0.40f, _epilogueAlpha);
         GUI.Label(titleRect, "『Rust & Float』", titleStyle);
 
@@ -969,9 +975,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // 本文（黒アウトライン付きホワイトテキスト）
         Rect bodyRect = new Rect(px, py, panelW, panelH);
         bodyStyle.normal.textColor = new Color(0f, 0f, 0f, _epilogueAlpha * 0.95f);
-        GUI.Label(new Rect(bodyRect.x - 1.5f, bodyRect.y - 1.5f, bodyRect.width, bodyRect.height), quote, bodyStyle);
-        GUI.Label(new Rect(bodyRect.x + 1.5f, bodyRect.y + 1.5f, bodyRect.width, bodyRect.height), quote, bodyStyle);
-        bodyStyle.normal.textColor = new Color(0.95f, 0.98f, 1.0f, _epilogueAlpha);
+        GUI.Label(new Rect(bodyRect.x - 2.2f, bodyRect.y - 2.2f, bodyRect.width, bodyRect.height), quote, bodyStyle);
+        GUI.Label(new Rect(bodyRect.x + 2.2f, bodyRect.y + 2.2f, bodyRect.width, bodyRect.height), quote, bodyStyle);
+        bodyStyle.normal.textColor = new Color(0.96f, 0.98f, 1.0f, _epilogueAlpha);
         GUI.Label(bodyRect, quote, bodyStyle);
 
         GUI.color = Color.white;
