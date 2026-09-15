@@ -792,6 +792,10 @@ public static class AdventureBuildRustFloatIsland
             podium = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             podium.name = "WhiteMarblePodium";
             podium.transform.SetParent(root.transform, false);
+            var cap = podium.GetComponent<CapsuleCollider>();
+            if (cap != null) Object.DestroyImmediate(cap);
+            if (podium.GetComponent<MeshCollider>() == null)
+                podium.AddComponent<MeshCollider>();
         }
         podium.transform.localPosition = new Vector3(0f, 0.4f, 0f);
         podium.transform.localScale = new Vector3(70f, 0.6f, 70f);
@@ -803,6 +807,10 @@ public static class AdventureBuildRustFloatIsland
             gridFloor = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             gridFloor.name = "SanctuaryGridFloor";
             gridFloor.transform.SetParent(root.transform, false);
+            var cap = gridFloor.GetComponent<CapsuleCollider>();
+            if (cap != null) Object.DestroyImmediate(cap);
+            if (gridFloor.GetComponent<MeshCollider>() == null)
+                gridFloor.AddComponent<MeshCollider>();
         }
         gridFloor.transform.localPosition = new Vector3(0f, 0.72f, 0f);
         gridFloor.transform.localScale = new Vector3(36f, 0.1f, 36f);

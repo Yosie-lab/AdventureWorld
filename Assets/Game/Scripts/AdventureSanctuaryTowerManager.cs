@@ -64,10 +64,35 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void Start()
     {
+        FixPodiumColliders();
         SetupAudio();
         BuildTowerLever();
         var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
         BuildTowerStairs(transform, land);
+    }
+
+    void FixPodiumColliders()
+    {
+        var tower = GameObject.Find("SanctuaryZero_Tower");
+        if (tower == null) return;
+
+        var podium = tower.transform.Find("WhiteMarblePodium")?.gameObject;
+        if (podium != null)
+        {
+            var cap = podium.GetComponent<CapsuleCollider>();
+            if (cap != null) Destroy(cap);
+            if (podium.GetComponent<MeshCollider>() == null)
+                podium.AddComponent<MeshCollider>();
+        }
+
+        var gridFloor = tower.transform.Find("SanctuaryGridFloor")?.gameObject;
+        if (gridFloor != null)
+        {
+            var cap = gridFloor.GetComponent<CapsuleCollider>();
+            if (cap != null) Destroy(cap);
+            if (gridFloor.GetComponent<MeshCollider>() == null)
+                gridFloor.AddComponent<MeshCollider>();
+        }
     }
 
     void SetupAudio()
@@ -244,12 +269,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         if (_leverPulled) return;
 
-        // ── 判定：白亜テラス広場全体（半径36m以内、標高58m〜78m）にいるか、またはオベリスク天面頂上にいるか ──
+        // ── 判定：タワー広場全体（半径38m以内、標高50m〜145mのテラス・中腹足場・頂上全域）にいるか ──
         Vector2 pXZ = new Vector2(player.transform.position.x, player.transform.position.z);
         float distFromCenter = Vector2.Distance(pXZ, new Vector2(512f, 512f));
-        bool onTerrace = (distFromCenter < 36f && player.transform.position.y >= 58f && player.transform.position.y <= 78f);
-        float distTop = Vector3.Distance(player.transform.position, _topLeverPos);
-        _playerNearby = onTerrace || (distTop < 8.5f);
+        _playerNearby = (distFromCenter < 38f && player.transform.position.y >= 50f && player.transform.position.y <= 145f);
 
         // キーストーン集積状態によるライトの演出（全レバー同期）
         var scrapMgr = AdventureScrapManager.Instance;
@@ -269,7 +292,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             }
         }
 
-        // インタラクト（Eキー、スペースキー、Enterキー、または直接入力）判定
+        // インタラクト（クリック、Eキー、スペースキー、Enterキー、または直接入力）判定
         if (_playerNearby && (CheckLeverInputTriggered() || (player != null && player.InteractPressed)))
         {
             TryPullLever(allCollected);
@@ -278,12 +301,20 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     bool CheckLeverInputTriggered()
     {
+        // 1. マウスクリック（左クリック・右クリックどちらでも確実に反応）
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame)) return true;
+        try { if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)) return true; } catch { }
+
+        // 2. キーボード入力（E, Space, Enter, Return）
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null)
         {
             if (kb.eKey.wasPressedThisFrame || kb.eKey.isPressed) return true;
             if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame) return true;
         }
+
+        // 3. ゲームパッド入力
         var pad = UnityEngine.InputSystem.Gamepad.current;
         if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame)) return true;
 
