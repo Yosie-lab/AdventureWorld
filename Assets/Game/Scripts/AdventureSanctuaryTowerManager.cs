@@ -1,0 +1,1325 @@
+using UnityEngine;
+using System.Collections;
+
+/// <summary>
+/// 『Rust & Float』クライマックス：島中央の白亜タワー頂上
+/// 「アナログ真鍮レバー」と天蓋破壊シークエンスを統括するマネージャー
+/// </summary>
+public class AdventureSanctuaryTowerManager : MonoBehaviour
+{
+    static AdventureSanctuaryTowerManager _instance;
+    public static AdventureSanctuaryTowerManager Instance => _instance;
+
+    static bool _isCanopyBroken = false;
+    const string PrefKeyCanopyBroken = "RustAndFloat_CanopyBroken";
+    public static bool IsCanopyBroken
+    {
+        get => _isCanopyBroken || PlayerPrefs.GetInt(PrefKeyCanopyBroken, 0) == 1;
+        set
+        {
+            _isCanopyBroken = value;
+            PlayerPrefs.SetInt(PrefKeyCanopyBroken, value ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+    }
+
+    static bool _isGameCleared = false;
+    const string PrefKeyGameCleared = "RustAndFloat_GameCleared";
+    public static bool IsGameCleared
+    {
+        get => _isGameCleared || PlayerPrefs.GetInt(PrefKeyGameCleared, 0) == 1;
+        set
+        {
+            _isGameCleared = value;
+            PlayerPrefs.SetInt(PrefKeyGameCleared, value ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+    }
+
+    Transform _leverHandle;
+    Light _leverLight;
+    readonly System.Collections.Generic.List<Transform> _allLeverHandles = new System.Collections.Generic.List<Transform>();
+    readonly System.Collections.Generic.List<Light> _allLeverLights = new System.Collections.Generic.List<Light>();
+    ParticleSystem _crackPs;
+    GameObject _hyperUpdraftGo;
+    AudioSource _audio;
+
+    bool _leverPulled = false;
+    bool _playerNearby = false;
+    bool _epilogueTriggered = false;
+    float _epilogueAlpha = 0f;
+    bool _showGameClearModal = false;
+
+    // ── 天蓋破壊ストーリーボード制御（じっくり読める待機モーダル） ──
+    bool _showSkybreakModal = false;
+    bool _skybreakModalClosed = false;
+    public bool IsSkybreakModalActive => _showSkybreakModal;
+
+    // ── 【案1】クライマックス演出制御 ──
+    bool _climaxCrisisStarted = false;
+    bool _climaxOilInjected = false;
+    float _oilHoldTimer = 0f;
+    const float OilHoldRequired = 1.2f;
+
+    public bool ClimaxCrisisStarted => _climaxCrisisStarted;
+    public bool ClimaxOilInjected => _climaxOilInjected;
+    public bool EpilogueTriggered => _epilogueTriggered;
+    public float EpilogueAlpha => _epilogueAlpha;
+    public bool ShowGameClearModal => _showGameClearModal;
+
+
+
+    public static void Ensure()
+    {
+        var existing = Object.FindObjectsByType<AdventureSanctuaryTowerManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var ex in existing)
+        {
+            if (ex != null && ex.gameObject != null)
+                Destroy(ex.gameObject);
+        }
+        _instance = null;
+
+        var go = new GameObject("AdventureSanctuaryTowerManager");
+        _instance = go.AddComponent<AdventureSanctuaryTowerManager>();
+    }
+
+    void Awake()
+    {
+        _instance = this;
+        _isCanopyBroken = PlayerPrefs.GetInt(PrefKeyCanopyBroken, 0) == 1;
+        if (_isCanopyBroken)
+        {
+            _leverPulled = true;
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (_instance == this)
+            _instance = null;
+    }
+
+    void Start()
+    {
+        FixPodiumColliders();
+        SetupAudio();
+        BuildTowerLever();
+        var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
+        BuildTowerStairs(transform, land);
+
+        // 天蓋破壊済みなら、ハイパー上昇気流光柱を即座に再配置
+        if (IsCanopyBroken)
+        {
+            _leverPulled = true;
+            BuildSkybreakHyperUpdraft(new Vector3(512f, 62f, 512f));
+        }
+    }
+
+    void FixPodiumColliders()
+    {
+        var tower = GameObject.Find("SanctuaryZero_Tower");
+        if (tower == null) return;
+
+        var podium = tower.transform.Find("WhiteMarblePodium")?.gameObject;
+        if (podium != null)
+        {
+            var cap = podium.GetComponent<CapsuleCollider>();
+            if (cap != null) Destroy(cap);
+            if (podium.GetComponent<MeshCollider>() == null)
+                podium.AddComponent<MeshCollider>();
+        }
+
+        var gridFloor = tower.transform.Find("SanctuaryGridFloor")?.gameObject;
+        if (gridFloor != null)
+        {
+            var cap = gridFloor.GetComponent<CapsuleCollider>();
+            if (cap != null) Destroy(cap);
+            if (gridFloor.GetComponent<MeshCollider>() == null)
+                gridFloor.AddComponent<MeshCollider>();
+        }
+    }
+
+    void SetupAudio()
+    {
+        _audio = gameObject.AddComponent<AudioSource>();
+        _audio.spatialBlend = 0.5f;
+        _audio.minDistance = 6f;
+        _audio.maxDistance = 50f;
+    }
+
+    readonly Vector3 _mainLeverPos = new Vector3(512f, 63.2f, 501.5f); // オベリスク南側正面・白亜テラスの特等席
+    readonly Vector3 _topLeverPos = new Vector3(512f, 137.2f, 512f);    // オベリスク天面頂上
+    Transform _topLeverHandle;
+
+    public Vector3 MainLeverPosition => _mainLeverPos;
+
+    void BuildTowerLever()
+    {
+        string[] oldNames = {
+            "SanctuaryLeverStructure", "SanctuaryWestLeverStructure",
+            "SanctuaryNorthLeverStructure", "SanctuaryEastLeverStructure", "SanctuaryTopLeverStructure"
+        };
+        foreach (var n in oldNames)
+        {
+            var old = GameObject.Find(n);
+            if (old != null) Destroy(old);
+        }
+        _allLeverHandles.Clear();
+        _allLeverLights.Clear();
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+
+        // 大理石台座マテリアル
+        var pedMat = new Material(shader);
+        pedMat.SetColor("_BaseColor", new Color(0.94f, 0.96f, 0.98f));
+        pedMat.SetFloat("_Smoothness", 0.92f);
+
+        // 黄金真鍮ハウジングマテリアル
+        var hMat = new Material(shader);
+        hMat.SetColor("_BaseColor", new Color(0.82f, 0.62f, 0.24f));
+        hMat.SetFloat("_Metallic", 0.95f);
+        hMat.SetFloat("_Smoothness", 0.78f);
+
+        // シャフトマテリアル
+        var sMat = new Material(shader);
+        sMat.SetColor("_BaseColor", new Color(0.88f, 0.72f, 0.30f));
+        sMat.SetFloat("_Metallic", 0.92f);
+
+        // グリップ球マテリアル（真紅）
+        var gMat = new Material(shader);
+        gMat.SetColor("_BaseColor", new Color(0.80f, 0.18f, 0.15f));
+        gMat.SetFloat("_Smoothness", 0.65f);
+
+        // 天を衝く光の柱マテリアル（シアン発光）
+        var bShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        var bMat = new Material(bShader);
+        bMat.SetColor("_BaseColor", new Color(0.35f, 0.92f, 1.0f, 0.75f));
+
+        // ── 四方＋頂上にレバーを配備（どの方向から来ても絶対に目の前に見つかる！） ──
+        // 1. 南側正面レバー (512, 63.2, 501.5)
+        CreateLeverStation("SanctuaryLeverStructure", _mainLeverPos, Quaternion.identity, pedMat, hMat, sMat, gMat, bMat, true);
+
+        // 2. 西側レバー (501.5, 63.2, 512)
+        CreateLeverStation("SanctuaryWestLeverStructure", new Vector3(501.5f, 63.2f, 512f), Quaternion.Euler(0f, 90f, 0f), pedMat, hMat, sMat, gMat, bMat, false);
+
+        // 3. 北側レバー (512, 63.2, 522.5) — 今まさにプレイヤーがいる北東側からも最短距離！
+        CreateLeverStation("SanctuaryNorthLeverStructure", new Vector3(512f, 63.2f, 522.5f), Quaternion.Euler(0f, 180f, 0f), pedMat, hMat, sMat, gMat, bMat, false);
+
+        // 4. 東側レバー (522.5, 63.2, 512)
+        CreateLeverStation("SanctuaryEastLeverStructure", new Vector3(522.5f, 63.2f, 512f), Quaternion.Euler(0f, 270f, 0f), pedMat, hMat, sMat, gMat, bMat, false);
+
+        // 5. 頂上レバー (512, 137.2, 512)
+        CreateLeverStation("SanctuaryTopLeverStructure", _topLeverPos, Quaternion.identity, pedMat, hMat, sMat, gMat, bMat, false);
+    }
+
+    void CreateLeverStation(string name, Vector3 worldPos, Quaternion rotation,
+                            Material pedMat, Material hMat, Material sMat, Material gMat, Material bMat,
+                            bool isMain)
+    {
+        var root = new GameObject(name);
+        root.transform.SetParent(transform, false);
+        root.transform.position = worldPos;
+        root.transform.rotation = rotation;
+
+        // 白亜大理石の円形台座
+        var ped = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        ped.name = "LeverPedestal";
+        ped.transform.SetParent(root.transform, false);
+        ped.transform.localPosition = new Vector3(0f, 0.4f, 0f);
+        ped.transform.localScale = new Vector3(3.6f, 0.4f, 3.6f);
+        var pedMr = ped.GetComponent<MeshRenderer>();
+        if (pedMr != null) pedMr.material = pedMat;
+
+        // 真鍮ギアハウジング
+        var housing = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        housing.name = "BrassGearHousing";
+        housing.transform.SetParent(root.transform, false);
+        housing.transform.localPosition = new Vector3(0f, 1.05f, 0f);
+        housing.transform.localScale = new Vector3(1.2f, 0.55f, 0.95f);
+        var hMr = housing.GetComponent<MeshRenderer>();
+        if (hMr != null) hMr.material = hMat;
+
+        // レバーピボット
+        var pivot = new GameObject("LeverPivot");
+        pivot.transform.SetParent(root.transform, false);
+        pivot.transform.localPosition = new Vector3(0f, 1.25f, 0f);
+        pivot.transform.localRotation = Quaternion.Euler(-25f, 0f, 0f);
+
+        if (isMain) _leverHandle = pivot.transform;
+        _allLeverHandles.Add(pivot.transform);
+
+        // シャフト
+        var shaft = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        shaft.name = "Shaft";
+        shaft.transform.SetParent(pivot.transform, false);
+        shaft.transform.localPosition = new Vector3(0f, 0.48f, 0f);
+        shaft.transform.localScale = new Vector3(0.14f, 0.48f, 0.14f);
+        Destroy(shaft.GetComponent<Collider>());
+        var sMr = shaft.GetComponent<MeshRenderer>();
+        if (sMr != null) sMr.material = sMat;
+
+        // 深紅グリップ球
+        var grip = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        grip.name = "GripBall";
+        grip.transform.SetParent(pivot.transform, false);
+        grip.transform.localPosition = new Vector3(0f, 0.98f, 0f);
+        grip.transform.localScale = Vector3.one * 0.36f;
+        Destroy(grip.GetComponent<Collider>());
+        var gMr = grip.GetComponent<MeshRenderer>();
+        if (gMr != null) gMr.material = gMat;
+
+        // 遠くやオベリスクの影からでも一目でわかる「天を衝く巨大な光柱ビーコン」（高さ80m）
+        var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        beacon.name = "LeverSkyBeacon";
+        beacon.transform.SetParent(root.transform, false);
+        beacon.transform.localPosition = new Vector3(0f, 40f, 0f);
+        beacon.transform.localScale = new Vector3(0.9f, 40f, 0.9f);
+        Destroy(beacon.GetComponent<Collider>());
+        var bRend = beacon.GetComponent<Renderer>();
+        if (bRend != null) bRend.material = bMat;
+
+        // 発光インジケーターライト
+        var lightGo = new GameObject("LeverIndicatorLight");
+        lightGo.transform.SetParent(root.transform, false);
+        lightGo.transform.localPosition = new Vector3(0f, 2.4f, 0f);
+        var light = lightGo.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.color = new Color(0.35f, 0.95f, 1.0f);
+        light.intensity = 4.0f;
+        light.range = 28f;
+
+        if (isMain) _leverLight = light;
+        _allLeverLights.Add(light);
+
+        // 接近判定トリガー
+        var col = root.AddComponent<SphereCollider>();
+        col.isTrigger = true;
+        col.radius = 6.0f;
+    }
+
+    public bool IsPlayerNearLever => _playerNearby && !_leverPulled;
+
+    void Update()
+    {
+        var player = AdventurePlayerController.Instance;
+        if (player == null) return;
+
+        // 天蓋破壊後、高度105m付近でRust危機イベント（【案1】クライマックス）を開始
+        if (IsCanopyBroken && !_climaxCrisisStarted && player.transform.position.y >= 105f)
+        {
+            _climaxCrisisStarted = true;
+            StartCoroutine(ClimaxCrisisSequenceRoutine());
+        }
+
+        if (IsGameCleared)
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && (kb.tabKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame))
+            {
+                _showGameClearModal = !_showGameClearModal;
+            }
+        }
+
+        if (_leverPulled) return;
+
+        // ── 判定：タワー広場全体（半径38m以内、標高50m〜145mのテラス・中腹足場・頂上全域）にいるか ──
+        Vector2 pXZ = new Vector2(player.transform.position.x, player.transform.position.z);
+        float distFromCenter = Vector2.Distance(pXZ, new Vector2(512f, 512f));
+        _playerNearby = (distFromCenter < 38f && player.transform.position.y >= 50f && player.transform.position.y <= 145f);
+
+        // キーストーン集積状態によるライトの演出（全レバー同期）
+        var scrapMgr = AdventureScrapManager.Instance;
+        bool allCollected = scrapMgr != null && scrapMgr.CollectedCount >= 12;
+
+        if (_allLeverLights.Count > 0)
+        {
+            float pulse = allCollected ? (2.8f + Mathf.Sin(Time.time * 4.5f) * 1.2f) : 1.2f;
+            Color lightCol = allCollected ? new Color(0.35f, 0.95f, 1.0f) : new Color(1.0f, 0.75f, 0.25f);
+            foreach (var l in _allLeverLights)
+            {
+                if (l != null)
+                {
+                    l.intensity = pulse;
+                    l.color = lightCol;
+                }
+            }
+        }
+
+        // インタラクト（クリック、Eキー、スペースキー、Enterキー、または直接入力）判定
+        if (_playerNearby && (CheckLeverInputTriggered() || (player != null && player.InteractPressed)))
+        {
+            TryPullLever(allCollected);
+        }
+    }
+
+    bool CheckLeverInputTriggered()
+    {
+        // 1. マウスクリック（左クリック・右クリックどちらでも確実に反応）
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame)) return true;
+        try { if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)) return true; } catch { }
+
+        // 2. キーボード入力（E, Space, Enter, Return）
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.eKey.wasPressedThisFrame || kb.eKey.isPressed) return true;
+            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame) return true;
+        }
+
+        // 3. ゲームパッド入力
+        var pad = UnityEngine.InputSystem.Gamepad.current;
+        if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame)) return true;
+
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.E) || Input.GetKey(KeyCode.E)) return true;
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space)) return true;
+        }
+        catch { }
+        return false;
+    }
+
+    void TryPullLever(bool allCollected)
+    {
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+
+        if (!allCollected)
+        {
+            var scrapMgr = AdventureScrapManager.Instance;
+            int count = scrapMgr != null ? scrapMgr.CollectedCount : 0;
+            int remaining = 12 - count;
+            if (drone != null)
+            {
+                drone.SpeakCustom($"まだレバーがロックされてるみたい…あと{remaining}個の遺物を集めて、僕たちの翼を完全に直そう！", 4.5f);
+            }
+            if (_audio != null)
+                _audio.PlayOneShot(MakeClankSound(), 0.6f);
+            return;
+        }
+
+        // 天蓋破壊シークエンス開始！
+        _leverPulled = true;
+        IsCanopyBroken = true;
+        AdventureSaveManager.Instance?.SaveGame("天蓋開放・到達記録を保存しました");
+        StartCoroutine(SkybreakSequenceRoutine());
+    }
+
+    IEnumerator SkybreakSequenceRoutine()
+    {
+        // 1. レバーをガチャンと手前へ引き倒す
+        if (_audio != null)
+            _audio.PlayOneShot(MakeHeavyLeverSound(), 0.9f);
+
+        float elapsed = 0f;
+        float duration = 0.65f;
+        Quaternion startRot = _leverHandle.localRotation;
+        Quaternion endRot = Quaternion.Euler(38f, 0f, 0f); // 手前へ強く引き倒す
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            foreach (var h in _allLeverHandles)
+            {
+                if (h != null) h.localRotation = Quaternion.Slerp(startRot, endRot, t * t);
+            }
+            yield return null;
+        }
+
+        // 2. 地響きと火花スパーク
+        SpawnLeverSparks(new Vector3(512f, 63.5f, 512f));
+
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+        {
+            drone.SpeakCustom("空が……割れるよ、Niko！つかまって！！", 4.5f);
+        }
+
+        yield return new WaitForSeconds(1.0f);
+
+        // 3. 上空の天蓋に幾何学シールドの亀裂（Hex Grid Skybreak）が炸裂！
+        SpawnSkybreakCracks(new Vector3(512f, 150f, 512f));
+
+        // 他のセリフ吹き出し・HUDバナーを即座に非表示にして、画面中央のボードだけに集中させる
+        if (drone != null)
+        {
+            drone.ClearSpeech();
+        }
+        if (AdventureScrapHUD.Instance != null)
+        {
+            AdventureScrapHUD.Instance.HideBannerImmediately();
+        }
+
+        // 4. 天蓋破壊シネマティック・ストーリーボードを表示（プレイヤーが読むまで完全に待機！）
+        _showSkybreakModal = true;
+        _skybreakModalClosed = false;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        // プレイヤーが「ダイブ！」ボタンまたはSpace/Enterを押すまで何分でもじっくり読める！
+        while (!_skybreakModalClosed)
+        {
+            yield return null;
+        }
+        _showSkybreakModal = false;
+
+        // 5. タワー中央から上空180mの裂け目へ突き抜ける超巨大「天空スーパーサーマル」噴出！
+        BuildSkybreakHyperUpdraft(new Vector3(512f, 62f, 512f));
+
+        if (AdventurePettingAction.Instance != null)
+        {
+            AdventurePettingAction.Instance.PetRust("ありがとうRust…！君がいたからここまで来られた。行こう！", 3.2f);
+        }
+
+        yield return new WaitForSeconds(2.0f);
+
+        if (drone != null)
+        {
+            drone.SpeakCustom("あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Niko！！", 6.0f);
+        }
+    }
+
+    void SpawnLeverSparks(Vector3 pos)
+    {
+        var pGo = new GameObject("LeverSparkBurst");
+        pGo.transform.position = pos;
+        var ps = pGo.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.startSpeed = 7f;
+        main.startLifetime = 0.6f;
+        main.startSize = 0.18f;
+        main.startColor = new Color(1.0f, 0.85f, 0.35f);
+        main.loop = false;
+        var emission = ps.emission;
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 35) });
+        ps.Play();
+        Destroy(pGo, 1.5f);
+    }
+
+    void SpawnSkybreakCracks(Vector3 skyCenter)
+    {
+        var crackGo = new GameObject("SkybreakEffect");
+        crackGo.transform.position = skyCenter;
+        var ps = crackGo.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.startSpeed = 22f;
+        main.startLifetime = 4.5f;
+        main.startSize = 1.8f;
+        main.startColor = new Color(0.35f, 0.95f, 1.0f, 0.85f); // シアンと黄金のガラス片破片
+        main.loop = true;
+        main.maxParticles = 180;
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = 45f;
+        shape.rotation = new Vector3(90f, 0f, 0f);
+
+        var rend = crackGo.GetComponent<ParticleSystemRenderer>();
+        if (rend != null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
+            var mat = new Material(shader);
+            mat.SetColor("_BaseColor", new Color(0.45f, 0.95f, 1.0f, 0.85f));
+            rend.material = mat;
+        }
+
+        ps.Play();
+    }
+
+    void BuildSkybreakHyperUpdraft(Vector3 basePos)
+    {
+        if (_hyperUpdraftGo != null)
+        {
+            Destroy(_hyperUpdraftGo);
+        }
+
+        _hyperUpdraftGo = new GameObject("SkybreakHyperUpdraft");
+        _hyperUpdraftGo.transform.position = basePos;
+
+        var updraft = _hyperUpdraftGo.AddComponent<AdventureThermalUpdraft>();
+        updraft.autoLaunch = true; // 歩いて触れるだけでも自動で大空へダイブ・射出！
+        updraft.radius = 32.0f; // タワー中央テラス全域を覆う巨大な上昇気流
+        updraft.height = 180.0f; // 高度240m以上の空の裂け目まで突き抜ける
+        updraft.liftSpeed = 22.0f; // 超高速で大空へ射出！
+
+        // 天を衝く超巨大な天空光柱（シアン＆黄金に輝く半透明シリンダー）
+        var pillarGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        pillarGo.name = "SkybreakHyperBeam";
+        pillarGo.transform.SetParent(_hyperUpdraftGo.transform, false);
+        pillarGo.transform.localPosition = new Vector3(0f, 90f, 0f);
+        pillarGo.transform.localScale = new Vector3(20f, 90f, 20f);
+
+        // コライダーは不要（UpdraftのTriggerのみ使用）
+        var pCol = pillarGo.GetComponent<Collider>();
+        if (pCol != null) Destroy(pCol);
+
+        var pRend = pillarGo.GetComponent<Renderer>();
+        if (pRend != null)
+        {
+            var pShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+            var pMat = new Material(pShader);
+            pMat.SetColor("_BaseColor", new Color(0.40f, 0.95f, 1.0f, 0.35f));
+            pRend.material = pMat;
+        }
+
+        // 光柱の中心コアライト
+        var lightGo = new GameObject("SkybreakBeamLight");
+        lightGo.transform.SetParent(_hyperUpdraftGo.transform, false);
+        lightGo.transform.localPosition = new Vector3(0f, 15f, 0f);
+        var bLight = lightGo.AddComponent<Light>();
+        bLight.type = LightType.Point;
+        bLight.range = 65f;
+        bLight.intensity = 6.5f;
+        bLight.color = new Color(0.4f, 0.95f, 1.0f);
+    }
+
+    void OnGUI()
+    {
+        DrawSkybreakModalGUI();
+        DrawClimaxCrisisGUI();
+        DrawGameClearModalGUI();
+
+        if (_leverPulled || !_playerNearby)
+        {
+            DrawEpilogueGUI();
+            return;
+        }
+
+        var scrapMgr = AdventureScrapManager.Instance;
+        bool allCollected = scrapMgr != null && scrapMgr.CollectedCount >= 12;
+
+        // 特大で押しやすいシネマティック操作ボタン（幅840px、高さ75px、フォント28pt）
+        float w = 840f;
+        float h = 75f;
+        float x = (Screen.width - w) * 0.5f;
+        float y = Screen.height - 150f;
+
+        // ボタンの背景ボックス
+        var boxRect = new Rect(x, y, w, h);
+        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.95f);
+        GUI.DrawTexture(boxRect, Texture2D.whiteTexture);
+
+        // アクセント枠線
+        Color accentCol = allCollected ? new Color(0.35f, 0.95f, 1.0f, 0.9f) : new Color(1.0f, 0.85f, 0.40f, 0.9f);
+        GUI.color = accentCol;
+        GUI.DrawTexture(new Rect(x, y, w, 3.5f), Texture2D.whiteTexture); // 上枠線
+        GUI.DrawTexture(new Rect(x, y + h - 3.5f, w, 3.5f), Texture2D.whiteTexture); // 下枠線
+
+        var btnStyle = new GUIStyle(GUI.skin.button);
+        btnStyle.fontSize = 28; // 17ptから28ptへ特大化！
+        btnStyle.fontStyle = FontStyle.Bold;
+        btnStyle.alignment = TextAnchor.MiddleCenter;
+        btnStyle.normal.background = Texture2D.whiteTexture;
+
+        if (allCollected)
+        {
+            // 特大ボタン（Eキーまたはマウスクリックで即座に起動）
+            GUI.color = new Color(0f, 0f, 0f, 0.01f); // 背景は透明（背面のDrawTextureを見せる）
+            if (GUI.Button(boxRect, GUIContent.none, btnStyle))
+            {
+                TryPullLever(true);
+            }
+
+            // 黒アウトライン付き特大テキスト描画
+            GUI.color = Color.white;
+            var labelStyle = new GUIStyle(GUI.skin.label);
+            labelStyle.fontSize = 28;
+            labelStyle.fontStyle = FontStyle.Bold;
+            labelStyle.alignment = TextAnchor.MiddleCenter;
+
+            string btnText = "【Eキー または ここをクリック】真鍮レバーを引く（天蓋破壊・脱出）";
+            // 黒アウトライン
+            labelStyle.normal.textColor = new Color(0f, 0f, 0f, 0.95f);
+            GUI.Label(new Rect(x - 2f, y - 2f, w, h), btnText, labelStyle);
+            GUI.Label(new Rect(x + 2f, y + 2f, w, h), btnText, labelStyle);
+            // 本文（輝くエメラルドシアン）
+            labelStyle.normal.textColor = new Color(0.35f, 0.98f, 0.88f, 1.0f);
+            GUI.Label(boxRect, btnText, labelStyle);
+        }
+        else
+        {
+            int count = scrapMgr != null ? scrapMgr.CollectedCount : 0;
+            GUI.color = Color.white;
+            var labelStyle = new GUIStyle(GUI.skin.label);
+            labelStyle.fontSize = 24;
+            labelStyle.fontStyle = FontStyle.Bold;
+            labelStyle.alignment = TextAnchor.MiddleCenter;
+            labelStyle.normal.textColor = new Color(1.0f, 0.85f, 0.45f);
+            GUI.Label(boxRect, $"【E】真鍮レバーを調べる（要：遺物パーツ 12個 / 現在 {count}個）", labelStyle);
+        }
+
+        GUI.color = Color.white;
+        DrawEpilogueGUI();
+    }
+
+    void DrawClimaxCrisisGUI()
+    {
+        if (!_climaxCrisisStarted || _climaxOilInjected) return;
+
+        // 映画のような上下黒帯
+        Color barCol = new Color(0.02f, 0.04f, 0.08f, 0.88f);
+        float barH = Screen.height * 0.12f;
+        GUI.color = barCol;
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, barH), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(0, Screen.height - barH, Screen.width, barH), Texture2D.whiteTexture);
+
+        // 中央下部のインタラクティブ注油パネル（特大サイズで大迫力）
+        float panelW = 880f;
+        float panelH = 155f;
+        float px = (Screen.width - panelW) * 0.5f;
+        float py = Screen.height - panelH - 50f;
+
+        var boxStyle = new GUIStyle(GUI.skin.box);
+        boxStyle.normal.background = Texture2D.whiteTexture;
+        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.96f);
+        GUI.Box(new Rect(px, py, panelW, panelH), GUIContent.none, boxStyle);
+
+        // タイトル警告（特大24pt）
+        GUI.color = new Color(1.0f, 0.40f, 0.35f, 1.0f);
+        var titleStyle = new GUIStyle(GUI.skin.label);
+        titleStyle.fontSize = 23;
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.alignment = TextAnchor.MiddleCenter;
+        GUI.Label(new Rect(px, py + 12f, panelW, 32f), "⚠ 警告：極寒気流により相棒Rustが機能停止寸前！ ⚠", titleStyle);
+
+        // アクション促し（黄金特大26pt）
+        GUI.color = new Color(1.0f, 0.92f, 0.40f, 1.0f);
+        var promptStyle = new GUIStyle(GUI.skin.label);
+        promptStyle.fontSize = 26;
+        promptStyle.fontStyle = FontStyle.Bold;
+        promptStyle.alignment = TextAnchor.MiddleCenter;
+        GUI.Label(new Rect(px, py + 48f, panelW, 38f), "【E または クリック 長押し】最後の常備油を注ぐ — 「一緒に飛ぶんだ、Rust！」", promptStyle);
+
+        // プログレスバー背景（幅760px、太さ26px）
+        float barW = 760f;
+        float barH2 = 24f;
+        float bx = px + (panelW - barW) * 0.5f;
+        float by = py + 98f;
+
+        GUI.color = new Color(0.12f, 0.16f, 0.22f, 0.95f);
+        GUI.DrawTexture(new Rect(bx, by, barW, barH2), Texture2D.whiteTexture);
+
+        // プログレスバー進行ゲージ（黄金色）
+        float fillRatio = Mathf.Clamp01(_oilHoldTimer / OilHoldRequired);
+        GUI.color = new Color(1.0f, 0.82f, 0.22f, 1.0f);
+        GUI.DrawTexture(new Rect(bx, by, barW * fillRatio, barH2), Texture2D.whiteTexture);
+
+        GUI.color = Color.white;
+    }
+
+    IEnumerator ClimaxCrisisSequenceRoutine()
+    {
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        var player = AdventurePlayerController.Instance;
+
+        // 1. スローモーション化（息をのむ緊張感）
+        Time.timeScale = 0.35f;
+
+        // 2. Rustの危機演出開始（凍結・失速・悲痛な叫び）
+        if (drone != null)
+            drone.StartClimaxCrisis();
+
+        // 画面にシネマティックメッセージ
+        if (AdventureScrapHUD.Instance != null)
+        {
+            AdventureScrapHUD.Instance.ShowPoeticLore(
+                "緊急事態：凍てつく外気とRustの限界",
+                "天蓋の裂け目から吹き込む極寒の逆風が、相棒の古いギアを容赦なく凍らせていく。\n「Niko……僕のエンジンがもたない……僕を置いて、先に行って……！」",
+                "【E または クリック長押し】最後の常備油を注ぐ — 「一緒に飛ぶんだ、Rust！」"
+            );
+        }
+
+        // 3. プレイヤーの長押し入力待ち（またはタイムリミット救済）
+        float elapsed = 0f;
+        while (!_climaxOilInjected && elapsed < 12.0f)
+        {
+            elapsed += Time.unscaledDeltaTime;
+
+            bool eHolding = false;
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (kb != null && (kb.eKey.isPressed || kb.spaceKey.isPressed)) eHolding = true;
+            if (mouse != null && (mouse.leftButton.isPressed || mouse.rightButton.isPressed)) eHolding = true;
+            try { if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0) || Input.GetMouseButton(1)) eHolding = true; } catch { }
+
+            if (eHolding)
+            {
+                _oilHoldTimer += Time.unscaledDeltaTime;
+                if (_oilHoldTimer >= OilHoldRequired)
+                {
+                    _climaxOilInjected = true;
+                }
+            }
+            else
+            {
+                _oilHoldTimer = Mathf.Max(0f, _oilHoldTimer - Time.unscaledDeltaTime * 1.5f);
+            }
+
+            yield return null;
+        }
+
+        // 4. 注油完了！Rustを抱きしめる
+        _climaxOilInjected = true;
+        if (drone != null)
+            drone.StartClimaxPetAndOil();
+
+        // 祈りと温もりの時間（1.2秒）
+        yield return new WaitForSecondsRealtime(1.2f);
+
+        // 5. 魂の再点火！オーバードライブ突入！
+        if (drone != null)
+            drone.TriggerClimaxOverdrive();
+
+        // タイムスケールを徐々に復元
+        float blend = 0f;
+        while (blend < 1f)
+        {
+            blend += Time.unscaledDeltaTime * 1.6f;
+            Time.timeScale = Mathf.Lerp(0.35f, 1.0f, blend);
+            yield return null;
+        }
+        Time.timeScale = 1.0f;
+
+        // 6. 二人の魂のロケットオーバードライブ推進力付与！
+        if (player != null)
+        {
+            player.ApplyGlideBoost(3.2f, 75f);
+            player.ApplyUpdraft(28f); // 一気に天蓋（高度150m以上）を突き破る！
+        }
+
+        // 7. 天蓋突破（高度150m超え）でエピローグへ
+        yield return new WaitForSeconds(1.8f);
+        _epilogueTriggered = true;
+        StartCoroutine(EpilogueSequenceRoutine());
+    }
+
+    void DrawSkybreakModalGUI()
+    {
+        if (!_showSkybreakModal) return;
+
+        // カーソルを確実に解放・表示してクリックできるようにする
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        // 全画面の半透明オーバーレイ（背景の割れた空や世界が奥に美しく透ける）
+        GUI.color = new Color(0.01f, 0.02f, 0.05f, 0.35f);
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+
+        // 中央のシネマティック・ストーリーボード（幅1060px, 高さ560px）
+        float bw = Mathf.Min(1060f, Screen.width * 0.95f);
+        float bh = Mathf.Min(560f, Screen.height * 0.90f);
+        float bx = (Screen.width - bw) * 0.5f;
+        float by = (Screen.height - bh) * 0.5f;
+
+        // ボード背景（美しい半透明ダークガラス調 70%アルファ）
+        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.70f);
+        GUI.DrawTexture(new Rect(bx, by, bw, bh), Texture2D.whiteTexture);
+
+        // 黄金とシアンのアクセント二重枠線
+        GUI.color = new Color(0.35f, 0.92f, 1.0f, 0.92f);
+        GUI.DrawTexture(new Rect(bx, by, bw, 3.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx, by + bh - 3.5f, bw, 3.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx, by, 3.5f, bh), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx + bw - 3.5f, by, 3.5f, bh), Texture2D.whiteTexture);
+
+        // 黄金のコーナー装飾線
+        GUI.color = new Color(1.0f, 0.85f, 0.40f, 0.85f);
+        GUI.DrawTexture(new Rect(bx + 12f, by + 10f, bw - 24f, 1.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx + 12f, by + bh - 11.5f, bw - 24f, 1.5f), Texture2D.whiteTexture);
+
+        // 1. タイトル見出し（36pt 黄金・シャープな文字）
+        var titleStyle = new GUIStyle(GUI.skin.label);
+        titleStyle.fontSize = 36;
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.alignment = TextAnchor.MiddleCenter;
+
+        string titleText = "✦ 天蓋崩壊：未知の荒野への跳躍 ✦";
+        Rect titleRect = new Rect(bx + 20f, by + 26f, bw - 40f, 50f);
+        DrawShadowedText(titleRect, titleText, titleStyle, new Color(1.0f, 0.88f, 0.40f, 1f), new Color(0f, 0f, 0f, 0.90f), 1.8f);
+
+        // 2. 本文ストーリー（26pt 通常ウェイトで漢字の隙間が潰れないクリアな文字）
+        var bodyStyle = new GUIStyle(GUI.skin.label);
+        bodyStyle.fontSize = 26;
+        bodyStyle.fontStyle = FontStyle.Normal; // 太字を解除して文字本来の美しい線をクリアに保つ
+        bodyStyle.wordWrap = true;
+        bodyStyle.alignment = TextAnchor.MiddleCenter;
+
+        string bodyText =
+            "空が割れた。100%最適化された無痛の箱庭が、音を立てて崩れ去っていく。\n\n" +
+            "冷たい本物の風が頬を打つ。息が白くなり、胸が高鳴る。\n" +
+            "『空が……割れるよ、Niko！ つかまって！！』\n" +
+            "傷つく自由を抱きしめて……二人の翼で、あの未知の空へ！\n\n" +
+            "【タワー中央に吹き荒れる光のウインドピラーへ飛び込み、\n" +
+            "空の裂け目へと突き抜けよ！】";
+
+        Rect bodyRect = new Rect(bx + 35f, by + 90f, bw - 70f, bh - 195f);
+        DrawShadowedText(bodyRect, bodyText, bodyStyle, new Color(0.96f, 0.98f, 1.0f, 1f), new Color(0f, 0f, 0f, 0.90f), 1.5f);
+
+        // 3. 次へ進むダイブボタン（特大820px、高さ70px、25pt）
+        float btnW = Mathf.Min(820f, bw - 60f);
+        float btnH = 70f;
+        float btnX = (Screen.width - btnW) * 0.5f;
+        float btnY = by + bh - 92f;
+
+        // ボタン背景（半透明エメラルドブルー）
+        GUI.color = new Color(0.08f, 0.38f, 0.72f, 0.88f);
+        GUI.DrawTexture(new Rect(btnX, btnY, btnW, btnH), Texture2D.whiteTexture);
+        GUI.color = new Color(1.0f, 0.88f, 0.40f, 0.95f);
+        GUI.DrawTexture(new Rect(btnX, btnY, btnW, 3f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(btnX, btnY + btnH - 3f, btnW, 3f), Texture2D.whiteTexture);
+
+        var btnStyle = new GUIStyle(GUI.skin.button);
+        btnStyle.fontSize = 25;
+        btnStyle.fontStyle = FontStyle.Bold;
+        btnStyle.alignment = TextAnchor.MiddleCenter;
+        btnStyle.normal.background = Texture2D.whiteTexture;
+
+        GUI.color = new Color(0f, 0f, 0f, 0.01f);
+        bool clicked = GUI.Button(new Rect(btnX, btnY, btnW, btnH), GUIContent.none, btnStyle);
+
+        var btnLabelStyle = new GUIStyle(GUI.skin.label);
+        btnLabelStyle.fontSize = 25;
+        btnLabelStyle.fontStyle = FontStyle.Bold;
+        btnLabelStyle.alignment = TextAnchor.MiddleCenter;
+
+        string btnMsg = "【Spaceキー または ここをクリック】空の裂け目へダイブ！";
+        DrawShadowedText(new Rect(btnX, btnY, btnW, btnH), btnMsg, btnLabelStyle, new Color(1.0f, 0.95f, 0.75f, 1f), new Color(0f, 0f, 0f, 0.90f), 1.5f);
+
+        // 新InputSystemでのキー入力（Space, Enter, Eキー、ゲームパッド）またはボタンクリックで進行再開
+        bool keyPressed = false;
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)
+            {
+                keyPressed = true;
+            }
+        }
+        var pad = UnityEngine.InputSystem.Gamepad.current;
+        if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame))
+        {
+            keyPressed = true;
+        }
+
+        if (clicked || keyPressed)
+        {
+            _skybreakModalClosed = true;
+        }
+
+        GUI.color = Color.white;
+    }
+
+    /// <summary>文字を太らせず、映画字幕のようにシャープで読みやすい上品なドロップシャドウ描画</summary>
+    static void DrawShadowedText(Rect rect, string text, GUIStyle style, Color textColor, Color shadowColor, float offset = 1.5f)
+    {
+        Color origColor = style.normal.textColor;
+
+        // 1. ソフトドロップシャドウ（下・右下へオフセットして文字を太らせず輪郭のみを自然に強調）
+        style.normal.textColor = shadowColor;
+        GUI.Label(new Rect(rect.x + offset, rect.y + offset, rect.width, rect.height), text, style);
+
+        // 2. 前景テキスト（フォント本来のシャープで繊細な美しさを描画）
+        style.normal.textColor = textColor;
+        GUI.Label(rect, text, style);
+
+        style.normal.textColor = origColor;
+    }
+
+    void DrawEpilogueGUI()
+    {
+        if (_epilogueAlpha <= 0.01f) return;
+
+        // シネマティック・レターボックス（画面上下の映画黒帯）
+        Color barCol = new Color(0.01f, 0.02f, 0.05f, _epilogueAlpha * 0.96f);
+        float barH = Screen.height * 0.16f;
+        GUI.color = barCol;
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, barH), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(0, Screen.height - barH, Screen.width, barH), Texture2D.whiteTexture);
+
+        // 画面中央のエピローグ・テキスト（特大サイズで大迫力映画字幕）
+        float panelW = 1060f;
+        float panelH = 320f;
+        float px = (Screen.width - panelW) * 0.5f;
+        float py = (Screen.height - panelH) * 0.5f;
+
+        // タイトルスタイル（特大42pt・黄金の映画タイトル）
+        var titleStyle = new GUIStyle(GUI.skin.label);
+        titleStyle.fontSize = 42;
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.alignment = TextAnchor.MiddleCenter;
+
+        // 本文スタイル（映画字幕25pt）
+        var bodyStyle = new GUIStyle(GUI.skin.label);
+        bodyStyle.fontSize = 25;
+        bodyStyle.alignment = TextAnchor.MiddleCenter;
+
+        // タイトル（黒アウトライン付き黄金テキスト）
+        Rect titleRect = new Rect(px, py - 60f, panelW, 55f);
+        titleStyle.normal.textColor = new Color(0f, 0f, 0f, _epilogueAlpha * 0.95f);
+        GUI.Label(new Rect(titleRect.x - 2f, titleRect.y - 2f, titleRect.width, titleRect.height), "『Rust & Float』", titleStyle);
+        GUI.Label(new Rect(titleRect.x + 2f, titleRect.y + 2f, titleRect.width, titleRect.height), "『Rust & Float』", titleStyle);
+        titleStyle.normal.textColor = new Color(1.0f, 0.88f, 0.40f, _epilogueAlpha);
+        GUI.Label(titleRect, "『Rust & Float』", titleStyle);
+
+        string quote = "「100%最適化された幸福を脱獄した。\n傷つく自由と、風の重さを取り戻すために。」\n\n" +
+                       "人は最短距離を走っている時ではなく、\n寄り道をして、躓き、\n予期せぬ美しさに息をのんだ瞬間にこそ\n生きている実感を得られる。\n\n" +
+                       "── Niko & Rust の旅は、ここから始まる。";
+
+        // 本文（黒アウトライン付きホワイトテキスト）
+        Rect bodyRect = new Rect(px, py, panelW, panelH);
+        bodyStyle.normal.textColor = new Color(0f, 0f, 0f, _epilogueAlpha * 0.95f);
+        GUI.Label(new Rect(bodyRect.x - 1.5f, bodyRect.y - 1.5f, bodyRect.width, bodyRect.height), quote, bodyStyle);
+        GUI.Label(new Rect(bodyRect.x + 1.5f, bodyRect.y + 1.5f, bodyRect.width, bodyRect.height), quote, bodyStyle);
+        bodyStyle.normal.textColor = new Color(0.95f, 0.98f, 1.0f, _epilogueAlpha);
+        GUI.Label(bodyRect, quote, bodyStyle);
+
+        GUI.color = Color.white;
+    }
+
+    void DrawGameClearModalGUI()
+    {
+        if (!_showGameClearModal) return;
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        // 全画面の半透明オーバーレイ
+        GUI.color = new Color(0.01f, 0.02f, 0.05f, 0.55f);
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+
+        // 中央のシネマティック・リザルトカード（幅940px, 高さ540px）
+        float bw = Mathf.Min(940f, Screen.width * 0.95f);
+        float bh = Mathf.Min(540f, Screen.height * 0.90f);
+        float bx = (Screen.width - bw) * 0.5f;
+        float by = (Screen.height - bh) * 0.5f;
+
+        // カード背景（半透明ダークガラス調 92%アルファ）
+        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.94f);
+        GUI.DrawTexture(new Rect(bx, by, bw, bh), Texture2D.whiteTexture);
+
+        // 黄金とシアンのアクセント二重枠線
+        GUI.color = new Color(0.35f, 0.92f, 1.0f, 0.95f);
+        GUI.DrawTexture(new Rect(bx, by, bw, 3.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx, by + bh - 3.5f, bw, 3.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx, by, 3.5f, bh), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx + bw - 3.5f, by, 3.5f, bh), Texture2D.whiteTexture);
+
+        GUI.color = new Color(1.0f, 0.85f, 0.40f, 0.85f);
+        GUI.DrawTexture(new Rect(bx + 12f, by + 10f, bw - 24f, 1.5f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(bx + 12f, by + bh - 11.5f, bw - 24f, 1.5f), Texture2D.whiteTexture);
+
+        // 1. タイトル見出し
+        var titleStyle = new GUIStyle(GUI.skin.label);
+        titleStyle.fontSize = 36;
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.alignment = TextAnchor.MiddleCenter;
+        DrawShadowedText(new Rect(bx + 20f, by + 24f, bw - 40f, 48f), "✦ 『Rust & Float』 GAME CLEAR ✦", titleStyle, new Color(1.0f, 0.88f, 0.40f, 1f), Color.black, 2.0f);
+
+        // 2. 本文ストーリー
+        var subStyle = new GUIStyle(GUI.skin.label);
+        subStyle.fontSize = 20;
+        subStyle.alignment = TextAnchor.MiddleCenter;
+        DrawShadowedText(new Rect(bx + 30f, by + 78f, bw - 60f, 32f), "天蓋の檻を打ち破り、二人は未知なる本物の風の待つ空へ羽ばたいた。", subStyle, new Color(0.85f, 0.95f, 1.0f, 0.95f), Color.black, 1.5f);
+
+        // 3. 達成リザルト情報ボックス
+        float rx = bx + 40f;
+        float ry = by + 125f;
+        float rw = bw - 80f;
+        float rh = 240f;
+        GUI.color = new Color(0.04f, 0.08f, 0.15f, 0.85f);
+        GUI.DrawTexture(new Rect(rx, ry, rw, rh), Texture2D.whiteTexture);
+
+        var statStyle = new GUIStyle(GUI.skin.label);
+        statStyle.fontSize = 22;
+        statStyle.alignment = TextAnchor.MiddleLeft;
+
+        DrawShadowedText(new Rect(rx + 24f, ry + 18f, rw - 48f, 34f), "✦ 漂着古代パーツ回収： 12 / 12  <color=#69F0AE><b>【完全修復 COMPLETE】</b></color>", statStyle, Color.white, Color.black, 1.5f);
+        DrawShadowedText(new Rect(rx + 24f, ry + 60f, rw - 48f, 34f), "✦ 相棒Rustの機能： 二段ジャンプ・超滑空・探知ソナー・魂の点火", statStyle, new Color(0.9f, 0.95f, 1f), Color.black, 1.5f);
+        DrawShadowedText(new Rect(rx + 24f, ry + 102f, rw - 48f, 34f), "✦ 解放された世界： 未知の地球・連なる山脈パノラマ・無限天空", statStyle, new Color(0.9f, 0.95f, 1f), Color.black, 1.5f);
+        DrawShadowedText(new Rect(rx + 24f, ry + 144f, rw - 48f, 40f), "「ありがとう、Niko。僕たちの翼で、どこまでも行こう……！」", statStyle, new Color(1.0f, 0.90f, 0.45f), Color.black, 1.5f);
+        DrawShadowedText(new Rect(rx + 24f, ry + 190f, rw - 48f, 32f), "※クリア後も島を自由に探索でき、タワー中心から何度でも大空へダイブ可能です。", statStyle, new Color(0.65f, 0.85f, 0.95f, 0.85f), Color.black, 1.2f);
+
+        // 4. アクションボタン
+        float btnW = (bw - 100f) * 0.5f;
+        float btnH = 65f;
+        float btnY = by + bh - 95f;
+
+        var btnStyle1 = new GUIStyle(GUI.skin.button);
+        btnStyle1.fontSize = 24;
+        btnStyle1.fontStyle = FontStyle.Bold;
+        btnStyle1.alignment = TextAnchor.MiddleCenter;
+
+        // ボタン1: 大空へダイブして自由に飛ぶ
+        GUI.color = new Color(0.20f, 0.75f, 0.95f, 0.95f);
+        if (GUI.Button(new Rect(bx + 40f, btnY, btnW, btnH), "✨ 大空へダイブ！【Space】", btnStyle1))
+        {
+            RelaunchIntoSky();
+        }
+
+        // ボタン2: 閉じて自由探索
+        GUI.color = new Color(0.25f, 0.35f, 0.45f, 0.95f);
+        if (GUI.Button(new Rect(bx + 60f + btnW, btnY, btnW, btnH), "閉じる【E / Esc】", btnStyle1))
+        {
+            _showGameClearModal = false;
+        }
+
+        // キーボードショートカット
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.spaceKey.wasPressedThisFrame)
+            {
+                RelaunchIntoSky();
+            }
+            else if (kb.eKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
+            {
+                _showGameClearModal = false;
+            }
+        }
+
+        GUI.color = Color.white;
+    }
+
+    /// <summary>ゲームクリアリザルト画面を直接開く</summary>
+    public void OpenGameClearModal()
+    {
+        _showGameClearModal = true;
+    }
+
+    /// <summary>クリア後に何度でも大空へ飛び立てるリダイブ処理</summary>
+    public void RelaunchIntoSky()
+    {
+        _showGameClearModal = false;
+        var player = AdventurePlayerController.Instance;
+        if (player != null)
+        {
+            // タワー上空の光柱へワープし、大空へ打ち上げ＆スーパー滑空
+            player.transform.position = new Vector3(512f, 110f, 512f);
+            player.ApplyLaunchUpdraft(25f, 25f);
+            player.ApplyGlideBoost(3.0f, 65f);
+        }
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+        {
+            drone.SpeakCustom("いっくよー！大空へダイブ！！", 5.0f);
+        }
+    }
+
+    IEnumerator EpilogueSequenceRoutine()
+    {
+        var player = AdventurePlayerController.Instance;
+        if (player != null)
+        {
+            // 無限スーパー滑空ブーストを付与
+            player.ApplyGlideBoost(1.6f, 45f);
+        }
+
+        // 天蓋の外側に広がる未知の荒野（壮大な山脈シルエットと光芒）を出現
+        SpawnWildernessPanorama();
+
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+        {
+            drone.SpeakCustom("わぁぁ……！見て、Niko！世界はこんなに広かったんだ……！！", 8.0f);
+        }
+
+        // エピローグテキストのフェードイン（3.5秒かけてじわっと表示）
+        float t = 0f;
+        while (t < 3.5f)
+        {
+            t += Time.deltaTime;
+            _epilogueAlpha = Mathf.Clamp01(t / 3.5f);
+            yield return null;
+        }
+
+        // 12秒間じっくり読ませる（その間も高度が落ちすぎないよう優しい上昇風を付与）
+        float elapsedReading = 0f;
+        while (elapsedReading < 12.0f)
+        {
+            elapsedReading += Time.deltaTime;
+            if (player != null && player.transform.position.y < 85f)
+            {
+                player.ApplyLaunchUpdraft(14f);
+            }
+            yield return null;
+        }
+
+        // フェードアウト（3秒）
+        t = 3.0f;
+        while (t > 0f)
+        {
+            t -= Time.deltaTime;
+            _epilogueAlpha = Mathf.Clamp01(t / 3.0f);
+            yield return null;
+        }
+        _epilogueAlpha = 0f;
+
+        // ★ ゲームクリア達成！リザルトモーダルを起動
+        IsGameCleared = true;
+        _showGameClearModal = true;
+    }
+
+    /// <summary>天蓋の割れ目の外側に広がる「未知の地球・荒野の山脈シルエット」と光芒を生成</summary>
+    void SpawnWildernessPanorama()
+    {
+        var panoramaGo = new GameObject("WildernessPanorama");
+        panoramaGo.transform.position = new Vector3(512f, 90f, 512f);
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        var mountainMat = new Material(shader);
+        mountainMat.color = new Color(0.18f, 0.22f, 0.35f); // 雄大な遠景の藍色シルエット
+
+        // 全周12方向に連なる巨大な未知の山脈・稜線を配置
+        for (int i = 0; i < 12; i++)
+        {
+            float ang = i * 30f * Mathf.Deg2Rad;
+            float dist = 680f;
+            Vector3 pos = new Vector3(Mathf.Cos(ang) * dist, Random.Range(10f, 40f), Mathf.Sin(ang) * dist);
+
+            var peak = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            peak.name = $"WildernessRidge_{i}";
+            peak.transform.SetParent(panoramaGo.transform, false);
+            peak.transform.localPosition = pos;
+            peak.transform.localScale = new Vector3(260f, Random.Range(85f, 150f), 260f);
+            peak.transform.rotation = Quaternion.Euler(Random.Range(-8f, 8f), i * 30f, Random.Range(-8f, 8f));
+
+            var col = peak.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            var rend = peak.GetComponent<Renderer>();
+            if (rend != null) rend.material = mountainMat;
+        }
+
+        // 天蓋の裂け目から差し込む金色の光芒（God Rays）
+        var raysGo = new GameObject("SkybreakGodRays");
+        raysGo.transform.SetParent(panoramaGo.transform, false);
+        raysGo.transform.localPosition = new Vector3(0f, 60f, 0f);
+
+        var rayShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        var rayMat = new Material(rayShader);
+        rayMat.color = new Color(1.0f, 0.92f, 0.65f, 0.35f);
+
+        for (int r = 0; r < 8; r++)
+        {
+            var ray = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ray.name = $"GodRay_{r}";
+            ray.transform.SetParent(raysGo.transform, false);
+            ray.transform.localScale = new Vector3(8f, 120f, 8f);
+            ray.transform.localRotation = Quaternion.Euler(Random.Range(15f, 35f), r * 45f + 15f, 0f);
+
+            var col = ray.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            var rend = ray.GetComponent<Renderer>();
+            if (rend != null) rend.material = rayMat;
+        }
+    }
+
+    /// <summary>オアシス湧水池（480, 455）からタワー台地（512, 512）へ登る白亜の古代神殿アプローチ階段道を生成</summary>
+    void BuildTowerStairs(Transform parent, Terrain land)
+    {
+        var stairsRoot = new GameObject("SanctuaryApproachStairs");
+        stairsRoot.transform.SetParent(parent, false);
+
+        Vector3 startP = new Vector3(472f, 48.5f, 455f); // オアシス池のほとり
+        Vector3 endP = new Vector3(512f, 62.5f, 512f);   // タワー基壇の入口
+        if (land != null)
+        {
+            startP.y = land.SampleHeight(startP) + land.transform.position.y + 0.2f;
+            endP.y = land.SampleHeight(endP) + land.transform.position.y + 0.2f;
+        }
+
+        int steps = 22;
+        float width = 4.8f;
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        var marbleMat = new Material(shader);
+        marbleMat.SetColor("_BaseColor", new Color(0.92f, 0.94f, 0.96f)); // 純白大理石
+        marbleMat.SetFloat("_Smoothness", 0.85f);
+
+        var pillarMat = new Material(shader);
+        pillarMat.SetColor("_BaseColor", new Color(0.82f, 0.85f, 0.88f));
+
+        for (int i = 0; i < steps; i++)
+        {
+            float t0 = (float)i / steps;
+            float t1 = (float)(i + 1) / steps;
+            Vector3 p0 = Vector3.Lerp(startP, endP, t0);
+            Vector3 p1 = Vector3.Lerp(startP, endP, t1);
+
+            if (land != null)
+            {
+                p0.y = Mathf.Max(p0.y, land.SampleHeight(p0) + land.transform.position.y + 0.15f);
+                p1.y = Mathf.Max(p1.y, land.SampleHeight(p1) + land.transform.position.y + 0.15f);
+            }
+
+            Vector3 center = (p0 + p1) * 0.5f;
+            Vector3 forward = (p1 - p0);
+            float len = forward.magnitude;
+            if (len < 0.01f) continue;
+
+            Vector3 fwdNorm = forward.normalized;
+            Vector3 right = Vector3.Cross(Vector3.up, fwdNorm).normalized;
+
+            var stepObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            stepObj.name = $"MarbleStep_{i}";
+            stepObj.transform.SetParent(stairsRoot.transform, false);
+            stepObj.transform.position = center;
+            stepObj.transform.rotation = Quaternion.LookRotation(fwdNorm, Vector3.up);
+            stepObj.transform.localScale = new Vector3(width, 0.32f, len * 1.05f);
+
+            var mr = stepObj.GetComponent<MeshRenderer>();
+            if (mr != null) mr.material = marbleMat;
+
+            // 4段ごとに両脇に白亜の装飾オベリスク支柱を配置
+            if (i % 4 == 0)
+            {
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    post.name = $"Pillar_{i}";
+                    post.transform.SetParent(stairsRoot.transform, false);
+                    post.transform.position = center + right * (side * (width * 0.5f + 0.35f)) + Vector3.up * 0.7f;
+                    post.transform.localScale = new Vector3(0.24f, 0.7f, 0.24f);
+
+                    var pmr = post.GetComponent<MeshRenderer>();
+                    if (pmr != null) pmr.material = pillarMat;
+                    var pcol = post.GetComponent<Collider>();
+                    if (pcol != null) pcol.isTrigger = true;
+                }
+            }
+        }
+    }
+
+    static AudioClip MakeClankSound()
+    {
+        int rate = 22050;
+        int count = rate / 4;
+        float[] d = new float[count];
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            d[i] = Mathf.Sin(2f * Mathf.PI * 180f * t) * Mathf.Exp(-t * 18f);
+        }
+        var clip = AudioClip.Create("Clank", count, 1, rate, false);
+        clip.SetData(d, 0);
+        return clip;
+    }
+
+    static AudioClip MakeHeavyLeverSound()
+    {
+        int rate = 22050;
+        int count = (int)(rate * 0.65f);
+        float[] d = new float[count];
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float snap = Mathf.Sin(2f * Mathf.PI * 90f * t) * Mathf.Exp(-t * 6f);
+            float noise = (Random.value * 2f - 1f) * Mathf.Exp(-t * 14f) * 0.4f;
+            d[i] = snap + noise;
+        }
+        var clip = AudioClip.Create("HeavyLever", count, 1, rate, false);
+        clip.SetData(d, 0);
+        return clip;
+    }
+}
