@@ -306,17 +306,22 @@ public class AdventureScrapHUD : MonoBehaviour
         }
         else if (count >= 12 && !AdventureSanctuaryTowerManager.IsCanopyBroken)
         {
-            Vector3 leverPos = new Vector3(512f, 63.2f, 501.5f);
-            if (player != null)
+            var tower = AdventureSanctuaryTowerManager.Instance;
+            if (tower != null && tower.IsPlayerNearLever)
             {
-                Vector3 diff = leverPos - player.transform.position;
+                subInfo = "<size=24><color=#FFE066><b>✨ 【Eキー】で天蓋開放レバーを作動！</b></color></size> <color=#80D8FF>（タワー四方の黄金レバー）</color>";
+            }
+            else if (player != null)
+            {
+                Vector3 towerCenter = new Vector3(512f, 63.2f, 512f);
+                Vector3 diff = towerCenter - player.transform.position;
                 var (cardinal, hint) = GetDirectionParts(diff);
-                float dist = Vector3.Distance(player.transform.position, leverPos);
-                subInfo = $"<color=#80D8FF><b>📍 目標:</b></color> <color=#FFEB3B><b>中央タワー正面レバー（{cardinal}）</b></color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color>";
+                float dist = Vector3.Distance(player.transform.position, towerCenter);
+                subInfo = $"<color=#80D8FF><b>📍 目標:</b></color> <color=#FFEB3B><b>中央タワー白亜テラス（{cardinal}）</b></color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color> <color=#80D8FF>【四方に黄金レバーあり】</color>";
             }
             else
             {
-                subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFEB3B><b>中央タワー正面広場の黄金レバー</b></color>";
+                subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFEB3B><b>中央タワー白亜テラスの黄金レバー</b></color>";
             }
         }
         else if (count >= 12)
