@@ -100,9 +100,9 @@ public class AdventurePlayerController : MonoBehaviour
 
     void Update()
     {
-        // オープニング中は操作不可
-        if (!AdventureRustFloatOpening.IsGameStarted &&
-            FindAnyObjectByType<AdventureRustFloatOpening>() != null)
+        // オープニングボード表示中は操作不可
+        var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
+        if (opening != null && opening.IsModalBoardOpen())
             return;
 
         var kb = GetKeyboard();
@@ -114,7 +114,9 @@ public class AdventurePlayerController : MonoBehaviour
         Vector2 input   = ReadMove(kb);
         bool    running = IsRunning(kb);
         float   speed   = (running ? runSpeed : walkSpeed) * moveSpeedMultiplier;
-        bool    holdGlide = canGlide && kb != null && kb.spaceKey.isPressed;
+        bool    spaceHeld = kb != null && kb.spaceKey.isPressed;
+        try { if (Input.GetKey(KeyCode.Space)) spaceHeld = true; } catch { }
+        bool    holdGlide = canGlide && spaceHeld;
 
         UpdateGroundedState();
         _cc.stepOffset = _grounded ? StepOffsetGround : 0f;
@@ -246,7 +248,9 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>Rキー押下でスポーン地点へリセット。trueを返したらUpdateを早期リターン。</summary>
     bool TryHandleResetKey(Keyboard kb)
     {
-        if (kb == null || !kb.rKey.wasPressedThisFrame) return false;
+        bool resetPressed = kb != null && kb.rKey.wasPressedThisFrame;
+        try { if (Input.GetKeyDown(KeyCode.R)) resetPressed = true; } catch { }
+        if (!resetPressed) return false;
         ForceGroundReset();
         Teleport(spawnPosition);
         return true;
@@ -262,7 +266,11 @@ public class AdventurePlayerController : MonoBehaviour
     }
 
     static bool IsRunning(Keyboard kb)
-        => kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
+    {
+        if (kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed)) return true;
+        try { if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) return true; } catch { }
+        return false;
+    }
 
     /// <summary>接地状態を更新する（ブーストタイマー考慮）</summary>
     void UpdateGroundedState()
@@ -304,7 +312,9 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>ジャンプ処理（湖脱出・砂浜サーマル・崖カタパルト・通常・二段ジャンプ）</summary>
     void HandleJump(Keyboard kb)
     {
-        if (kb == null || !kb.spaceKey.wasPressedThisFrame) return;
+        bool jumpPressed = kb != null && kb.spaceKey.wasPressedThisFrame;
+        try { if (Input.GetKeyDown(KeyCode.Space)) jumpPressed = true; } catch { }
+        if (!jumpPressed) return;
 
         float effectiveJumpHeight = jumpHeight * jumpMultiplier;
 
@@ -859,6 +869,16 @@ public class AdventurePlayerController : MonoBehaviour
             if (kb.aKey.isPressed || kb.leftArrowKey.isPressed)  input.x -= 1f;
             if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) input.x += 1f;
         }
+        // レガシーInputのフォールバック（エディタフォーカス外れ等のフェイルセーフ）
+        try
+        {
+            float h = Input.GetAxisRaw("Horizontal");
+            float v = Input.GetAxisRaw("Vertical");
+            if (Mathf.Abs(h) > 0.1f) input.x += h;
+            if (Mathf.Abs(v) > 0.1f) input.y += v;
+        }
+        catch { }
+
         if (input.sqrMagnitude < 0.001f)
         {
             var gp = Gamepad.current;

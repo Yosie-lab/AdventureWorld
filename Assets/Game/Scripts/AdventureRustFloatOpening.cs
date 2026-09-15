@@ -9,7 +9,21 @@ using System.Collections;
 /// </summary>
 public class AdventureRustFloatOpening : MonoBehaviour
 {
-    public static bool IsGameStarted { get; private set; } = false;
+    public static bool IsGameStarted
+    {
+        get
+        {
+            if (!_isGameStarted)
+            {
+                var instance = FindAnyObjectByType<AdventureRustFloatOpening>();
+                if (instance != null && (instance._modalBoard == null || !instance._modalBoard.activeSelf))
+                    _isGameStarted = true;
+            }
+            return _isGameStarted;
+        }
+        set => _isGameStarted = value;
+    }
+    static bool _isGameStarted = false;
 
     const string TitleText = "✦ Rust & Float ✦";
     const string SubTitleText = "〜 2050 静かなる脱出 〜";
@@ -39,7 +53,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     void Awake()
     {
-        IsGameStarted = false;
+        _isGameStarted = false;
     }
 
     void Start()
