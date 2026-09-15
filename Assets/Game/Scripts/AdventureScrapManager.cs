@@ -102,9 +102,9 @@ public class AdventureScrapManager : MonoBehaviour
         }
         _instance = this;
 
-        // 音量を少し控えめで心地よい音量（0.32f）に調整
-        if (chimeVolume > 0.32f)
-            chimeVolume = 0.32f;
+        // 音量を控えめで心地よい音量（0.05f）に調整
+        if (chimeVolume > 0.05f)
+            chimeVolume = 0.05f;
 
         RestoreIdsFromList();
         SetupAudio();
@@ -148,7 +148,7 @@ public class AdventureScrapManager : MonoBehaviour
     }
 
     [Header("Audio")]
-    [Range(0f, 1f)] public float chimeVolume = 0.10f;
+    [Range(0f, 1f)] public float chimeVolume = 0.05f;
 
     void LoadChimeClip()
     {
@@ -170,7 +170,7 @@ public class AdventureScrapManager : MonoBehaviour
 
         if (_audioSource != null && _fanfareClip != null)
         {
-            float vol = Mathf.Min(chimeVolume, 0.10f);
+            float vol = Mathf.Min(chimeVolume, 0.05f);
             _audioSource.PlayOneShot(_fanfareClip, vol);
         }
     }
