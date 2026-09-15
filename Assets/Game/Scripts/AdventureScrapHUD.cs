@@ -326,7 +326,25 @@ public class AdventureScrapHUD : MonoBehaviour
         }
         else if (count >= 12)
         {
-            subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFD700><b>タワー中心の光の柱</b></color>";
+            Vector3 towerCenter = new Vector3(512f, 63.2f, 512f);
+            if (player != null)
+            {
+                float dist = Vector3.Distance(player.transform.position, towerCenter);
+                if (dist < 28f)
+                {
+                    subInfo = "<size=15><color=#FFE066><b>✨ 中央の光の柱へ飛び込め！</b></color> <color=#80D8FF>（大空へ自動射出されます）</color></size>";
+                }
+                else
+                {
+                    Vector3 diff = towerCenter - player.transform.position;
+                    var (cardinal, hint) = GetDirectionParts(diff);
+                    subInfo = $"<color=#80D8FF><b>📍 目標:</b></color> <color=#FFD700><b>タワー中心の光の柱（{cardinal}）</b></color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color> <color=#80D8FF>【光の柱に入ると大空へ打ち上がります】</color>";
+                }
+            }
+            else
+            {
+                subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFD700><b>タワー中心の光の柱</b></color>";
+            }
         }
 
         _tickerText.text = $"{goalText}\n{subInfo}";

@@ -10,7 +10,18 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     static AdventureSanctuaryTowerManager _instance;
     public static AdventureSanctuaryTowerManager Instance => _instance;
 
-    public static bool IsCanopyBroken { get; private set; } = false;
+    static bool _isCanopyBroken = false;
+    const string PrefKeyCanopyBroken = "RustAndFloat_CanopyBroken";
+    public static bool IsCanopyBroken
+    {
+        get => _isCanopyBroken || PlayerPrefs.GetInt(PrefKeyCanopyBroken, 0) == 1;
+        set
+        {
+            _isCanopyBroken = value;
+            PlayerPrefs.SetInt(PrefKeyCanopyBroken, value ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+    }
 
     Transform _leverHandle;
     Light _leverLight;
@@ -53,7 +64,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     void Awake()
     {
         _instance = this;
-        IsCanopyBroken = false;
+        _isCanopyBroken = PlayerPrefs.GetInt(PrefKeyCanopyBroken, 0) == 1;
+        if (_isCanopyBroken)
+        {
+            _leverPulled = true;
+        }
     }
 
     void OnDestroy()
@@ -69,6 +84,13 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         BuildTowerLever();
         var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
         BuildTowerStairs(transform, land);
+
+        // 天蓋破壊済みなら、ハイパー上昇気流光柱を即座に再配置
+        if (IsCanopyBroken)
+        {
+            _leverPulled = true;
+            BuildSkybreakHyperUpdraft(new Vector3(512f, 62f, 512f));
+        }
     }
 
     void FixPodiumColliders()
@@ -260,8 +282,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var player = AdventurePlayerController.Instance;
         if (player == null) return;
 
-        // 天蓋破壊後、高度120m付近でRust危機イベント（【案1】クライマックス）を開始
-        if (IsCanopyBroken && !_climaxCrisisStarted && player.transform.position.y >= 120f)
+        // 天蓋破壊後、高度105m付近でRust危機イベント（【案1】クライマックス）を開始
+        if (IsCanopyBroken && !_climaxCrisisStarted && player.transform.position.y >= 105f)
         {
             _climaxCrisisStarted = true;
             StartCoroutine(ClimaxCrisisSequenceRoutine());
@@ -476,13 +498,49 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void BuildSkybreakHyperUpdraft(Vector3 basePos)
     {
+        if (_hyperUpdraftGo != null)
+        {
+            Destroy(_hyperUpdraftGo);
+        }
+
         _hyperUpdraftGo = new GameObject("SkybreakHyperUpdraft");
         _hyperUpdraftGo.transform.position = basePos;
 
         var updraft = _hyperUpdraftGo.AddComponent<AdventureThermalUpdraft>();
-        updraft.radius = 24.0f; // 巨大なウインドピラー
-        updraft.height = 140.0f; // 高度180m以上の天蓋の裂け目まで突き抜ける
-        updraft.liftSpeed = 16.5f; // 超高速で大空へ射出！
+        updraft.autoLaunch = true; // 歩いて触れるだけでも自動で大空へダイブ・射出！
+        updraft.radius = 32.0f; // タワー中央テラス全域を覆う巨大な上昇気流
+        updraft.height = 180.0f; // 高度240m以上の空の裂け目まで突き抜ける
+        updraft.liftSpeed = 22.0f; // 超高速で大空へ射出！
+
+        // 天を衝く超巨大な天空光柱（シアン＆黄金に輝く半透明シリンダー）
+        var pillarGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        pillarGo.name = "SkybreakHyperBeam";
+        pillarGo.transform.SetParent(_hyperUpdraftGo.transform, false);
+        pillarGo.transform.localPosition = new Vector3(0f, 90f, 0f);
+        pillarGo.transform.localScale = new Vector3(20f, 90f, 20f);
+
+        // コライダーは不要（UpdraftのTriggerのみ使用）
+        var pCol = pillarGo.GetComponent<Collider>();
+        if (pCol != null) Destroy(pCol);
+
+        var pRend = pillarGo.GetComponent<Renderer>();
+        if (pRend != null)
+        {
+            var pShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+            var pMat = new Material(pShader);
+            pMat.SetColor("_BaseColor", new Color(0.40f, 0.95f, 1.0f, 0.35f));
+            pRend.material = pMat;
+        }
+
+        // 光柱の中心コアライト
+        var lightGo = new GameObject("SkybreakBeamLight");
+        lightGo.transform.SetParent(_hyperUpdraftGo.transform, false);
+        lightGo.transform.localPosition = new Vector3(0f, 15f, 0f);
+        var bLight = lightGo.AddComponent<Light>();
+        bLight.type = LightType.Point;
+        bLight.range = 65f;
+        bLight.intensity = 6.5f;
+        bLight.color = new Color(0.4f, 0.95f, 1.0f);
     }
 
     void OnGUI()
@@ -599,7 +657,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         promptStyle.fontSize = 26;
         promptStyle.fontStyle = FontStyle.Bold;
         promptStyle.alignment = TextAnchor.MiddleCenter;
-        GUI.Label(new Rect(px, py + 48f, panelW, 38f), "【E 長押し】最後の常備油を注ぐ — 「一緒に飛ぶんだ、Rust！」", promptStyle);
+        GUI.Label(new Rect(px, py + 48f, panelW, 38f), "【E または クリック 長押し】最後の常備油を注ぐ — 「一緒に飛ぶんだ、Rust！」", promptStyle);
 
         // プログレスバー背景（幅760px、太さ26px）
         float barW = 760f;
@@ -636,7 +694,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             AdventureScrapHUD.Instance.ShowPoeticLore(
                 "緊急事態：凍てつく外気とRustの限界",
                 "天蓋の裂け目から吹き込む極寒の逆風が、相棒の古いギアを容赦なく凍らせていく。\n「Niko……僕のエンジンがもたない……僕を置いて、先に行って……！」",
-                "【E長押し】最後の常備油を注ぐ — 「一緒に飛ぶんだ、Rust！」"
+                "【E または クリック長押し】最後の常備油を注ぐ — 「一緒に飛ぶんだ、Rust！」"
             );
         }
 
@@ -648,8 +706,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
             bool eHolding = false;
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && kb.eKey.isPressed) eHolding = true;
-            try { if (Input.GetKey(KeyCode.E)) eHolding = true; } catch { }
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (kb != null && (kb.eKey.isPressed || kb.spaceKey.isPressed)) eHolding = true;
+            if (mouse != null && (mouse.leftButton.isPressed || mouse.rightButton.isPressed)) eHolding = true;
+            try { if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0) || Input.GetMouseButton(1)) eHolding = true; } catch { }
 
             if (eHolding)
             {

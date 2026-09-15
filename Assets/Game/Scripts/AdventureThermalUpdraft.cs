@@ -9,6 +9,7 @@ public class AdventureThermalUpdraft : MonoBehaviour
     public float radius = 7.0f;
     public float height = 45.0f;
     public float liftSpeed = 5.2f; // 毎秒+5.2mで上空へ浮遊上昇
+    public bool autoLaunch = false; // trueの場合、地上歩行からでも自動で大空へ射出＆滑空開始
 
     ParticleSystem _windPs;
     AudioSource _audio;
@@ -44,11 +45,20 @@ public class AdventureThermalUpdraft : MonoBehaviour
         float distXZ = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(pPos.x, pPos.z));
         bool inY = pPos.y >= pos.y - 1.0f && pPos.y <= pos.y + height;
 
-        if (distXZ < radius && inY && player.IsGliding)
+        if (distXZ < radius && inY)
         {
-            player.ApplyUpdraft(liftSpeed);
-            if (_audio != null)
-                _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
+            if (autoLaunch)
+            {
+                player.ApplyLaunchUpdraft(liftSpeed);
+                if (_audio != null)
+                    _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
+            }
+            else if (player.IsGliding)
+            {
+                player.ApplyUpdraft(liftSpeed);
+                if (_audio != null)
+                    _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
+            }
         }
         else
         {
@@ -61,13 +71,20 @@ public class AdventureThermalUpdraft : MonoBehaviour
     {
         var player = other.GetComponent<AdventurePlayerController>()
             ?? other.GetComponentInParent<AdventurePlayerController>();
-        if (player != null && player.IsGliding)
+        if (player != null)
         {
-            player.ApplyUpdraft(liftSpeed);
-
-            // 音量のフェードイン
-            if (_audio != null)
-                _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
+            if (autoLaunch)
+            {
+                player.ApplyLaunchUpdraft(liftSpeed);
+                if (_audio != null)
+                    _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
+            }
+            else if (player.IsGliding)
+            {
+                player.ApplyUpdraft(liftSpeed);
+                if (_audio != null)
+                    _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
+            }
         }
     }
 

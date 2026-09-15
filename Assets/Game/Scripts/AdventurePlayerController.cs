@@ -700,6 +700,19 @@ public class AdventurePlayerController : MonoBehaviour
         if (!_grounded) _gliding = true;
     }
 
+    /// <summary>天蓋破壊後のハイパーサーマル等で、地上歩行からでも自動的に大空へ射出・滑空開始させる強力な打ち上げ</summary>
+    public void ApplyLaunchUpdraft(float liftSpeed, float initialHop = 22f)
+    {
+        _grounded        = false;
+        _gliding         = true;
+        _airborneTime    = 1.0f;
+        _glideBoostTimer = Mathf.Max(_glideBoostTimer, 3.5f);
+        if (_hop < initialHop) _hop = initialHop;
+        _updraftLift     = liftSpeed;
+        _updraftTimer    = 0.5f;
+    }
+
+
     // ═══════════════════════════════════════════════════════════════════
     // ゾーン判定ヘルパー
     // ═══════════════════════════════════════════════════════════════════
