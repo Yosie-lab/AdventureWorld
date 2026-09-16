@@ -404,7 +404,13 @@ public class AdventureGameDirector : MonoBehaviour
     {
         if (_complete)
         {
-            ShowDialogue("カピタ「猫も犬も戻ってきた。親切な子の話を信じて、よかった。」", 5.5f);
+            string[] done =
+            {
+                "カピタ「猫も犬も戻ってきた。親切な子の話を信じて、よかった。油、またあげるね。」",
+                "カピタ「ブヒヒ！よくやったね。Rustにもたっぷり油をわけてあげる。」",
+                "カピタ「プヒ…。平和だね。潤滑油、遠慮なく持っていって。」",
+            };
+            ShowDialogue(done[_capytaTalks++ % done.Length], 5.5f);
             Play(npc, "CapytaDance");
             AdventureCapytaBlessing.GrantSuperJumpFromTalk(showFx: true);
             return;
@@ -419,22 +425,28 @@ public class AdventureGameDirector : MonoBehaviour
         }
 
         Play(npc, "CapytaSittingIdleLooksRight");
-        AdventureCapytaBlessing.GrantSuperJumpFromTalk(showFx: _capytaTalks == 0);
-        int step = _capytaTalks++ % 3;
+        AdventureCapytaBlessing.GrantSuperJumpFromTalk(showFx: true);
+        int step = _capytaTalks++ % 6;
         if (!_foundCat && !_foundDog)
         {
             if (step == 0)
                 ShowDialogue("カピタ「ブヒヒ…！足に弾力をわけてあげる。高く跳んでみて！猫と犬ははぐれたよ。スズメとマスクラットは親切。サルとヤモリは嘘をつくよ。」", 6.5f);
             else if (step == 1)
-                ShowDialogue("カピタ「猫は北東の草地。犬は北西の草地。崖の端にはいない。」", 5.8f);
+                ShowDialogue("カピタ「猫は北東の草地。犬は北西の草地。崖の端にはいない。油も持っていって、Rustを大事にね。」", 5.8f);
+            else if (step == 2)
+                ShowDialogue("カピタ「プドゥは怖がりだけど正直。コロブスの『北の崖へ』は嘘。潤滑油、またあげるよ。」", 5.8f);
+            else if (step == 3)
+                ShowDialogue("カピタ「ブヒッ。Rustが甘えてる顔してるね。油をたっぷりさして、ぎゅっとしてあげて。」", 5.5f);
+            else if (step == 4)
+                ShowDialogue("カピタ「プヒヒ…。油缶、いくらでもあけてあげる。相棒のギアが喜ぶ音、好きなんだ。」", 5.5f);
             else
-                ShowDialogue("カピタ「プドゥは怖がりだけど正直。コロブスの『北の崖へ』は嘘。」", 5.8f);
+                ShowDialogue("カピタ「Nikoの手が温かいと、Rustは安心して飛ぶよ。また話しにきて。」", 5.5f);
             return;
         }
         if (!_foundCat)
-            ShowDialogue("カピタ「犬は無事。猫は北東の草地。ヤモリの言う池の中は嘘だよ。」", 5.5f);
+            ShowDialogue("カピタ「犬は無事。猫は北東の草地。ヤモリの言う池の中は嘘だよ。油、持っていってね。」", 5.5f);
         else
-            ShowDialogue("カピタ「猫は無事。犬は北西の草地。森の端まで行かないで。」", 5.5f);
+            ShowDialogue("カピタ「猫は無事。犬は北西の草地。森の端まで行かないで。Rustにも油をあげて。」", 5.5f);
     }
 
     void TalkCat()

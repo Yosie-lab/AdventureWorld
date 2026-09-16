@@ -33,6 +33,12 @@ public class AdventureScrapHUD : MonoBehaviour
     CanvasGroup _bannerCg;
     float _bannerTimer = 0f;
 
+    // 所持潤滑油（常時表示）
+    RectTransform _oilPanelRt;
+    CanvasGroup _oilCg;
+    Text _oilText;
+    int _lastOilShown = int.MinValue;
+
     bool _isHidden = false;
     float _radarUpdateTimer = 0f;
     int _lastKnownCount = 0;
@@ -172,12 +178,71 @@ public class AdventureScrapHUD : MonoBehaviour
         textOutline.effectColor = new Color(0f, 0f, 0f, 0.95f);
         textOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
+        CreateOilCounter(canvasGo.transform);
+
         RefreshQuestDisplay();
+        RefreshOilDisplay(force: true);
+    }
+
+    void CreateOilCounter(Transform canvasRoot)
+    {
+        var panelGo = new GameObject("OilCounterPanel");
+        panelGo.transform.SetParent(canvasRoot, false);
+        _oilPanelRt = panelGo.AddComponent<RectTransform>();
+        _oilPanelRt.anchorMin = new Vector2(1f, 1f);
+        _oilPanelRt.anchorMax = new Vector2(1f, 1f);
+        _oilPanelRt.pivot = new Vector2(1f, 1f);
+        _oilPanelRt.anchoredPosition = new Vector2(-24f, -24f);
+        _oilPanelRt.sizeDelta = new Vector2(210f, 48f);
+
+        var panelBg = panelGo.AddComponent<Image>();
+        panelBg.color = new Color(0.06f, 0.04f, 0.02f, 0.90f);
+        panelBg.raycastTarget = false;
+
+        var accentGo = new GameObject("OilAccent");
+        accentGo.transform.SetParent(panelGo.transform, false);
+        var accRt = accentGo.AddComponent<RectTransform>();
+        accRt.anchorMin = new Vector2(0f, 0f);
+        accRt.anchorMax = new Vector2(0f, 1f);
+        accRt.pivot = new Vector2(0f, 0.5f);
+        accRt.anchoredPosition = Vector2.zero;
+        accRt.sizeDelta = new Vector2(3.5f, 0f);
+        var accImg = accentGo.AddComponent<Image>();
+        accImg.color = new Color(1f, 0.78f, 0.28f, 1f);
+        accImg.raycastTarget = false;
+
+        _oilCg = panelGo.AddComponent<CanvasGroup>();
+        _oilCg.alpha = 1f;
+        _oilCg.blocksRaycasts = false;
+        _oilCg.interactable = false;
+
+        var textGo = new GameObject("OilText");
+        textGo.transform.SetParent(panelGo.transform, false);
+        var tRt = textGo.AddComponent<RectTransform>();
+        tRt.anchorMin = Vector2.zero;
+        tRt.anchorMax = Vector2.one;
+        tRt.offsetMin = new Vector2(14f, 4f);
+        tRt.offsetMax = new Vector2(-10f, -4f);
+
+        _oilText = textGo.AddComponent<Text>();
+        _oilText.font = _font;
+        _oilText.fontSize = 18;
+        _oilText.fontStyle = FontStyle.Bold;
+        _oilText.alignment = TextAnchor.MiddleLeft;
+        _oilText.supportRichText = true;
+        _oilText.color = new Color(1f, 0.92f, 0.55f, 1f);
+        _oilText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        _oilText.verticalOverflow = VerticalWrapMode.Overflow;
+        _oilText.raycastTarget = false;
+
+        var outline = textGo.AddComponent<Outline>();
+        outline.effectColor = new Color(0.05f, 0.02f, 0f, 0.95f);
+        outline.effectDistance = new Vector2(1.4f, -1.4f);
     }
 
     void Update()
     {
-        // 【Tab】キーで表示 ⇄ 完全非表示を切り替え
+        // 【Tab】キーでクエスト表示 ⇄ 非表示（油カウンターは常時表示のまま）
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null && kb.tabKey.wasPressedThisFrame)
         {
@@ -186,7 +251,13 @@ public class AdventureScrapHUD : MonoBehaviour
                 _questCg.alpha = _isHidden ? 0f : 0.85f;
         }
 
-        if (_isHidden) return;
+        RefreshOilDisplay(force: false);
+
+        if (_isHidden)
+        {
+            TickBannerOnly();
+            return;
+        }
 
         // 定期的にクエスト進捗と最寄りパーツレーダーを更新
         _radarUpdateTimer -= Time.deltaTime;
@@ -196,6 +267,11 @@ public class AdventureScrapHUD : MonoBehaviour
             RefreshQuestDisplay();
         }
 
+        TickBannerOnly();
+    }
+
+    void TickBannerOnly()
+    {
         // 天蓋破壊シネマティックストーリーボード表示中はバナーを即座に非表示
         if (AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.IsSkybreakModalActive)
         {
@@ -225,6 +301,32 @@ public class AdventureScrapHUD : MonoBehaviour
             if (_bannerCg != null)
                 _bannerCg.alpha = Mathf.MoveTowards(_bannerCg.alpha, 0.0f, Time.deltaTime * 2.0f);
         }
+    }
+
+    void RefreshOilDisplay(bool force)
+    {
+        if (_oilText == null || _oilCg == null) return;
+
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        bool cinematicHide = tower != null && (
+            tower.IsSkybreakModalActive
+            || tower.IsEpiloguePlaying
+            || tower.ShowGameClearModal
+            || tower.IsClimaxOilPromptActive);
+
+        _oilCg.alpha = cinematicHide ? 0f : 1f;
+        if (cinematicHide) return;
+
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        int oil = drone != null ? Mathf.Max(0, drone.oilCount) : 0;
+        if (!force && oil == _lastOilShown) return;
+        _lastOilShown = oil;
+
+        bool well = drone != null && Time.time < drone.wellOiledUntil;
+        string state = well
+            ? "<color=#A8FFB0>快調</color>"
+            : "<color=#FFB070>手当て可</color>";
+        _oilText.text = $"潤滑油  <color=#FFE066><b>{oil}</b></color>  {state}";
     }
 
     /// <summary>シネマティックストーリーボード表示時などにHUDバナーを即座に消去</summary>

@@ -52,11 +52,11 @@ public class AdventurePettingAction : MonoBehaviour
 
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
 
-        // 1. Rustへの挨拶・台詞と甘える効果音、胸元ホバリングステートの開始
+        // 1. Nikoのいたわり台詞＋甘える効果音、胸元ホバリング
         if (drone != null)
         {
             drone.SetPettingState(true, duration);
-            drone.SpeakCustom(speechText, duration + 1.0f);
+            drone.SpeakAsNiko(speechText, duration + 1.0f);
             PlaySweetCuddleSound(drone.transform.position);
         }
 

@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 
 /// <summary>
 /// カピタ（Capyta）に話しかけると、スーパージャンプと潤滑油を授ける。
-/// RustAndFloat の配置名 "Capyta_*" と AdventureNpc(capyta) の両方に対応。
+/// 機嫌（その場の気分）で油の量が大きく変わる。
 /// </summary>
 public class AdventureCapytaBlessing : MonoBehaviour
 {
@@ -12,11 +12,41 @@ public class AdventureCapytaBlessing : MonoBehaviour
 
     public const float SuperJumpMultiplier = 1.55f;
     const float TalkRadius = 4.8f;
-    const int OilGiftAmount = 1;
     const string PrefKey = "RustAndFloat_CapytaSuperJump";
+
+    enum Mood { Calm, Happy, Generous, Jackpot }
+
+    static readonly string[] CapytaByMood =
+    {
+        "ブヒ…今日はまあまあ。油、これくらいで我慢してね。",
+        "ブヒヒ！機嫌がいいよ。潤滑油、多めにあげるね！",
+        "プヒヒ……！今日は気前がいい日。缶をあけて、たっぷりの油を持っていって！",
+        "ブヒッヒッヒ！！最高の気分だ！！油を山盛りにしてあげる！！Rustをぬるぬるにしてあげて！",
+    };
+
+    static readonly string[] CapytaFirst =
+    {
+        "ブヒヒ…！大地の弾力と、相棒のための潤滑油をわけてあげるね！機嫌次第でもっと出すよ！",
+        "ブヒッ。Rustのために油をたっぷり。調子がいい日は、もっと山盛りにしてあげる！",
+    };
+
+    static readonly string[] RustByMood =
+    {
+        "ピロッ……油もらったよ。Niko、あとでさして……ぎゅっとしてもいい？",
+        "えへへ…カピタ機嫌がいいね！油いっぱい……！Niko、撫でて……？",
+        "わぁ……油がたくさん……！身体が軽くなりそう。そばにいてね、Niko",
+        "ピキーッ！！山盛り……！！カピタ大好き……！Niko、何度でも手当てして……甘えていい？",
+    };
+
+    static readonly string[] RustFirst =
+    {
+        "わぁ…！カピタの祝福だ！スーパージャンプと油をもらったよ、Niko！！",
+        "ピキーッ！カピタ優しい…！ジャンプも油も…Niko、あとで撫でてね……？",
+    };
 
     bool _promptVisible;
     float _lastTalkTime = -10f;
+    int _talkIndex;
 
     public static void Ensure()
     {
@@ -51,6 +81,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
     {
         PlayerPrefs.SetInt(PrefKey, 0);
         PlayerPrefs.Save();
+        _talkIndex = 0;
         var player = AdventurePlayerController.Instance
                      ?? Object.FindFirstObjectByType<AdventurePlayerController>();
         if (player != null)
@@ -88,28 +119,75 @@ public class AdventureCapytaBlessing : MonoBehaviour
         var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
         if (!already)
         {
-            drone?.SpeakCustom("わぁ…！カピタの祝福だ！ジャンプがふわっと高く跳べるよ、Niko！！", 5.5f);
+            drone?.SpeakCustom(RustFirst[0], 5.5f);
             AdventureScrapHUD.Instance?.ShowUpgradeBanner(
                 "✦ カピタの祝福 ✦  【スーパージャンプ】獲得！（Spaceで高く跳べる）");
         }
+    }
+
+    /// <summary>機嫌ロール：普段から多め。機嫌良し〜大盤振る舞いで山盛り。</summary>
+    static void RollMood(out Mood mood, out int amount)
+    {
+        float r = Random.value;
+        // 15% Calm / 35% Happy / 35% Generous / 15% Jackpot
+        if (r < 0.15f)
+        {
+            mood = Mood.Calm;
+            amount = Random.Range(5, 9);       // 5〜8
+        }
+        else if (r < 0.50f)
+        {
+            mood = Mood.Happy;
+            amount = Random.Range(10, 16);     // 10〜15
+        }
+        else if (r < 0.85f)
+        {
+            mood = Mood.Generous;
+            amount = Random.Range(18, 28);     // 18〜27
+        }
         else
         {
-            drone?.SpeakCustom("カピタ、また会えて嬉しいね！スーパージャンプ、まだ効いてるよ！", 4.5f);
+            mood = Mood.Jackpot;
+            amount = Random.Range(30, 49);     // 30〜48
         }
     }
 
-    /// <summary>カピタ会話で潤滑油を1つ渡す</summary>
+    static string MoodLabel(Mood mood)
+    {
+        switch (mood)
+        {
+            case Mood.Calm: return "ふつうの機嫌";
+            case Mood.Happy: return "ご機嫌";
+            case Mood.Generous: return "気前よし";
+            default: return "大盤振る舞い！！";
+        }
+    }
+
+    /// <summary>カピタ会話で潤滑油を渡す（機嫌で量変動）</summary>
     void GrantOilFromCapyta(bool showSpeech = true)
     {
         var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
         if (drone == null) return;
 
-        drone.oilCount = Mathf.Max(0, drone.oilCount) + OilGiftAmount;
-        if (!showSpeech) return;
+        RollMood(out Mood mood, out int amount);
+        if (_talkIndex == 0)
+            amount = Mathf.Max(amount, 12);
 
-        drone.SpeakCustom($"カピタが潤滑油をくれたよ！（所持: {drone.oilCount}）", 4.0f);
+        drone.oilCount = Mathf.Max(0, drone.oilCount) + amount;
+
+        if (!showSpeech)
+        {
+            _talkIndex++;
+            return;
+        }
+
+        int mi = (int)mood;
+        ShowSpeechBubble(CapytaByMood[mi]);
+        drone.SpeakCustom(
+            $"{RustByMood[mi]}（{MoodLabel(mood)}：油 +{amount}／所持: {drone.oilCount}）", 5.2f);
         AdventureScrapHUD.Instance?.ShowUpgradeBanner(
-            $"✦ カピタの贈り物 ✦  潤滑油 +{OilGiftAmount}（所持: {drone.oilCount}）");
+            $"✦ カピタの贈り物（{MoodLabel(mood)}）✦  潤滑油 +{amount}（所持: {drone.oilCount}）");
+        _talkIndex++;
     }
 
     void Update()
@@ -143,7 +221,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
         if (kb != null && kb.eKey.wasPressedThisFrame) ePressed = true;
         try { if (Input.GetKeyDown(KeyCode.E)) ePressed = true; } catch { }
 
-        if (ePressed && Time.unscaledTime - _lastTalkTime > 0.6f)
+        if (ePressed && Time.unscaledTime - _lastTalkTime > 0.45f)
         {
             _lastTalkTime = Time.unscaledTime;
             TalkToCapyta(player, nearest);
@@ -160,26 +238,38 @@ public class AdventureCapytaBlessing : MonoBehaviour
         if (firstJump)
             GrantSuperJump(silent: true);
 
-        // 会話のたび油を1つ渡す（スーパージャンプは初回のみ）
+        RollMood(out Mood mood, out int amount);
+        if (firstJump)
+            amount = Mathf.Max(amount, 16);
+
         if (drone != null)
-            drone.oilCount = Mathf.Max(0, drone.oilCount) + OilGiftAmount;
+            drone.oilCount = Mathf.Max(0, drone.oilCount) + amount;
+
+        int oilNow = drone != null ? drone.oilCount : amount;
+        int mi = (int)mood;
 
         if (firstJump)
         {
-            ShowSpeechBubble("ブヒヒ…！大地の弾力と、相棒のための潤滑油をわけてあげるね！");
+            int ci = Random.Range(0, CapytaFirst.Length);
+            int ri = Random.Range(0, RustFirst.Length);
+            ShowSpeechBubble($"{CapytaFirst[ci]}（{MoodLabel(mood)}）");
             drone?.SpeakCustom(
-                $"わぁ…！カピタの祝福だ！スーパージャンプと潤滑油をもらったよ！！（油: {drone.oilCount}）",
-                5.5f);
+                $"{RustFirst[ri]}（{MoodLabel(mood)}：油 +{amount}／所持: {oilNow}）",
+                5.8f);
             AdventureScrapHUD.Instance?.ShowUpgradeBanner(
-                $"✦ カピタの祝福 ✦  スーパージャンプ＆潤滑油 +{OilGiftAmount}");
+                $"✦ カピタの祝福（{MoodLabel(mood)}）✦  スーパージャンプ＆潤滑油 +{amount}");
         }
         else
         {
-            ShowSpeechBubble("ブヒ…また油を持っていって。Rustを大事にしてね。");
-            drone?.SpeakCustom($"カピタが潤滑油をくれたよ！（所持: {drone.oilCount}）", 4.0f);
+            ShowSpeechBubble(CapytaByMood[mi]);
+            drone?.SpeakCustom(
+                $"{RustByMood[mi]}（{MoodLabel(mood)}：油 +{amount}／所持: {oilNow}）",
+                5.0f);
             AdventureScrapHUD.Instance?.ShowUpgradeBanner(
-                $"✦ カピタの贈り物 ✦  潤滑油 +{OilGiftAmount}（所持: {drone.oilCount}）");
+                $"✦ カピタの贈り物（{MoodLabel(mood)}）✦  潤滑油 +{amount}（所持: {oilNow}）");
         }
+
+        _talkIndex++;
     }
 
     static void TryPlayCapytaReaction(Transform capy)
@@ -258,7 +348,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
     {
         if (!_promptVisible) return;
 
-        float w = Mathf.Min(640f, Screen.width * 0.86f);
+        float w = Mathf.Min(720f, Screen.width * 0.9f);
         float h = 64f;
         float x = (Screen.width - w) * 0.5f;
         float y = Screen.height - 150f;
@@ -270,14 +360,14 @@ public class AdventureCapytaBlessing : MonoBehaviour
 
         var style = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 24,
+            fontSize = 21,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
         style.normal.textColor = new Color(0.9f, 1f, 0.85f, 1f);
         string tip = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.hasCapytaSuperJump
-            ? "【E】カピタと話す（潤滑油をもらえる）"
-            : "【E】カピタと話す（スーパージャンプ＆潤滑油）";
+            ? "【E】カピタと話す（機嫌で潤滑油 5〜48）"
+            : "【E】カピタと話す（スーパージャンプ＆機嫌で油たっぷり）";
         GUI.Label(new Rect(x, y, w, h), tip, style);
         GUI.color = Color.white;
     }

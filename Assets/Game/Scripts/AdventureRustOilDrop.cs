@@ -6,7 +6,7 @@ using UnityEngine;
 /// </summary>
 public class AdventureRustOilDrop : MonoBehaviour
 {
-    public int amount = 1;
+    public int amount = 3;
     Transform _visual;
     bool _isCollected = false;
     static AudioClip _pickupClip;

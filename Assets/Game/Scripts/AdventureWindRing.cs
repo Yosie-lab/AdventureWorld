@@ -201,12 +201,10 @@ public class AdventureWindRing : MonoBehaviour
         if (_audio != null && _boostClip != null)
             _audio.PlayOneShot(_boostClip);
 
-        // 相棒Rustのリアクション（風を喜ぶ穏やかなセリフ）
-        var drone = FindAnyObjectByType<AdventureRustDrone>();
+        // 相棒Rustのリアクション＋光るリング通過ボーナス油（量は都度ランダム）
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
-        {
-            drone.OnFloatWindCaught();
-        }
+            drone.OnFloatWindCaught(); // 内部で油量をランダム決定
 
         // リングショックウェーブ演出
         StartCoroutine(ShockwaveAndCooldown());

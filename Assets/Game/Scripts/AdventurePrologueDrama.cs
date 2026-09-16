@@ -2,8 +2,8 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// 前半オープニングの小さなドラマ3幕：
-/// ①Rust極寒・油切れ → ②注油で蘇生 → ③最初のギア／3個目でダッシュ祝福
+/// 前半オープニングの小さなドラマ：
+/// Rust極寒・油切れ → Nikoのいたわりと注油 → 甘え寄り添い → 最初のギア／3個目でダッシュ祝福
 /// </summary>
 public class AdventurePrologueDrama : MonoBehaviour
 {
@@ -19,6 +19,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         GuideFirstGear,
         WaitFirstScrap,
         FirstGearDone,
+        SecondGearBond,
         DashCelebrate,
         Complete
     }
@@ -29,11 +30,14 @@ public class AdventurePrologueDrama : MonoBehaviour
     bool _showDashBoard;
     bool _dashBoardAdvance;
     float _dashBoardOpenTime;
+    bool _secondGearDone;
 
     public bool IsBlockingSpeech =>
         _phase == Phase.Act1Distress
         || _phase == Phase.WaitOil
         || _phase == Phase.Act2Revived
+        || _phase == Phase.FirstGearDone
+        || _phase == Phase.SecondGearBond
         || _phase == Phase.DashCelebrate;
 
     public bool IsWaitingForOil => _phase == Phase.WaitOil;
@@ -77,6 +81,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         _oilReceived = false;
         _showOilPrompt = false;
         _showDashBoard = false;
+        _secondGearDone = false;
         StartCoroutine(PrologueRoutine());
     }
 
@@ -88,6 +93,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         _showOilPrompt = false;
         _showDashBoard = false;
         _dashBoardAdvance = false;
+        _secondGearDone = false;
         var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
         drone?.EndPrologueDistress();
     }
@@ -99,13 +105,29 @@ public class AdventurePrologueDrama : MonoBehaviour
             _oilReceived = true;
     }
 
-    /// <summary>パーツ取得時（1個目・3個目の山場）</summary>
+    /// <summary>パーツ取得時（1・2・3個目の山場）</summary>
     public void NotifyScrapCollected(int count)
     {
         if (count == 1 && (_phase == Phase.GuideFirstGear || _phase == Phase.WaitFirstScrap || _phase == Phase.Act2Revived))
             StartCoroutine(FirstGearRebirthRoutine());
+        else if (count == 2 && !_secondGearDone && _phase != Phase.Complete && _phase != Phase.DashCelebrate)
+            StartCoroutine(SecondGearBondRoutine());
         else if (count == 3 && _phase != Phase.Complete && _phase != Phase.DashCelebrate)
             StartCoroutine(DashCelebrateRoutine());
+    }
+
+    IEnumerator SpeakRust(AdventureRustDrone drone, string text, float hold)
+    {
+        if (drone == null) yield break;
+        drone.SpeakCustom(text, hold);
+        yield return new WaitForSeconds(hold);
+    }
+
+    IEnumerator SpeakNiko(AdventureRustDrone drone, string text, float hold)
+    {
+        if (drone == null) yield break;
+        drone.SpeakAsNiko(text, hold);
+        yield return new WaitForSeconds(hold);
     }
 
     IEnumerator PrologueRoutine()
@@ -122,18 +144,39 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         drone.ClearSpeech();
         drone.StartPrologueDistress();
-        drone.SpeakCustom("キキッ……Niko……塩水で古いギアが……凍りついて動かない……油を……さして……", 5.5f);
-        yield return new WaitForSeconds(5.2f);
+
+        // ① 極寒・しがみつき → Nikoのいたわり → Rustの甘えお願い
+        yield return SpeakRust(drone,
+            "キキッ……Niko……塩水で古いギアが……凍りついて動かない……", 4.8f);
+        yield return SpeakNiko(drone,
+            "大丈夫だよ、Rust。ここにいるから。ぎゅっとしてていいよ", 4.6f);
+        yield return SpeakRust(drone,
+            "……うぅ……もっとそばにいたい……手が……あったかいの……", 4.8f);
+        yield return SpeakNiko(drone,
+            "よしよし。怖かったね。油をさして、ゆっくり温めてあげる", 4.6f);
+        yield return SpeakRust(drone,
+            "……お願い……【E】で油をさして……Nikoの手、必要……", 5.2f);
 
         _phase = Phase.WaitOil;
         _showOilPrompt = true;
-        drone.SpeakCustom("……そばに来て……【E】で油をさして……お願い……", 6.0f);
 
         float timeout = 90f;
+        float nextRemind = 14f;
         while (!_oilReceived && timeout > 0f)
         {
             timeout -= Time.deltaTime;
-            // 近くでEを押したら確実に受理（Interact漏れ対策）
+            nextRemind -= Time.deltaTime;
+            if (nextRemind <= 0f)
+            {
+                string[] reminds =
+                {
+                    "……うぅ……まだ冷たいよ……Nikoの手、ほしい……【E】で……",
+                    "……そばにいて……油を……さして……お願い……ぎゅっ……",
+                    "ピピッ……か、硬い……Niko……手当て……して……",
+                };
+                drone.SpeakCustom(reminds[Random.Range(0, reminds.Length)], 4.2f);
+                nextRemind = 12f;
+            }
             PollOilInput(drone);
             yield return null;
         }
@@ -141,19 +184,34 @@ public class AdventurePrologueDrama : MonoBehaviour
         _showOilPrompt = false;
         if (!_oilReceived)
         {
-            // タイムアウト時は自動注油して物語を止めない
             drone.CompletePrologueOil();
             _oilReceived = true;
         }
 
+        // ② 蘇生 → 胸元で甘え寄り添い → 最初のギアへ
         _phase = Phase.Act2Revived;
         drone.EndPrologueDistress();
         drone.CompletePrologueOil();
-        drone.SpeakCustom("……あ……温かい……回路が戻ってきた……！ありがとう、Niko。生きてる実感がするよ……！", 5.8f);
-        yield return new WaitForSeconds(5.5f);
+        drone.SetPettingState(true, 22f);
+
+        yield return SpeakRust(drone,
+            "……あ……温かい……回路が戻ってきた……！ありがとう、Niko……", 5.2f);
+        yield return SpeakNiko(drone,
+            "よかった……また声が聞けて安心したよ。よしよし、いい子だね", 4.8f);
+        yield return SpeakRust(drone,
+            "えへへ……もうちょっと、胸のあたりにいたい……ピピッ……", 4.8f);
+        yield return SpeakNiko(drone,
+            "もちろん。ずっと一緒だよ。怖かったら、すぐくっついてていいからね", 4.8f);
+        yield return SpeakRust(drone,
+            "……うん。Nikoの手の匂い、好き……もうギシギシしないよ", 4.6f);
+        yield return SpeakNiko(drone,
+            "さぁ、光るギアを取りに行こう。一歩ずつ、僕がそばにいるよ", 4.6f);
+
+        drone.SetPettingState(false, 0f);
 
         _phase = Phase.GuideFirstGear;
-        drone.SpeakCustom("すぐ目の前——脱出艇の脇に、光るギアが落ちてる！あれが僕たちの翼の第一歩だよ！", 6.0f);
+        yield return SpeakRust(drone,
+            "うん……！すぐ目の前——脱出艇の脇に、光るギアが落ちてるよ！", 5.5f);
         _phase = Phase.WaitFirstScrap;
     }
 
@@ -183,13 +241,39 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (drone != null)
         {
             drone.CelebratePrologueFirstGear();
-            // OnNikoFoundScrap の直後に上書きして山場を明確化
             yield return new WaitForSeconds(0.15f);
-            drone.SpeakCustom("ピキーン……！ギアが噛み合った……！僕、また飛べそうな気がするよ、Niko！！", 6.0f);
+            yield return SpeakRust(drone,
+                "ピキーン……！ギアが噛み合った……！僕、また飛べそうな気がするよ！！", 5.2f);
+            yield return SpeakNiko(drone,
+                "すごいよ、Rust。一歩ずつ、ちゃんと戻ってきてるね", 4.4f);
+            yield return SpeakRust(drone,
+                "……Nikoがいてくれるから、怖くないよ。もっとくっついててもいい……？", 5.0f);
+            yield return SpeakNiko(drone,
+                "いいよ。甘えてて。あと2個集めよう——砂浜の光る柱を探そう", 4.8f);
         }
-        yield return new WaitForSeconds(5.5f);
+        else
+        {
+            yield return new WaitForSeconds(1f);
+        }
+    }
+
+    IEnumerator SecondGearBondRoutine()
+    {
+        _secondGearDone = true;
+        _phase = Phase.SecondGearBond;
+        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
         if (drone != null)
-            drone.SpeakCustom("あと2個集めればダッシュが戻る！砂浜を歩いて、光る柱を探そう！", 5.5f);
+        {
+            yield return new WaitForSeconds(0.2f);
+            yield return SpeakRust(drone,
+                "ピロッ……もうひとつ繋がったよ。胸の奥が、すこし暖かい……", 4.8f);
+            yield return SpeakNiko(drone,
+                "調子はどう？無理してたら、すぐ撫でてあげるからね", 4.4f);
+            yield return SpeakRust(drone,
+                "えへへ……今は大丈夫。でも、撫でられるの好き……あと1個だよ！", 5.0f);
+        }
+        if (_phase == Phase.SecondGearBond)
+            _phase = Phase.WaitFirstScrap;
     }
 
     IEnumerator DashCelebrateRoutine()
@@ -218,7 +302,14 @@ public class AdventurePrologueDrama : MonoBehaviour
         Cursor.visible = false;
 
         if (drone != null)
-            drone.SpeakCustom("ピキーン！足が軽い……！【Shift】でダッシュして、草原へ駆け上がろう、Niko！！", 6.0f);
+        {
+            yield return SpeakRust(drone,
+                "ピキーン！足が軽い……！ダッシュが戻ったよ、Niko！！", 4.8f);
+            yield return SpeakNiko(drone,
+                "やったね！一緒に草原へ駆け上がろう。手、離さないよ", 4.6f);
+            yield return SpeakRust(drone,
+                "うん……！【Shift】で走って……僕、後ろでくっついてるからね！", 5.2f);
+        }
 
         _phase = Phase.Complete;
     }
@@ -270,7 +361,7 @@ public class AdventurePrologueDrama : MonoBehaviour
             wordWrap = true
         };
         style.normal.textColor = new Color(1f, 0.92f, 0.55f, 1f);
-        GUI.Label(new Rect(x, y, w, h), "【E】Rustに油をさして手当てする", style);
+        GUI.Label(new Rect(x, y, w, h), "【E】Rustに油をさして、やさしく手当てする", style);
         GUI.color = Color.white;
     }
 
@@ -309,7 +400,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         };
         body.normal.textColor = new Color(0.92f, 0.96f, 1f, 1f);
         GUI.Label(new Rect(x + 36f, y + 100f, w - 72f, 180f),
-            "指先が油で汚れ、歯車が噛み合う——\nそれが、生きている手応えだ。\n\n【ブースター修復】ダッシュが戻った！\n草原へ駆け上がろう。",
+            "指先が油で汚れ、歯車が噛み合う——\nそれが、生きている手応えだ。\n\n【ブースター修復】ダッシュが戻った！\nRustと手をつないで、草原へ駆け上がろう。",
             body);
 
         var hint = new GUIStyle(GUI.skin.label)
