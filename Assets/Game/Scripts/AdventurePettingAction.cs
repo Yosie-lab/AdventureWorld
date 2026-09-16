@@ -133,9 +133,20 @@ public class AdventurePettingAction : MonoBehaviour
             vel.y = 0.75f; // ふわふわと上へ昇る
 
             var rend = fxGo.GetComponent<ParticleSystemRenderer>();
-            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
-            rend.material = new Material(shader);
-            rend.material.SetColor("_BaseColor", new Color(1.0f, 0.62f, 0.80f, 0.95f));
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                         ?? Shader.Find("Sprites/Default");
+            if (shader != null)
+            {
+                var mat = new Material(shader);
+                mat.SetColor("_BaseColor", new Color(1.0f, 0.62f, 0.80f, 0.95f));
+                var tex = AdventureRustDrone.GetSoftSmokeTexture();
+                if (tex != null)
+                {
+                    mat.SetTexture("_BaseMap", tex);
+                    mat.SetTexture("_MainTex", tex);
+                }
+                rend.sharedMaterial = mat;
+            }
         }
 
         _heartFxInstance.transform.position = pos;

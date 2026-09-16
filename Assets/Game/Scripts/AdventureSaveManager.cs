@@ -604,6 +604,11 @@ public class AdventureSaveManager : MonoBehaviour
                     ?? FindAnyObjectByType<AdventureSanctuaryTowerManager>();
         tower?.ResetProgressForNewGame();
 
+        AdventurePrologueDrama.Ensure();
+        AdventurePrologueDrama.Instance?.ResetForNewGame();
+        AdventureCapytaBlessing.Ensure();
+        AdventureCapytaBlessing.Instance?.ResetForNewGame();
+
         // 1. パーツ状態を0個にリセットし、前回と違う場所へ全再配置
         var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
         scrapMgr?.ResetAllScrapsForNewGame();
@@ -623,13 +628,16 @@ public class AdventureSaveManager : MonoBehaviour
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
-            drone.oilCount = 1;
+            drone.oilCount = 2;
             drone.ResetClimaxState();
-            drone.SpeakCustom("うぅ……Niko、大丈夫……？僕たち生きてる！近くに光るギアがあるよ——今回は前と違う場所に流れ着いてるみたい！", 6.5f);
+            drone.ClearSpeech();
         }
 
         ShowSaveNotification("新規冒険を開始しました", "パーツ配置を刷新！砂浜から0個スタート");
         Debug.Log("[AdventureSaveManager] ニューゲーム開始：パーツ配置を前回と異なる場所に再抽選しました。");
+
+        // 冒頭ドラマを最初から再生
+        AdventurePrologueDrama.Instance?.BeginAfterOpening();
     }
 
     public void ShowSaveNotification(string title, string subText = "")

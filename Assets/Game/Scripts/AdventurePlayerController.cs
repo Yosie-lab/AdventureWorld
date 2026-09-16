@@ -15,6 +15,8 @@ public class AdventurePlayerController : MonoBehaviour
     public float gravity           = -24f;
     public bool  canDoubleJump     = false;
     public float jumpMultiplier    = 1.0f;
+    /// <summary>カピタ祝福によるスーパージャンプ解禁済み</summary>
+    public bool  hasCapytaSuperJump = false;
 
     [Header("Glide")]
     public bool  canGlide          = true;
@@ -39,6 +41,15 @@ public class AdventurePlayerController : MonoBehaviour
     float   _glideBoostMultiplier = 1.0f;
     float   _updraftLift;
     float   _updraftTimer;
+    /// <summary>光の柱上昇ロック中（範囲外・Space離しでも落下しない）</summary>
+    bool    _skybreakPillarLock;
+    bool    _skybreakPillarDone; // 一度解放したら再ロックしない（柱ゾーン滞在での永久ループ防止）
+    float   _skybreakPillarLift = 36f;
+    float   _skybreakPillarTargetY = 152f;
+    Vector3 _skybreakPillarCenter = new Vector3(512f, 0f, 512f);
+    float   _skybreakPillarEndAt;
+    float   _skybreakLastY;
+    float   _skybreakStuckTimer;
 
     CharacterController _cc;
     Animator            _anim;
@@ -106,16 +117,57 @@ public class AdventurePlayerController : MonoBehaviour
 
     void Update()
     {
-        // オープニングボード表示中は操作不可
+        var kb = GetKeyboard();
+        // F9/F10はオープニング中でも最優先（レバー検証用）
+        if (kb != null && (kb.f9Key.wasPressedThisFrame || kb.f10Key.wasPressedThisFrame))
+        {
+            AdventureSanctuaryTowerManager.Ensure();
+            AdventureSanctuaryTowerManager.Instance?.DebugJumpToCanopyOpening();
+            return;
+        }
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.F9) || Input.GetKeyDown(KeyCode.F10))
+            {
+                AdventureSanctuaryTowerManager.Ensure();
+                AdventureSanctuaryTowerManager.Instance?.DebugJumpToCanopyOpening();
+                return;
+            }
+        }
+        catch { }
+
+        // オープニングボード表示中は操作不可（進行中に誤表示された場合は強制閉じ）
         var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
         if (opening != null && opening.IsModalBoardOpen())
-            return;
+        {
+            var tower = AdventureSanctuaryTowerManager.Instance;
+            bool inEnding = AdventureSanctuaryTowerManager.IsCanopyBroken
+                            || AdventureSanctuaryTowerManager.IsGameCleared
+                            || _skybreakPillarLock
+                            || _autoGlide
+                            || (tower != null && (tower.IsEpiloguePlaying || tower.ClimaxCrisisStarted || tower.ShowGameClearModal));
+            if (inEnding)
+                opening.ForceDismissForGameplay();
+            else
+                return;
+        }
 
-        var kb = GetKeyboard();
         ReadInputFlags(kb);
 
         if (TryHandleResetKey(kb)) return;
         TryHandleSaveKey(kb);
+
+        // 天蓋台本表示中は位置を固定（テラスから落下して物語が途切れるのを防ぐ）
+        var towerHold = AdventureSanctuaryTowerManager.Instance;
+        if (towerHold != null
+            && towerHold.IsSkybreakModalActive
+            && !towerHold.ClimaxCrisisStarted
+            && !_skybreakPillarLock
+            && !_autoGlide)
+        {
+            HandleJump(kb); // Space送りのみ
+            return;
+        }
 
         Vector2 input   = ReadMove(kb);
         bool    running = IsRunning(kb);
@@ -124,16 +176,23 @@ public class AdventurePlayerController : MonoBehaviour
         try { if (Input.GetKey(KeyCode.Space)) spaceHeld = true; } catch { }
         bool    holdGlide = canGlide && spaceHeld;
 
+        // 光の柱：落下防止を入力処理より先に毎フレーム確定
+        TickSkybreakPillarLock();
+
         UpdateGroundedState();
         _cc.stepOffset = _grounded ? StepOffsetGround : 0f;
 
         HandleJump(kb);
-        UpdateGlidingState(holdGlide);
+        UpdateGlidingState(holdGlide || _skybreakPillarLock || _autoGlide);
         NotifyGlideStart();
 
         Vector3 horizontal = ComputeHorizontal(input, speed, running);
 
         ApplyMotion(horizontal);
+        // 上昇ロック中は ApplyMotion 後にもう一度高度を保証（衝突で押し戻されても落ちない）
+        if (_skybreakPillarLock)
+            EnforceSkybreakPillarHeight();
+
         FloatOnWater();
         KeepWalkable();
         PlayLocomotion(_grounded ? horizontal.magnitude : 0f, running && _grounded);
@@ -203,6 +262,8 @@ public class AdventurePlayerController : MonoBehaviour
         AdventureDayNightDirector.Ensure();
         AdventurePettingAction.Ensure(gameObject);
         AdventureSaveManager.Ensure();
+        AdventurePrologueDrama.Ensure();
+        AdventureCapytaBlessing.Ensure();
 
         if (GetComponent<AdventureNikoFootsteps>() == null)
             gameObject.AddComponent<AdventureNikoFootsteps>();
@@ -244,8 +305,8 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>インタラクトボタンの押下フラグを更新する</summary>
     void ReadInputFlags(Keyboard kb)
     {
-        InteractPressed = kb != null && (kb.eKey.wasPressedThisFrame || kb.eKey.isPressed);
-        try { if (Input.GetKeyDown(KeyCode.E) || Input.GetKey(KeyCode.E)) InteractPressed = true; } catch { }
+        InteractPressed = kb != null && kb.eKey.wasPressedThisFrame;
+        try { if (Input.GetKeyDown(KeyCode.E)) InteractPressed = true; } catch { }
         var pad = Gamepad.current;
         if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame))
             InteractPressed = true;
@@ -281,6 +342,14 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>接地状態を更新する（ブーストタイマー考慮）</summary>
     void UpdateGroundedState()
     {
+        if (_skybreakPillarLock)
+        {
+            _grounded = false;
+            _gliding = true;
+            _airborneTime = Mathf.Max(_airborneTime, 1f);
+            return;
+        }
+
         if (_autoGlide)
         {
             _grounded = false;
@@ -326,11 +395,38 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>ジャンプ処理（湖脱出・砂浜サーマル・崖カタパルト・通常・二段ジャンプ）</summary>
     void HandleJump(Keyboard kb)
     {
-        // 天蓋レバー操作中／台本ボード表示中は Space をジャンプに使わない
+        // 天蓋レバー操作中／台本ボード表示中は Space をジャンプに使わず、台本送りへ回す
         var tower = AdventureSanctuaryTowerManager.Instance;
         if (tower != null)
         {
-            if (tower.IsSkybreakModalActive) return;
+            if (tower.IsClimaxOilPromptActive)
+            {
+                bool held = kb != null && (kb.spaceKey.isPressed || kb.eKey.isPressed || kb.enterKey.isPressed);
+                try
+                {
+                    if (Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Return))
+                        held = true;
+                }
+                catch { }
+                if (held)
+                    tower.NotifyOilHold(Time.unscaledDeltaTime);
+                return;
+            }
+            if (tower.IsSkybreakModalActive)
+            {
+                bool spaceDown = kb != null && kb.spaceKey.wasPressedThisFrame;
+                bool spaceHeld = kb != null && kb.spaceKey.isPressed;
+                try
+                {
+                    if (Input.GetKeyDown(KeyCode.Space)) spaceDown = true;
+                    if (Input.GetKey(KeyCode.Space)) spaceHeld = true;
+                }
+                catch { }
+                // 全台本：タップ or 押しっぱなしで送り
+                if (spaceDown || spaceHeld)
+                    tower.NotifyScriptBoardAdvance();
+                return;
+            }
             if (tower.IsPlayerNearLever && tower.IsLeverReadyToOpen) return;
         }
 
@@ -415,7 +511,7 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>滑空状態フラグを更新する</summary>
     void UpdateGlidingState(bool holdGlide)
     {
-        if (_autoGlide)
+        if (_skybreakPillarLock || _autoGlide)
         {
             _gliding = true;
             _grounded = false;
@@ -556,10 +652,21 @@ public class AdventurePlayerController : MonoBehaviour
         _airMomentum = Vector3.Lerp(_airMomentum, forwardFlat * targetSpeed, 6.5f * Time.deltaTime);
 
         // 上昇気流（サーマル）適用
+        if (_skybreakPillarLock)
+        {
+            _hop = _skybreakPillarLift;
+            return _airMomentum;
+        }
         if (_updraftTimer > 0f)
         {
             _updraftTimer -= Time.deltaTime;
             targetFall = _updraftLift;
+            // 強い上昇気流はゆっくり加速せず、即座に上昇速度へ合わせる（光の柱用）
+            if (_updraftLift >= 12f)
+            {
+                _hop = Mathf.Max(_hop, _updraftLift);
+                return _airMomentum;
+            }
         }
 
         _hop = Mathf.MoveTowards(_hop, targetFall, GlidePitchRateDive * Time.deltaTime);
@@ -662,7 +769,14 @@ public class AdventurePlayerController : MonoBehaviour
     {
         float landY = GroundY(pos);
         float water = WaterY();
-        return landY < water ? water : landY;
+        float baseY = landY < water ? water : landY;
+
+        // 中央タワー白亜テラスは地形より高い固体床。地形Yへスナップすると台座に埋まる
+        float terrace = AdventureSanctuaryTowerManager.GetTerraceSurfaceY(pos);
+        if (terrace > float.NegativeInfinity)
+            baseY = Mathf.Max(baseY, terrace);
+
+        return baseY;
     }
 
     Vector3 Stick(Vector3 pos)
@@ -679,16 +793,27 @@ public class AdventurePlayerController : MonoBehaviour
 
     public void Teleport(Vector3 pos)
     {
-        pos = Stick(pos);
+        // エンディング中は地上Stickで高度を潰さない
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        bool ending = _skybreakPillarLock || _autoGlide
+                      || (tower != null && (tower.ClimaxCrisisStarted || tower.EpilogueTriggered
+                                           || AdventureSanctuaryTowerManager.IsCanopyBroken));
+        if (!ending)
+            pos = Stick(pos);
         if (_cc != null) _cc.enabled = false;
         transform.position = pos;
         if (_cc != null) _cc.enabled = true;
-        ForceGroundReset();
+        if (!ending)
+            ForceGroundReset();
     }
 
     /// <summary>ブースト・滑空・ホップ状態を強制リセットして地上に着地させる（緊急回復）</summary>
     public void ForceGroundReset()
     {
+        _skybreakPillarLock  = false;
+        _skybreakPillarDone  = false;
+        _skybreakStuckTimer  = 0f;
+        _skybreakPillarEndAt = 0f;
         _hop                 = 0f;
         _grounded            = true;
         _gliding             = false;
@@ -753,14 +878,16 @@ public class AdventurePlayerController : MonoBehaviour
         return _airMomentum;
     }
 
-    /// <summary>エピローグ中のオートグライド（高度115〜125mで水平旋回）。手を離しても墜落しない</summary>
+    /// <summary>エピローグ中のオートグライド（指定高度付近で水平旋回）。手を離しても墜落しない</summary>
     public void SetAutoGlideMode(bool enabled, float altitude = 120f)
     {
         _autoGlide = enabled;
-        _autoGlideAltitude = Mathf.Clamp(altitude, 115f, 125f);
+        _autoGlideAltitude = Mathf.Clamp(altitude, 115f, 165f);
         if (!enabled)
             return;
 
+        _skybreakPillarLock = false;
+        _skybreakPillarDone = true;
         _grounded = false;
         _gliding = true;
         _airborneTime = 1f;
@@ -776,13 +903,168 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>天蓋破壊後のハイパーサーマル等で、地上歩行からでも自動的に大空へ射出・滑空開始させる強力な打ち上げ</summary>
     public void ApplyLaunchUpdraft(float liftSpeed, float initialHop = 22f)
     {
+        // 光の柱級の上昇中は高度ロック・オートグライドを切る（途中で止まる主因）
+        if (liftSpeed >= 18f)
+            _autoGlide = false;
+
         _grounded        = false;
         _gliding         = true;
         _airborneTime    = 1.0f;
-        _glideBoostTimer = Mathf.Max(_glideBoostTimer, 3.5f);
-        if (_hop < initialHop) _hop = initialHop;
+        _glideBoostTimer = Mathf.Max(_glideBoostTimer, 4.5f);
+        float hopTarget = Mathf.Max(initialHop, liftSpeed);
+        if (_hop < hopTarget) _hop = hopTarget;
         _updraftLift     = liftSpeed;
-        _updraftTimer    = 0.5f;
+        _updraftTimer    = 0.85f;
+    }
+
+    /// <summary>ダイブ完了時：物理上昇を待たず空中高度へ固定しオートグライド開始</summary>
+    public void ForceSkybreakArrival(Vector3 worldPos, float glideAltitude)
+    {
+        _skybreakPillarLock = false;
+        _skybreakPillarDone = true;
+        _skybreakStuckTimer = 0f;
+        _skybreakPillarEndAt = 0f;
+
+        if (_cc == null) _cc = GetComponent<CharacterController>();
+        if (_cc != null) _cc.enabled = false;
+        transform.position = worldPos;
+        if (_cc != null) _cc.enabled = true;
+
+        _grounded = false;
+        _gliding = true;
+        _hop = 2f;
+        _airborneTime = 1f;
+        _glideBoostTimer = Mathf.Max(_glideBoostTimer, 4f);
+        SetAutoGlideMode(true, glideAltitude);
+    }
+
+    /// <summary>天蓋台本完了後の柱上昇を確実に開始できるよう、前回の完了フラグをクリア</summary>
+    public void PrepareSkybreakPillarAscend()
+    {
+        _skybreakPillarDone = false;
+        _skybreakPillarLock = false;
+        _skybreakPillarEndAt = 0f;
+        _skybreakStuckTimer = 0f;
+        _autoGlide = false;
+    }
+
+    /// <summary>光の柱上昇を開始（クライマックス開始まで維持。解放時は高度確保＋物語継続）</summary>
+    public void BeginSkybreakPillarAscend(Vector3 pillarCenter, float liftSpeed, float releaseY = 150f)
+    {
+        // クライマックス開始後のみ再ロックしない（台本ボード表示中の IsEpiloguePlaying では弾かない）
+        if (_autoGlide) return;
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null && (tower.ClimaxCrisisStarted || tower.ShowGameClearModal || tower.EpilogueTriggered))
+            return;
+
+        _skybreakPillarDone = false;
+        _skybreakPillarLock = true;
+        _skybreakPillarLift = Mathf.Clamp(liftSpeed, 24f, 42f);
+        _skybreakPillarTargetY = Mathf.Clamp(releaseY, 148f, 155f);
+        _skybreakPillarCenter = new Vector3(pillarCenter.x, 0f, pillarCenter.z);
+        _skybreakPillarEndAt = Time.unscaledTime + 6.5f;
+        _skybreakStuckTimer = 0f;
+        _skybreakLastY = transform.position.y;
+        _autoGlide = false;
+        ApplyLaunchUpdraft(_skybreakPillarLift, _skybreakPillarLift);
+
+        if (_cc == null) _cc = GetComponent<CharacterController>();
+        if (_cc != null) _cc.enabled = false;
+        Vector3 p = transform.position;
+        transform.position = new Vector3(pillarCenter.x, Mathf.Max(p.y, 64f), pillarCenter.z);
+        if (_cc != null) _cc.enabled = true;
+    }
+
+    public void EndSkybreakPillarAscend()
+    {
+        _skybreakPillarLock = false;
+        _skybreakPillarDone = true;
+        _skybreakStuckTimer = 0f;
+    }
+
+    public bool IsSkybreakPillarAscending => _skybreakPillarLock;
+
+    void ReleaseSkybreakPillarLock(bool snapToTarget)
+    {
+        // 必ず目標高度へ載せ、自由落下させない
+        float y = Mathf.Max(transform.position.y, _skybreakPillarTargetY);
+        if (snapToTarget || transform.position.y < _skybreakPillarTargetY - 0.25f)
+            y = _skybreakPillarTargetY;
+
+        if (_cc == null) _cc = GetComponent<CharacterController>();
+        if (_cc != null) _cc.enabled = false;
+        transform.position = new Vector3(_skybreakPillarCenter.x, y, _skybreakPillarCenter.z);
+        if (_cc != null) _cc.enabled = true;
+
+        _skybreakPillarLock = false;
+        _gliding = true;
+        _grounded = false;
+        _hop = 4f;
+        _updraftTimer = 1f;
+        _updraftLift = 2f;
+
+        SetAutoGlideMode(true, Mathf.Clamp(y, 148f, 160f));
+        AdventureSanctuaryTowerManager.Instance?.NotifyPillarAscendComplete();
+    }
+
+    void TickSkybreakPillarLock()
+    {
+        if (!_skybreakPillarLock) return;
+
+        bool timedOut = Time.unscaledTime >= _skybreakPillarEndAt;
+        bool highEnough = transform.position.y >= _skybreakPillarTargetY;
+
+        if (timedOut || highEnough)
+        {
+            ReleaseSkybreakPillarLock(snapToTarget: true);
+            return;
+        }
+
+        _autoGlide = false;
+        _grounded = false;
+        _gliding = true;
+        _airborneTime = 1f;
+        _glideBoostTimer = Mathf.Max(_glideBoostTimer, 2f);
+        _updraftLift = _skybreakPillarLift;
+        _updraftTimer = 1f;
+        _hop = _skybreakPillarLift;
+    }
+
+    void EnforceSkybreakPillarHeight()
+    {
+        if (!_skybreakPillarLock) return;
+        if (_cc == null) _cc = GetComponent<CharacterController>();
+
+        Vector3 pos = transform.position;
+        float nextY = pos.y + _skybreakPillarLift * Time.deltaTime;
+        nextY = Mathf.Min(nextY, _skybreakPillarTargetY + 0.25f);
+
+        if (_cc != null) _cc.enabled = false;
+        transform.position = new Vector3(_skybreakPillarCenter.x, nextY, _skybreakPillarCenter.z);
+        if (_cc != null) _cc.enabled = true;
+
+        _hop = _skybreakPillarLift;
+        _grounded = false;
+        _gliding = true;
+        _skybreakLastY = nextY;
+    }
+
+    /// <summary>光の柱ゾーン内にいる間の補助。クライマックス後は再ロックしない。</summary>
+    public void ForceSkybreakPillarAscend(Vector3 pillarBase, float liftSpeed, bool pullToCenter)
+    {
+        if (_autoGlide) return;
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null && (tower.ClimaxCrisisStarted || tower.ShowGameClearModal || tower.EpilogueTriggered))
+            return;
+
+        if (!_skybreakPillarLock)
+        {
+            BeginSkybreakPillarAscend(pillarBase, liftSpeed, 150f);
+            return;
+        }
+
+        _skybreakPillarLift = Mathf.Max(_skybreakPillarLift, Mathf.Min(liftSpeed, 42f));
+        _skybreakPillarCenter = new Vector3(pillarBase.x, 0f, pillarBase.z);
     }
 
 

@@ -406,22 +406,25 @@ public class AdventureGameDirector : MonoBehaviour
         {
             ShowDialogue("カピタ「猫も犬も戻ってきた。親切な子の話を信じて、よかった。」", 5.5f);
             Play(npc, "CapytaDance");
+            AdventureCapytaBlessing.GrantSuperJumpFromTalk(showFx: true);
             return;
         }
         if (_foundCat && _foundDog)
         {
             _complete = true;
-            ShowDialogue("カピタ「よく見つけたね。意地悪な嘘には乗らなかったんだね。」", 5.5f);
+            ShowDialogue("カピタ「よく見つけたね。意地悪な嘘には乗らなかったんだね。…ほら、高く跳べるようにしてあげる！」", 5.5f);
             Play(npc, "CapytaDance");
+            AdventureCapytaBlessing.GrantSuperJumpFromTalk(showFx: true);
             return;
         }
 
         Play(npc, "CapytaSittingIdleLooksRight");
+        AdventureCapytaBlessing.GrantSuperJumpFromTalk(showFx: _capytaTalks == 0);
         int step = _capytaTalks++ % 3;
         if (!_foundCat && !_foundDog)
         {
             if (step == 0)
-                ShowDialogue("カピタ「猫と犬がはぐれた。スズメとマスクラットは親切。サルとヤモリは嘘をつくよ。」", 6.2f);
+                ShowDialogue("カピタ「ブヒヒ…！足に弾力をわけてあげる。高く跳んでみて！猫と犬ははぐれたよ。スズメとマスクラットは親切。サルとヤモリは嘘をつくよ。」", 6.5f);
             else if (step == 1)
                 ShowDialogue("カピタ「猫は北東の草地。犬は北西の草地。崖の端にはいない。」", 5.8f);
             else

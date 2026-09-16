@@ -792,13 +792,25 @@ public static class AdventureBuildRustFloatIsland
             podium = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             podium.name = "WhiteMarblePodium";
             podium.transform.SetParent(root.transform, false);
-            var cap = podium.GetComponent<CapsuleCollider>();
-            if (cap != null) Object.DestroyImmediate(cap);
-            if (podium.GetComponent<MeshCollider>() == null)
-                podium.AddComponent<MeshCollider>();
         }
         podium.transform.localPosition = new Vector3(0f, 0.4f, 0f);
         podium.transform.localScale = new Vector3(70f, 0.6f, 70f);
+        foreach (var c in podium.GetComponents<Collider>())
+            Object.DestroyImmediate(c);
+        // 薄い箱は CC が貫通するため、上面＝歩行面の厚いスラブを別オブジェクトで置く
+        var podiumSolid = root.transform.Find("WhiteMarblePodium_SolidWalk")?.gameObject;
+        if (podiumSolid == null)
+        {
+            podiumSolid = new GameObject("WhiteMarblePodium_SolidWalk");
+            podiumSolid.transform.SetParent(root.transform, false);
+        }
+        float podiumTop = podium.transform.position.y + podium.transform.lossyScale.y;
+        podiumSolid.transform.position = new Vector3(podium.transform.position.x, podiumTop - 2.5f, podium.transform.position.z);
+        podiumSolid.transform.rotation = Quaternion.identity;
+        podiumSolid.transform.localScale = Vector3.one;
+        var podiumBox = podiumSolid.GetComponent<BoxCollider>() ?? podiumSolid.AddComponent<BoxCollider>();
+        podiumBox.center = Vector3.zero;
+        podiumBox.size = new Vector3(70f, 5f, 70f);
 
         // 2. ワイヤーフレーム発光予定のグリッド床（中央部・直径35m）
         var gridFloor = root.transform.Find("SanctuaryGridFloor")?.gameObject;
@@ -807,13 +819,24 @@ public static class AdventureBuildRustFloatIsland
             gridFloor = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             gridFloor.name = "SanctuaryGridFloor";
             gridFloor.transform.SetParent(root.transform, false);
-            var cap = gridFloor.GetComponent<CapsuleCollider>();
-            if (cap != null) Object.DestroyImmediate(cap);
-            if (gridFloor.GetComponent<MeshCollider>() == null)
-                gridFloor.AddComponent<MeshCollider>();
         }
         gridFloor.transform.localPosition = new Vector3(0f, 0.72f, 0f);
         gridFloor.transform.localScale = new Vector3(36f, 0.1f, 36f);
+        foreach (var c in gridFloor.GetComponents<Collider>())
+            Object.DestroyImmediate(c);
+        var gridSolid = root.transform.Find("SanctuaryGridFloor_SolidWalk")?.gameObject;
+        if (gridSolid == null)
+        {
+            gridSolid = new GameObject("SanctuaryGridFloor_SolidWalk");
+            gridSolid.transform.SetParent(root.transform, false);
+        }
+        float gridTop = gridFloor.transform.position.y + gridFloor.transform.lossyScale.y;
+        gridSolid.transform.position = new Vector3(gridFloor.transform.position.x, gridTop - 1.25f, gridFloor.transform.position.z);
+        gridSolid.transform.rotation = Quaternion.identity;
+        gridSolid.transform.localScale = Vector3.one;
+        var gridBox = gridSolid.GetComponent<BoxCollider>() ?? gridSolid.AddComponent<BoxCollider>();
+        gridBox.center = Vector3.zero;
+        gridBox.size = new Vector3(36f, 2.5f, 36f);
 
         // 3. 中央の白亜オベリスク／監視タワー
         var towerPillar = root.transform.Find("CentralMonolith")?.gameObject;

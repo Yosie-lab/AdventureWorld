@@ -178,9 +178,9 @@ public class AdventureScrapManager : MonoBehaviour
         }
         _instance = this;
 
-        // 音量を控えめで心地よい音量（0.05f）に調整
-        if (chimeVolume > 0.05f)
-            chimeVolume = 0.05f;
+        // 音量を控えめで心地よい音量（0.02f）に調整
+        if (chimeVolume > 0.02f)
+            chimeVolume = 0.02f;
 
         EnsureSpawnLayoutLoaded();
         RestoreIdsFromList();
@@ -225,7 +225,7 @@ public class AdventureScrapManager : MonoBehaviour
     }
 
     [Header("Audio")]
-    [Range(0f, 1f)] public float chimeVolume = 0.05f;
+    [Range(0f, 1f)] public float chimeVolume = 0.02f;
 
     void LoadChimeClip()
     {
@@ -247,7 +247,7 @@ public class AdventureScrapManager : MonoBehaviour
 
         if (_audioSource != null && _fanfareClip != null)
         {
-            float vol = Mathf.Min(chimeVolume, 0.05f);
+            float vol = Mathf.Min(chimeVolume, 0.02f);
             _audioSource.PlayOneShot(_fanfareClip, vol);
         }
     }
@@ -492,6 +492,9 @@ public class AdventureScrapManager : MonoBehaviour
         // 段階的なアップグレード判定
         CheckUpgrades();
 
+        // 冒頭ドラマ：1個目蘇生／3個目ダッシュ祝福
+        AdventurePrologueDrama.Instance?.NotifyScrapCollected(CollectedCount);
+
         // 12個達成：巨大レバーを確実に操作可能にする
         if (CollectedCount >= TotalScrapCount)
         {
@@ -566,6 +569,9 @@ public class AdventureScrapManager : MonoBehaviour
         player.hasPetRadar = false;
         player.glideForwardSpeed = 7.2f;
         player.glideFallSpeed = -2.4f;
+        player.jumpMultiplier = player.hasCapytaSuperJump
+            ? AdventureCapytaBlessing.SuperJumpMultiplier
+            : 1.0f;
 
         if (count >= 3)
         {

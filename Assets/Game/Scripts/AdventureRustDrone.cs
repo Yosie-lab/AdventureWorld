@@ -76,15 +76,67 @@ public class AdventureRustDrone : MonoBehaviour
         }
     }
 
+    static Font _jpFont;
+
+    static Font ResolveJapaneseFont(int size = 28)
+    {
+        if (_jpFont != null) return _jpFont;
+        try
+        {
+            _jpFont = Font.CreateDynamicFontFromOSFont(
+                new[]
+                {
+                    "Hiragino Sans", "HiraginoSans-W3", "Hiragino Kaku Gothic ProN",
+                    "YuGothic", "Yu Gothic", "Arial Unicode MS"
+                },
+                size);
+        }
+        catch { }
+        if (_jpFont == null)
+            _jpFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+                      ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        return _jpFont;
+    }
+
+    static GUIStyle MakeJpLabel(int fontSize, FontStyle style, TextAnchor align, bool wordWrap = false)
+    {
+        var font = ResolveJapaneseFont(fontSize);
+        var s = new GUIStyle
+        {
+            font = font,
+            fontSize = fontSize,
+            fontStyle = style,
+            alignment = align,
+            wordWrap = wordWrap,
+            richText = false,
+            clipping = TextClipping.Overflow
+        };
+        s.normal.textColor = Color.white;
+        return s;
+    }
+
     public static AdventureRustDrone Instance { get; private set; }
 
     public static void Ensure()
     {
-        if (Instance != null) return;
-        var existing = FindAnyObjectByType<AdventureRustDrone>();
-        if (existing != null)
+        // 重複Rustを一掃してから1体だけ残す
+        var all = Object.FindObjectsByType<AdventureRustDrone>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        AdventureRustDrone keep = Instance;
+        if (keep == null)
         {
-            Instance = existing;
+            for (int i = 0; i < all.Length; i++)
+            {
+                if (all[i] != null) { keep = all[i]; break; }
+            }
+        }
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] == null || all[i] == keep) continue;
+            Object.Destroy(all[i].gameObject);
+        }
+        if (keep != null)
+        {
+            Instance = keep;
             return;
         }
 
@@ -117,6 +169,11 @@ public class AdventureRustDrone : MonoBehaviour
 
     void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
         Instance = this;
     }
 
@@ -135,9 +192,105 @@ public class AdventureRustDrone : MonoBehaviour
         SetupOil();
         oilCount = Mathf.Max(oilCount, 2); // ゲーム開始時に確実に2個以上油を所持
 
-        // 起動時のあたたかい挨拶
+        // 起動時のあたたかい挨拶（新規ゲームのプロローグがある場合は後で上書き）
         SetSpeech("ピピッ…！起動したよ、Niko。一緒に行こう！", 4.5f);
         _nextIdleTalk = Time.time + 20f;
+    }
+
+    bool _prologueDistress;
+
+    /// <summary>冒頭ドラマ：塩水で凍りつくRust</summary>
+    public void StartPrologueDistress()
+    {
+        _prologueDistress = true;
+        IsClimaxCrisis = false;
+        IsClimaxOverdrive = false;
+        _climaxHealing = false;
+        CurrentState = RustState.Petting;
+        _stateTimer = 9999f;
+        wellOiledUntil = 0f;
+        _heat = 0.85f;
+        _heatUntil = Time.time + 999f;
+        _hitchUntil = Time.time + 999f;
+
+        if (_bodyMat != null)
+        {
+            _savedEmission = _bodyMat.GetColor("_EmissionColor");
+            _bodyMat.EnableKeyword("_EMISSION");
+            _bodyMat.SetColor("_EmissionColor", new Color(0.2f, 0.4f, 0.55f) * 0.35f);
+        }
+
+        if (_lookAt != null)
+        {
+            Vector3 nest = GetNikoChestPosition() + _lookAt.forward * 0.75f + _lookAt.right * 0.7f + Vector3.up * 0.15f;
+            transform.position = nest;
+            _lagTarget = nest;
+            _velocity = Vector3.zero;
+        }
+    }
+
+    public void EndPrologueDistress()
+    {
+        _prologueDistress = false;
+        _heat = 0f;
+        _heatUntil = 0f;
+        _hitchUntil = 0f;
+        if (CurrentState == RustState.Petting && !IsClimaxCrisis && !_climaxHealing && !_skybreakNestle)
+        {
+            CurrentState = RustState.Follow;
+            _stateTimer = 0f;
+        }
+    }
+
+    /// <summary>冒頭ドラマ：注油で回路復活</summary>
+    public void CompletePrologueOil()
+    {
+        oilCount = Mathf.Max(oilCount, 2);
+        wellOiledUntil = Time.time + 120f;
+        _heat = 0f;
+        _heatUntil = 0f;
+        _hitchUntil = 0f;
+        _prologueDistress = false;
+        _climaxHealing = true;
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.3f, 28);
+        SpawnClimaxHealAura();
+
+        if (_bodyMat != null)
+        {
+            _bodyMat.EnableKeyword("_EMISSION");
+            _bodyMat.SetColor("_EmissionColor", new Color(1.0f, 0.82f, 0.25f) * 2.4f);
+        }
+        EnsureClimaxEyeLight(new Color(1f, 0.9f, 0.45f), 2.4f);
+
+        if (_audio != null && _happyBeepClip != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.55f);
+
+        StartCoroutine(EndPrologueHealSoon());
+    }
+
+    IEnumerator EndPrologueHealSoon()
+    {
+        yield return new WaitForSeconds(2.8f);
+        _climaxHealing = false;
+        if (_climaxHealFx != null)
+            _climaxHealFx.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+        CurrentState = RustState.Follow;
+    }
+
+    public void CelebratePrologueFirstGear()
+    {
+        _velocity += Vector3.up * 3.2f;
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 40);
+        if (_audio != null && _happyBeepClip != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.65f);
+        StartCoroutine(KeystoneFittedRoutine(1));
+    }
+
+    public void CelebratePrologueDashUnlock()
+    {
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.5f, 48);
+        if (_audio != null && _happyBeepClip != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.7f);
     }
 
     float _nextIdleTalk;
@@ -230,20 +383,19 @@ public class AdventureRustDrone : MonoBehaviour
         }
         else if (CurrentState == RustState.Petting)
         {
-            if (IsClimaxCrisis || IsClimaxOverdrive || _climaxHealing || _skybreakNestle)
+            if (IsClimaxCrisis || IsClimaxOverdrive || _climaxHealing || _skybreakNestle || _prologueDistress)
             {
                 goal = FollowPoint();
                 _lagTarget = Vector3.Lerp(_lagTarget, goal, 0.85f);
             }
             else
             {
-                // Rustの全幅（直径約1.2m、半径約0.6m）とNikoの腕の位置を考慮し、
-                // 腕に一切干渉しない胸の真正面0.95m・胸骨〜鎖骨の高さに配置
+                // Rust球体（半径≈0.8m）が胸にめり込まない正面クリアランス
                 Vector3 chestPos = GetNikoChestPosition();
-                goal = chestPos + _lookAt.forward * 0.95f + Vector3.up * 0.08f;
-                goal.y += Mathf.Sin(Time.time * 3.5f) * 0.035f; // 胸元でのふんわりホバー
+                goal = chestPos + _lookAt.forward * 1.2f + _lookAt.right * 0.25f + Vector3.up * 0.1f;
+                goal.y += Mathf.Sin(Time.time * 3.5f) * 0.035f;
 
-                _lagTarget = goal; // 遅延によるオーバーシュート（めり込み）を防止
+                _lagTarget = goal;
 
                 _stateTimer -= Time.deltaTime;
                 if (_stateTimer <= 0f)
@@ -273,14 +425,14 @@ public class AdventureRustDrone : MonoBehaviour
         float smoothTime = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning || CurrentState == RustState.Petting) ? 0.24f : (wellOiled ? 0.38f : 0.52f);
         if (IsClimaxOverdrive)
             smoothTime = 0.18f;
-        else if (IsClimaxCrisis || _climaxHealing || _skybreakNestle)
+        else if (IsClimaxCrisis || _climaxHealing || _skybreakNestle || _prologueDistress)
             smoothTime = 0.12f;
         transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, IsClimaxOverdrive ? 18f : 8.5f);
 
-        // 危機時：ガタガタ震え／注油時：ふわり浮遊オフセット
-        if (IsClimaxCrisis && !_climaxHealing)
+        // 危機時／冒頭ドラマ：ガタガタ震え／注油時：ふわり浮遊オフセット
+        if ((IsClimaxCrisis || _prologueDistress) && !_climaxHealing)
         {
-            float shake = 0.055f;
+            float shake = _prologueDistress ? 0.04f : 0.055f;
             transform.position += new Vector3(
                 Mathf.Sin(Time.unscaledTime * 42f) * shake,
                 Mathf.Sin(Time.unscaledTime * 51f) * shake * 0.7f,
@@ -481,28 +633,69 @@ public class AdventureRustDrone : MonoBehaviour
         Vector3 niko = _lookAt.position;
         Vector3 chest = GetNikoChestPosition();
 
-        // 天蓋ボード寄り添い：Nikoの頭のすぐ横〜少し前で寄り添う
-        if (_skybreakNestle)
+        // 天蓋ボード寄り添い／エンディング同伴：カメラから見てNikoの右斜め前（常に画面内）
+        if (_skybreakNestle || _prologueDistress)
         {
-            Vector3 head = GetNikoHeadPosition();
-            float nestleBob = Mathf.Sin(Time.time * 3.2f) * 0.025f;
-            return head
-                   + _lookAt.forward * 0.28f
-                   + _lookAt.right * 0.32f
-                   + Vector3.up * (0.05f + nestleBob);
+            Vector3 head = _prologueDistress ? GetNikoChestPosition() : GetNikoHeadPosition();
+            float nestleBob = Mathf.Sin(Time.time * 3.2f) * 0.03f;
+
+            // 第三者称カメラ基準で「画面右側・Nikoのすぐそば」に固定（後ろに隠さない）
+            Camera cam = Camera.main;
+            Vector3 side = _lookAt.right;
+            Vector3 fwd = _lookAt.forward;
+            if (cam != null)
+            {
+                side = Vector3.ProjectOnPlane(cam.transform.right, Vector3.up);
+                if (side.sqrMagnitude < 0.01f) side = _lookAt.right;
+                else side.Normalize();
+                fwd = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up);
+                if (fwd.sqrMagnitude < 0.01f) fwd = _lookAt.forward;
+                else fwd.Normalize();
+            }
+
+            if (_prologueDistress)
+            {
+                return head + fwd * 0.72f + side * 0.78f + Vector3.up * (0.18f + nestleBob);
+            }
+
+            // 天蓋〜エンディング：胸〜頭の高さ、右0.9m・前0.45m（めり込みせず常に見える）
+            return head + fwd * 0.45f + side * 0.95f + Vector3.up * (0.08f + nestleBob);
         }
 
-        // クライマックス危機時／注油：Nikoの胸元〜顔付近にしがみつく
+        // クライマックス危機時／注油：カメラ右斜め前にしがみつく
         if (IsClimaxCrisis || _climaxHealing)
         {
-            float cling = _climaxHealing ? 0.55f : 0.38f;
-            float lift = _climaxHealing ? 0.22f : 0.12f;
-            return chest + _lookAt.forward * cling + Vector3.up * lift;
+            Camera cam = Camera.main;
+            Vector3 side = _lookAt.right;
+            Vector3 fwd = _lookAt.forward;
+            if (cam != null)
+            {
+                side = Vector3.ProjectOnPlane(cam.transform.right, Vector3.up);
+                if (side.sqrMagnitude > 0.01f) side.Normalize();
+                else side = _lookAt.right;
+                fwd = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up);
+                if (fwd.sqrMagnitude > 0.01f) fwd.Normalize();
+                else fwd = _lookAt.forward;
+            }
+            float cling = _climaxHealing ? 0.55f : 0.48f;
+            float lateral = _climaxHealing ? 0.88f : 0.82f;
+            float lift = _climaxHealing ? 0.22f : 0.15f;
+            return chest + fwd * cling + side * lateral + Vector3.up * lift;
         }
-        // クライマックス・オーバードライブ時：前上方へ飛び出し先導
+        // クライマックス・オーバードライブ：離れすぎず、少し前の見える位置で先導
         if (IsClimaxOverdrive)
         {
-            return chest + _lookAt.forward * 2.4f + Vector3.up * 1.35f + _lookAt.right * 0.15f;
+            Camera cam = Camera.main;
+            Vector3 side = _lookAt.right;
+            Vector3 fwd = _lookAt.forward;
+            if (cam != null)
+            {
+                side = Vector3.ProjectOnPlane(cam.transform.right, Vector3.up);
+                if (side.sqrMagnitude > 0.01f) side.Normalize();
+                fwd = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up);
+                if (fwd.sqrMagnitude > 0.01f) fwd.Normalize();
+            }
+            return chest + fwd * 1.1f + side * 0.7f + Vector3.up * 0.55f;
         }
 
         // 近くに未回収パーツがある場合、RustはNikoの少し前方（パーツ寄り）へ先行して合図
@@ -514,21 +707,21 @@ public class AdventureRustDrone : MonoBehaviour
             return new Vector3(guidePos.x, chest.y + 0.1f + sBob, guidePos.z);
         }
 
-        // 通常追従の理想位置: Nikoの右肩の斜め後ろ（右0.95m、後方1.25m、腕に触れない快適クリアランス）
-        Vector3 rightBack = _lookAt.right * 0.95f - _lookAt.forward * 1.25f;
+        // 通常追従の理想位置: Nikoの右肩の斜め後ろ（右1.15m、後方1.45m）
+        Vector3 rightBack = _lookAt.right * 1.15f - _lookAt.forward * 1.45f;
         Vector3 targetPos = niko + rightBack;
 
-        // Nikoの真正面（股間の前）にRustが入り込んで居座るのを防止
+        // Nikoの真正面／体内にRustが居座るのを防止（直径≈1.6m）
+        const float bodyClearance = 1.65f;
+        float flat = FlatDistance(niko);
         Vector3 toDrone = transform.position - niko;
         float forwardDot = Vector3.Dot(_lookAt.forward, toDrone);
-        if (FlatDistance(niko) < 1.4f && forwardDot > -0.2f)
+        if (flat < bodyClearance || (flat < 1.9f && forwardDot > -0.15f))
         {
-            // 目の前（股間・お腹の正面）にいる時は、積極的に右肩後ろのポジションへ誘導
             targetPos = niko + rightBack;
         }
-        else if (FlatDistance(niko) < stopDistance)
+        else if (flat < stopDistance)
         {
-            // Nikoから適切な距離にいる時はその水平位置を維持
             targetPos = new Vector3(transform.position.x, 0f, transform.position.z);
         }
 
@@ -740,25 +933,56 @@ public class AdventureRustDrone : MonoBehaviour
         float verticalDist = Mathf.Abs(diff.y);
         _isPlayerNear = (horizontalDist < 5.5f && verticalDist < 5.0f);
 
-        // キーボードEキー・パッド決定・PlayerController経由のいずれでも100%直接検知
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        var pad = UnityEngine.InputSystem.Gamepad.current;
-        bool ePressed = (kb != null && (kb.eKey.wasPressedThisFrame || kb.eKey.wasReleasedThisFrame))
-                     || (pad != null && pad.buttonWest.wasPressedThisFrame)
-                     || (player != null && player.InteractPressed);
-
-        // レバーの近くにいる場合はレバー操作（天蓋開放）を最優先し、Rustの手当て割り込みを抑止
         var towerMgr = AdventureSanctuaryTowerManager.Instance;
-        if (towerMgr != null && towerMgr.IsPlayerNearLever)
+
+        // クライマックス注油中は通常の手当てを止め、注油ゲージへ回す
+        if (towerMgr != null && towerMgr.IsClimaxOilPromptActive)
         {
+            var kbOil = UnityEngine.InputSystem.Keyboard.current;
+            bool holding = kbOil != null && (kbOil.eKey.isPressed || kbOil.spaceKey.isPressed || kbOil.enterKey.isPressed);
+            try
+            {
+                if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.Return))
+                    holding = true;
+            }
+            catch { }
+            if (holding)
+                towerMgr.NotifyOilHold(Time.unscaledDeltaTime);
             return;
         }
+
+        // シネマティック中は通常インタラクトを出さない
+        if (ShouldHideInteractionPrompt(towerMgr))
+            return;
+
+        // 押しっぱなし連打を防ぐ（wasPressed のみ）
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        var pad = UnityEngine.InputSystem.Gamepad.current;
+        bool ePressed = (kb != null && kb.eKey.wasPressedThisFrame)
+                     || (pad != null && pad.buttonWest.wasPressedThisFrame);
+        try { if (Input.GetKeyDown(KeyCode.E)) ePressed = true; } catch { }
+        // PlayerController の InteractPressed は押しっぱなしでも立つため、ここでは使わない
+
+        // レバーの近くにいる場合はレバー操作を最優先
+        if (towerMgr != null && towerMgr.IsPlayerNearLever)
+            return;
 
         if (_isPlayerNear && ePressed && Time.time - _lastInteractTime > 0.35f)
         {
             _lastInteractTime = Time.time;
             InteractWithNiko();
         }
+    }
+
+    static bool ShouldHideInteractionPrompt(AdventureSanctuaryTowerManager tower)
+    {
+        if (tower == null) return false;
+        return tower.IsSkybreakModalActive
+            || tower.IsClimaxOilPromptActive
+            || tower.IsEpiloguePlaying
+            || tower.ShowGameClearModal
+            || tower.ClimaxCrisisStarted
+            || tower.EpilogueTriggered;
     }
 
     /// <summary>Nikoとの直接対話または手当て（常備油により絶対に0にならず、いつでも手当て・全回復可能）</summary>
@@ -780,6 +1004,7 @@ public class AdventureRustDrone : MonoBehaviour
         _heatUntil = 0f;
         _heat = 0f;
         _hitchUntil = 0f;
+        _prologueDistress = false;
 
         if (_happyBeepClip != null && _audio != null)
             _audio.PlayOneShot(_happyBeepClip, 0.45f);
@@ -797,6 +1022,7 @@ public class AdventureRustDrone : MonoBehaviour
             StartCoroutine(CheerSpinRoutine());
         }
         AdventureSaveManager.Instance?.SaveGame("SAVEしました");
+        AdventurePrologueDrama.Instance?.NotifyOilApplied();
     }
 
     // ── 【クライマックス専用ステート＆演出】 ──
@@ -813,13 +1039,11 @@ public class AdventureRustDrone : MonoBehaviour
     Light _climaxEyeLight;
     Color _savedEmission = Color.black;
 
-    /// <summary>天蓋ボード表示と同時：Nikoの頭の辺りへ寄り添う（凍結危機FXなし）</summary>
+    /// <summary>天蓋開放〜エンディング：Nikoのそば（カメラから見える位置）に常時寄り添う</summary>
     public void StartSkybreakNestle()
     {
         _skybreakNestle = true;
-        IsClimaxCrisis = false;
-        IsClimaxOverdrive = false;
-        _climaxHealing = false;
+        // 危機／注油中もフラグは維持（FollowPointで寄り添い優先）
         CurrentState = RustState.Petting;
         _stateTimer = 9999f;
         ClearSpeech();
@@ -838,7 +1062,6 @@ public class AdventureRustDrone : MonoBehaviour
             transform.position = nest;
             _lagTarget = nest;
             _velocity = Vector3.zero;
-            // 頭の方を向く
             Vector3 face = GetNikoHeadPosition() - nest;
             if (face.sqrMagnitude > 0.01f)
                 transform.rotation = Quaternion.LookRotation(face.normalized);
@@ -848,16 +1071,29 @@ public class AdventureRustDrone : MonoBehaviour
     public void StopSkybreakNestle()
     {
         _skybreakNestle = false;
+        if (CurrentState == RustState.Petting && !IsClimaxCrisis && !_climaxHealing && !_prologueDistress)
+        {
+            CurrentState = RustState.Follow;
+            _stateTimer = 0f;
+        }
+        if (_lookAt != null && !IsClimaxCrisis && !_climaxHealing && !_prologueDistress)
+        {
+            Vector3 safe = FollowPoint();
+            transform.position = safe;
+            _lagTarget = safe;
+            _velocity = Vector3.zero;
+        }
     }
 
     /// <summary>クライマックス：天蓋目前でのRust機能停止・凍結危機を開始</summary>
     public void StartClimaxCrisis()
     {
-        _skybreakNestle = false; // 危機演出へ移行
+        // 寄り添いは維持（危機中もしがみつき位置で見える）
+        _skybreakNestle = true;
         IsClimaxCrisis = true;
         IsClimaxOverdrive = false;
         _climaxHealing = false;
-        CurrentState = RustState.Petting; // 通常追従から離脱
+        CurrentState = RustState.Petting;
         _stateTimer = 999f;
         wellOiledUntil = 0f;
         _heat = 0f;
@@ -883,19 +1119,33 @@ public class AdventureRustDrone : MonoBehaviour
         IsClimaxOverdrive = false;
         _climaxHealing = false;
         _skybreakNestle = false;
+        _prologueDistress = false;
         ClearSpeech();
 
         if (_climaxIceFx != null) _climaxIceFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         if (_climaxSparkFx != null) _climaxSparkFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         if (_climaxHealFx != null) _climaxHealFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         if (_climaxJetFx != null) _climaxJetFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-        if (_climaxTrail != null) _climaxTrail.emitting = false;
+        DestroyClimaxTrail();
         if (_climaxEyeLight != null) _climaxEyeLight.enabled = false;
 
         if (_bodyMat != null)
         {
             _bodyMat.EnableKeyword("_EMISSION");
             _bodyMat.SetColor("_EmissionColor", _savedEmission);
+        }
+
+        if (CurrentState == RustState.Petting)
+        {
+            CurrentState = RustState.Follow;
+            _stateTimer = 0f;
+        }
+        if (_lookAt != null)
+        {
+            Vector3 safe = FollowPoint();
+            transform.position = safe;
+            _lagTarget = safe;
+            _velocity = Vector3.zero;
         }
     }
 
@@ -919,7 +1169,7 @@ public class AdventureRustDrone : MonoBehaviour
         }
         EnsureClimaxEyeLight(new Color(1f, 0.9f, 0.45f), 2.8f);
 
-        SpeakCustom("……あ……温かい油が……心臓に……！", 3.0f);
+        // 台本11は SanctuaryTowerManager の uGUI 台本で表示（ここでは吹き出し重複を出さない）
         if (_audio != null && _happyBeepClip != null)
         {
             _audio.pitch = 1.0f;
@@ -930,29 +1180,28 @@ public class AdventureRustDrone : MonoBehaviour
     /// <summary>魂の再点火！超高出力オーバードライブに突入</summary>
     public void TriggerClimaxOverdrive()
     {
-        _skybreakNestle = false;
+        _skybreakNestle = true; // オーバードライブ中もNikoのそば（見える位置）を維持
         IsClimaxCrisis = false;
         _climaxHealing = false;
         IsClimaxOverdrive = true;
-        CurrentState = RustState.Follow;
+        CurrentState = RustState.Petting;
+        _stateTimer = 9999f;
         wellOiledUntil = Time.time + 9999f; // 永久快調
         oilCount = 0; // 最後の1個を注ぎ切った証
 
-        // 眩しいエメラルドシアンの発光
+        // 黄金〜白の再点火（蒼系は使わない）
         if (_bodyMat != null)
         {
             _bodyMat.EnableKeyword("_EMISSION");
-            _bodyMat.SetColor("_EmissionColor", new Color(0.2f, 1.8f, 2.0f) * 3.5f);
+            _bodyMat.SetColor("_EmissionColor", new Color(1.45f, 1.05f, 0.35f) * 3.2f);
         }
-        EnsureClimaxEyeLight(new Color(0.35f, 0.95f, 1f), 5.5f);
+        EnsureClimaxEyeLight(new Color(1f, 0.88f, 0.45f), 5.8f);
 
         if (_climaxHealFx != null)
             _climaxHealFx.Stop();
 
         SpawnClimaxJetFx();
-        EnsureClimaxTrail();
-
-        SpeakCustom("ピピッ！……ありがとうNiko！僕たちの翼は絶対に折れない！全出力で行くよ！！", 7.0f);
+        DestroyClimaxTrail();
 
         if (_audio != null)
         {
@@ -985,18 +1234,7 @@ public class AdventureRustDrone : MonoBehaviour
         var shape = _climaxIceFx.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
         shape.radius = 0.35f;
-        var renderer = go.GetComponent<ParticleSystemRenderer>();
-        if (renderer != null)
-        {
-            var sh = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit");
-            if (sh != null)
-            {
-                var mat = new Material(sh);
-                mat.SetColor("_BaseColor", new Color(0.7f, 0.9f, 1f, 0.45f));
-                renderer.material = mat;
-                renderer.renderMode = ParticleSystemRenderMode.Billboard;
-            }
-        }
+        ApplySoftParticleMaterial(go, new Color(0.7f, 0.9f, 1f, 0.45f));
     }
 
     void SpawnClimaxSparkFx()
@@ -1022,6 +1260,7 @@ public class AdventureRustDrone : MonoBehaviour
         var shape = _climaxSparkFx.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
         shape.radius = 0.2f;
+        ApplySoftParticleMaterial(go, new Color(0.55f, 0.85f, 1f, 1f));
     }
 
     void SpawnClimaxHealAura()
@@ -1046,6 +1285,7 @@ public class AdventureRustDrone : MonoBehaviour
         var shape = _climaxHealFx.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
         shape.radius = 0.45f;
+        ApplySoftParticleMaterial(go, new Color(1f, 0.85f, 0.35f, 0.9f));
     }
 
     void SpawnClimaxJetFx()
@@ -1066,7 +1306,7 @@ public class AdventureRustDrone : MonoBehaviour
         main.startLifetime = 0.35f;
         main.startSpeed = 12f;
         main.startSize = 0.22f;
-        main.startColor = new Color(0.25f, 0.9f, 1.0f, 0.95f);
+        main.startColor = new Color(1f, 0.92f, 0.55f, 0.92f);
         main.simulationSpace = ParticleSystemSimulationSpace.Local;
         var emission = _climaxJetFx.emission;
         emission.rateOverTime = 90f;
@@ -1074,32 +1314,41 @@ public class AdventureRustDrone : MonoBehaviour
         shape.shapeType = ParticleSystemShapeType.Cone;
         shape.angle = 8f;
         shape.radius = 0.05f;
+        ApplySoftParticleMaterial(go, new Color(1f, 0.88f, 0.42f, 0.9f));
     }
 
-    void EnsureClimaxTrail()
+    static void ApplySoftParticleMaterial(GameObject go, Color color)
     {
-        if (_climaxTrail != null)
-        {
-            _climaxTrail.emitting = true;
-            return;
-        }
-        _climaxTrail = gameObject.AddComponent<TrailRenderer>();
-        _climaxTrail.time = 0.55f;
-        _climaxTrail.startWidth = 0.28f;
-        _climaxTrail.endWidth = 0.02f;
-        _climaxTrail.minVertexDistance = 0.08f;
+        var renderer = go != null ? go.GetComponent<ParticleSystemRenderer>() : null;
+        if (renderer == null) return;
         var sh = Shader.Find("Universal Render Pipeline/Particles/Unlit")
                  ?? Shader.Find("Universal Render Pipeline/Unlit")
-                 ?? Shader.Find("Sprites/Default");
-        if (sh != null)
+                 ?? Shader.Find("Sprites/Default")
+                 ?? Shader.Find("Particles/Standard Unlit");
+        if (sh == null) return;
+        var mat = new Material(sh);
+        mat.SetColor("_BaseColor", color);
+        mat.SetColor("_Color", color);
+        var tex = GetSoftSmokeTexture();
+        if (tex != null)
         {
-            var mat = new Material(sh);
-            mat.SetColor("_BaseColor", new Color(0.3f, 0.95f, 1f, 0.85f));
-            mat.color = new Color(0.3f, 0.95f, 1f, 0.85f);
-            _climaxTrail.material = mat;
+            mat.SetTexture("_BaseMap", tex);
+            mat.SetTexture("_MainTex", tex);
         }
-        _climaxTrail.startColor = new Color(0.4f, 1f, 1f, 0.9f);
-        _climaxTrail.endColor = new Color(0.2f, 0.6f, 1f, 0f);
+        renderer.sharedMaterial = mat;
+        renderer.renderMode = ParticleSystemRenderMode.Billboard;
+    }
+
+    void DestroyClimaxTrail()
+    {
+        if (_climaxTrail == null)
+            _climaxTrail = GetComponent<TrailRenderer>();
+        if (_climaxTrail != null)
+        {
+            _climaxTrail.emitting = false;
+            Destroy(_climaxTrail);
+            _climaxTrail = null;
+        }
     }
 
     void EnsureClimaxEyeLight(Color color, float intensity)
@@ -1448,26 +1697,33 @@ public class AdventureRustDrone : MonoBehaviour
         }
         else if (Time.time >= _nextIdleTalk)
         {
-            _nextIdleTalk = Time.time + Random.Range(30f, 50f);
-            var player = AdventurePlayerController.Instance;
-            if (player != null && player.IsGliding)
+            if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsBlockingSpeech)
             {
-                string[] glideLines = {
-                    "風に乗って、どこまでも行けそう",
-                    "島を見下ろすと、すごく綺麗だね",
-                    "わぁ…！風が気持ちいいね、Niko"
-                };
-                SetSpeech(glideLines[Random.Range(0, glideLines.Length)], 4.0f);
+                _nextIdleTalk = Time.time + 8f;
             }
             else
             {
-                string[] exploreLines = {
-                    "風の音が心地いいね、Niko",
-                    "どこへ行こうか？のんびり行こう",
-                    "この島の空気、すこし温かいね",
-                    "ピピッ…何か光るものがあるかな？"
-                };
-                SetSpeech(exploreLines[Random.Range(0, exploreLines.Length)], 3.8f);
+                _nextIdleTalk = Time.time + Random.Range(30f, 50f);
+                var player = AdventurePlayerController.Instance;
+                if (player != null && player.IsGliding)
+                {
+                    string[] glideLines = {
+                        "風に乗って、どこまでも行けそう",
+                        "島を見下ろすと、すごく綺麗だね",
+                        "わぁ…！風が気持ちいいね、Niko"
+                    };
+                    SetSpeech(glideLines[Random.Range(0, glideLines.Length)], 4.0f);
+                }
+                else
+                {
+                    string[] exploreLines = {
+                        "風が心地いいね、Niko",
+                        "どこへ行こうか？のんびり行こう",
+                        "この島の空気、すこし温かいね",
+                        "ピピッ…何か光るものがあるかな？"
+                    };
+                    SetSpeech(exploreLines[Random.Range(0, exploreLines.Length)], 3.8f);
+                }
             }
         }
     }
@@ -1501,8 +1757,22 @@ public class AdventureRustDrone : MonoBehaviour
 
     void OnGUI()
     {
+        // Editor Play中の IMGUI 日本語描画は Gizmos フォント汚染を起こすため完全停止。
+        // インタラクトは UpdatePlayerInteraction / Input System 側で行う。
+        return;
+    }
+
+    void OnGUI_DisabledLegacy()
+    {
+        // 重複インスタンスは一切描画しない（プロンプト多重表示の主因）
+        if (Instance != null && Instance != this) return;
+
+        var towerHud = AdventureSanctuaryTowerManager.Instance;
+        bool cinematicHide = ShouldHideInteractionPrompt(towerHud)
+            || IsClimaxCrisis || IsClimaxOverdrive || _climaxHealing || _skybreakNestle || _prologueDistress;
+
         // 照準中のスクラップに対するRust遠隔回収プロンプト
-        if (_aimedScrap != null && CurrentState == RustState.Follow && Camera.main != null)
+        if (!cinematicHide && _aimedScrap != null && CurrentState == RustState.Follow && Camera.main != null)
         {
             Vector3 screenPos = Camera.main.WorldToScreenPoint(_aimedScrap.transform.position + Vector3.up * 0.4f);
             if (screenPos.z > 0.5f)
@@ -1522,15 +1792,17 @@ public class AdventureRustDrone : MonoBehaviour
             }
         }
 
-        // 0. Eキー検知の確実なフォールバック（InputSystemのフレーム遅延やEventSystem遮断を完全救済）
-        if (_isPlayerNear && Event.current != null && Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.E && Time.time - _lastInteractTime > 0.35f)
+        // 0. Eキー検知のフォールバック（押しっぱなし連打防止）
+        if (!cinematicHide && _isPlayerNear && Event.current != null
+            && Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.E
+            && Time.time - _lastInteractTime > 0.35f)
         {
             _lastInteractTime = Time.time;
             InteractWithNiko();
         }
 
-        // 1. Niko接近時の頭上インタラクションプロンプト（特大フォント・高コントラスト）
-        if (_isPlayerNear && Camera.main != null)
+        // 1. Niko接近時の頭上インタラクションプロンプト（シネマ中は非表示）
+        if (!cinematicHide && _isPlayerNear && Camera.main != null)
         {
             Vector3 headPos = transform.position + Vector3.up * 0.85f;
             Vector3 screenPos = Camera.main.WorldToScreenPoint(headPos);
@@ -1539,30 +1811,28 @@ public class AdventureRustDrone : MonoBehaviour
                 bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
                 oilCount = Mathf.Max(oilCount, 1);
 
-                string prompt = needsOil 
-                    ? $"【E】油をさして手当て＆セーブ（常備油: {oilCount}）" 
+                string prompt = needsOil
+                    ? $"【E】油をさして手当て＆セーブ（常備油: {oilCount}）"
                     : $"【E】Rustを撫でてセーブ（常備油: {oilCount}）";
-                Color textColor = needsOil 
-                    ? new Color(1.0f, 0.90f, 0.25f) // 鮮やかなゴールド
-                    : new Color(0.40f, 0.96f, 1.0f); // 爽やかなシアン
+                Color textColor = needsOil
+                    ? new Color(1.0f, 0.90f, 0.25f)
+                    : new Color(0.40f, 0.96f, 1.0f);
 
-                // セリフ本文と調和する上品で読みやすいフォント（20〜30pt）
                 int promptFontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.026f, 20f, 30f));
-                GUIStyle pStyle = new GUIStyle(GUI.skin.label);
-                pStyle.fontSize = promptFontSize;
-                pStyle.fontStyle = FontStyle.Bold;
-                pStyle.alignment = TextAnchor.MiddleCenter;
+                GUIStyle pStyle = MakeJpLabel(promptFontSize, FontStyle.Bold, TextAnchor.MiddleCenter);
+                if (pStyle.font != null)
+                    pStyle.font.RequestCharactersInTexture(prompt, promptFontSize, FontStyle.Bold);
 
                 Vector2 pSize = pStyle.CalcSize(new GUIContent(prompt));
                 float padX = 28f;
                 float padY = 12f;
-                float boxW = pSize.x + padX;
-                float boxH = pSize.y + padY;
-                float boxX = screenPos.x - boxW * 0.5f;
-                float boxY = Screen.height - screenPos.y - boxH - 16f;
+                float boxW = Mathf.Max(pSize.x + padX, 320f);
+                float boxH = Mathf.Max(pSize.y + padY, promptFontSize + 18f);
+                // 頭上ワールド座標は揺れやすいので、画面下部中央に固定して多重に見せない
+                float boxX = (Screen.width - boxW) * 0.5f;
+                float boxY = Screen.height - boxH - Mathf.Clamp(Screen.height * 0.12f, 90f, 140f);
                 Rect promptBoxRect = new Rect(boxX, boxY, boxW, boxH);
 
-                // 半透明ダーク背景
                 if (_speechBg == null)
                 {
                     _speechBg = new Texture2D(1, 1);
@@ -1571,50 +1841,43 @@ public class AdventureRustDrone : MonoBehaviour
                 }
                 GUI.DrawTexture(promptBoxRect, _speechBg);
 
-                // 上部アクセントライン
                 Rect lineRect = new Rect(boxX, boxY, boxW, 3f);
                 GUI.DrawTexture(lineRect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, textColor, 0, 0);
 
-                // 黒アウトライン付き特大テキスト描画
                 DrawOutlinedText(promptBoxRect, prompt, pStyle, textColor, new Color(0f, 0f, 0f, 0.95f));
             }
         }
 
-        // 2. 画面右上のオイル所持数＆RustコンディションHUD（文字欠け防止＆余裕のセーフマージン）
+        // 2. 画面右上のオイル所持数＆RustコンディションHUD
         bool isOiled = Time.time < wellOiledUntil;
         bool isDistressed = (_heat > 0.15f || Time.time < _hitchUntil || !isOiled);
-        var towerHud = AdventureSanctuaryTowerManager.Instance;
-        bool hideStatusHud = towerHud != null && (towerHud.IsEpiloguePlaying || towerHud.IsClimaxOilPromptActive || towerHud.ShowGameClearModal || towerHud.IsSkybreakModalActive);
+        bool hideStatusHud = cinematicHide
+            || (towerHud != null && (towerHud.IsEpiloguePlaying || towerHud.IsClimaxOilPromptActive || towerHud.ShowGameClearModal || towerHud.IsSkybreakModalActive));
         if (!hideStatusHud && (oilCount > 0 || isOiled || isDistressed))
         {
-            // 上品で視認性の高いHUDフォント（18〜24pt）
             int badgeSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.022f, 18f, 24f));
-            GUIStyle badgeStyle = new GUIStyle(GUI.skin.label);
-            badgeStyle.fontSize = badgeSize;
-            badgeStyle.fontStyle = FontStyle.Bold;
-            badgeStyle.alignment = TextAnchor.MiddleCenter;
-            badgeStyle.clipping = TextClipping.Overflow; // 文字クリッピングを完全防止
+            GUIStyle badgeStyle = MakeJpLabel(badgeSize, FontStyle.Bold, TextAnchor.MiddleCenter);
 
             string status;
             Color bColor;
             if (isOiled)
             {
                 status = "✦ Rust好調（整備済）";
-                bColor = new Color(0.45f, 0.95f, 0.65f); // エメラルドグリーン
+                bColor = new Color(0.45f, 0.95f, 0.65f);
             }
             else
             {
                 status = $"⚠ 要整備（【E】手当て＆セーブ / 油: {oilCount}）";
-                bColor = new Color(1.0f, 0.88f, 0.35f); // イエロー
+                bColor = new Color(1.0f, 0.88f, 0.35f);
             }
+            if (badgeStyle.font != null)
+                badgeStyle.font.RequestCharactersInTexture(status, badgeSize, FontStyle.Bold);
 
             GUIContent bContent = new GUIContent(status);
             Vector2 bSize = badgeStyle.CalcSize(bContent);
-            // 幅と高さを大幅に広げて余裕を確保（絶対に文字欠けしない）
             float bw = Mathf.Max(200f, bSize.x + 54f);
             float bh = Mathf.Max(36f, badgeSize + 18f);
 
-            // 画面右端からしっかり離す（セーフエリアマージン 65〜110px）
             float rightMargin = Mathf.Clamp(Screen.width * 0.055f, 65f, 110f);
             float topMargin = Mathf.Clamp(Screen.height * 0.045f, 45f, 75f);
             Rect bRect = new Rect(Screen.width - bw - rightMargin, topMargin, bw, bh);
@@ -1632,17 +1895,11 @@ public class AdventureRustDrone : MonoBehaviour
             DrawOutlinedText(bRect, status, badgeStyle, bColor, new Color(0f, 0f, 0f, 0.95f));
         }
 
-        // 3. セリフダイアログ表示（視認性抜群＆文字欠け防止設計）
+        // 3. セリフダイアログ表示
         if (_speechTimer <= 0f || string.IsNullOrEmpty(_speechText))
             return;
 
-        // 天蓋破壊シネマティックストーリーボード表示中はボードと重ならないよう抑制
-        if (AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.IsSkybreakModalActive)
-            return;
-
-        // エピローグ字幕・注油プロンプト中は下部セリフを出さない（重なり防止）
-        var tower = AdventureSanctuaryTowerManager.Instance;
-        if (tower != null && (tower.IsEpiloguePlaying || tower.IsClimaxOilPromptActive || tower.ShowGameClearModal))
+        if (towerHud != null && (towerHud.IsSkybreakModalActive || towerHud.IsEpiloguePlaying || towerHud.IsClimaxOilPromptActive || towerHud.ShowGameClearModal))
             return;
 
         // しっかり大きく読みやすいシネマフォント設計（1080pで約34pt）
@@ -1678,11 +1935,7 @@ public class AdventureRustDrone : MonoBehaviour
         GUI.DrawTexture(barRect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, new Color(0.2f, 0.95f, 0.85f, 0.9f * alpha), 0, 0);
 
         // 2. ネームタグ [ 相棒 Rust ]
-        GUIStyle nameStyle = new GUIStyle(GUI.skin.label);
-        nameStyle.fontSize = nameFontSize;
-        nameStyle.fontStyle = FontStyle.Bold;
-        nameStyle.alignment = TextAnchor.MiddleLeft;
-        nameStyle.clipping = TextClipping.Overflow;
+        GUIStyle nameStyle = MakeJpLabel(nameFontSize, FontStyle.Bold, TextAnchor.MiddleLeft);
 
         Rect nameRect = new Rect(x + 28f, y + 10f, boxWidth - 56f, nameFontSize + 4f);
         Color nameCol = _speechSpeakerColor;
@@ -1692,21 +1945,15 @@ public class AdventureRustDrone : MonoBehaviour
         // 行動待ちヒント（右上に上品に表示）
         if (_waitingForPlayerAction)
         {
-            GUIStyle hintStyle = new GUIStyle(GUI.skin.label);
-            hintStyle.fontSize = Mathf.Max(12, Mathf.RoundToInt(nameFontSize * 0.82f));
-            hintStyle.alignment = TextAnchor.MiddleRight;
-            hintStyle.clipping = TextClipping.Overflow;
+            GUIStyle hintStyle = MakeJpLabel(Mathf.Max(12, Mathf.RoundToInt(nameFontSize * 0.82f)), FontStyle.Normal, TextAnchor.MiddleRight);
             Rect hintRect = new Rect(x + 28f, y + 10f, boxWidth - 56f, nameFontSize + 4f);
             DrawOutlinedText(hintRect, "（行動・移動で閉じます）", hintStyle, new Color(0.65f, 0.85f, 0.95f, alpha * 0.85f), new Color(0f, 0f, 0f, 0.85f * alpha));
         }
 
         // 3. セリフ本文（大きくてはっきり読める・クリッピング防止）
-        GUIStyle bodyStyle = new GUIStyle(GUI.skin.label);
-        bodyStyle.fontSize = bodyFontSize;
-        bodyStyle.fontStyle = FontStyle.Normal;
-        bodyStyle.alignment = TextAnchor.UpperLeft;
-        bodyStyle.wordWrap = true;
-        bodyStyle.clipping = TextClipping.Overflow; // 上下左右の文字クリップを完全排除
+        GUIStyle bodyStyle = MakeJpLabel(bodyFontSize, FontStyle.Normal, TextAnchor.UpperLeft, wordWrap: true);
+        if (bodyStyle.font != null)
+            bodyStyle.font.RequestCharactersInTexture("「" + _speechText + "」", bodyFontSize, FontStyle.Normal);
 
         Rect bodyRect = new Rect(x + 28f, y + nameFontSize + 14f, boxWidth - 56f, bodyFontSize * 2.6f);
         DrawOutlinedText(bodyRect, "「" + _speechText + "」", bodyStyle, new Color(1.0f, 1.0f, 1.0f, alpha), new Color(0f, 0f, 0f, 0.95f * alpha));

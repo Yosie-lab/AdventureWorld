@@ -59,6 +59,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     ParticleSystem _crackPs;
     GameObject _hyperUpdraftGo;
     AudioSource _audio;
+    AudioSource _skybreakWindSource;
+    AudioClip _skybreakWindClip;
 
     bool _leverPulled = false;
     bool _endingSequenceActive = false;
@@ -81,6 +83,32 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     Color _scriptBoardAccent = new Color(0.45f, 0.92f, 1f, 1f);
     bool _scriptBoardIsDive = false;
     float _scriptBoardOpenedAt = 0f;
+    float _scriptHoldTimer = 0f;
+
+    // Update駆動の天蓋台本（コルーチンが死んでも進む）
+    int _canopyBeatIndex = -1;
+    struct CanopyBeat
+    {
+        public string Title;
+        public string Speaker;
+        public string Body;
+        public Color Accent;
+        public bool IsDive;
+        public CanopyBeat(string title, string speaker, string body, Color accent, bool isDive = false)
+        {
+            Title = title; Speaker = speaker; Body = body; Accent = accent; IsDive = isDive;
+        }
+    }
+    static readonly CanopyBeat[] CanopyBeats =
+    {
+        new CanopyBeat("天蓋崩壊　未知の荒野への跳躍", "", "空が割れた。\n冷たい本物の風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Niko！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
+        new CanopyBeat("", "✦ Niko", "ありがとうRust…！君がいたからここまで来られた。行こう！", new Color(1f, 0.88f, 0.45f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Niko！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
+        new CanopyBeat("", "", "タワー中央の光の柱へ飛び込み、\n空の裂け目へ突き抜ける。", new Color(0.85f, 0.95f, 1f, 1f)),
+        new CanopyBeat("空の裂け目へ", "", "【Space長押し / クリック】でダイブする", new Color(1f, 0.88f, 0.4f, 1f), true),
+    };
 
     GameObject _scriptUiRoot;
     Image _scriptDimImg;
@@ -92,7 +120,19 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     Text _scriptHintUi;
     Button _scriptBtn;
 
+    // 注油プロンプト（uGUI専用・IMGUI禁止＝Gizmos文字化け防止）
+    GameObject _oilUiRoot;
+    Image _oilGaugeFill;
+    Text _oilTitleUi;
+    Text _oilPromptUi;
+    Text _oilHoldLabelUi;
+    Button _oilHoldBtn;
+
+    // クリアモーダルも uGUI 専用（IMGUIだと空ボード＋「Gizmos」ボタンになる）
+    GameObject _clearUiRoot;
+
     public bool IsSkybreakModalActive => _scriptBoardVisible;
+    public bool IsDiveBoardActive => _scriptBoardVisible && _scriptBoardIsDive;
     bool _showSkybreakModal
     {
         get => _scriptBoardVisible;
@@ -103,10 +143,19 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     // ── 【案1】クライマックス演出制御 ──
     bool _climaxCrisisStarted = false;
     bool _climaxOilInjected = false;
+    bool _climaxOilWaiting = false;
     float _oilHoldTimer = 0f;
-    const float OilHoldRequired = 1.2f;
+    float _oilWaitOpenedAt = 0f;
+    const float OilHoldRequired = 0.7f;
+    int _climaxBeatIndex = -1; // -1=非アクティブ / 0..=台本 / OilPhaseIndex=注油待ち後の再開用
+    float _climaxOverdriveCinematicUntil = 0f;
+    int _climaxPostOilPhase = 0; // 0=なし / 1=蘇生セリフ待ち / 2=全出力セリフ待ち
+    float _climaxPostOilUntil = 0f;
     /// <summary>F9／天蓋台本中はクライマックス（警告・注油）を絶対に開始・表示しない</summary>
     bool _suppressClimax = false;
+    /// <summary>天蓋台本完了後、柱上昇を待ってクライマックスへ必ず接続する</summary>
+    bool _pendingClimaxAfterCanopy = false;
+    float _pendingClimaxDeadline = 0f;
 
     public bool ClimaxCrisisStarted => _climaxCrisisStarted;
     public bool ClimaxOilInjected => _climaxOilInjected;
@@ -117,13 +166,19 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     public bool IsEpiloguePlaying => _scriptBoardVisible || (_epilogueTriggered && !_showGameClearModal && (_epilogueAct > 0 || _epilogueAlpha > 0.01f));
     /// <summary>クライマックス注油待ち中</summary>
     public bool IsClimaxOilPromptActive =>
-        !_suppressClimax
-        && !_endingSequenceActive
-        && _climaxCrisisStarted
-        && !_climaxOilInjected
-        && !_scriptBoardVisible;
+        _climaxOilWaiting && !_climaxOilInjected && !_suppressClimax;
 
-
+    // 注油前台本(0-2) → 注油 → 注油後台本(3-4)
+    const int ClimaxOilSlot = 3; // next==3 のとき注油フェーズへ入る
+    static readonly CanopyBeat[] ClimaxBeats =
+    {
+        new CanopyBeat("警告", "", "Rustが極寒で機能停止寸前", new Color(1f, 0.55f, 0.45f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "キキキッ……！ Niko……外の気流が冷たすぎる……僕の古いギアが……凍りついて……", new Color(0.35f, 0.92f, 0.98f, 1f)),
+        new CanopyBeat("", "✦ Niko", "Rust…待ってて！　今、油を目一杯さすからね！", new Color(1f, 0.88f, 0.45f, 1f)),
+        // ← ここで注油フェーズ
+        new CanopyBeat("", "✦ 相棒 Rust", "……あ……温かい油が……心臓に……！", new Color(0.35f, 0.92f, 0.98f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "ピピッ！……ありがとうNiko！僕たちの翼はこれで絶対に折れない！全出力で行くよ！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
+    };
 
     public static void Ensure()
     {
@@ -189,22 +244,79 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var tower = GameObject.Find("SanctuaryZero_Tower");
         if (tower == null) return;
 
-        var podium = tower.transform.Find("WhiteMarblePodium")?.gameObject;
-        if (podium != null)
-        {
-            var cap = podium.GetComponent<CapsuleCollider>();
-            if (cap != null) Destroy(cap);
-            if (podium.GetComponent<MeshCollider>() == null)
-                podium.AddComponent<MeshCollider>();
-        }
+        // 薄い上面コライダーは CharacterController.skinWidth より薄く貫通→地形に落下→台座に埋まる。
+        // 上面が歩行面の「厚い固体スラブ」に差し替え、XZ内では絶対に床下へ潜れないようにする。
+        MakeSolidTerraceCollider(tower.transform.Find("WhiteMarblePodium")?.gameObject, thickness: 5f);
+        MakeSolidTerraceCollider(tower.transform.Find("SanctuaryGridFloor")?.gameObject, thickness: 2.5f);
+    }
 
-        var gridFloor = tower.transform.Find("SanctuaryGridFloor")?.gameObject;
-        if (gridFloor != null)
+    /// <summary>タワー白亜テラス上なら歩行面Y、それ以外は負の無限大</summary>
+    public static float GetTerraceSurfaceY(Vector3 worldPos)
+    {
+        float dx = worldPos.x - 512f;
+        float dz = worldPos.z - 512f;
+        // 直径70mの基壇より少し内側
+        if (dx * dx + dz * dz > 34f * 34f)
+            return float.NegativeInfinity;
+        return TerraceTopY;
+    }
+
+    public const float TerraceTopY = 63.05f;
+
+    static void MakeSolidTerraceCollider(GameObject floor, float thickness)
+    {
+        if (floor == null) return;
+
+        foreach (var c in floor.GetComponents<Collider>())
+            Destroy(c);
+
+        Transform parent = floor.transform.parent != null ? floor.transform.parent : floor.transform;
+        string solidName = floor.name + "_SolidWalk";
+        var existing = parent.Find(solidName);
+        GameObject solid = existing != null ? existing.gameObject : new GameObject(solidName);
+        if (existing == null)
+            solid.transform.SetParent(parent, false);
+
+        // 単位円柱: 半径0.5 → lossyScale.x が直径、上面 = pos.y + lossyScale.y
+        float topY = floor.transform.position.y + floor.transform.lossyScale.y;
+        float diameter = Mathf.Max(floor.transform.lossyScale.x, floor.transform.lossyScale.z);
+        thickness = Mathf.Max(thickness, 1.5f);
+
+        solid.transform.position = new Vector3(floor.transform.position.x, topY - thickness * 0.5f, floor.transform.position.z);
+        solid.transform.rotation = Quaternion.identity;
+        solid.transform.localScale = Vector3.one;
+
+        var box = solid.GetComponent<BoxCollider>();
+        if (box == null) box = solid.AddComponent<BoxCollider>();
+        box.center = Vector3.zero;
+        box.size = new Vector3(diameter, thickness, diameter);
+    }
+
+    /// <summary>台座に埋まった／潜ったNikoをテラス上面へ引き上げる</summary>
+    public void RescuePlayerIfBuriedInTerrace(AdventurePlayerController player)
+    {
+        if (player == null) return;
+        // スカイブレイク上昇／オートグライド中は絶対に地上へ引きずり下ろさない
+        if (player.IsSkybreakPillarAscending || player.IsAutoGliding) return;
+        if (IsCanopyBroken && player.transform.position.y > 80f) return;
+
+        Vector3 pos = player.transform.position;
+        float terraceY = GetTerraceSurfaceY(pos);
+        if (terraceY <= float.NegativeInfinity) return;
+
+        // テラス上面より下、または薄いめり込み帯にいる
+        if (pos.y >= terraceY - 0.02f && pos.y <= terraceY + 0.35f)
+            return; // 正常に乗っている
+        if (pos.y > terraceY + 0.35f)
+            return; // ジャンプ／滑空中
+
+        if (pos.y < terraceY - 0.02f)
         {
-            var cap = gridFloor.GetComponent<CapsuleCollider>();
-            if (cap != null) Destroy(cap);
-            if (gridFloor.GetComponent<MeshCollider>() == null)
-                gridFloor.AddComponent<MeshCollider>();
+            var cc = player.GetComponent<CharacterController>();
+            if (cc != null) cc.enabled = false;
+            player.transform.position = new Vector3(pos.x, terraceY + 0.05f, pos.z);
+            if (cc != null) cc.enabled = true;
+            player.ForceGroundReset();
         }
     }
 
@@ -296,6 +408,17 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         ped.transform.SetParent(root.transform, false);
         ped.transform.localPosition = new Vector3(0f, 0.55f, 0f);
         ped.transform.localScale = new Vector3(6.2f, 0.55f, 6.2f);
+        // CapsuleCollider＋非均一スケールは約6m球になりNikoを埋める → スケール非依存の固体箱
+        foreach (var c in ped.GetComponents<Collider>())
+            Destroy(c);
+        var pedSolid = new GameObject("LeverPedestal_SolidWalk");
+        pedSolid.transform.SetParent(root.transform, false);
+        pedSolid.transform.localPosition = new Vector3(0f, 0.35f, 0f);
+        pedSolid.transform.localRotation = Quaternion.identity;
+        pedSolid.transform.localScale = Vector3.one;
+        var pedBox = pedSolid.AddComponent<BoxCollider>();
+        pedBox.center = Vector3.zero;
+        pedBox.size = new Vector3(6.2f, 1.1f, 6.2f);
         var pedMr = ped.GetComponent<MeshRenderer>();
         if (pedMr != null) pedMr.material = pedMat;
 
@@ -384,19 +507,23 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     float _leverHoldTimer;
     const float LeverHoldSeconds = 0.28f;
+    float _endingStuckTimer;
+    float _leverPullLockUntil;
+    GameObject _leverUiRoot;
+    UnityEngine.UI.Text _leverUiLabel;
 
     void Update()
     {
-        // F9: パーツ11個から開始（演出確認用）
+        // F9: レバー前へ＋自動開放
         var debugKb = UnityEngine.InputSystem.Keyboard.current;
-        if (debugKb != null && debugKb.f9Key.wasPressedThisFrame)
+        if (debugKb != null && (debugKb.f9Key.wasPressedThisFrame || debugKb.f10Key.wasPressedThisFrame))
         {
             DebugJumpToCanopyOpening();
             return;
         }
         try
         {
-            if (Input.GetKeyDown(KeyCode.F9))
+            if (Input.GetKeyDown(KeyCode.F9) || Input.GetKeyDown(KeyCode.F10))
             {
                 DebugJumpToCanopyOpening();
                 return;
@@ -404,49 +531,53 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
         catch { }
 
-        // 台本ボード：Updateでも進む入力を拾う（コルーチン／uGUI漏れ対策）
-        if (_scriptBoardVisible && !_scriptBoardAdvance)
+        // 天蓋台本は Update で必ず進める（コルーチン停止に依存しない）
+        TickCanopyScriptBeats();
+        TickClimaxSequence();
+        TickGameClearModal();
+
+        // 台本ボード：Updateでも進む入力を拾う
+        if (_scriptBoardVisible && !_scriptBoardAdvance && !_climaxOilWaiting)
             PollScriptBoardAdvance();
 
-        var player = AdventurePlayerController.Instance;
+        var player = AdventurePlayerController.Instance
+                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+
+        // プレイヤー未検出でも保留クライマックスは進める
+        TryStartPendingClimax(player);
         if (player == null) return;
 
-        // 天蓋破壊後、高度105m付近でRust危機イベント（【案1】クライマックス）を開始
-        // タイトル台本〜ダイブ中／F9再生中は絶対に開始しない
-        if (!_ignoreSavedCanopyState
-            && IsCanopyBroken
-            && !_climaxCrisisStarted
-            && !_suppressClimax
-            && !_endingSequenceActive
-            && !_scriptBoardVisible
-            && !_epilogueTriggered
-            && player.transform.position.y >= 105f)
-        {
-            _climaxCrisisStarted = true;
-            StartCoroutine(ClimaxCrisisSequenceRoutine());
-        }
+        RescuePlayerIfBuriedInTerrace(player);
 
         if (IsGameCleared)
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && (kb.tabKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame))
-            {
-                _showGameClearModal = !_showGameClearModal;
-            }
+            if (kb != null && kb.tabKey.wasPressedThisFrame)
+                SetGameClearModalVisible(!_showGameClearModal);
         }
 
         // 全パーツ回収済み・天蓋未開放ならレバー操作を最優先（誤った危機フラグを解除）
-        if (IsLeverReadyToOpen && !IsCanopyBroken && !_scriptBoardVisible && !_endingSequenceActive)
+        if (IsLeverReadyToOpen && !IsCanopyBroken && !_scriptBoardVisible)
         {
+            // ※実行中コルーチンは絶対に Kill しない（以前ここで StopAllCoroutines して台本が消えていた）
             if (_climaxCrisisStarted && !_climaxOilInjected)
                 _climaxCrisisStarted = false;
             if (_epilogueTriggered)
                 _epilogueTriggered = false;
+            if (_endingSequenceActive && !_leverPulled)
+            {
+                _endingSequenceActive = false;
+                _suppressClimax = false;
+            }
         }
+        _endingStuckTimer = 0f;
 
         // 台本／危機／エピローグ／シークエンス実行中はレバー入力を止める
         if (_scriptBoardVisible || _climaxCrisisStarted || _epilogueTriggered || _endingSequenceActive)
+        {
+            SetLeverPromptUI(false, false);
             return;
+        }
 
         UpdateLeverProximity(player);
 
@@ -472,8 +603,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (!_playerNearby)
         {
             _leverHoldTimer = 0f;
+            SetLeverPromptUI(false, false);
             return;
         }
+
+        SetLeverPromptUI(true, allCollected);
 
         bool tapped = CheckLeverInputTriggered() || (player.InteractPressed && WasInteractEdge());
         bool holding = IsLeverHoldInput();
@@ -483,10 +617,16 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         else if (!holding)
             _leverHoldTimer = 0f;
 
-        if (tapped || _leverHoldTimer >= LeverHoldSeconds)
+        // パーツ齐全時はタップ1回で即開放（長押しは保険）
+        if (allCollected && (tapped || _leverHoldTimer >= LeverHoldSeconds))
         {
             _leverHoldTimer = 0f;
-            BeginCanopyOpeningFromLever(allCollected);
+            BeginCanopyOpeningFromLever(true);
+        }
+        else if (!allCollected && tapped)
+        {
+            _leverHoldTimer = 0f;
+            BeginCanopyOpeningFromLever(false);
         }
     }
 
@@ -501,13 +641,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         Vector3 p = player.transform.position;
-        Vector2 pXZ = new Vector2(p.x, p.z);
-        float distFromCenter = Vector2.Distance(pXZ, new Vector2(512f, 512f));
 
-        // テラス〜頂上を広くカバー（階段途中・端でも反応）
-        bool inPlaza = distFromCenter < 70f && p.y >= 40f && p.y <= 170f;
-
-        // 各レバー本体の近くでも確実に反応（大型レバーに合わせて半径拡大）
+        // 各レバー本体の近くだけ反応（遠距離UI誤認を防ぐ）
         bool nearAnyLever = false;
         Vector3[] leverSpots =
         {
@@ -518,14 +653,103 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         };
         for (int i = 0; i < leverSpots.Length; i++)
         {
-            if (Vector3.Distance(p, leverSpots[i]) < 22f)
+            if (Vector3.Distance(p, leverSpots[i]) < 28f)
             {
                 nearAnyLever = true;
                 break;
             }
         }
 
-        _playerNearby = (inPlaza || nearAnyLever) && !_showSkybreakModal;
+        _playerNearby = nearAnyLever && !_showSkybreakModal;
+    }
+
+    static void EnsureEventSystemForUi()
+    {
+        var es = UnityEngine.EventSystems.EventSystem.current;
+        if (es == null)
+        {
+            var go = new GameObject("EventSystem");
+            es = go.AddComponent<UnityEngine.EventSystems.EventSystem>();
+        }
+
+        // プロジェクトは Input System のみ（activeInputHandler=1）。旧Standaloneはクリック不能。
+        var legacy = es.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+        if (legacy != null)
+            Object.Destroy(legacy);
+
+        if (es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>() == null)
+            es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+    }
+
+    void SetLeverPromptUI(bool show, bool ready)
+    {
+        if (!show)
+        {
+            if (_leverUiRoot != null)
+                _leverUiRoot.SetActive(false);
+            return;
+        }
+
+        EnsureLeverPromptUI();
+        if (_leverUiRoot == null) return;
+        _leverUiRoot.SetActive(true);
+        if (_leverUiLabel != null)
+        {
+            _leverUiLabel.text = ready
+                ? "【ここを押す / E / Space】巨大真鍮レバーを引く"
+                : "レバーはロック中（遺物12個が必要）";
+            _leverUiLabel.color = ready
+                ? new Color(0.35f, 0.98f, 0.88f, 1f)
+                : new Color(1f, 0.85f, 0.4f, 1f);
+        }
+    }
+
+    void EnsureLeverPromptUI()
+    {
+        if (_leverUiRoot != null) return;
+
+        EnsureEventSystemForUi();
+
+        var canvasGo = new GameObject("LeverPromptCanvas");
+        var canvas = canvasGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 4000;
+        var scaler = canvasGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280f, 720f);
+        canvasGo.AddComponent<GraphicRaycaster>();
+
+        var btnGo = new GameObject("LeverPullButton");
+        btnGo.transform.SetParent(canvasGo.transform, false);
+        var rt = btnGo.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.5f, 0f);
+        rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.sizeDelta = new Vector2(920f, 110f);
+        rt.anchoredPosition = new Vector2(0f, 36f);
+
+        var img = btnGo.AddComponent<Image>();
+        img.color = new Color(0.03f, 0.08f, 0.14f, 0.88f);
+        var btn = btnGo.AddComponent<Button>();
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(() => BeginCanopyOpeningFromLever(IsLeverReadyToOpen));
+
+        var textGo = new GameObject("Label");
+        textGo.transform.SetParent(btnGo.transform, false);
+        var trt = textGo.AddComponent<RectTransform>();
+        trt.anchorMin = Vector2.zero;
+        trt.anchorMax = Vector2.one;
+        trt.offsetMin = new Vector2(16f, 8f);
+        trt.offsetMax = new Vector2(-16f, -8f);
+        _leverUiLabel = textGo.AddComponent<Text>();
+        _leverUiLabel.font = ResolveUiFont();
+        _leverUiLabel.fontSize = 32;
+        _leverUiLabel.alignment = TextAnchor.MiddleCenter;
+        _leverUiLabel.color = new Color(0.35f, 0.98f, 0.88f, 1f);
+        _leverUiLabel.raycastTarget = false;
+
+        _leverUiRoot = canvasGo;
+        _leverUiRoot.SetActive(false);
     }
 
     /// <summary>パーツ12個達成時：巨大レバーを再生成し、操作UIを確実に出す</summary>
@@ -536,6 +760,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             _climaxCrisisStarted = false;
             _climaxOilInjected = false;
+            _climaxOilWaiting = false;
+            _climaxBeatIndex = -1;
+            _climaxOverdriveCinematicUntil = 0f;
+            _climaxPostOilPhase = 0;
+            _climaxPostOilUntil = 0f;
             _scriptBoardVisible = false;
             _epilogueTriggered = false;
         }
@@ -625,14 +854,15 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         return false;
     }
 
-    /// <summary>レバーから天蓋開放へ。既に開放済み・途中停止でも再演できる</summary>
-    void BeginCanopyOpeningFromLever(bool allCollected)
+    /// <summary>レバーから天蓋開放へ。forceRestart=true のときだけ再演（F9）。通常操作中の再入は台本を最初に戻さない。</summary>
+    void BeginCanopyOpeningFromLever(bool allCollected, bool forceRestart = false)
     {
-        // ボード／クライマックス／エピローグ中は触らない
-        if (_scriptBoardVisible || _climaxCrisisStarted || _epilogueTriggered)
+        // 台本／シークエンス実行中は通常操作で絶対に再スタートしない
+        // （以前は5秒ロック後の再入で StopAllCoroutines → 最初のセリフに戻っていた）
+        if (!forceRestart && (_scriptBoardVisible || _endingSequenceActive || _leverPulled || _epilogueTriggered || _canopyBeatIndex >= 0))
             return;
-        // 実行中（レバーアニメ〜台本）は再入禁止。開放済みの再演は下のリセットへ
-        if (_endingSequenceActive && !IsCanopyBroken)
+
+        if (_climaxCrisisStarted && !forceRestart)
             return;
 
         if (!allCollected)
@@ -641,15 +871,21 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             return;
         }
 
-        // 途中停止・開放済み・実行フラグ残りをクリアして開始
-        if (_leverPulled || IsCanopyBroken || IsGameCleared || _endingSequenceActive)
+        if (forceRestart || _leverPulled || IsCanopyBroken || IsGameCleared || _endingSequenceActive)
         {
             StopAllCoroutines();
             Time.timeScale = 1f;
             _endingSequenceActive = false;
             _climaxCrisisStarted = false;
             _climaxOilInjected = false;
+            _climaxOilWaiting = false;
             _oilHoldTimer = 0f;
+            _climaxBeatIndex = -1;
+            _climaxOverdriveCinematicUntil = 0f;
+            _climaxPostOilPhase = 0;
+            _climaxPostOilUntil = 0f;
+            _scriptHoldTimer = 0f;
+            _canopyBeatIndex = -1;
             _epilogueTriggered = false;
             _epilogueAlpha = 0f;
             _epilogueAct = 0;
@@ -662,8 +898,16 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             IsGameCleared = false;
             IsCanopyBroken = false;
             _leverPulled = false;
+            HideGameClearModalUI();
+            if (_clearUiRoot != null)
+            {
+                Destroy(_clearUiRoot);
+                _clearUiRoot = null;
+            }
+            _leverPullLockUntil = 0f;
             if (_scriptUiRoot != null)
                 _scriptUiRoot.SetActive(false);
+            SetLeverPromptUI(false, false);
             SetExplorationHudVisible(true);
             SetCinematicCamera(false);
             var p = AdventurePlayerController.Instance;
@@ -689,6 +933,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         ClearEndingRuntimeState(ignoreSavedCanopy: false);
         DestroySkybreakWorldFx();
+        RestoreSkybreakAscentBlockers();
         SetExplorationHudVisible(true);
         SetCinematicCamera(false);
         AdventureMusicDirector.Ensure();
@@ -697,8 +942,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 演出確認用（F9）：パーツ11個取得済み・天蓋未開放から開始。
-    /// ※12個目を取ってからレバー。警告クライマックスには飛ばない。
+    /// 演出確認用（F9）：パーツ12個・南側レバー前へ移動し、少し待って自動でレバー開放。
     /// </summary>
     public void DebugJumpToCanopyOpening()
     {
@@ -711,13 +955,16 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _instance = this;
 
         ClearEndingRuntimeState(ignoreSavedCanopy: true);
+        _leverPullLockUntil = 0f;
+        FixPodiumColliders();
         BuildTowerLever();
         DestroySkybreakWorldFx();
         SetExplorationHudVisible(true);
         SetCinematicCamera(false);
+        EnsureEventSystemForUi();
 
         AdventureScrapManager.Ensure();
-        AdventureScrapManager.Instance?.ResetToCount(11);
+        AdventureScrapManager.Instance?.ResetToCount(AdventureScrapManager.TotalScrapCount);
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.ResetSkybreakMusicState();
 
@@ -728,6 +975,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         FindAnyObjectByType<AdventureRustFloatOpening>()?.ForceDismissForGameplay();
+        ClearBoardsBlockingLever();
 
         var player = AdventurePlayerController.Instance
                      ?? Object.FindFirstObjectByType<AdventurePlayerController>();
@@ -735,7 +983,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             player.SetAutoGlideMode(false);
             player.ForceGroundReset();
-            Vector3 pos = new Vector3(512f, 63.5f, 504f);
+            Vector3 pos = new Vector3(_mainLeverPos.x, TerraceTopY + 0.12f, _mainLeverPos.z - 3.2f);
             var cc = player.GetComponent<CharacterController>();
             if (cc != null) cc.enabled = false;
             player.transform.SetPositionAndRotation(pos, Quaternion.Euler(0f, 0f, 0f));
@@ -752,15 +1000,17 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             drone.oilCount = Mathf.Max(drone.oilCount, 2);
             drone.ResetClimaxState();
             drone.ClearSpeech();
-            drone.SpeakCustom("あと1個で翼が完成する！最後のパーツを見つけてから、真鍮レバーを引こう、Niko！", 6.0f);
         }
 
-        ClearBoardsBlockingLever();
         _leverHoldTimer = 0f;
+        OnAllScrapsCollectedForLever();
         if (player != null)
             UpdateLeverProximity(player);
 
-        Debug.Log("[RustAndFloat] F9: パーツ11/12・天蓋未開放から開始（12個目取得→巨大レバー→タイトルボード）");
+        // 遅延なしで即開放（F9再演のみ forceRestart）
+        BeginCanopyOpeningFromLever(true, forceRestart: true);
+
+        Debug.Log("[RustAndFloat] F9: レバー前へ移動＋天蓋開放を即開始");
     }
 
     void ClearEndingRuntimeState(bool ignoreSavedCanopy)
@@ -777,7 +1027,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _suppressClimax = false;
         _climaxCrisisStarted = false;
         _climaxOilInjected = false;
+        _climaxOilWaiting = false;
         _oilHoldTimer = 0f;
+        _climaxBeatIndex = -1;
+        _climaxOverdriveCinematicUntil = 0f;
+        _climaxPostOilPhase = 0;
+        _climaxPostOilUntil = 0f;
         _epilogueTriggered = false;
         _epilogueAlpha = 0f;
         _epilogueAct = 0;
@@ -786,11 +1041,32 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _scriptBoardTitle = "";
         _scriptBoardSpeaker = "";
         _scriptBoardBody = "";
+        _canopyBeatIndex = -1;
+        _scriptHoldTimer = 0f;
+        _pendingClimaxAfterCanopy = false;
+        _pendingClimaxDeadline = 0f;
         _showGameClearModal = false;
         _playerNearby = false;
         _leverHoldTimer = 0f;
 
         TeardownScriptBoardUi();
+        HideOilPromptUI();
+        HideGameClearModalUI();
+        if (_clearUiRoot != null)
+        {
+            Destroy(_clearUiRoot);
+            _clearUiRoot = null;
+        }
+        if (_oilUiRoot != null)
+        {
+            Destroy(_oilUiRoot);
+            _oilUiRoot = null;
+            _oilGaugeFill = null;
+            _oilTitleUi = null;
+            _oilPromptUi = null;
+            _oilHoldLabelUi = null;
+            _oilHoldBtn = null;
+        }
     }
 
     void TeardownScriptBoardUi()
@@ -815,6 +1091,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void DestroySkybreakWorldFx()
     {
+        StopSkybreakWindAmbience();
         if (_hyperUpdraftGo != null)
         {
             Destroy(_hyperUpdraftGo);
@@ -823,6 +1100,109 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         DestroyAllByName("SkybreakHyperUpdraft");
         DestroyAllByName("WildernessPanorama");
         DestroyAllByName("SkybreakEffect");
+    }
+
+    /// <summary>天蓋破壊ボード表示と同時に、外気の冷たい風音をフェードイン</summary>
+    void StartSkybreakWindAmbience()
+    {
+        if (_skybreakWindClip == null)
+            _skybreakWindClip = LoadOrSynthesizeSkybreakWindClip();
+
+        if (_skybreakWindSource == null)
+        {
+            var go = new GameObject("SkybreakWindAmbience");
+            go.transform.SetParent(transform, false);
+            _skybreakWindSource = go.AddComponent<AudioSource>();
+            _skybreakWindSource.spatialBlend = 0f;
+            _skybreakWindSource.loop = true;
+            _skybreakWindSource.playOnAwake = false;
+        }
+
+        _skybreakWindSource.clip = _skybreakWindClip;
+        _skybreakWindSource.volume = 0f;
+        if (!_skybreakWindSource.isPlaying)
+            _skybreakWindSource.Play();
+        StartCoroutine(FadeAudioSource(_skybreakWindSource, 0.22f, 1.4f));
+    }
+
+    void StopSkybreakWindAmbience()
+    {
+        if (_skybreakWindSource == null) return;
+        if (_skybreakWindSource.isPlaying)
+            StartCoroutine(FadeOutAndStopWind());
+        else
+            _skybreakWindSource.volume = 0f;
+    }
+
+    IEnumerator FadeOutAndStopWind()
+    {
+        var src = _skybreakWindSource;
+        if (src == null) yield break;
+        float start = src.volume;
+        float t = 0f;
+        while (t < 0.8f && src != null)
+        {
+            t += Time.unscaledDeltaTime;
+            src.volume = Mathf.Lerp(start, 0f, t / 0.8f);
+            yield return null;
+        }
+        if (src != null)
+        {
+            src.Stop();
+            src.volume = 0f;
+        }
+    }
+
+    IEnumerator FadeAudioSource(AudioSource src, float targetVol, float duration)
+    {
+        if (src == null) yield break;
+        float start = src.volume;
+        float t = 0f;
+        while (t < duration && src != null)
+        {
+            t += Time.unscaledDeltaTime;
+            src.volume = Mathf.Lerp(start, targetVol, t / duration);
+            yield return null;
+        }
+        if (src != null) src.volume = targetVol;
+    }
+
+    static AudioClip LoadOrSynthesizeSkybreakWindClip()
+    {
+        // Resources にあれば実音源を優先
+        var fromRes = Resources.Load<AudioClip>("skywind_1");
+        if (fromRes != null) return fromRes;
+
+#if UNITY_EDITOR
+        var fromEditor = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(
+            "Assets/Audio/AudioFiles/03_amb/skywind_1.wav");
+        if (fromEditor != null) return fromEditor;
+#endif
+
+        return SynthesizeColdWindClip();
+    }
+
+    static AudioClip SynthesizeColdWindClip()
+    {
+        const int rate = 22050;
+        int count = rate * 4;
+        float[] data = new float[count];
+        float lp = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            float t = i / (float)rate;
+            float noise = (UnityEngine.Random.value * 2f - 1f);
+            lp = Mathf.Lerp(lp, noise, 0.08f);
+            float gust = 0.55f + 0.45f * Mathf.Sin(t * 0.7f) * Mathf.Sin(t * 1.3f + 0.4f);
+            float low = Mathf.Sin(2f * Mathf.PI * 55f * t) * 0.12f;
+            float env = 1f;
+            if (i < rate / 5) env = i / (rate / 5f);
+            else if (i > count - rate / 5) env = (count - i) / (rate / 5f);
+            data[i] = (lp * 0.72f + low) * gust * env * 0.35f;
+        }
+        var clip = AudioClip.Create("SkybreakColdWind", count, 1, rate, false);
+        clip.SetData(data, 0);
+        return clip;
     }
 
     static void DestroyAllByName(string objectName)
@@ -861,41 +1241,28 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _endingSequenceActive = true;
         _suppressClimax = true;
         _climaxCrisisStarted = false;
-        // IsCanopyBroken / 上昇気流 はダイブ確定後。BGMはナレーションから
+        _pendingClimaxAfterCanopy = false;
+        _pendingClimaxDeadline = 0f;
+        // シークエンス終了まで再入禁止（短いロックだと台本中に最初へ巻き戻る）
+        _leverPullLockUntil = Time.unscaledTime + 3600f;
+        SetLeverPromptUI(false, false);
+        Debug.Log("[RustAndFloat] レバー作動 → 天蓋開放シークエンス開始");
         StartCoroutine(SkybreakSequenceRoutine());
     }
 
     IEnumerator SkybreakSequenceRoutine()
     {
-        // クライマックス中は蝉時雨を完全カット（BGM・セリフを優先）
         AdventureCicadaAmbienceManager.Ensure();
         AdventureCicadaAmbienceManager.Instance?.MuteForEndingSequence();
 
         var player = AdventurePlayerController.Instance
                      ?? Object.FindFirstObjectByType<AdventurePlayerController>();
-        // 台本中に空中で浮いたままにならないよう接地へ戻す
         if (player != null)
             player.ForceGroundReset();
 
-        // 1. レバーをガチャンと手前へ引き倒す
         if (_audio != null)
             _audio.PlayOneShot(MakeHeavyLeverSound(), 0.9f);
-
-        float elapsed = 0f;
-        float duration = 0.65f;
-        Quaternion startRot = _leverHandle != null ? _leverHandle.localRotation : Quaternion.identity;
-        Quaternion endRot = Quaternion.Euler(38f, 0f, 0f);
-
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / duration;
-            foreach (var h in _allLeverHandles)
-            {
-                if (h != null) h.localRotation = Quaternion.Slerp(startRot, endRot, t * t);
-            }
-            yield return null;
-        }
+        StartCoroutine(AnimateLeverPullRoutine());
 
         SpawnLeverSparks(new Vector3(512f, 63.5f, 512f));
         SuppressAllSpeechAndBanners();
@@ -904,87 +1271,239 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (_hyperUpdraftGo != null)
             _hyperUpdraftGo.SetActive(false);
 
-        yield return StartCoroutine(SkybreakFromTitleBoardRoutine());
+        // 台本は Update 駆動（このコルーチンが止まっても進む）
+        BeginCanopyScriptBeats();
+        yield break;
     }
 
-    /// <summary>天蓋破壊ボード（タイトル＋ナレ）から台本〜ダイブ。RustはNikoに寄り添う</summary>
-    IEnumerator SkybreakFromTitleBoardRoutine()
+    IEnumerator AnimateLeverPullRoutine()
+    {
+        float elapsed = 0f;
+        float duration = 0.65f;
+        Quaternion startRot = _leverHandle != null ? _leverHandle.localRotation : Quaternion.identity;
+        Quaternion endRot = Quaternion.Euler(38f, 0f, 0f);
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            foreach (var h in _allLeverHandles)
+            {
+                if (h != null) h.localRotation = Quaternion.Slerp(startRot, endRot, t * t);
+            }
+            yield return null;
+        }
+    }
+
+    void BeginCanopyScriptBeats()
     {
         _suppressClimax = true;
         _climaxCrisisStarted = false;
         _endingSequenceActive = true;
+        _leverPulled = true;
+        _scriptHoldTimer = 0f;
+        _pendingClimaxAfterCanopy = false;
+        _pendingClimaxDeadline = 0f;
 
         var player = AdventurePlayerController.Instance
                      ?? Object.FindFirstObjectByType<AdventurePlayerController>();
         if (player != null && player.transform.position.y < 90f)
             player.ForceGroundReset();
 
-        // ボード表示と同時に天空突破BGM（D→F#m→Em→Gm）を開始
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.PlaySkybreakTheme(force: true);
+        StartSkybreakWindAmbience();
 
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
             drone.ClearSpeech();
-            // 天蓋破壊ボード表示と同時に、Nikoの頭の辺りへ寄り添う
             drone.StartSkybreakNestle();
         }
 
-        // ① 天蓋破壊ボード（タイトル＋ナレーション）
-        yield return StartCoroutine(ShowScriptBeat(
-            "天蓋崩壊　未知の荒野への跳躍",
-            "",
-            "空が割れた。\n冷たい本物の風が頬を打つ。",
-            new Color(1f, 0.9f, 0.45f, 1f)));
+        _canopyBeatIndex = 0;
+        PresentCanopyBeat(0);
+        Debug.Log("[RustAndFloat] 天蓋台本を Update 駆動で開始（全" + CanopyBeats.Length + "枚）");
+    }
 
-        // 台本：Rust → Niko → …
-        yield return StartCoroutine(ShowScriptBeat(
-            "",
-            "✦ 相棒 Rust",
-            "この楽園もAIに最適化された虚構の島だったんだ!!",
-            new Color(0.35f, 0.92f, 0.98f, 1f)));
+    void PresentCanopyBeat(int index)
+    {
+        if (index < 0 || index >= CanopyBeats.Length) return;
+        var beat = CanopyBeats[index];
 
-        yield return StartCoroutine(ShowScriptBeat(
-            "",
-            "✦ 相棒 Rust",
-            "空が……割れるよ、Niko！　つかまって！！",
-            new Color(0.35f, 0.92f, 0.98f, 1f)));
+        SuppressAllSpeechAndBanners();
+        _scriptBoardTitle = beat.Title ?? "";
+        _scriptBoardSpeaker = beat.Speaker ?? "";
+        _scriptBoardBody = beat.Body ?? "";
+        _scriptBoardAccent = beat.Accent;
+        _scriptBoardIsDive = beat.IsDive;
+        _scriptBoardAdvance = false;
+        _scriptBoardVisible = true;
+        _scriptBoardOpenedAt = Time.unscaledTime;
+        _scriptHoldTimer = 0f;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        Time.timeScale = 1f;
 
-        yield return StartCoroutine(ShowScriptBeat(
-            "",
-            "✦ Niko",
-            "ありがとうRust…！君がいたからここまで来られた。行こう！",
-            new Color(1f, 0.88f, 0.45f, 1f)));
+        EnsureEventSystemForUi();
+        EnsureScriptBoardUI();
+        ApplyScriptBoardUI();
 
-        yield return StartCoroutine(ShowScriptBeat(
-            "",
-            "✦ 相棒 Rust",
-            "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Niko！！",
-            new Color(0.35f, 0.92f, 0.98f, 1f)));
+        if (_scriptHintUi != null)
+        {
+            _scriptHintUi.text = beat.IsDive
+                ? "【Space長押し / 下のボタン】ダイブ！"
+                : "【Space長押し / 下のボタン】つづき";
+        }
 
-        yield return StartCoroutine(ShowScriptBeat(
-            "",
-            "",
-            "タワー中央の光の柱へ飛び込み、\n空の裂け目を突き抜けよう。",
-            new Color(0.85f, 0.95f, 1f, 1f)));
+        Debug.Log($"[RustAndFloat] 台本 {index + 1}/{CanopyBeats.Length}: {beat.Title} {beat.Speaker}");
+    }
 
-        yield return StartCoroutine(ShowScriptBeat(
-            "空の裂け目へ",
-            "",
-            "【Space / クリック】でダイブする",
-            new Color(1f, 0.88f, 0.4f, 1f),
-            isDive: true));
+    void TickCanopyScriptBeats()
+    {
+        // 孤児救済：シークエンス中にボードだけ残ってインデックスが死んでいる場合
+        if (_canopyBeatIndex < 0)
+        {
+            if (_endingSequenceActive && _scriptBoardVisible && !_climaxCrisisStarted && !_epilogueTriggered)
+            {
+                Debug.LogWarning("[RustAndFloat] 台本インデックス喪失を検出 → Update駆動で再開");
+                _canopyBeatIndex = 0;
+                PresentCanopyBeat(0);
+            }
+            return;
+        }
 
-        // ダイブ確定後に天蓋フラグ・セーブ・上昇気流
-        IsCanopyBroken = true;
-        AdventureSaveManager.Instance?.SaveGame("天蓋開放・到達記録を保存しました");
+        float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
-        BuildSkybreakHyperUpdraft(new Vector3(512f, 62f, 512f));
+        // 入力
+        if (openFor >= 0.35f)
+        {
+            PollScriptBoardAdvance();
+
+            if (IsDiveConfirmHeld())
+            {
+                _scriptHoldTimer += Time.unscaledDeltaTime;
+                if (_scriptHoldTimer >= 0.08f)
+                    _scriptBoardAdvance = true;
+            }
+            else
+            {
+                _scriptHoldTimer = 0f;
+            }
+
+            // 入力が一切取れなくても必ず進む（通常3秒／ダイブ5秒）
+            float autoSec = _scriptBoardIsDive ? 5f : 3.0f;
+            if (openFor >= autoSec)
+                _scriptBoardAdvance = true;
+        }
+
+        if (!_scriptBoardAdvance) return;
+
+        int next = _canopyBeatIndex + 1;
+        if (next >= CanopyBeats.Length)
+        {
+            FinishCanopyScriptBeats();
+            return;
+        }
+
+        _canopyBeatIndex = next;
+        PresentCanopyBeat(next);
+    }
+
+    void FinishCanopyScriptBeats()
+    {
+        Debug.Log("[RustAndFloat] 天蓋台本完了 → 光の柱上昇 → クライマックスへ");
+        _canopyBeatIndex = -1;
+        _scriptBoardAdvance = false;
+        _scriptBoardVisible = false;
+        _scriptBoardIsDive = false;
+        _scriptBoardTitle = "";
+        _scriptBoardSpeaker = "";
+        _scriptBoardBody = "";
+        if (_scriptUiRoot != null)
+            _scriptUiRoot.SetActive(false);
+
         _endingSequenceActive = false;
-        _suppressClimax = false; // 高度到達後のクライマックスは許可
+        _leverPulled = false;
+        _leverPullLockUntil = 0f;
+        _suppressClimax = false;
         _climaxOilInjected = false;
         _climaxCrisisStarted = false;
+        _ignoreSavedCanopyState = false;
+        IsCanopyBroken = true;
+
+        // 上昇演出を優先。最大4.5秒でクライマックスへ必ず接続（後半途切れ防止）
+        _pendingClimaxAfterCanopy = true;
+        _pendingClimaxDeadline = Time.unscaledTime + 4.5f;
+
+        AdventureSaveManager.Instance?.SaveGame("天蓋開放・到達記録を保存しました");
+
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+            drone.StartSkybreakNestle();
+
+        BuildSkybreakHyperUpdraft(new Vector3(512f, 62f, 512f));
+
+        var player = AdventurePlayerController.Instance
+                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+        if (player != null)
+        {
+            player.PrepareSkybreakPillarAscend();
+            var cc = player.GetComponent<CharacterController>();
+            if (cc != null) cc.enabled = false;
+            float startY = Mathf.Max(player.transform.position.y, TerraceTopY + 1f);
+            player.transform.position = new Vector3(512f, startY + 2.5f, 512f);
+            if (cc != null) cc.enabled = true;
+            player.BeginSkybreakPillarAscend(new Vector3(512f, 0f, 512f), 36f, 150f);
+        }
+    }
+
+    /// <summary>光の柱到達：上昇完了からクライマックスへ</summary>
+    public void NotifyPillarAscendComplete()
+    {
+        if (_climaxCrisisStarted || _epilogueTriggered) return;
+        _pendingClimaxAfterCanopy = true;
+        _pendingClimaxDeadline = 0f;
+        _suppressClimax = false;
+        _ignoreSavedCanopyState = false;
+        if (!_isCanopyBroken)
+            IsCanopyBroken = true;
+
+        var player = AdventurePlayerController.Instance
+                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+        TryStartPendingClimax(player);
+    }
+
+    void TryStartPendingClimax(AdventurePlayerController player)
+    {
+        if (!_pendingClimaxAfterCanopy) return;
+        if (_climaxCrisisStarted || _epilogueTriggered) return;
+        if (_canopyBeatIndex >= 0 || _endingSequenceActive) return;
+
+        bool highEnough = player != null
+            && (player.transform.position.y >= 140f || player.IsAutoGliding);
+        bool timedOut = Time.unscaledTime >= _pendingClimaxDeadline;
+        if (!highEnough && !timedOut) return;
+
+        _pendingClimaxAfterCanopy = false;
+        _suppressClimax = false;
+        _ignoreSavedCanopyState = false;
+        if (!_isCanopyBroken)
+            IsCanopyBroken = true;
+
+        // タイムアウト時のみ高度を強制確保（通常は上昇演出の到達を活かす）
+        if (player != null && player.transform.position.y < 140f)
+            player.ForceSkybreakArrival(new Vector3(512f, 150f, 512f), 150f);
+
+        Debug.Log($"[RustAndFloat] クライマックス開始 high={highEnough} timeout={timedOut}");
+        BeginClimaxSequence();
+    }
+
+    /// <summary>天蓋破壊ボード（旧コルーチン版は未使用・互換のため残置）</summary>
+    IEnumerator SkybreakFromTitleBoardRoutine()
+    {
+        BeginCanopyScriptBeats();
+        while (_canopyBeatIndex >= 0)
+            yield return null;
     }
 
     void SuppressAllSpeechAndBanners()
@@ -1002,7 +1521,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         SuppressAllSpeechAndBanners();
 
         var player = AdventurePlayerController.Instance;
-        if (player != null && player.transform.position.y < 90f)
+        if (player != null
+            && player.transform.position.y < 90f
+            && !player.IsSkybreakPillarAscending
+            && !player.IsAutoGliding)
             player.ForceGroundReset();
 
         _scriptBoardTitle = title ?? "";
@@ -1013,23 +1535,57 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _scriptBoardAdvance = false;
         _scriptBoardVisible = true;
         _scriptBoardOpenedAt = Time.unscaledTime;
-        _scriptAdvanceArmed = false;
-        _scriptPrevPointerDown = true; // 表示直後の押しっぱなしは無視
-        _scriptPrevKeyDown = true;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+        Time.timeScale = 1f;
 
+        EnsureEventSystemForUi();
         EnsureScriptBoardUI();
         ApplyScriptBoardUI();
 
-        // 最低表示（短め）＋入力アーム待ち
-        const float minShow = 0.25f;
+        if (_scriptBtn != null)
+        {
+            var btnRt = _scriptBtn.GetComponent<RectTransform>();
+            if (btnRt != null)
+            {
+                btnRt.sizeDelta = isDive ? new Vector2(560f, 72f) : new Vector2(520f, 56f);
+                btnRt.anchoredPosition = new Vector2(0f, 16f);
+            }
+        }
+        if (_scriptHintUi != null)
+        {
+            _scriptHintUi.fontSize = isDive ? 22 : 18;
+            _scriptHintUi.text = isDive
+                ? "【Space長押し / クリック】ダイブ！"
+                : "【Space長押し / クリック】つづき";
+        }
+
+        // 最低表示
+        const float minShow = 0.5f;
         while (Time.unscaledTime - _scriptBoardOpenedAt < minShow)
             yield return null;
 
+        float holdTimer = 0f;
+        float autoAfter = isDive ? 8f : 3.5f; // 入力が取れなくても必ず進む
         while (!_scriptBoardAdvance)
         {
             PollScriptBoardAdvance();
+
+            // 全台本：Space/クリック押しっぱなしで進む
+            if (IsDiveConfirmHeld())
+            {
+                holdTimer += Time.unscaledDeltaTime;
+                if (holdTimer >= 0.12f)
+                    _scriptBoardAdvance = true;
+            }
+            else
+            {
+                holdTimer = 0f;
+            }
+
+            if (Time.unscaledTime - _scriptBoardOpenedAt > autoAfter)
+                _scriptBoardAdvance = true;
+
             yield return null;
         }
 
@@ -1044,56 +1600,23 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         yield return null;
     }
 
-    /// <summary>クリック／Space の立ち上がりで確実に進む（UI・Input Systemの漏れ対策）</summary>
-    void PollScriptBoardAdvance()
+    /// <summary>プレイヤー／UIから台本送りを直接要求</summary>
+    public void NotifyScriptBoardAdvance()
     {
-        if (!_scriptBoardVisible || _scriptBoardAdvance) return;
-        if (Time.unscaledTime - _scriptBoardOpenedAt < 0.25f) return;
-
-        bool pointerDown = IsScriptPointerDown();
-        bool keyDown = IsScriptKeyDown();
-
-        // 一度離してから次の押下だけを受け付ける
-        if (!pointerDown && !keyDown)
-            _scriptAdvanceArmed = true;
-
-        if (_scriptAdvanceArmed)
-        {
-            bool pointerPressed = pointerDown && !_scriptPrevPointerDown;
-            bool keyPressed = keyDown && !_scriptPrevKeyDown;
-            if (pointerPressed || keyPressed)
-                _scriptBoardAdvance = true;
-        }
-
-        _scriptPrevPointerDown = pointerDown;
-        _scriptPrevKeyDown = keyDown;
+        if (!_scriptBoardVisible) return;
+        float minShow = _climaxCrisisStarted && _climaxBeatIndex >= ClimaxOilSlot ? 1.8f : 0.45f;
+        if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
+        _scriptBoardAdvance = true;
+        Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");
     }
 
-    static bool IsScriptPointerDown()
-    {
-        var mouse = UnityEngine.InputSystem.Mouse.current;
-        if (mouse != null && (mouse.leftButton.isPressed || mouse.rightButton.isPressed))
-            return true;
-        var pen = UnityEngine.InputSystem.Pen.current;
-        if (pen != null && pen.tip.isPressed)
-            return true;
-        var touch = UnityEngine.InputSystem.Touchscreen.current;
-        if (touch != null && touch.primaryTouch.press.isPressed)
-            return true;
-        try
-        {
-            if (Input.GetMouseButton(0) || Input.GetMouseButton(1))
-                return true;
-        }
-        catch { }
-        return false;
-    }
-
-    static bool IsScriptKeyDown()
+    static bool IsDiveConfirmHeld()
     {
         var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && (kb.spaceKey.isPressed || kb.enterKey.isPressed ||
-                           kb.numpadEnterKey.isPressed || kb.eKey.isPressed))
+        if (kb != null && (kb.spaceKey.isPressed || kb.enterKey.isPressed || kb.eKey.isPressed))
+            return true;
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null && (mouse.leftButton.isPressed || mouse.rightButton.isPressed))
             return true;
         var pad = UnityEngine.InputSystem.Gamepad.current;
         if (pad != null && (pad.buttonSouth.isPressed || pad.buttonWest.isPressed))
@@ -1102,9 +1625,54 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             if (Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.E))
                 return true;
+            if (Input.GetMouseButton(0) || Input.GetMouseButton(1))
+                return true;
         }
         catch { }
         return false;
+    }
+
+    /// <summary>クリック／Space で台本を進める（Input System の wasPressed を直接見る）</summary>
+    void PollScriptBoardAdvance()
+    {
+        if (!_scriptBoardVisible || _scriptBoardAdvance) return;
+        if (Time.unscaledTime - _scriptBoardOpenedAt < 0.35f) return;
+
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null &&
+            (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame ||
+             kb.numpadEnterKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame))
+        {
+            _scriptBoardAdvance = true;
+            return;
+        }
+
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null &&
+            (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
+        {
+            _scriptBoardAdvance = true;
+            return;
+        }
+
+        var pad = UnityEngine.InputSystem.Gamepad.current;
+        if (pad != null &&
+            (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame))
+        {
+            _scriptBoardAdvance = true;
+            return;
+        }
+
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) ||
+                Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.E) ||
+                Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
+            {
+                _scriptBoardAdvance = true;
+            }
+        }
+        catch { }
     }
 
     void EnsureScriptBoardUI()
@@ -1133,24 +1701,17 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         if (_scriptUiRoot != null)
         {
-            _scriptUiRoot.SetActive(true);
+            _scriptUiRoot.SetActive(_scriptBoardVisible);
             return;
         }
 
         if (UnityEngine.EventSystems.EventSystem.current == null)
         {
-            var es = new GameObject("EventSystem");
-            es.AddComponent<UnityEngine.EventSystems.EventSystem>();
-            es.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            EnsureEventSystemForUi();
         }
         else
         {
-            var es = UnityEngine.EventSystems.EventSystem.current;
-            if (es.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>() == null
-                && es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>() == null)
-            {
-                es.gameObject.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
-            }
+            EnsureEventSystemForUi();
         }
 
         Font font = ResolveUiFont();
@@ -1241,10 +1802,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void RequestScriptBoardAdvance()
     {
-        if (!_scriptBoardVisible) return;
-        if (Time.unscaledTime - _scriptBoardOpenedAt < 0.25f) return;
-        _scriptAdvanceArmed = true;
-        _scriptBoardAdvance = true;
+        NotifyScriptBoardAdvance();
     }
 
     void ApplyScriptBoardUI()
@@ -1262,10 +1820,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         bool isDialogue = hasSpeaker; // Niko / Rust セリフ
         bool isNarration = !isDialogue; // タイトル説明・ナレ・操作説明
 
-        // セリフ＝大きく／説明＝やや控えめ、見た目で差をつける
+        // セリフ／説明とも読みやすい中サイズ（旧セリフ34は大きすぎた）
         int titleSize = isNarration ? 30 : 26;
-        int speakerSize = 22;
-        int bodySize = isDialogue ? 34 : 28;
+        int speakerSize = 20;
+        int bodySize = 28;
         Color bodyColor = isDialogue
             ? new Color(1f, 1f, 1f, 1f)
             : new Color(0.88f, 0.94f, 1f, 0.98f);
@@ -1303,6 +1861,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             _scriptTitleUi.gameObject.SetActive(hasTitle);
             if (hasTitle)
             {
+                Font f = ResolveUiFont();
+                _scriptTitleUi.font = f;
+                PrepareFontForText(f, _scriptBoardTitle, titleSize, FontStyle.Bold);
                 _scriptTitleUi.text = _scriptBoardTitle;
                 _scriptTitleUi.color = _scriptBoardAccent;
                 _scriptTitleUi.fontSize = titleSize;
@@ -1320,6 +1881,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             _scriptSpeakerUi.gameObject.SetActive(hasSpeaker);
             if (hasSpeaker)
             {
+                Font f = ResolveUiFont();
+                _scriptSpeakerUi.font = f;
+                PrepareFontForText(f, _scriptBoardSpeaker, speakerSize, FontStyle.Bold);
                 _scriptSpeakerUi.text = _scriptBoardSpeaker;
                 _scriptSpeakerUi.color = _scriptBoardAccent;
                 _scriptSpeakerUi.fontSize = speakerSize;
@@ -1334,6 +1898,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         if (_scriptBodyUi != null)
         {
+            Font f = ResolveUiFont();
+            _scriptBodyUi.font = f;
+            PrepareFontForText(f, _scriptBoardBody, bodySize, isDialogue ? FontStyle.Bold : FontStyle.Normal);
             _scriptBodyUi.text = _scriptBoardBody;
             _scriptBodyUi.color = bodyColor;
             _scriptBodyUi.fontSize = bodySize;
@@ -1365,9 +1932,13 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         if (_scriptHintUi != null)
         {
-            _scriptHintUi.text = _scriptBoardIsDive
+            string hint = _scriptBoardIsDive
                 ? "【Space / クリック】空の裂け目へダイブ"
                 : "【Space / クリック】つづき";
+            Font f = ResolveUiFont();
+            _scriptHintUi.font = f;
+            PrepareFontForText(f, hint, 16, FontStyle.Bold);
+            _scriptHintUi.text = hint;
             _scriptHintUi.fontSize = 16;
             _scriptHintUi.color = new Color(1f, 0.96f, 0.88f, 1f);
         }
@@ -1397,28 +1968,91 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         return text;
     }
 
+    static Font _cachedUiFont;
+
     static Font ResolveUiFont()
     {
-        string[] candidates =
-        {
-            "Hiragino Sans",
-            "Hiragino Kaku Gothic ProN",
-            "HiraginoSans-W3",
-            "YuGothic",
-            "Yu Gothic",
-            "Arial Unicode MS"
-        };
-        foreach (string name in candidates)
+        // 壊れた OS フォント（Hiragino Sans）を掴んだまま残さない
+        if (_cachedUiFont != null)
         {
             try
             {
-                Font os = Font.CreateDynamicFontFromOSFont(name, 28);
-                if (os != null) return os;
+                CharacterInfo info;
+                _cachedUiFont.RequestCharactersInTexture("あ", 28, FontStyle.Normal);
+                if (!_cachedUiFont.GetCharacterInfo('あ', out info, 28, FontStyle.Normal))
+                    _cachedUiFont = null;
+            }
+            catch { _cachedUiFont = null; }
+        }
+        if (_cachedUiFont != null) return _cachedUiFont;
+        _cachedUiFont = CreateJapaneseFont(28);
+        return _cachedUiFont;
+    }
+
+    /// <summary>
+    /// EditorのGUI.skin.fontは使わない（Play中に「Gizmos」等のEditor文字が化けるため）。
+    /// Unity 6 では "Hiragino Sans" が face 読み込みに失敗するため除外する。
+    /// </summary>
+    static Font CreateJapaneseFont(int size)
+    {
+        string[] candidates =
+        {
+            "HiraginoSans-W3",
+            "HiraginoSans-W6",
+            "Hiragino Kaku Gothic ProN",
+            "Hiragino Kaku Gothic ProN W3",
+            "YuGothic",
+            "Yu Gothic",
+            "YuGothic-Medium",
+            "Apple SD Gothic Neo",
+            "Arial Unicode MS",
+            "Helvetica Neue"
+        };
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            try
+            {
+                Font font = Font.CreateDynamicFontFromOSFont(candidates[i], size);
+                if (font == null) continue;
+                font.RequestCharactersInTexture("あA", size, FontStyle.Normal);
+                CharacterInfo info;
+                if (font.GetCharacterInfo('あ', out info, size, FontStyle.Normal) ||
+                    font.GetCharacterInfo('A', out info, size, FontStyle.Normal))
+                    return font;
             }
             catch { }
         }
+
         return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
                ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+    }
+
+    static void PrepareFontForText(Font font, string text, int fontSize, FontStyle style = FontStyle.Normal)
+    {
+        if (font == null || string.IsNullOrEmpty(text)) return;
+        font.RequestCharactersInTexture(text, fontSize, style);
+        font.RequestCharactersInTexture(text, fontSize, FontStyle.Normal);
+        font.RequestCharactersInTexture(text, fontSize, FontStyle.Bold);
+    }
+
+    static GUIStyle MakeCleanLabelStyle(Font font, int fontSize, FontStyle fontStyle, TextAnchor align, bool wordWrap)
+    {
+        // GUI.skin.label をコピーするとEditorのGizmosフォントが混入する
+        var style = new GUIStyle
+        {
+            font = font,
+            fontSize = fontSize,
+            fontStyle = fontStyle,
+            alignment = align,
+            wordWrap = wordWrap,
+            richText = false,
+            clipping = TextClipping.Overflow
+        };
+        style.normal.textColor = Color.white;
+        style.hover.textColor = Color.white;
+        style.active.textColor = Color.white;
+        return style;
     }
 
     bool CheckScriptBoardAdvanceInput()
@@ -1501,21 +2135,25 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             Destroy(_hyperUpdraftGo);
         }
 
+        // 中央オベリスク／頂上レバーが光の柱を塞いで上昇不能になるのを防ぐ
+        ClearSkybreakAscentBlockers();
+
         _hyperUpdraftGo = new GameObject("SkybreakHyperUpdraft");
         _hyperUpdraftGo.transform.position = basePos;
 
         var updraft = _hyperUpdraftGo.AddComponent<AdventureThermalUpdraft>();
         updraft.autoLaunch = true; // 歩いて触れるだけでも自動で大空へダイブ・射出！
-        updraft.radius = 32.0f; // タワー中央テラス全域を覆う巨大な上昇気流
-        updraft.height = 180.0f; // 高度240m以上の空の裂け目まで突き抜ける
-        updraft.liftSpeed = 22.0f; // 超高速で大空へ射出！
+        updraft.radius = 48.0f; // 離れても上昇が切れないよう広め
+        updraft.height = 320.0f;
+        updraft.liftSpeed = 36.0f;
+        updraft.pullToCenter = true;
 
         // 天を衝く超巨大な天空光柱（シアン＆黄金に輝く半透明シリンダー）
         var pillarGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         pillarGo.name = "SkybreakHyperBeam";
         pillarGo.transform.SetParent(_hyperUpdraftGo.transform, false);
-        pillarGo.transform.localPosition = new Vector3(0f, 90f, 0f);
-        pillarGo.transform.localScale = new Vector3(20f, 90f, 20f);
+        pillarGo.transform.localPosition = new Vector3(0f, 120f, 0f);
+        pillarGo.transform.localScale = new Vector3(22f, 120f, 22f);
 
         // コライダーは不要（UpdraftのTriggerのみ使用）
         var pCol = pillarGo.GetComponent<Collider>();
@@ -1541,30 +2179,112 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         bLight.color = new Color(0.4f, 0.95f, 1.0f);
     }
 
+    /// <summary>光の柱上昇を塞ぐコライダーを徹底除去（中央オベリスク／頂上レバー／柱内障害）</summary>
+    static void ClearSkybreakAscentBlockers()
+    {
+        DisableCollidersOn("SanctuaryTopLeverStructure");
+        // 四方レバーのビーコン等は柱外だが、中央付近の固体も念のため
+        var top = GameObject.Find("SanctuaryTopLeverStructure");
+        if (top != null)
+            top.SetActive(false);
+
+        var tower = GameObject.Find("SanctuaryZero_Tower");
+        if (tower != null)
+        {
+            var mono = tower.transform.Find("CentralMonolith");
+            if (mono != null)
+            {
+                // 見た目は残し、物理だけ完全削除（enabled=false だと再有効化で戻る）
+                var cols = mono.GetComponentsInChildren<Collider>(true);
+                for (int i = 0; i < cols.Length; i++)
+                {
+                    if (cols[i] != null)
+                        Object.Destroy(cols[i]);
+                }
+            }
+
+            // タワー配下で柱シャフト内（中央付近・高所）の固体コライダーを無効化
+            var all = tower.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                var col = all[i];
+                if (col == null || col.isTrigger) continue;
+                string n = col.gameObject.name;
+                if (n.IndexOf("SolidWalk", System.StringComparison.Ordinal) >= 0) continue;
+                if (n.IndexOf("Podium", System.StringComparison.Ordinal) >= 0 && col.bounds.center.y < 70f) continue;
+                if (n.IndexOf("GridFloor", System.StringComparison.Ordinal) >= 0 && col.bounds.center.y < 70f) continue;
+
+                Vector3 c = col.bounds.center;
+                float dx = c.x - 512f;
+                float dz = c.z - 512f;
+                if (dx * dx + dz * dz < 16f * 16f && c.y > 68f)
+                    col.enabled = false;
+            }
+        }
+
+        // ワールド全体：光の柱カプセル内の固体を無効化
+        var hits = Physics.OverlapCapsule(
+            new Vector3(512f, 68f, 512f),
+            new Vector3(512f, 260f, 512f),
+            12f,
+            ~0,
+            QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < hits.Length; i++)
+        {
+            var h = hits[i];
+            if (h == null) continue;
+            if (h.GetComponentInParent<AdventurePlayerController>() != null) continue;
+            if (h.GetComponentInParent<AdventureThermalUpdraft>() != null) continue;
+            if (h.GetComponentInParent<AdventureRustDrone>() != null) continue;
+            // テラス床は残す
+            if (h.bounds.max.y < 68f) continue;
+            h.enabled = false;
+        }
+    }
+
+    static void DisableCollidersOn(string objectName)
+    {
+        var go = GameObject.Find(objectName);
+        if (go == null) return;
+        var cols = go.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < cols.Length; i++)
+        {
+            if (cols[i] != null)
+                cols[i].enabled = false;
+        }
+    }
+
+    /// <summary>ニューゲーム用：上昇経路のコライダーを戻す</summary>
+    static void RestoreSkybreakAscentBlockers()
+    {
+        var tower = GameObject.Find("SanctuaryZero_Tower");
+        var mono = tower != null ? tower.transform.Find("CentralMonolith") : null;
+        if (mono != null)
+        {
+            var cols = mono.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < cols.Length; i++)
+            {
+                if (cols[i] != null)
+                    cols[i].enabled = true;
+            }
+        }
+        // 頂上レバーは BuildTowerLever で作り直される
+    }
+
     void OnGUI()
     {
-        // 台本ボードを最優先（他UIより先に描画）
-        DrawScriptBoardGUI();
-        DrawClimaxCrisisGUI();
-        DrawGameClearModalGUI();
-
-        // シークエンス表示・実行中だけレバー再演ボタンを隠す
-        if (_scriptBoardVisible || _climaxCrisisStarted || _epilogueTriggered || _endingSequenceActive)
-        {
-            DrawEpilogueGUI();
+        // クリア／台本／注油／クライマックス中は IMGUI 禁止
+        // （GUI.Button＋壊れた日本語フォントが空ボード＋「Gizmos」3ボタンになる）
+        if (_showGameClearModal || _scriptBoardVisible || _climaxCrisisStarted || _epilogueTriggered
+            || _endingSequenceActive || _climaxOilWaiting || _climaxPostOilPhase > 0)
             return;
-        }
-
-        if (!IsPlayerNearLever)
-        {
-            DrawEpilogueGUI();
-            return;
-        }
 
         bool allCollected = IsLeverReadyToOpen;
-        bool canReplay = allCollected && (_leverPulled || IsCanopyBroken);
+        bool showLeverUi = IsPlayerNearLever || (allCollected && !IsCanopyBroken);
+        if (!showLeverUi)
+            return;
 
-        // 押しやすい超大型ボタン（画面下部中央）
+        bool canReplay = allCollected && (_leverPulled || IsCanopyBroken);
         float w = Mathf.Min(1100f, Screen.width * 0.94f);
         float h = 120f;
         float x = (Screen.width - w) * 0.5f;
@@ -1573,254 +2293,448 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         GUI.color = new Color(0.02f, 0.06f, 0.12f, 0.82f);
         GUI.DrawTexture(boxRect, Texture2D.whiteTexture);
-
-        // 長押しゲージ
         if (allCollected && _leverHoldTimer > 0f)
         {
             float fill = Mathf.Clamp01(_leverHoldTimer / LeverHoldSeconds);
             GUI.color = new Color(0.25f, 0.95f, 0.85f, 0.9f);
             GUI.DrawTexture(new Rect(x, y + h - 10f, w * fill, 10f), Texture2D.whiteTexture);
         }
-
         Color accentCol = allCollected ? new Color(0.35f, 0.95f, 1.0f, 0.95f) : new Color(1.0f, 0.85f, 0.40f, 0.9f);
         GUI.color = accentCol;
         GUI.DrawTexture(new Rect(x, y, w, 4f), Texture2D.whiteTexture);
         GUI.DrawTexture(new Rect(x, y + h - 4f, w, 4f), Texture2D.whiteTexture);
 
-        var btnStyle = new GUIStyle(GUI.skin.button)
-        {
-            fontSize = 34,
-            fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter
-        };
-        btnStyle.normal.background = Texture2D.whiteTexture;
-
-        if (allCollected)
-        {
-            GUI.color = new Color(0f, 0f, 0f, 0.01f);
-            if (GUI.Button(boxRect, GUIContent.none, btnStyle))
-                BeginCanopyOpeningFromLever(true);
-
-            string btnText = canReplay
-                ? "【E / Space 長押し or クリック】天蓋開放を再演する"
-                : "【E / Space 長押し or クリック】巨大真鍮レバーを引く";
-
-            var labelStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 34,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-            labelStyle.normal.textColor = new Color(0f, 0f, 0f, 0.9f);
-            GUI.Label(new Rect(x, y + 2f, w, h), btnText, labelStyle);
-            labelStyle.normal.textColor = new Color(0.35f, 0.98f, 0.88f, 1f);
-            GUI.Label(boxRect, btnText, labelStyle);
-        }
-        else
-        {
-            var scrapMgr = AdventureScrapManager.Instance ?? Object.FindFirstObjectByType<AdventureScrapManager>();
-            int count = scrapMgr != null ? scrapMgr.CollectedCount : 0;
-            var labelStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 28,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-            labelStyle.normal.textColor = new Color(1.0f, 0.85f, 0.45f);
-            GUI.Label(boxRect, $"【E】巨大真鍮レバーを調べる（要：遺物 12個 / 現在 {count}個）", labelStyle);
-        }
-
+        GUI.color = new Color(1f, 1f, 1f, 0.01f);
+        if (allCollected && GUI.Button(boxRect, GUIContent.none))
+            BeginCanopyOpeningFromLever(true);
         GUI.color = Color.white;
-        DrawEpilogueGUI();
     }
 
-    void DrawClimaxCrisisGUI()
+    /// <summary>台本：透明クリックのみ（文言はuGUI）</summary>
+    void DrawScriptBoardInputFallback()
     {
-        if (_ignoreSavedCanopyState) return;
-        // 台本／F9再生中は注油UIを絶対に出さない
-        if (_suppressClimax || _endingSequenceActive || _scriptBoardVisible) return;
-        if (!_climaxCrisisStarted || _climaxOilInjected) return;
+        if (!_scriptBoardVisible) return;
+        float w = Mathf.Min(640f, Screen.width * 0.85f);
+        float h = 64f;
+        float x = (Screen.width - w) * 0.5f;
+        float y = Screen.height - 96f;
+        GUI.color = new Color(1f, 1f, 1f, 0.01f);
+        if (GUI.Button(new Rect(x, y, w, h), GUIContent.none))
+        {
+            if (Time.unscaledTime - _scriptBoardOpenedAt >= 0.45f)
+                _scriptBoardAdvance = true;
+        }
+        GUI.color = Color.white;
 
-        // 映画のような上下黒帯
-        Color barCol = new Color(0.02f, 0.04f, 0.08f, 0.92f);
-        float barH = Mathf.Clamp(Screen.height * 0.11f, 70f, 120f);
-        GUI.color = barCol;
-        GUI.DrawTexture(new Rect(0, 0, Screen.width, barH), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(0, Screen.height - barH, Screen.width, barH), Texture2D.whiteTexture);
+        Event e = Event.current;
+        if (e == null) return;
+        if (Time.unscaledTime - _scriptBoardOpenedAt < 0.45f) return;
+        if (e.type == EventType.KeyDown &&
+            (e.keyCode == KeyCode.Space || e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter || e.keyCode == KeyCode.E))
+        {
+            _scriptBoardAdvance = true;
+            e.Use();
+        }
+        if (e.type == EventType.MouseDown && (e.button == 0 || e.button == 1))
+        {
+            _scriptBoardAdvance = true;
+            e.Use();
+        }
+    }
 
-        Font font = ResolveEpilogueFont();
-        int titleSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.032f), 26, 36);
-        int promptSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.036f), 28, 40);
-
-        // 画面中央の大パネル（下部帯や他セリフと重ねない）
+    /// <summary>注油：透明長押しヒットのみ（文言・ゲージはuGUI）</summary>
+    void DrawClimaxOilInputFallback()
+    {
+        if (!IsClimaxOilPromptActive) return;
         float panelW = Mathf.Min(980f, Screen.width * 0.9f);
-        float panelH = Mathf.Clamp(Screen.height * 0.28f, 200f, 280f);
+        float panelH = Mathf.Clamp(Screen.height * 0.36f, 260f, 360f);
         float px = (Screen.width - panelW) * 0.5f;
         float py = (Screen.height - panelH) * 0.5f;
-
-        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.96f);
-        GUI.DrawTexture(new Rect(px, py, panelW, panelH), Texture2D.whiteTexture);
-        GUI.color = new Color(1f, 0.45f, 0.35f, 0.95f);
-        GUI.DrawTexture(new Rect(px, py, panelW, 3f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(px, py + panelH - 3f, panelW, 3f), Texture2D.whiteTexture);
-
-        var titleStyle = new GUIStyle(GUI.skin.label)
-        {
-            font = font,
-            fontSize = titleSize,
-            fontStyle = FontStyle.Normal,
-            alignment = TextAnchor.MiddleCenter,
-            wordWrap = true,
-            clipping = TextClipping.Overflow
-        };
-        DrawShadowedText(
-            new Rect(px + 24f, py + 18f, panelW - 48f, titleSize * 1.4f),
-            "警告　Rustが極寒で機能停止寸前",
-            titleStyle,
-            new Color(1f, 0.55f, 0.45f, 1f),
-            new Color(0f, 0f, 0f, 0.9f),
-            1.2f);
-
-        var promptStyle = new GUIStyle(GUI.skin.label)
-        {
-            font = font,
-            fontSize = promptSize,
-            fontStyle = FontStyle.Normal,
-            alignment = TextAnchor.MiddleCenter,
-            wordWrap = true,
-            clipping = TextClipping.Overflow
-        };
-        DrawShadowedText(
-            new Rect(px + 24f, py + 18f + titleSize * 1.5f, panelW - 48f, promptSize * 2.2f),
-            "【E または クリック長押し】\n最後の油を注ぐ",
-            promptStyle,
-            new Color(1f, 0.92f, 0.4f, 1f),
-            new Color(0f, 0f, 0f, 0.9f),
-            1.2f);
-
-        float barW = Mathf.Min(720f, panelW - 80f);
-        float barH2 = 28f;
-        float bx = px + (panelW - barW) * 0.5f;
-        float by = py + panelH - 52f;
-
-        GUI.color = new Color(0.12f, 0.16f, 0.22f, 0.95f);
-        GUI.DrawTexture(new Rect(bx, by, barW, barH2), Texture2D.whiteTexture);
-        float fillRatio = Mathf.Clamp01(_oilHoldTimer / OilHoldRequired);
-        GUI.color = new Color(1.0f, 0.82f, 0.22f, 1.0f);
-        GUI.DrawTexture(new Rect(bx, by, barW * fillRatio, barH2), Texture2D.whiteTexture);
-
+        GUI.color = new Color(1f, 1f, 1f, 0.01f);
+        if (GUI.RepeatButton(new Rect(px, py, panelW, panelH), GUIContent.none))
+            _oilHoldTimer += Time.unscaledDeltaTime;
+        float btnW = Mathf.Min(720f, Screen.width * 0.85f);
+        float btnH = 72f;
+        float barH = Mathf.Clamp(Screen.height * 0.11f, 70f, 120f);
+        if (GUI.RepeatButton(new Rect((Screen.width - btnW) * 0.5f, Screen.height - barH - 12f - btnH, btnW, btnH), GUIContent.none))
+            _oilHoldTimer += Time.unscaledDeltaTime;
         GUI.color = Color.white;
     }
 
-    IEnumerator ClimaxCrisisSequenceRoutine()
+    void BeginClimaxSequence()
     {
-        // タイトル台本再生中／F9再生中は危機シークエンスを開始しない
-        if (_suppressClimax || _endingSequenceActive || _scriptBoardVisible)
-        {
-            _climaxCrisisStarted = false;
-            yield break;
-        }
+        if (_climaxCrisisStarted) return;
+        _pendingClimaxAfterCanopy = false;
+        _climaxCrisisStarted = true;
+        _climaxOilInjected = false;
+        _climaxOilWaiting = false;
+        _oilHoldTimer = 0f;
+        _climaxBeatIndex = 0;
+        _scriptHoldTimer = 0f;
+        _suppressClimax = false;
+        _ignoreSavedCanopyState = false;
 
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
-        var player = AdventurePlayerController.Instance;
+        var player = AdventurePlayerController.Instance
+                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
 
         SetCinematicCamera(true);
         SetExplorationHudVisible(false);
 
         if (player != null)
-            player.SetAutoGlideMode(true, Mathf.Clamp(player.transform.position.y, 115f, 125f));
+        {
+            // 警告台本時点で必ず空中にいる
+            if (player.transform.position.y < 140f)
+                player.ForceSkybreakArrival(new Vector3(512f, 150f, 512f), 150f);
+            else
+            {
+                player.EndSkybreakPillarAscend();
+                player.SetAutoGlideMode(true, Mathf.Clamp(player.transform.position.y, 140f, 160f));
+            }
+        }
 
-        Time.timeScale = 0.35f;
+        Time.timeScale = 1f;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
         SuppressAllSpeechAndBanners();
-
-        // 台本：警告 → Rust危機セリフ（吹き出しは出さない）
-        yield return StartCoroutine(ShowScriptBeat(
-            "警告",
-            "",
-            "Rustが極寒で機能停止寸前",
-            new Color(1f, 0.55f, 0.45f, 1f)));
 
         if (drone != null)
         {
             drone.StartClimaxCrisis();
-            drone.ClearSpeech(); // 吹き出し抑止・ボードで読む
+            drone.ClearSpeech();
         }
 
-        yield return StartCoroutine(ShowScriptBeat(
-            "",
-            "✦ 相棒 Rust",
-            "キキキッ……！ Niko……外の気流が冷たすぎる……僕の古いギアが……凍りついて……",
-            new Color(0.35f, 0.92f, 0.98f, 1f)));
+        PresentClimaxBeat(0);
+        Debug.Log("[RustAndFloat] クライマックスを Update 駆動で開始");
+    }
 
-        yield return StartCoroutine(ShowScriptBeat(
-            "",
-            "✦ Niko",
-            "Rust…待ってて！　今、油を目一杯さすからね！",
-            new Color(1f, 0.88f, 0.45f, 1f)));
+    void PresentClimaxBeat(int index)
+    {
+        if (index < 0 || index >= ClimaxBeats.Length) return;
+        var beat = ClimaxBeats[index];
+        SuppressAllSpeechAndBanners();
+        _scriptBoardTitle = beat.Title ?? "";
+        _scriptBoardSpeaker = beat.Speaker ?? "";
+        _scriptBoardBody = beat.Body ?? "";
+        _scriptBoardAccent = beat.Accent;
+        _scriptBoardIsDive = false;
+        _scriptBoardAdvance = false;
+        _scriptBoardVisible = true;
+        _scriptBoardOpenedAt = Time.unscaledTime;
+        _scriptHoldTimer = 0f;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        Time.timeScale = 1f;
+        EnsureEventSystemForUi();
+        EnsureScriptBoardUI();
+        ApplyScriptBoardUI();
+        if (_scriptHintUi != null)
+            _scriptHintUi.text = "【Space長押し / 下のボタン】つづき";
 
-        // 注油UIのみ表示（他ボード・セリフなし）
-        float elapsed = 0f;
-        while (!_climaxOilInjected && elapsed < 12.0f)
+        // 台本12：全出力セリフと同時にオーバードライブ演出
+        if (index == ClimaxOilSlot + 1)
         {
-            elapsed += Time.unscaledDeltaTime;
+            var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+            if (drone != null)
+                drone.TriggerClimaxOverdrive();
+        }
+    }
 
-            bool eHolding = false;
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            var mouse = UnityEngine.InputSystem.Mouse.current;
-            if (kb != null && (kb.eKey.isPressed || kb.spaceKey.isPressed)) eHolding = true;
-            if (mouse != null && (mouse.leftButton.isPressed || mouse.rightButton.isPressed)) eHolding = true;
-            try { if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0) || Input.GetMouseButton(1)) eHolding = true; } catch { }
+    void BeginClimaxOilWait()
+    {
+        _scriptBoardVisible = false;
+        _scriptBoardAdvance = false;
+        _scriptBoardTitle = "";
+        _scriptBoardSpeaker = "";
+        _scriptBoardBody = "";
+        if (_scriptUiRoot != null)
+            _scriptUiRoot.SetActive(false);
 
-            if (eHolding)
-            {
-                _oilHoldTimer += Time.unscaledDeltaTime;
-                if (_oilHoldTimer >= OilHoldRequired)
-                    _climaxOilInjected = true;
-            }
-            else
-            {
-                _oilHoldTimer = Mathf.Max(0f, _oilHoldTimer - Time.unscaledDeltaTime * 1.5f);
-            }
+        _climaxOilWaiting = true;
+        _climaxOilInjected = false;
+        _oilHoldTimer = 0f;
+        _oilWaitOpenedAt = Time.unscaledTime;
+        Time.timeScale = 1f;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        SuppressAllSpeechAndBanners();
+        EnsureOilPromptUI();
+        Debug.Log("[RustAndFloat] 注油フェーズ開始（E/Space/クリック長押し）");
+    }
 
-            yield return null;
+    void TickClimaxSequence()
+    {
+        if (!_climaxCrisisStarted || _epilogueTriggered || _suppressClimax)
+            return;
+
+        if (_climaxOilWaiting)
+        {
+            TickClimaxOilHold();
+            return;
         }
 
+        if (_climaxBeatIndex < 0 || !_scriptBoardVisible)
+            return;
+
+        bool postOilBeat = _climaxBeatIndex >= ClimaxOilSlot;
+        float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
+        if (openFor >= 0.35f)
+        {
+            PollScriptBoardAdvance();
+            if (IsDiveConfirmHeld())
+            {
+                _scriptHoldTimer += Time.unscaledDeltaTime;
+                if (_scriptHoldTimer >= 0.08f)
+                    _scriptBoardAdvance = true;
+            }
+            else _scriptHoldTimer = 0f;
+
+            float autoSec = GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
+            if (openFor >= autoSec)
+                _scriptBoardAdvance = true;
+        }
+
+        if (!_scriptBoardAdvance) return;
+
+        int next = _climaxBeatIndex + 1;
+
+        // index 0,1,2 のあと（next==3）で注油へ
+        if (next == ClimaxOilSlot && !_climaxOilInjected)
+        {
+            BeginClimaxOilWait();
+            return;
+        }
+
+        if (next >= ClimaxBeats.Length)
+        {
+            FinishClimaxSequence();
+            return;
+        }
+
+        _climaxBeatIndex = next;
+        PresentClimaxBeat(next);
+    }
+
+    static float GetScriptBeatAutoAdvanceSeconds(string body, bool postOil)
+    {
+        int len = string.IsNullOrEmpty(body) ? 0 : body.Length;
+        if (postOil)
+            return Mathf.Clamp(8f + len * 0.14f, 9f, 20f);
+        return Mathf.Clamp(3.4f + len * 0.07f, 3f, 12f);
+    }
+
+    void HideScriptBoardCompletely()
+    {
+        _scriptBoardVisible = false;
+        _scriptBoardAdvance = false;
+        _scriptBoardIsDive = false;
+        _scriptBoardTitle = "";
+        _scriptBoardSpeaker = "";
+        _scriptBoardBody = "";
+        if (_scriptUiRoot != null)
+            _scriptUiRoot.SetActive(false);
+
+        var orphanBoard = GameObject.Find("EndingScriptBoardCanvas");
+        if (orphanBoard != null)
+            orphanBoard.SetActive(false);
+
+        if (!IsClimaxOilPromptActive)
+        {
+            var oilCanvas = GameObject.Find("ClimaxOilPromptCanvas");
+            if (oilCanvas != null)
+                oilCanvas.SetActive(false);
+        }
+    }
+
+    void TickClimaxOilHold()
+    {
+        if (!_climaxOilWaiting || _climaxOilInjected) return;
+
+        bool holding = IsDiveConfirmHeld();
+        if (holding)
+            _oilHoldTimer += Time.unscaledDeltaTime;
+        else
+            _oilHoldTimer = Mathf.Max(0f, _oilHoldTimer - Time.unscaledDeltaTime * 1.1f);
+
+        if (Time.unscaledTime - _oilWaitOpenedAt >= 8f)
+            _oilHoldTimer = OilHoldRequired;
+
+        RefreshOilPromptUI();
+
+        if (_oilHoldTimer >= OilHoldRequired)
+            CompleteClimaxOil();
+    }
+
+    /// <summary>外部／プレイヤーから注油ホールドを加算</summary>
+    public void NotifyOilHold(float dt)
+    {
+        if (!IsClimaxOilPromptActive) return;
+        _oilHoldTimer += Mathf.Max(0f, dt);
+        if (_oilHoldTimer >= OilHoldRequired)
+            CompleteClimaxOil();
+    }
+
+    void CompleteClimaxOil()
+    {
+        if (_climaxOilInjected) return;
         _climaxOilInjected = true;
+        _climaxOilWaiting = false;
+        _oilHoldTimer = OilHoldRequired;
+        HideOilPromptUI();
+
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
-        {
             drone.StartClimaxPetAndOil();
-            drone.ClearSpeech();
-        }
 
-        yield return StartCoroutine(ShowScriptBeat(
-            "",
-            "✦ 相棒 Rust",
-            "……あ……温かい油が……心臓に……！",
-            new Color(0.35f, 0.92f, 0.98f, 1f)));
+        _climaxBeatIndex = ClimaxOilSlot;
+        _climaxPostOilPhase = 0;
+        _climaxPostOilUntil = 0f;
+        PresentClimaxBeat(ClimaxOilSlot);
+        Debug.Log("[RustAndFloat] 注油完了 → 台本11（蘇生セリフ）");
+    }
 
-        yield return new WaitForSecondsRealtime(0.35f);
-
-        if (drone != null)
+    void EnsureOilPromptUI()
+    {
+        EnsureEventSystemForUi();
+        if (_oilUiRoot != null)
         {
-            drone.TriggerClimaxOverdrive();
-            drone.ClearSpeech();
+            _oilUiRoot.SetActive(true);
+            RefreshOilPromptUI();
+            return;
         }
 
-        yield return StartCoroutine(ShowScriptBeat(
-            "",
-            "✦ 相棒 Rust",
-            "ピピッ！……ありがとうNiko！僕たちの翼は絶対に折れない！全出力で行くよ！！",
-            new Color(0.35f, 0.92f, 0.98f, 1f)));
+        Font font = ResolveUiFont();
+        var canvasGo = new GameObject("ClimaxOilPromptCanvas");
+        var canvas = canvasGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 5200;
+        var scaler = canvasGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280f, 720f);
+        canvasGo.AddComponent<GraphicRaycaster>();
 
-        float blend = 0f;
-        while (blend < 1f)
+        // 上下レターボックス
+        CreateOilBar(canvasGo.transform, true);
+        CreateOilBar(canvasGo.transform, false);
+
+        var panelGo = new GameObject("Panel");
+        panelGo.transform.SetParent(canvasGo.transform, false);
+        var panelRt = panelGo.AddComponent<RectTransform>();
+        panelRt.anchorMin = panelRt.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRt.sizeDelta = new Vector2(860f, 320f);
+        var panelImg = panelGo.AddComponent<Image>();
+        panelImg.color = new Color(0.02f, 0.05f, 0.10f, 0.96f);
+        panelImg.raycastTarget = true;
+        var panelBtn = panelGo.AddComponent<Button>();
+        panelBtn.targetGraphic = panelImg;
+        panelBtn.transition = Selectable.Transition.None;
+        // 押し続け判定は Update 側。ここでは見た目用
+
+        _oilTitleUi = MakeScriptText(panelGo.transform, "OilTitle", new Vector2(0f, -24f), new Vector2(0.5f, 1f), new Vector2(800f, 40f), 30, TextAnchor.MiddleCenter, font);
+        _oilTitleUi.color = new Color(1f, 0.55f, 0.45f, 1f);
+        _oilTitleUi.text = "警告　Rustが極寒で機能停止寸前";
+        PrepareFontForText(font, _oilTitleUi.text, 30, FontStyle.Bold);
+
+        _oilPromptUi = MakeScriptText(panelGo.transform, "OilPrompt", new Vector2(0f, 10f), new Vector2(0.5f, 0.5f), new Vector2(780f, 140f), 26, TextAnchor.MiddleCenter, font);
+        _oilPromptUi.color = new Color(1f, 0.92f, 0.4f, 1f);
+        _oilPromptUi.text = "✦ エネルギー注入 ✦\n【E / Space / クリック長押し】\nゲージを満タンにして油をさす";
+        PrepareFontForText(font, _oilPromptUi.text, 26);
+
+        var gaugeBgGo = new GameObject("GaugeBg");
+        gaugeBgGo.transform.SetParent(panelGo.transform, false);
+        var gaugeBgRt = gaugeBgGo.AddComponent<RectTransform>();
+        gaugeBgRt.anchorMin = gaugeBgRt.anchorMax = new Vector2(0.5f, 0f);
+        gaugeBgRt.anchoredPosition = new Vector2(0f, 36f);
+        gaugeBgRt.sizeDelta = new Vector2(640f, 28f);
+        var gaugeBgImg = gaugeBgGo.AddComponent<Image>();
+        gaugeBgImg.color = new Color(0.12f, 0.16f, 0.22f, 0.95f);
+
+        var gaugeFillGo = new GameObject("GaugeFill");
+        gaugeFillGo.transform.SetParent(gaugeBgGo.transform, false);
+        var gaugeFillRt = gaugeFillGo.AddComponent<RectTransform>();
+        gaugeFillRt.anchorMin = new Vector2(0f, 0f);
+        gaugeFillRt.anchorMax = new Vector2(0f, 1f);
+        gaugeFillRt.pivot = new Vector2(0f, 0.5f);
+        gaugeFillRt.anchoredPosition = Vector2.zero;
+        gaugeFillRt.sizeDelta = new Vector2(0f, 0f);
+        _oilGaugeFill = gaugeFillGo.AddComponent<Image>();
+        _oilGaugeFill.color = new Color(1f, 0.82f, 0.22f, 1f);
+
+        var holdGo = new GameObject("HoldBtn");
+        holdGo.transform.SetParent(canvasGo.transform, false);
+        var holdRt = holdGo.AddComponent<RectTransform>();
+        holdRt.anchorMin = holdRt.anchorMax = new Vector2(0.5f, 0f);
+        holdRt.anchoredPosition = new Vector2(0f, 88f);
+        holdRt.sizeDelta = new Vector2(640f, 64f);
+        var holdImg = holdGo.AddComponent<Image>();
+        holdImg.color = new Color(0.95f, 0.75f, 0.2f, 0.95f);
+        _oilHoldBtn = holdGo.AddComponent<Button>();
+        _oilHoldBtn.targetGraphic = holdImg;
+        _oilHoldBtn.transition = Selectable.Transition.None;
+        _oilHoldLabelUi = MakeScriptText(holdGo.transform, "HoldLabel", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(600f, 56f), 26, TextAnchor.MiddleCenter, font);
+        _oilHoldLabelUi.color = new Color(0.12f, 0.08f, 0.02f, 1f);
+        _oilHoldLabelUi.text = "【押し続け】Rustに油をさす";
+        PrepareFontForText(font, _oilHoldLabelUi.text, 26, FontStyle.Bold);
+
+        _oilUiRoot = canvasGo;
+        RefreshOilPromptUI();
+    }
+
+    static void CreateOilBar(Transform parent, bool top)
+    {
+        var go = new GameObject(top ? "LetterTop" : "LetterBottom");
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        if (top)
         {
-            blend += Time.unscaledDeltaTime * 1.6f;
-            Time.timeScale = Mathf.Lerp(0.35f, 1.0f, blend);
-            yield return null;
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
         }
-        Time.timeScale = 1.0f;
+        else
+        {
+            rt.anchorMin = new Vector2(0f, 0f);
+            rt.anchorMax = new Vector2(1f, 0f);
+            rt.pivot = new Vector2(0.5f, 0f);
+        }
+        rt.sizeDelta = new Vector2(0f, 90f);
+        rt.anchoredPosition = Vector2.zero;
+        var img = go.AddComponent<Image>();
+        img.color = new Color(0.02f, 0.04f, 0.08f, 0.92f);
+        img.raycastTarget = false;
+    }
 
+    void RefreshOilPromptUI()
+    {
+        if (_oilUiRoot == null) return;
+        _oilUiRoot.SetActive(IsClimaxOilPromptActive);
+        if (_oilGaugeFill != null)
+        {
+            float ratio = Mathf.Clamp01(_oilHoldTimer / OilHoldRequired);
+            var parent = _oilGaugeFill.transform.parent as RectTransform;
+            float w = parent != null ? parent.sizeDelta.x : 640f;
+            _oilGaugeFill.rectTransform.sizeDelta = new Vector2(w * ratio, 0f);
+        }
+    }
+
+    void HideOilPromptUI()
+    {
+        if (_oilUiRoot != null)
+            _oilUiRoot.SetActive(false);
+    }
+
+    void FinishClimaxSequence()
+    {
+        _climaxBeatIndex = -1;
+        _climaxOverdriveCinematicUntil = 0f;
+        _climaxPostOilPhase = 0;
+        _climaxPostOilUntil = 0f;
+        HideScriptBoardCompletely();
+        TeardownScriptBoardUi();
+        HideOilPromptUI();
+
+        Time.timeScale = 1f;
+        var player = AdventurePlayerController.Instance;
         if (player != null)
         {
             player.SetAutoGlideMode(false);
@@ -1828,311 +2742,67 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             player.ApplyUpdraft(28f);
         }
 
-        yield return new WaitForSeconds(1.8f);
         _epilogueTriggered = true;
+        AdventureMusicDirector.Ensure();
+        AdventureMusicDirector.Instance?.KeepEndingThemeUntilQuit();
         StartCoroutine(EpilogueSequenceRoutine());
+    }
+
+    /// <summary>旧コルーチン版（互換・未使用）</summary>
+    IEnumerator ClimaxCrisisSequenceRoutine()
+    {
+        BeginClimaxSequence();
+        while (_climaxCrisisStarted && !_epilogueTriggered)
+            yield return null;
     }
 
     void DrawScriptBoardGUI()
     {
-        // 台本ボード本体は uGUI。ここでは全画面クリックを最優先で拾う
-        if (!_scriptBoardVisible) return;
-        if (Time.unscaledTime - _scriptBoardOpenedAt < 0.25f) return;
-
-        // Gameビュー全面の透明ボタン（Input System漏れ時の最終手段）
-        Color prev = GUI.color;
-        GUI.color = new Color(1f, 1f, 1f, 0.002f);
-        if (GUI.Button(new Rect(0f, 0f, Screen.width, Screen.height), GUIContent.none, GUIStyle.none))
-        {
-            _scriptAdvanceArmed = true;
-            _scriptBoardAdvance = true;
-        }
-        GUI.color = prev;
-
-        Event e = Event.current;
-        if (e == null) return;
-
-        if (e.type == EventType.KeyDown &&
-            (e.keyCode == KeyCode.Space || e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter || e.keyCode == KeyCode.E))
-        {
-            _scriptAdvanceArmed = true;
-            _scriptBoardAdvance = true;
-            e.Use();
-        }
+        // IMGUI日本語描画は停止（Gizmos文字化け防止）。入力は DrawScriptBoardInputFallback。
     }
 
-    /// <summary>文字を太らせず、映画字幕のようにシャープで読みやすい上品なドロップシャドウ描画</summary>
     static void DrawShadowedText(Rect rect, string text, GUIStyle style, Color textColor, Color shadowColor, float offset = 1.5f)
     {
-        if (string.IsNullOrEmpty(text)) return;
+        // IMGUI日本語は使わない（呼び出されても何もしない）
+    }
 
-        // 動的OSフォントは字形リクエストしないと日本語が空になる
-        if (style.font != null)
-        {
-            style.font.RequestCharactersInTexture(text, style.fontSize, style.fontStyle);
-            style.font.RequestCharactersInTexture(text, style.fontSize, FontStyle.Normal);
-        }
-
-        Color prevGui = GUI.color;
-        Color prevContent = GUI.contentColor;
-        GUI.color = Color.white;
-        GUI.contentColor = Color.white;
-
-        Color origColor = style.normal.textColor;
-
-        style.normal.textColor = shadowColor;
-        GUI.Label(new Rect(rect.x, rect.y + offset, rect.width, rect.height), text, style);
-
-        style.normal.textColor = textColor;
-        GUI.Label(rect, text, style);
-
-        style.normal.textColor = origColor;
-        GUI.color = prevGui;
-        GUI.contentColor = prevContent;
+    void DrawEpilogueGUI()
+    {
+        // エピローグ字幕も台本ボード(uGUI)へ統一済みのため IMGUI は描画しない
     }
 
     static readonly string[] EpilogueActs =
     {
         "空が割れた。\n100%最適化された箱庭の外には、\n凍えるほどリアルな風が吹いていた。",
-        "人は最短距離を走っている時ではなく、\n寄り道をして、躓き、\n息をのんだ瞬間に、生きてる実感を得るんだ。",
-        "傷つく自由と、風の重さを取り戻した\n二人の旅が、いま始まる。\n―― 『Rust & Float』"
+        "人は最短距離を進んでいる時じゃなく、\n寄り道をして、躓き、\n息をのむような場面に出会った時、生きてる感動を得るんだ。",
+        "傷つくかもしれない自由と、命の重みを取り戻した\n二人の旅が、また始まる。\n―― 『Rust & Float』"
     };
 
     Font ResolveEpilogueFont()
     {
         if (_epilogueFont != null)
             return _epilogueFont;
-
-        // 配列指定のほうが Mac で日本語グリフを取りやすい
-        try
-        {
-            _epilogueFont = Font.CreateDynamicFontFromOSFont(
-                new[]
-                {
-                    "Hiragino Sans",
-                    "HiraginoSans-W3",
-                    "Hiragino Kaku Gothic ProN",
-                    "YuGothic",
-                    "Yu Gothic",
-                    "Arial Unicode MS"
-                },
-                32);
-        }
-        catch { }
-
-        if (_epilogueFont == null)
-        {
-            _epilogueFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
-                            ?? Resources.GetBuiltinResource<Font>("Arial.ttf")
-                            ?? GUI.skin.font;
-        }
+        _epilogueFont = CreateJapaneseFont(32);
         return _epilogueFont;
-    }
-
-    void DrawEpilogueGUI()
-    {
-        // テロップは台本ボード（ShowScriptBeat）に統一。旧帯テロップは出さない
-        if (_scriptBoardVisible) return;
-        if (_epilogueAlpha <= 0.01f && _epilogueAct <= 0) return;
-
-        float alpha = Mathf.Clamp01(_epilogueAlpha);
-
-        // 上下黒帯（字幕は帯の外＝画面中央に置くので、帯は装飾のみ）
-        Color barCol = new Color(0.01f, 0.02f, 0.05f, alpha * 0.94f);
-        float barH = Mathf.Clamp(Screen.height * 0.10f, 64f, 110f);
-        GUI.color = barCol;
-        GUI.DrawTexture(new Rect(0, 0, Screen.width, barH), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(0, Screen.height - barH, Screen.width, barH), Texture2D.whiteTexture);
-        GUI.color = Color.white;
-
-        if (_epilogueAct < 1 || _epilogueAct > EpilogueActs.Length)
-            return;
-
-        string line = EpilogueActs[_epilogueAct - 1];
-        Font font = ResolveEpilogueFont();
-
-        // 中央パネルに大テロップ（下部のRustセリフ帯と絶対に重ねない）
-        int fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.038f), 28, 44);
-        var style = new GUIStyle(GUI.skin.label)
-        {
-            font = font,
-            fontSize = fontSize,
-            fontStyle = FontStyle.Normal,
-            alignment = TextAnchor.MiddleCenter,
-            wordWrap = true,
-            richText = false,
-            clipping = TextClipping.Overflow
-        };
-
-        float panelW = Mathf.Min(1100f, Screen.width * 0.9f);
-        float panelH = Mathf.Clamp(fontSize * 5.2f, 160f, Screen.height * 0.42f);
-        float padX = (Screen.width - panelW) * 0.5f;
-        float panelY = (Screen.height - panelH) * 0.5f;
-
-        // 半透明ダーク板で背景と分離
-        GUI.color = new Color(0.02f, 0.04f, 0.08f, 0.82f * alpha);
-        GUI.DrawTexture(new Rect(padX - 12f, panelY - 10f, panelW + 24f, panelH + 20f), Texture2D.whiteTexture);
-        GUI.color = Color.white;
-
-        Rect bodyRect = new Rect(padX, panelY, panelW, panelH);
-        DrawShadowedText(
-            bodyRect,
-            line,
-            style,
-            new Color(0.98f, 0.99f, 1.0f, alpha),
-            new Color(0f, 0f, 0f, alpha * 0.75f),
-            1.2f);
     }
 
     void DrawGameClearModalGUI()
     {
-        if (!_showGameClearModal || _scriptBoardVisible) return;
+        // IMGUI クリア画面は廃止（空ボード＋Gizmos化の原因）。uGUI の TickGameClearModal を使う。
+    }
 
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
-        Font font = ResolveEpilogueFont();
-
-        // 全画面の半透明オーバーレイ
-        GUI.color = new Color(0.01f, 0.02f, 0.05f, 0.55f);
-        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-
-        // 大きめのシネマティック・リザルトカード（画面の大部分）
-        float bw = Mathf.Min(1280f, Screen.width * 0.96f);
-        float bh = Mathf.Min(760f, Screen.height * 0.94f);
-        float bx = (Screen.width - bw) * 0.5f;
-        float by = (Screen.height - bh) * 0.5f;
-
-        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.94f);
-        GUI.DrawTexture(new Rect(bx, by, bw, bh), Texture2D.whiteTexture);
-
-        GUI.color = new Color(0.35f, 0.92f, 1.0f, 0.95f);
-        GUI.DrawTexture(new Rect(bx, by, bw, 4f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(bx, by + bh - 4f, bw, 4f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(bx, by, 4f, bh), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(bx + bw - 4f, by, 4f, bh), Texture2D.whiteTexture);
-
-        GUI.color = new Color(1.0f, 0.85f, 0.40f, 0.85f);
-        GUI.DrawTexture(new Rect(bx + 14f, by + 12f, bw - 28f, 2f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(bx + 14f, by + bh - 14f, bw - 28f, 2f), Texture2D.whiteTexture);
-
-        int titleSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.048f), 40, 56);
-        int subSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.028f), 26, 34);
-        int statSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.030f), 28, 36);
-        int quoteSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.032f), 30, 38);
-        int noteSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.024f), 22, 28);
-        int btnSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.030f), 26, 34);
-
-        float pad = 36f;
-        float y = by + 28f;
-
-        var titleStyle = new GUIStyle(GUI.skin.label)
+    void TickGameClearModal()
+    {
+        if (!_showGameClearModal)
         {
-            font = font,
-            fontSize = titleSize,
-            fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter,
-            wordWrap = true,
-            clipping = TextClipping.Overflow
-        };
-        float titleH = titleSize + 24f;
-        DrawShadowedText(new Rect(bx + pad, y, bw - pad * 2f, titleH), "✦ 『Rust & Float』 GAME CLEAR ✦", titleStyle, new Color(1.0f, 0.88f, 0.40f, 1f), Color.black, 2.0f);
-        y += titleH + 8f;
+            HideGameClearModalUI();
+            return;
+        }
 
-        var subStyle = new GUIStyle(GUI.skin.label)
-        {
-            font = font,
-            fontSize = subSize,
-            fontStyle = FontStyle.Normal,
-            alignment = TextAnchor.MiddleCenter,
-            wordWrap = true,
-            clipping = TextClipping.Overflow
-        };
-        string subText = "天蓋の檻を打ち破り、二人は未知なる本物の風の待つ空へ羽ばたいた。";
-        float subH = Mathf.Max(subSize * 2.4f, 64f);
-        DrawShadowedText(new Rect(bx + pad, y, bw - pad * 2f, subH), subText, subStyle, new Color(0.85f, 0.95f, 1.0f, 0.95f), Color.black, 1.5f);
-        y += subH + 16f;
-
-        float btnArea = 110f;
-        float rx = bx + 40f;
-        float rw = bw - 80f;
-        float rh = Mathf.Max(300f, (by + bh - btnArea) - y - 12f);
-        float ry = y;
-        GUI.color = new Color(0.04f, 0.08f, 0.15f, 0.85f);
-        GUI.DrawTexture(new Rect(rx, ry, rw, rh), Texture2D.whiteTexture);
-
-        var statStyle = new GUIStyle(GUI.skin.label)
-        {
-            font = font,
-            fontSize = statSize,
-            fontStyle = FontStyle.Normal,
-            alignment = TextAnchor.MiddleLeft,
-            wordWrap = true,
-            clipping = TextClipping.Overflow
-        };
-        var quoteStyle = new GUIStyle(GUI.skin.label)
-        {
-            font = font,
-            fontSize = quoteSize,
-            fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleLeft,
-            wordWrap = true,
-            clipping = TextClipping.Overflow
-        };
-        var noteStyle = new GUIStyle(GUI.skin.label)
-        {
-            font = font,
-            fontSize = noteSize,
-            fontStyle = FontStyle.Normal,
-            alignment = TextAnchor.MiddleLeft,
-            wordWrap = true,
-            clipping = TextClipping.Overflow
-        };
-
-        float innerX = rx + 28f;
-        float innerW = rw - 56f;
-        float rowY = ry + 22f;
-        float rowGap = 12f;
-        float statRowH = statSize * 2.3f;
-        float quoteRowH = quoteSize * 2.5f;
-        float noteRowH = noteSize * 2.5f;
-
-        DrawShadowedText(new Rect(innerX, rowY, innerW, statRowH), "✦ 漂着古代パーツ回収： 12 / 12  【完全修復 COMPLETE】", statStyle, Color.white, Color.black, 1.5f);
-        rowY += statRowH + rowGap;
-        DrawShadowedText(new Rect(innerX, rowY, innerW, statRowH), "✦ 相棒Rustの機能： 二段ジャンプ・超滑空・探知ソナー・魂の点火", statStyle, new Color(0.9f, 0.95f, 1f), Color.black, 1.5f);
-        rowY += statRowH + rowGap;
-        DrawShadowedText(new Rect(innerX, rowY, innerW, statRowH), "✦ 解放された世界： 未知の地球・連なる山脈パノラマ・無限天空", statStyle, new Color(0.9f, 0.95f, 1f), Color.black, 1.5f);
-        rowY += statRowH + rowGap + 6f;
-        DrawShadowedText(new Rect(innerX, rowY, innerW, quoteRowH), "「ありがとう、Niko。僕たちの翼で、どこまでも行こう……！」", quoteStyle, new Color(1.0f, 0.90f, 0.45f), Color.black, 1.5f);
-        rowY += quoteRowH + rowGap;
-        DrawShadowedText(new Rect(innerX, rowY, innerW, noteRowH), "※クリア後も自由探索できます。【N】／「はじめから」でパーツ配置を変えて再冒険！", noteStyle, new Color(0.65f, 0.85f, 0.95f, 0.85f), Color.black, 1.2f);
-
-        float btnW = (bw - 120f) / 3f;
-        float btnH = Mathf.Max(74f, btnSize + 40f);
-        float btnY = by + bh - btnH - 28f;
-        float gap = 20f;
-
-        var btnStyle1 = new GUIStyle(GUI.skin.button)
-        {
-            font = font,
-            fontSize = Mathf.Max(20, btnSize - 4),
-            fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter,
-            wordWrap = true,
-            clipping = TextClipping.Overflow
-        };
-
-        GUI.color = new Color(0.20f, 0.75f, 0.95f, 0.95f);
-        if (GUI.Button(new Rect(bx + 40f, btnY, btnW, btnH), "✨ 大空へダイブ\n【Space】", btnStyle1))
-            RelaunchIntoSky();
-
-        GUI.color = new Color(0.35f, 0.82f, 0.55f, 0.95f);
-        if (GUI.Button(new Rect(bx + 40f + btnW + gap, btnY, btnW, btnH), "🌅 はじめから\n【N】", btnStyle1))
-            StartNewGameFromClearModal();
-
-        GUI.color = new Color(0.25f, 0.35f, 0.45f, 0.95f);
-        if (GUI.Button(new Rect(bx + 40f + (btnW + gap) * 2f, btnY, btnW, btnH), "閉じる\n【E / Esc】", btnStyle1))
-            CloseGameClearModalForFreeExplore();
+        HideScriptBoardCompletely();
+        TeardownScriptBoardUi();
+        HideOilPromptUI();
+        EnsureGameClearModalUI();
 
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null)
@@ -2144,13 +2814,117 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             else if (kb.eKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
                 CloseGameClearModalForFreeExplore();
         }
+    }
 
-        GUI.color = Color.white;
+    void SetGameClearModalVisible(bool visible)
+    {
+        _showGameClearModal = visible;
+        if (visible)
+            EnsureGameClearModalUI();
+        else
+            HideGameClearModalUI();
+    }
+
+    void EnsureGameClearModalUI()
+    {
+        EnsureEventSystemForUi();
+        if (_clearUiRoot != null)
+        {
+            _clearUiRoot.SetActive(true);
+            return;
+        }
+
+        Font font = ResolveUiFont();
+        var canvasGo = new GameObject("GameClearModalCanvas");
+        var canvas = canvasGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 6000;
+        var scaler = canvasGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280f, 720f);
+        canvasGo.AddComponent<GraphicRaycaster>();
+
+        var dimGo = new GameObject("Dim");
+        dimGo.transform.SetParent(canvasGo.transform, false);
+        var dimRt = dimGo.AddComponent<RectTransform>();
+        dimRt.anchorMin = Vector2.zero;
+        dimRt.anchorMax = Vector2.one;
+        dimRt.offsetMin = Vector2.zero;
+        dimRt.offsetMax = Vector2.zero;
+        var dimImg = dimGo.AddComponent<Image>();
+        dimImg.color = new Color(0.01f, 0.02f, 0.05f, 0.55f);
+        dimImg.raycastTarget = true;
+
+        var panelGo = new GameObject("Panel");
+        panelGo.transform.SetParent(canvasGo.transform, false);
+        var panelRt = panelGo.AddComponent<RectTransform>();
+        panelRt.anchorMin = panelRt.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRt.sizeDelta = new Vector2(980f, 560f);
+        var panelImg = panelGo.AddComponent<Image>();
+        panelImg.color = new Color(0.02f, 0.05f, 0.10f, 0.96f);
+
+        var title = MakeScriptText(panelGo.transform, "Title", new Vector2(0f, -28f), new Vector2(0.5f, 1f), new Vector2(900f, 48f), 34, TextAnchor.MiddleCenter, font);
+        title.color = new Color(1f, 0.88f, 0.4f, 1f);
+        title.fontStyle = FontStyle.Bold;
+        title.text = "✦ 『Rust & Float』 GAME CLEAR ✦";
+        PrepareFontForText(font, title.text, 34, FontStyle.Bold);
+
+        var body = MakeScriptText(panelGo.transform, "Body", new Vector2(0f, 20f), new Vector2(0.5f, 0.5f), new Vector2(880f, 280f), 24, TextAnchor.UpperCenter, font);
+        body.color = new Color(0.9f, 0.95f, 1f, 1f);
+        body.text =
+            "天蓋の檻を打ち破り、二人は未知なる本物の風の流れる空へ羽ばたいた。\n\n" +
+            "✦ 漂着古代パーツ回収： 12 / 12\n" +
+            "✦ 相棒Rust： 二段ジャンプ・超滑空・探知ソナー\n\n" +
+            "「ありがとう、Niko。僕たちの翼で、どこまでも行こう……！」\n\n" +
+            "【Space】大空へ　【N】はじめから　【E / Esc】閉じる";
+        PrepareFontForText(font, body.text, 24);
+
+        MakeClearModalButton(panelGo.transform, "DiveBtn", new Vector2(-300f, 36f), new Color(0.20f, 0.75f, 0.95f, 0.95f),
+            "【Space】大空へダイブ", font, RelaunchIntoSky);
+        MakeClearModalButton(panelGo.transform, "NewBtn", new Vector2(0f, 36f), new Color(0.35f, 0.82f, 0.55f, 0.95f),
+            "【N】はじめから", font, StartNewGameFromClearModal);
+        MakeClearModalButton(panelGo.transform, "CloseBtn", new Vector2(300f, 36f), new Color(0.25f, 0.35f, 0.45f, 0.95f),
+            "【E】閉じる", font, CloseGameClearModalForFreeExplore);
+
+        _clearUiRoot = canvasGo;
+    }
+
+    void MakeClearModalButton(Transform parent, string name, Vector2 anchoredPos, Color color, string label, Font font, UnityEngine.Events.UnityAction onClick)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = anchoredPos;
+        rt.sizeDelta = new Vector2(280f, 56f);
+        var img = go.AddComponent<Image>();
+        img.color = color;
+        var btn = go.AddComponent<Button>();
+        btn.targetGraphic = img;
+        btn.transition = Selectable.Transition.None;
+        btn.onClick.AddListener(onClick);
+        var text = MakeScriptText(go.transform, "Label", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(260f, 48f), 20, TextAnchor.MiddleCenter, font);
+        text.color = Color.white;
+        text.fontStyle = FontStyle.Bold;
+        text.text = label;
+        text.raycastTarget = false;
+        PrepareFontForText(font, label, 20, FontStyle.Bold);
+    }
+
+    void HideGameClearModalUI()
+    {
+        if (_clearUiRoot != null)
+            _clearUiRoot.SetActive(false);
+        var orphan = GameObject.Find("GameClearModalCanvas");
+        if (orphan != null && orphan != _clearUiRoot)
+            orphan.SetActive(false);
     }
 
     void StartNewGameFromClearModal()
     {
         _showGameClearModal = false;
+        HideGameClearModalUI();
         AdventureSaveManager.Ensure();
         AdventureSaveManager.Instance?.ResetToNewGame();
     }
@@ -2158,23 +2932,35 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     void CloseGameClearModalForFreeExplore()
     {
         _showGameClearModal = false;
+        HideGameClearModalUI();
+        AdventureMusicDirector.Ensure();
+        AdventureMusicDirector.Instance?.KeepEndingThemeUntilQuit();
         var player = AdventurePlayerController.Instance;
         if (player != null)
             player.SetAutoGlideMode(false);
         SetCinematicCamera(false);
         SetExplorationHudVisible(true);
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+        {
+            drone.StopSkybreakNestle();
+            drone.ResetClimaxState();
+        }
     }
 
     /// <summary>ゲームクリアリザルト画面を直接開く</summary>
     public void OpenGameClearModal()
     {
-        _showGameClearModal = true;
+        SetGameClearModalVisible(true);
     }
 
     /// <summary>クリア後に何度でも大空へ飛び立てるリダイブ処理</summary>
     public void RelaunchIntoSky()
     {
         _showGameClearModal = false;
+        HideGameClearModalUI();
+        AdventureMusicDirector.Ensure();
+        AdventureMusicDirector.Instance?.KeepEndingThemeUntilQuit();
         var player = AdventurePlayerController.Instance;
         if (player != null)
         {
@@ -2233,6 +3019,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         IsGameCleared = true;
         _showGameClearModal = true;
         SuppressAllSpeechAndBanners();
+        AdventureMusicDirector.Ensure();
+        AdventureMusicDirector.Instance?.KeepEndingThemeUntilQuit();
     }
 
     static void KeepAutoGlide(AdventurePlayerController player)
@@ -2334,15 +3122,20 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     /// <summary>オアシス湧水池（480, 455）からタワー台地（512, 512）へ登る白亜の古代神殿アプローチ階段道を生成</summary>
     void BuildTowerStairs(Transform parent, Terrain land)
     {
+        var old = parent.Find("SanctuaryApproachStairs");
+        if (old != null)
+            Destroy(old.gameObject);
+
         var stairsRoot = new GameObject("SanctuaryApproachStairs");
         stairsRoot.transform.SetParent(parent, false);
 
         Vector3 startP = new Vector3(472f, 48.5f, 455f); // オアシス池のほとり
-        Vector3 endP = new Vector3(512f, 62.5f, 512f);   // タワー基壇の入口
+        // 基壇南縁（中心512へ突っ込むと最後の段が固体台座に食い込む）
+        Vector3 endP = new Vector3(512f, TerraceTopY, 478f);
         if (land != null)
         {
             startP.y = land.SampleHeight(startP) + land.transform.position.y + 0.2f;
-            endP.y = land.SampleHeight(endP) + land.transform.position.y + 0.2f;
+            endP.y = Mathf.Max(TerraceTopY, land.SampleHeight(endP) + land.transform.position.y + 0.2f);
         }
 
         int steps = 22;

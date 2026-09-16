@@ -10,6 +10,7 @@ public class AdventureThermalUpdraft : MonoBehaviour
     public float height = 45.0f;
     public float liftSpeed = 5.2f; // 毎秒+5.2mで上空へ浮遊上昇
     public bool autoLaunch = false; // trueの場合、地上歩行からでも自動で大空へ射出＆滑空開始
+    public bool pullToCenter = false; // 光の柱など：水平に中心へ吸い寄せる
 
     ParticleSystem _windPs;
     AudioSource _audio;
@@ -26,8 +27,9 @@ public class AdventureThermalUpdraft : MonoBehaviour
         var col = gameObject.AddComponent<CapsuleCollider>();
         col.isTrigger = true;
         col.radius = radius;
-        col.height = height;
-        col.center = new Vector3(0f, height * 0.5f, 0f);
+        // Unity Capsule は height >= 2*radius 必須。巨大柱でも確実に届く高さへ
+        col.height = Mathf.Max(height, radius * 2f + 1f);
+        col.center = new Vector3(0f, col.height * 0.5f, 0f);
         var rb = gameObject.AddComponent<Rigidbody>();
         rb.isKinematic = true;
         rb.useGravity = false;
@@ -41,50 +43,56 @@ public class AdventureThermalUpdraft : MonoBehaviour
         Vector3 pos = transform.position;
         Vector3 pPos = player.transform.position;
 
-        // XZ平面の距離と高さ範囲を判定
+        // XZ平面の距離と高さ範囲を判定（上限は視覚高さより少し余裕）
         float distXZ = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(pPos.x, pPos.z));
-        bool inY = pPos.y >= pos.y - 1.0f && pPos.y <= pos.y + height;
+        float effectiveRadius = autoLaunch ? radius * 1.75f : radius;
+        bool inY = pPos.y >= pos.y - 4.0f && pPos.y <= pos.y + height + 80f;
 
-        if (distXZ < radius && inY)
-        {
-            if (autoLaunch)
-            {
-                player.ApplyLaunchUpdraft(liftSpeed);
-                if (_audio != null)
-                    _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
-            }
-            else if (player.IsGliding)
-            {
-                player.ApplyUpdraft(liftSpeed);
-                if (_audio != null)
-                    _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
-            }
-        }
-        else
-        {
-            if (_audio != null && _audio.volume > 0f)
-                _audio.volume = Mathf.MoveTowards(_audio.volume, 0f, Time.deltaTime * 2.0f);
-        }
+        if (distXZ < effectiveRadius && inY)
+            ApplyLiftToPlayer(player, distXZ);
+        else if (_audio != null && _audio.volume > 0f)
+            _audio.volume = Mathf.MoveTowards(_audio.volume, 0f, Time.deltaTime * 2.0f);
     }
 
     void OnTriggerStay(Collider other)
     {
         var player = other.GetComponent<AdventurePlayerController>()
             ?? other.GetComponentInParent<AdventurePlayerController>();
-        if (player != null)
+        if (player == null) return;
+
+        Vector3 pos = transform.position;
+        Vector3 pPos = player.transform.position;
+        float distXZ = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(pPos.x, pPos.z));
+        ApplyLiftToPlayer(player, distXZ);
+    }
+
+    void ApplyLiftToPlayer(AdventurePlayerController player, float distXZ)
+    {
+        if (autoLaunch)
         {
-            if (autoLaunch)
-            {
-                player.ApplyLaunchUpdraft(liftSpeed);
-                if (_audio != null)
-                    _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
-            }
-            else if (player.IsGliding)
-            {
-                player.ApplyUpdraft(liftSpeed);
-                if (_audio != null)
-                    _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
-            }
+            // 光の柱：物理に頼らず中心＋上昇を強制（途中引っかかり対策）
+            player.ForceSkybreakPillarAscend(transform.position, liftSpeed, pullToCenter);
+            if (_audio != null)
+                _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
+            return;
+        }
+
+        if (pullToCenter && distXZ > 0.35f)
+        {
+            Vector3 p = player.transform.position;
+            Vector3 center = new Vector3(transform.position.x, p.y, transform.position.z);
+            Vector3 pull = (center - p);
+            pull.y = 0f;
+            var cc = player.GetComponent<CharacterController>();
+            if (cc != null && cc.enabled)
+                cc.Move(pull.normalized * Mathf.Min(distXZ, 6f * Time.deltaTime));
+        }
+
+        if (player.IsGliding)
+        {
+            player.ApplyUpdraft(liftSpeed);
+            if (_audio != null)
+                _audio.volume = Mathf.MoveTowards(_audio.volume, 0.45f, Time.deltaTime * 3.5f);
         }
     }
 

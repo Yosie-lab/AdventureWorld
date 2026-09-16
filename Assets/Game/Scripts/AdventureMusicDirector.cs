@@ -16,6 +16,9 @@ public class AdventureMusicDirector : MonoBehaviour
     AudioClip _skybreakThemeClip;
 
     bool _hasSwitchedToSkybreak = false;
+    /// <summary>一度天空テーマに入ったら、ニューゲーム／F9再演まで戻さない</summary>
+    bool _keepEndingThemeUntilQuit = false;
+    const float EndingThemeVolume = 0.78f;
 
     public static void Ensure()
     {
@@ -40,29 +43,38 @@ public class AdventureMusicDirector : MonoBehaviour
             return;
         }
         Instance = this;
+        DontDestroyOnLoad(gameObject);
 
         _bgmSourceA = gameObject.AddComponent<AudioSource>();
         _bgmSourceA.loop = true;
         _bgmSourceA.playOnAwake = false;
         _bgmSourceA.spatialBlend = 0f; // 2Dステレオ
         _bgmSourceA.volume = 0f;
+        _bgmSourceA.ignoreListenerPause = true;
 
         _bgmSourceB = gameObject.AddComponent<AudioSource>();
         _bgmSourceB.loop = true;
         _bgmSourceB.playOnAwake = false;
         _bgmSourceB.spatialBlend = 0f;
         _bgmSourceB.volume = 0f;
+        _bgmSourceB.ignoreListenerPause = true;
 
         GenerateMusicClips();
     }
 
     void Start()
     {
+        if (_keepEndingThemeUntilQuit)
+        {
+            KeepEndingThemePlaying(restartIfNeeded: true);
+            return;
+        }
+
         if (_ambientThemeClip != null)
         {
             _bgmSourceA.clip = _ambientThemeClip;
             _bgmSourceA.Play();
-            StartCoroutine(FadeVolume(_bgmSourceA, 0.26f, 3.5f));
+            StartCoroutine(FadeVolume(_bgmSourceA, 0.30f, 3.5f));
         }
     }
 
@@ -71,25 +83,73 @@ public class AdventureMusicDirector : MonoBehaviour
         // 天蓋破壊フラグを監視（F9再演でフラグが戻ったあとも再トリガー可）
         if (!_hasSwitchedToSkybreak && AdventureSanctuaryTowerManager.IsCanopyBroken)
             PlaySkybreakTheme(force: false);
+
+        // シーケンス後〜アプリ終了まで天空BGMを維持（止まっていたらだけ復帰）
+        if (_keepEndingThemeUntilQuit && _bgmSourceB != null)
+        {
+            if (!_bgmSourceB.isPlaying || _bgmSourceB.clip != _skybreakThemeClip)
+                KeepEndingThemePlaying(restartIfNeeded: true);
+        }
     }
 
-    /// <summary>F9再演などで天蓋前に戻すとき、BGM切替フラグをリセット</summary>
+    /// <summary>エンディング〜クリア後もBGMを止めない（ゲーム終了／ニューゲームまで）</summary>
+    public void KeepEndingThemeUntilQuit()
+    {
+        _keepEndingThemeUntilQuit = true;
+        _hasSwitchedToSkybreak = true;
+        KeepEndingThemePlaying(restartIfNeeded: true);
+    }
+
+    void KeepEndingThemePlaying(bool restartIfNeeded)
+    {
+        if (_skybreakThemeClip == null)
+            _skybreakThemeClip = GenerateSkybreakTheme();
+        if (_skybreakThemeClip == null || _bgmSourceB == null) return;
+
+        bool needsRestart = restartIfNeeded
+            || !_bgmSourceB.isPlaying
+            || _bgmSourceB.clip != _skybreakThemeClip;
+
+        if (!needsRestart)
+        {
+            // 再生中なら音量だけ保証（フェード中の上書きはしない）
+            if (_bgmSourceB.volume >= EndingThemeVolume * 0.5f
+                && _bgmSourceB.volume < EndingThemeVolume * 0.95f)
+                _bgmSourceB.volume = EndingThemeVolume;
+            return;
+        }
+
+        StopAllCoroutines();
+        if (_bgmSourceA != null)
+        {
+            _bgmSourceA.Stop();
+            _bgmSourceA.volume = 0f;
+        }
+        _bgmSourceB.clip = _skybreakThemeClip;
+        _bgmSourceB.loop = true;
+        _bgmSourceB.volume = EndingThemeVolume;
+        if (!_bgmSourceB.isPlaying)
+            _bgmSourceB.Play();
+    }
+
+    /// <summary>F9再演／ニューゲームで天蓋前に戻すときだけBGMを探索曲へ戻す</summary>
     public void ResetSkybreakMusicState()
     {
+        _keepEndingThemeUntilQuit = false;
         _hasSwitchedToSkybreak = false;
-        if (_bgmSourceB != null && _bgmSourceB.isPlaying)
+        StopAllCoroutines();
+        if (_bgmSourceB != null)
         {
             _bgmSourceB.Stop();
             _bgmSourceB.volume = 0f;
         }
         if (_bgmSourceA != null && _ambientThemeClip != null)
         {
+            _bgmSourceA.clip = _ambientThemeClip;
+            _bgmSourceA.loop = true;
             if (!_bgmSourceA.isPlaying)
-            {
-                _bgmSourceA.clip = _ambientThemeClip;
                 _bgmSourceA.Play();
-            }
-            StartCoroutine(FadeVolume(_bgmSourceA, 0.26f, 1.2f));
+            StartCoroutine(FadeVolume(_bgmSourceA, 0.30f, 1.2f));
         }
     }
 
@@ -104,6 +164,7 @@ public class AdventureMusicDirector : MonoBehaviour
         }
 
         _hasSwitchedToSkybreak = true;
+        _keepEndingThemeUntilQuit = true;
         TriggerSkybreakMusic();
     }
 
@@ -112,19 +173,15 @@ public class AdventureMusicDirector : MonoBehaviour
         if (_skybreakThemeClip == null) return;
 
         StopAllCoroutines();
-        if (_ambientThemeClip != null && _bgmSourceA != null && !_bgmSourceA.isPlaying)
-        {
-            _bgmSourceA.clip = _ambientThemeClip;
-            _bgmSourceA.Play();
-        }
-
-        StartCoroutine(FadeVolume(_bgmSourceA, 0f, 1.2f));
+        if (_bgmSourceA != null && _bgmSourceA.isPlaying)
+            StartCoroutine(FadeVolume(_bgmSourceA, 0f, 1.2f));
 
         _bgmSourceB.clip = _skybreakThemeClip;
+        _bgmSourceB.loop = true;
         _bgmSourceB.time = 0f;
         _bgmSourceB.volume = 0f;
         _bgmSourceB.Play();
-        StartCoroutine(FadeVolume(_bgmSourceB, 0.50f, 1.0f));
+        StartCoroutine(FadeVolume(_bgmSourceB, EndingThemeVolume, 1.0f));
     }
 
     IEnumerator FadeVolume(AudioSource src, float targetVol, float duration)
@@ -134,12 +191,16 @@ public class AdventureMusicDirector : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
+            // 終了BGMロック中に探索曲へ戻すフェードは中断
+            if (_keepEndingThemeUntilQuit && src == _bgmSourceB && targetVol <= 0f)
+                yield break;
+
             elapsed += Time.unscaledDeltaTime;
             src.volume = Mathf.Lerp(startVol, targetVol, elapsed / duration);
             yield return null;
         }
         src.volume = targetVol;
-        if (targetVol <= 0f)
+        if (targetVol <= 0f && !(_keepEndingThemeUntilQuit && src == _bgmSourceB))
             src.Stop();
     }
 
@@ -276,16 +337,16 @@ public class AdventureMusicDirector : MonoBehaviour
                 float s = Mathf.Sin(2f * Mathf.PI * freq * t) * 0.45f
                         + Mathf.Sin(4f * Mathf.PI * freq * t) * 0.25f
                         + Mathf.Sin(6f * Mathf.PI * freq * t) * 0.15f;
-                brass += s * (0.07f / chord.Length);
+                brass += s * (0.11f / chord.Length);
             }
             brass *= env;
 
             // 駆け上がるキラキラしたアルペジオ
             float arpPhase = (t * 8.0f) % 1.0f;
             int arpIndex = Mathf.FloorToInt(t * 8.0f) % chord.Length;
-            float arpF呼 = chord[arpIndex] * 2.0f;
+            float arpFreq = chord[arpIndex] * 2.0f;
             float arpEnv = Mathf.Exp(-arpPhase * 5.0f);
-            float arpWave = Mathf.Sin(2f * Mathf.PI * arpF呼 * t) * arpEnv * 0.09f;
+            float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.14f;
 
             float loopFade = 1f;
             if (t < 0.2f) loopFade = t / 0.2f;

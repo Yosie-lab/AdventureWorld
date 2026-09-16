@@ -48,6 +48,9 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     public bool IsModalBoardOpen()
     {
+        // エンディング進行中は絶対に操作ロックしない（再表示バグ対策）
+        if (ShouldSkipOpeningBoard())
+            return false;
         return !IsGameStarted && _modalBoard != null && _modalBoard.activeSelf && !_isClosing;
     }
 
@@ -64,9 +67,30 @@ public class AdventureRustFloatOpening : MonoBehaviour
         Cursor.visible = false;
     }
 
+    static bool ShouldSkipOpeningBoard()
+    {
+        if (AdventureSanctuaryTowerManager.IsCanopyBroken || AdventureSanctuaryTowerManager.IsGameCleared)
+            return true;
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null && (tower.IsEpiloguePlaying || tower.ClimaxCrisisStarted || tower.ShowGameClearModal))
+            return true;
+        var player = AdventurePlayerController.Instance;
+        if (player != null && (player.IsSkybreakPillarAscending || player.IsAutoGliding))
+            return true;
+        return false;
+    }
+
     void Awake()
     {
-        _isGameStarted = false;
+        // スクリプト再コンパイル等で Awake が再走っても、進行中なら初期画面に戻さない
+        if (ShouldSkipOpeningBoard())
+        {
+            _isGameStarted = true;
+            return;
+        }
+        // 通常の新規起動のみ初期化（進行中の false 強制はしない）
+        if (!_isGameStarted)
+            _isGameStarted = false;
     }
 
     void Start()
@@ -74,9 +98,12 @@ public class AdventureRustFloatOpening : MonoBehaviour
         _openTime = Time.realtimeSinceStartup;
         BuildHud();
 
-        // もしセーブデータや進行状態で既にパーツを1個以上取得している場合、オープニングボードは自動スキップ
+        // 進行済み／エンディング中／パーツ取得済みならオープニングを出さない
         var scrapMgr = FindAnyObjectByType<AdventureScrapManager>();
-        if (scrapMgr != null && scrapMgr.CollectedCount > 0)
+        bool skip = ShouldSkipOpeningBoard()
+                    || (scrapMgr != null && scrapMgr.CollectedCount > 0)
+                    || IsGameStarted;
+        if (skip)
         {
             if (_overlayGo != null) _overlayGo.SetActive(false);
             if (_modalBoard != null) _modalBoard.SetActive(false);
@@ -94,6 +121,13 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     void Update()
     {
+        // エンディング進行中にモーダルが復活したら即消す
+        if (!IsGameStarted && ShouldSkipOpeningBoard())
+        {
+            ForceDismissForGameplay();
+            return;
+        }
+
         if (IsGameStarted || _isClosing)
             return;
 
@@ -263,12 +297,9 @@ public class AdventureRustFloatOpening : MonoBehaviour
             _guideText.gameObject.SetActive(true);
         }
 
-        // 4. 相棒Rustが元気に応答（砂浜漂着とすぐ目の前の脱出艇のパーツへ誘導）
-        var rust = FindAnyObjectByType<AdventureRustDrone>();
-        if (rust != null)
-        {
-            rust.SpeakCustom("うぅ……Niko、大丈夫……？僕たち生きてる！すぐ目の前の脱出艇の脇に、光るギアが落ちてるよ！", 6.0f);
-        }
+        // 4. 冒頭ドラマ（油切れ→注油→最初のギアへ）
+        AdventurePrologueDrama.Ensure();
+        AdventurePrologueDrama.Instance?.BeginAfterOpening();
     }
 
     void BuildHud()

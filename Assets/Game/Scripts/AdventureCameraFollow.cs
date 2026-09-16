@@ -90,8 +90,10 @@ public class AdventureCameraFollow : MonoBehaviour
         bool isLeverNear = towerMgr != null && towerMgr.IsPlayerNearLever;
         bool isScriptBoard = towerMgr != null && towerMgr.IsSkybreakModalActive;
 
-        // モーダル／台本ボード／レバー付近ではカーソル解放（クリックで次へ進める）
-        if (isModalBoardOpen || isLeverNear || isScriptBoard)
+        // モーダル／台本ボード／レバー付近／エネルギー注入中はカーソル解放（クリック操作を優先）
+        bool isOilPrompt = towerMgr != null && towerMgr.IsClimaxOilPromptActive;
+        bool isPrologueOil = AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsWaitingForOil;
+        if (isModalBoardOpen || isLeverNear || isScriptBoard || isOilPrompt || isPrologueOil)
         {
             if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
             {
