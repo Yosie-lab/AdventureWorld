@@ -61,6 +61,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     AudioSource _audio;
     AudioSource _skybreakWindSource;
     AudioClip _skybreakWindClip;
+    bool _coldAtmosphereActive;
+    bool _savedFogEnabled;
+    Color _savedFogColor;
+    float _savedFogDensity;
+    Color _savedAmbient;
 
     bool _leverPulled = false;
     bool _endingSequenceActive = false;
@@ -1043,8 +1048,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _scriptBoardBody = "";
         _canopyBeatIndex = -1;
         _scriptHoldTimer = 0f;
-        _pendingClimaxAfterCanopy = false;
-        _pendingClimaxDeadline = 0f;
+        ClearPendingClimax();
         _showGameClearModal = false;
         _playerNearby = false;
         _leverHoldTimer = 0f;
@@ -1092,6 +1096,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     void DestroySkybreakWorldFx()
     {
         StopSkybreakWindAmbience();
+        ClearSkybreakColdAtmosphere();
         if (_hyperUpdraftGo != null)
         {
             Destroy(_hyperUpdraftGo);
@@ -1100,6 +1105,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         DestroyAllByName("SkybreakHyperUpdraft");
         DestroyAllByName("WildernessPanorama");
         DestroyAllByName("SkybreakEffect");
+        DestroyAllByName("SkybreakColdMist");
     }
 
     /// <summary>天蓋破壊ボード表示と同時に、外気の冷たい風音をフェードイン</summary>
@@ -1241,8 +1247,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _endingSequenceActive = true;
         _suppressClimax = true;
         _climaxCrisisStarted = false;
-        _pendingClimaxAfterCanopy = false;
-        _pendingClimaxDeadline = 0f;
+        ClearPendingClimax();
         // シークエンス終了まで再入禁止（短いロックだと台本中に最初へ巻き戻る）
         _leverPullLockUntil = Time.unscaledTime + 3600f;
         SetLeverPromptUI(false, false);
@@ -1301,8 +1306,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _endingSequenceActive = true;
         _leverPulled = true;
         _scriptHoldTimer = 0f;
-        _pendingClimaxAfterCanopy = false;
-        _pendingClimaxDeadline = 0f;
+        ClearPendingClimax();
 
         var player = AdventurePlayerController.Instance
                      ?? Object.FindFirstObjectByType<AdventurePlayerController>();
@@ -1432,8 +1436,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         IsCanopyBroken = true;
 
         // 上昇演出を優先。最大4.5秒でクライマックスへ必ず接続（後半途切れ防止）
-        _pendingClimaxAfterCanopy = true;
-        _pendingClimaxDeadline = Time.unscaledTime + 4.5f;
+        ArmPendingClimax(failsafeSeconds: 4.5f);
 
         AdventureSaveManager.Instance?.SaveGame("天蓋開放・到達記録を保存しました");
 
@@ -1461,8 +1464,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     public void NotifyPillarAscendComplete()
     {
         if (_climaxCrisisStarted || _epilogueTriggered) return;
-        _pendingClimaxAfterCanopy = true;
-        _pendingClimaxDeadline = 0f;
+        ArmPendingClimax(failsafeSeconds: 0f);
         _suppressClimax = false;
         _ignoreSavedCanopyState = false;
         if (!_isCanopyBroken)
@@ -1484,7 +1486,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         bool timedOut = Time.unscaledTime >= _pendingClimaxDeadline;
         if (!highEnough && !timedOut) return;
 
-        _pendingClimaxAfterCanopy = false;
+        ClearPendingClimax();
         _suppressClimax = false;
         _ignoreSavedCanopyState = false;
         if (!_isCanopyBroken)
@@ -1496,6 +1498,20 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         Debug.Log($"[RustAndFloat] クライマックス開始 high={highEnough} timeout={timedOut}");
         BeginClimaxSequence();
+    }
+
+    void ClearPendingClimax()
+    {
+        _pendingClimaxAfterCanopy = false;
+        _pendingClimaxDeadline = 0f;
+    }
+
+    void ArmPendingClimax(float failsafeSeconds)
+    {
+        _pendingClimaxAfterCanopy = true;
+        _pendingClimaxDeadline = failsafeSeconds <= 0f
+            ? 0f
+            : Time.unscaledTime + failsafeSeconds;
     }
 
     /// <summary>天蓋破壊ボード（旧コルーチン版は未使用・互換のため残置）</summary>
@@ -2364,7 +2380,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     void BeginClimaxSequence()
     {
         if (_climaxCrisisStarted) return;
-        _pendingClimaxAfterCanopy = false;
+        ClearPendingClimax();
         _climaxCrisisStarted = true;
         _climaxOilInjected = false;
         _climaxOilWaiting = false;
@@ -2380,6 +2396,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         SetCinematicCamera(true);
         SetExplorationHudVisible(false);
+        SpawnWildernessPanorama(coldCrisis: true);
+        ApplySkybreakColdAtmosphere();
 
         if (player != null)
         {
@@ -2430,6 +2448,15 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         ApplyScriptBoardUI();
         if (_scriptHintUi != null)
             _scriptHintUi.text = "【Space長押し / 下のボタン】つづき";
+
+        // 台本1（警告）：そばで震え始める
+        // 台本2（気流が冷たい）：力なく落ちていく
+        if (index == 1)
+        {
+            var droneFall = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+            if (droneFall != null)
+                droneFall.BeginClimaxColdFallAway();
+        }
 
         // 台本12：全出力セリフと同時にオーバードライブ演出
         if (index == ClimaxOilSlot + 1)
@@ -2585,6 +2612,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
             drone.StartClimaxPetAndOil();
+
+        // 注油後：極寒の気配を少し緩め、解放の金色へ寄せる
+        SoftenSkybreakColdAtmosphere();
 
         _climaxBeatIndex = ClimaxOilSlot;
         _climaxPostOilPhase = 0;
@@ -2992,7 +3022,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         SetCinematicCamera(true);
         SetExplorationHudVisible(false);
-        SpawnWildernessPanorama();
+        SpawnWildernessPanorama(coldCrisis: false);
+        SoftenSkybreakColdAtmosphere();
         SuppressAllSpeechAndBanners();
 
         // 旧テロップ帯は使わず、台本ボードで1枚ずつ
@@ -3063,28 +3094,38 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             follow.SetCinematicMode(enabled);
     }
 
-    /// <summary>天蓋の割れ目の外側に広がる「未知の地球・荒野の山脈シルエット」と光芒を生成</summary>
-    void SpawnWildernessPanorama()
+    /// <summary>天蓋の割れ目の外側：未知の荒野。危機時は凍える稜線と氷霞、突破後は朝焼けの金へ</summary>
+    void SpawnWildernessPanorama(bool coldCrisis = true)
     {
+        DestroyAllByName("WildernessPanorama");
+        DestroyAllByName("SkybreakColdMist");
+
         var panoramaGo = new GameObject("WildernessPanorama");
         panoramaGo.transform.position = new Vector3(512f, 90f, 512f);
 
         var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
         var mountainMat = new Material(shader);
-        mountainMat.color = new Color(0.18f, 0.22f, 0.35f); // 雄大な遠景の藍色シルエット
+        // 危機時は冷たい藍灰色、突破後はやや暖かい藍色
+        mountainMat.color = coldCrisis
+            ? new Color(0.14f, 0.18f, 0.28f)
+            : new Color(0.18f, 0.22f, 0.35f);
 
-        // 全周12方向に連なる巨大な未知の山脈・稜線を配置
+        var iceMat = new Material(shader);
+        iceMat.color = new Color(0.82f, 0.90f, 0.98f); // 氷雪の冠
+
+        // 全周12方向に連なる巨大な未知の山脈・稜線
         for (int i = 0; i < 12; i++)
         {
             float ang = i * 30f * Mathf.Deg2Rad;
             float dist = 680f;
+            float peakH = Random.Range(85f, 150f);
             Vector3 pos = new Vector3(Mathf.Cos(ang) * dist, Random.Range(10f, 40f), Mathf.Sin(ang) * dist);
 
             var peak = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             peak.name = $"WildernessRidge_{i}";
             peak.transform.SetParent(panoramaGo.transform, false);
             peak.transform.localPosition = pos;
-            peak.transform.localScale = new Vector3(260f, Random.Range(85f, 150f), 260f);
+            peak.transform.localScale = new Vector3(260f, peakH, 260f);
             peak.transform.rotation = Quaternion.Euler(Random.Range(-8f, 8f), i * 30f, Random.Range(-8f, 8f));
 
             var col = peak.GetComponent<Collider>();
@@ -3092,31 +3133,167 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
             var rend = peak.GetComponent<Renderer>();
             if (rend != null) rend.material = mountainMat;
+
+            // 凍える冠雪（少しだけ：半分の稜線に氷冠）
+            if (coldCrisis && (i % 2 == 0))
+            {
+                var cap = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                cap.name = $"IceCrown_{i}";
+                cap.transform.SetParent(peak.transform, false);
+                cap.transform.localPosition = new Vector3(0f, 0.85f, 0f);
+                cap.transform.localScale = new Vector3(0.55f, 0.22f, 0.55f);
+                var capCol = cap.GetComponent<Collider>();
+                if (capCol != null) Destroy(capCol);
+                var capRend = cap.GetComponent<Renderer>();
+                if (capRend != null) capRend.material = iceMat;
+            }
         }
 
-        // 天蓋の裂け目から差し込む金色の光芒（God Rays）
+        // 光芒：危機時は冷たい蒼白＋薄い金、突破後は金色中心
         var raysGo = new GameObject("SkybreakGodRays");
         raysGo.transform.SetParent(panoramaGo.transform, false);
         raysGo.transform.localPosition = new Vector3(0f, 60f, 0f);
 
         var rayShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
-        var rayMat = new Material(rayShader);
-        rayMat.color = new Color(1.0f, 0.92f, 0.65f, 0.35f);
+        var warmRayMat = new Material(rayShader);
+        warmRayMat.color = new Color(1.0f, 0.92f, 0.65f, coldCrisis ? 0.22f : 0.35f);
+        var coldRayMat = new Material(rayShader);
+        coldRayMat.color = new Color(0.72f, 0.88f, 1.0f, 0.28f);
 
         for (int r = 0; r < 8; r++)
         {
             var ray = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             ray.name = $"GodRay_{r}";
             ray.transform.SetParent(raysGo.transform, false);
-            ray.transform.localScale = new Vector3(8f, 120f, 8f);
+            ray.transform.localScale = new Vector3(coldCrisis && r % 2 == 0 ? 6f : 8f, 120f, coldCrisis && r % 2 == 0 ? 6f : 8f);
             ray.transform.localRotation = Quaternion.Euler(Random.Range(15f, 35f), r * 45f + 15f, 0f);
 
             var col = ray.GetComponent<Collider>();
             if (col != null) Destroy(col);
 
             var rend = ray.GetComponent<Renderer>();
-            if (rend != null) rend.material = rayMat;
+            if (rend != null)
+                rend.material = (coldCrisis && r % 2 == 0) ? coldRayMat : warmRayMat;
         }
+
+        if (coldCrisis)
+            SpawnSkybreakColdMist(panoramaGo.transform);
+    }
+
+    /// <summary>極寒の氷霞・粉雪が頬をかすめる遠景パーティクル</summary>
+    void SpawnSkybreakColdMist(Transform parent)
+    {
+        var mistGo = new GameObject("SkybreakColdMist");
+        mistGo.transform.SetParent(parent, false);
+        mistGo.transform.localPosition = new Vector3(0f, 40f, 0f);
+
+        var ps = mistGo.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.loop = true;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(4.5f, 9f);
+        main.startSize = new ParticleSystem.MinMaxCurve(1.2f, 3.8f);
+        main.startColor = new ParticleSystem.MinMaxGradient(
+            new Color(0.85f, 0.93f, 1f, 0.18f),
+            new Color(0.70f, 0.85f, 1f, 0.08f));
+        main.startSpeed = new ParticleSystem.MinMaxCurve(2f, 8f);
+        main.maxParticles = 120;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        var emission = ps.emission;
+        emission.rateOverTime = 18f;
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 90f;
+
+        var vel = ps.velocityOverLifetime;
+        vel.enabled = true;
+        vel.space = ParticleSystemSimulationSpace.World;
+        vel.x = new ParticleSystem.MinMaxCurve(-6f, 6f);
+        vel.y = new ParticleSystem.MinMaxCurve(-1.5f, 0.5f);
+        vel.z = new ParticleSystem.MinMaxCurve(-6f, 6f);
+
+        var colorOver = ps.colorOverLifetime;
+        colorOver.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new[] {
+                new GradientColorKey(new Color(0.9f, 0.95f, 1f), 0f),
+                new GradientColorKey(new Color(0.7f, 0.85f, 1f), 1f)
+            },
+            new[] {
+                new GradientAlphaKey(0f, 0f),
+                new GradientAlphaKey(0.22f, 0.25f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        colorOver.color = grad;
+
+        var rend = mistGo.GetComponent<ParticleSystemRenderer>();
+        if (rend != null)
+        {
+            var sh = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                     ?? Shader.Find("Particles/Standard Unlit")
+                     ?? Shader.Find("Sprites/Default");
+            var mat = new Material(sh);
+            mat.color = new Color(0.85f, 0.92f, 1f, 0.35f);
+            rend.material = mat;
+            rend.renderMode = ParticleSystemRenderMode.Billboard;
+        }
+
+        ps.Play();
+    }
+
+    /// <summary>外気の凍える霧・寒色アンビエント（危機シークエンス用）</summary>
+    void ApplySkybreakColdAtmosphere()
+    {
+        if (!_coldAtmosphereActive)
+        {
+            _savedFogEnabled = RenderSettings.fog;
+            _savedFogColor = RenderSettings.fogColor;
+            _savedFogDensity = RenderSettings.fogDensity;
+            _savedAmbient = RenderSettings.ambientLight;
+            _coldAtmosphereActive = true;
+        }
+
+        RenderSettings.fog = true;
+        RenderSettings.fogMode = FogMode.ExponentialSquared;
+        RenderSettings.fogColor = new Color(0.62f, 0.74f, 0.88f);
+        RenderSettings.fogDensity = 0.0048f;
+        RenderSettings.ambientLight = new Color(0.55f, 0.68f, 0.82f);
+    }
+
+    /// <summary>注油／突破後：寒さを残しつつ金色の解放感へ寄せる</summary>
+    void SoftenSkybreakColdAtmosphere()
+    {
+        if (!_coldAtmosphereActive)
+            ApplySkybreakColdAtmosphere();
+
+        RenderSettings.fog = true;
+        RenderSettings.fogColor = new Color(0.78f, 0.82f, 0.88f);
+        RenderSettings.fogDensity = 0.0028f;
+        RenderSettings.ambientLight = new Color(0.78f, 0.74f, 0.68f);
+
+        // 氷霞を弱める
+        var mist = GameObject.Find("SkybreakColdMist");
+        if (mist != null)
+        {
+            var ps = mist.GetComponent<ParticleSystem>();
+            if (ps != null)
+            {
+                var emission = ps.emission;
+                emission.rateOverTime = 6f;
+            }
+        }
+    }
+
+    void ClearSkybreakColdAtmosphere()
+    {
+        if (!_coldAtmosphereActive) return;
+        RenderSettings.fog = _savedFogEnabled;
+        RenderSettings.fogColor = _savedFogColor;
+        RenderSettings.fogDensity = _savedFogDensity;
+        RenderSettings.ambientLight = _savedAmbient;
+        _coldAtmosphereActive = false;
     }
 
     /// <summary>オアシス湧水池（480, 455）からタワー台地（512, 512）へ登る白亜の古代神殿アプローチ階段道を生成</summary>
