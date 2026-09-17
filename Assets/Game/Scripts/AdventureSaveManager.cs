@@ -582,6 +582,13 @@ public class AdventureSaveManager : MonoBehaviour
 
         ShowSaveNotification("セーブデータを復元しました", $"前回の冒険記録（パーツ: {data.collectedCount}個）を読み込みました");
         Debug.Log($"[AdventureSaveManager] ロード完了: パーツ{data.collectedCount}個, 位置{data.GetPosition()}");
+
+        // 継続プレイ時は中央の時代背景ボードを出さない／残っていれば閉じる
+        if (data.collectedCount > 0)
+        {
+            var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
+            opening?.DismissBecauseContinuingSave();
+        }
     }
 
     /// <summary>セーブデータを初期化し、西側砂浜からパーツ0個で始めるニューゲームを実行</summary>
@@ -633,11 +640,15 @@ public class AdventureSaveManager : MonoBehaviour
             drone.ClearSpeech();
         }
 
-        ShowSaveNotification("新規冒険を開始しました", "パーツ配置を刷新！砂浜から0個スタート");
+        ShowSaveNotification("新規冒険を開始しました", "時代背景ボードからスタート");
         Debug.Log("[AdventureSaveManager] ニューゲーム開始：パーツ配置を前回と異なる場所に再抽選しました。");
 
-        // 冒頭ドラマを最初から再生
-        AdventurePrologueDrama.Instance?.BeginAfterOpening();
+        // 時代背景オープニングから再開（Play後にプロローグ）
+        var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
+        if (opening != null)
+            opening.ShowForNewGame();
+        else
+            AdventurePrologueDrama.Instance?.BeginAfterOpening();
     }
 
     public void ShowSaveNotification(string title, string subText = "")

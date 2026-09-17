@@ -11,16 +11,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
 {
     public static bool IsGameStarted
     {
-        get
-        {
-            if (!_isGameStarted)
-            {
-                var instance = FindAnyObjectByType<AdventureRustFloatOpening>();
-                if (instance != null && (instance._modalBoard == null || !instance._modalBoard.activeSelf))
-                    _isGameStarted = true;
-            }
-            return _isGameStarted;
-        }
+        get => _isGameStarted;
         set => _isGameStarted = value;
     }
     static bool _isGameStarted = false;
@@ -57,14 +48,58 @@ public class AdventureRustFloatOpening : MonoBehaviour
     /// <summary>レバー操作などゲームプレイ優先時にオープニングボードを強制閉じ</summary>
     public void ForceDismissForGameplay()
     {
-        if (_isClosing && IsGameStarted) return;
+        StopAllCoroutines();
         _isClosing = true;
         IsGameStarted = true;
         if (_overlayGo != null) _overlayGo.SetActive(false);
         if (_modalBoard != null) _modalBoard.SetActive(false);
+        if (_modalCg != null) _modalCg.alpha = 0f;
         if (_guideText != null) _guideText.gameObject.SetActive(true);
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+    }
+
+    /// <summary>進行中セーブのロード後など、ボードを出さずゲーム継続</summary>
+    public void DismissBecauseContinuingSave()
+    {
+        if (_canvasGo == null)
+            BuildHud();
+        ForceDismissForGameplay();
+        if (_guideText != null)
+        {
+            _guideText.text = "【WASD】移動　【マウス / 矢印キー】視点　【Space長押し】崖から滑空　【R】リセット";
+            _guideText.gameObject.SetActive(true);
+        }
+    }
+
+    /// <summary>F8／はじめから：時代背景ボードを再表示し、Play後にプロローグへ</summary>
+    public void ShowForNewGame()
+    {
+        StopAllCoroutines();
+        _isClosing = false;
+        _openTime = Time.realtimeSinceStartup;
+
+        if (_canvasGo == null)
+            BuildHud();
+
+        // ボードを先に出してから IsGameStarted=false（途中でゲーム開始扱いになる事故を防ぐ）
+        if (_overlayGo != null) _overlayGo.SetActive(true);
+        if (_modalBoard != null)
+        {
+            _modalBoard.SetActive(true);
+            if (_modalCg != null) _modalCg.alpha = 1f;
+        }
+        if (_guideText != null) _guideText.gameObject.SetActive(false);
+        if (_playButton != null) _playButton.interactable = true;
+
+        // オープニング中は前面へ
+        var canvas = _canvasGo != null ? _canvasGo.GetComponent<Canvas>() : null;
+        if (canvas != null) canvas.sortingOrder = 400;
+
+        IsGameStarted = false;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        Debug.Log("[RustAndFloat] 時代背景オープニングボードを再表示しました");
     }
 
     static bool ShouldSkipOpeningBoard()
@@ -125,6 +160,26 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (!IsGameStarted && ShouldSkipOpeningBoard())
         {
             ForceDismissForGameplay();
+            return;
+        }
+
+        // セーブ継続／パーツ取得済みなのにボードが残っていたら強制閉じ
+        if (!IsGameStarted)
+        {
+            var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
+            if (scrapMgr != null && scrapMgr.CollectedCount > 0)
+            {
+                DismissBecauseContinuingSave();
+                return;
+            }
+        }
+
+        // 閉じかけで止まった場合の救済（コルーチン中断対策）
+        if (_isClosing && !IsGameStarted)
+        {
+            ForceDismissForGameplay();
+            AdventurePrologueDrama.Ensure();
+            AdventurePrologueDrama.Instance?.BeginAfterOpening();
             return;
         }
 
@@ -261,20 +316,29 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     public void OnPlayButtonClicked()
     {
-        if (_isClosing || IsGameStarted)
+        if (IsGameStarted)
             return;
+        if (_isClosing)
+        {
+            // 閉じ途中で止まった場合でも確実に完了させる
+            ForceDismissForGameplay();
+            AdventurePrologueDrama.Ensure();
+            AdventurePrologueDrama.Instance?.BeginAfterOpening();
+            return;
+        }
 
         _isClosing = true;
+        // 先に開始扱いにして操作ロックを即解除（フェード失敗でもボードが残らない）
+        IsGameStarted = true;
         StartCoroutine(StartGameRoutine());
     }
 
     IEnumerator StartGameRoutine()
     {
-        // 1. ボードの滑らかなフェードアウト
         float t = 0f;
         while (t < 0.35f)
         {
-            t += Time.deltaTime;
+            t += Time.unscaledDeltaTime;
             if (_modalCg != null)
                 _modalCg.alpha = Mathf.Lerp(1f, 0f, t / 0.35f);
             yield return null;
@@ -284,26 +348,36 @@ public class AdventureRustFloatOpening : MonoBehaviour
             _overlayGo.SetActive(false);
         if (_modalBoard != null)
             _modalBoard.SetActive(false);
+        if (_modalCg != null)
+            _modalCg.alpha = 0f;
 
-        // 2. ゲーム開始状態へ移行
         IsGameStarted = true;
+        _isClosing = false;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        // 3. 上部操作ガイドを表示
         if (_guideText != null)
         {
             _guideText.text = "【WASD】移動　【マウス / 矢印キー】視点　【Space長押し】崖から滑空　【R】リセット";
             _guideText.gameObject.SetActive(true);
         }
 
-        // 4. 冒頭ドラマ（油切れ→注油→最初のギアへ）
         AdventurePrologueDrama.Ensure();
         AdventurePrologueDrama.Instance?.BeginAfterOpening();
     }
 
     void BuildHud()
     {
+        if (_canvasGo != null)
+            return;
+
+        // 孤児化した旧HUDがあれば掃除（再コンパイル／二重生成対策）
+        foreach (var orphanCanvas in FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (orphanCanvas != null && orphanCanvas.gameObject.name == "RustFloatHUD")
+                Destroy(orphanCanvas.gameObject);
+        }
+
         // EventSystemの自動確保（シーンにEventSystemがない場合でもuGUIボタンと入力モジュールを確実に動作させる）
         if (FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
         {

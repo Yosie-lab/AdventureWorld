@@ -161,7 +161,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         _showOilPrompt = true;
 
         float timeout = 90f;
-        float nextRemind = 14f;
+        float nextRemind = 22f;
         while (!_oilReceived && timeout > 0f)
         {
             timeout -= Time.deltaTime;
@@ -175,7 +175,7 @@ public class AdventurePrologueDrama : MonoBehaviour
                     "ピピッ……か、硬い……Niko……手当て……して……",
                 };
                 drone.SpeakCustom(reminds[Random.Range(0, reminds.Length)], 4.2f);
-                nextRemind = 12f;
+                nextRemind = 20f;
             }
             PollOilInput(drone);
             yield return null;

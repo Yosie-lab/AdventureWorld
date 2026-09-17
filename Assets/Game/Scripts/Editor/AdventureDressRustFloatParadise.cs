@@ -692,6 +692,24 @@ public static class AdventureDressRustFloatParadise
                 c.transform.rotation = Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f);
                 c.transform.localScale = Vector3.one * (0.9f + (float)rng.NextDouble() * 0.3f);
             }
+
+            // 西砂浜に少しだけ（Nikoスポーン(158,275)から離す）
+            Vector3[] beachSpots =
+            {
+                new Vector3(148f, 0f, 248f),
+                new Vector3(132f, 0f, 328f),
+                new Vector3(205f, 0f, 198f),
+            };
+            for (int i = 0; i < beachSpots.Length; i++)
+            {
+                Vector3 p = beachSpots[i];
+                p.y = land.SampleHeight(p) + origin.y;
+                var c = (GameObject)PrefabUtility.InstantiatePrefab(capytaPrefab, animalRoot.transform);
+                c.name = "Capyta_Beach_" + i;
+                c.transform.position = p;
+                c.transform.rotation = Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f);
+                c.transform.localScale = Vector3.one * (0.9f + (float)rng.NextDouble() * 0.25f);
+            }
         }
 
         // 2. 猫（SM_CartoonAnimal_Cat）白亜遺跡の周りや日当たりの良い岩場

@@ -32,10 +32,10 @@ public class AdventureCapytaBlessing : MonoBehaviour
 
     static readonly string[] RustByMood =
     {
-        "ピロッ……油もらったよ。Niko、あとでさして……ぎゅっとしてもいい？",
-        "えへへ…カピタ機嫌がいいね！油いっぱい……！Niko、撫でて……？",
-        "わぁ……油がたくさん……！身体が軽くなりそう。そばにいてね、Niko",
-        "ピキーッ！！山盛り……！！カピタ大好き……！Niko、何度でも手当てして……甘えていい？",
+        "ピロッ……油もらったよ。あとで整備しよう",
+        "カピタ機嫌がいいね。油、ありがたい",
+        "わぁ……油がたくさん。助かるよ、Niko",
+        "ピキーッ……山盛りだ。これでしばらく安心だね",
     };
 
     static readonly string[] RustFirst =
@@ -75,6 +75,117 @@ public class AdventureCapytaBlessing : MonoBehaviour
     {
         if (PlayerPrefs.GetInt(PrefKey, 0) == 1)
             GrantSuperJump(silent: true);
+        SpawnBeachCapitasIfNeeded();
+    }
+
+    static readonly Vector3[] BeachCapytaSpots =
+    {
+        new Vector3(148f, 0f, 248f), // スタート南方（Nikoスポーンから約28m）
+        new Vector3(132f, 0f, 328f), // 西砂浜中央帯
+        new Vector3(205f, 0f, 198f), // 南砂浜
+    };
+
+    /// <summary>砂浜にカピタを少しだけ配置（既に Beach 個体がいれば位置だけ補正）</summary>
+    static void SpawnBeachCapitasIfNeeded()
+    {
+        var land = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
+        Vector3 nikoSpawn = ResolveNikoSpawnXZ();
+
+        var existingBeach = FindBeachCapitas();
+        if (existingBeach.Count > 0)
+        {
+            for (int i = 0; i < existingBeach.Count && i < BeachCapytaSpots.Length; i++)
+                PlaceCapytaOnGround(existingBeach[i], BeachCapytaSpots[i], land);
+            PushCapitasClearOfPoint(nikoSpawn, 10f, land);
+            return;
+        }
+
+        GameObject prefab = null;
+#if UNITY_EDITOR
+        prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+            "Assets/Niko&Capyta/Assets/Prefabs/Capyta.prefab");
+#endif
+        if (prefab == null) return;
+
+        var root = new GameObject("Capyta_Beach_Root");
+        for (int i = 0; i < BeachCapytaSpots.Length; i++)
+        {
+            Vector3 p = GroundAt(BeachCapytaSpots[i], land);
+            var go = Object.Instantiate(prefab, p, Quaternion.Euler(0f, 40f + i * 70f, 0f), root.transform);
+            go.name = "Capyta_Beach_" + i;
+            go.transform.localScale = Vector3.one * (0.92f + i * 0.04f);
+        }
+
+        PushCapitasClearOfPoint(nikoSpawn, 10f, land);
+    }
+
+    static System.Collections.Generic.List<Transform> FindBeachCapitas()
+    {
+        var list = new System.Collections.Generic.List<Transform>(4);
+        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            var t = all[i];
+            if (t == null) continue;
+            if (!t.name.StartsWith("Capyta_Beach_")) continue;
+            if (t.parent != null && t.parent.name.StartsWith("Capyta")) continue;
+            list.Add(t);
+        }
+        return list;
+    }
+
+    static Vector3 ResolveNikoSpawnXZ()
+    {
+        var player = AdventurePlayerController.Instance
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
+        if (player != null)
+        {
+            if (player.spawnPosition != Vector3.zero)
+                return new Vector3(player.spawnPosition.x, 0f, player.spawnPosition.z);
+            return new Vector3(player.transform.position.x, 0f, player.transform.position.z);
+        }
+        return new Vector3(158f, 0f, 275f);
+    }
+
+    static Vector3 GroundAt(Vector3 xz, Terrain land)
+    {
+        Vector3 p = xz;
+        if (land != null)
+            p.y = land.SampleHeight(p) + land.transform.position.y;
+        else
+            p.y = 1f;
+        return p;
+    }
+
+    static void PlaceCapytaOnGround(Transform capy, Vector3 xz, Terrain land)
+    {
+        if (capy == null) return;
+        capy.position = GroundAt(xz, land);
+    }
+
+    /// <summary>Nikoスポーン付近にいるカピタを外側へ押し出す</summary>
+    static void PushCapitasClearOfPoint(Vector3 centerXZ, float minDist, Terrain land)
+    {
+        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            var t = all[i];
+            if (t == null) continue;
+            if (!t.name.StartsWith("Capyta")) continue;
+            if (t.parent != null && t.parent.name.StartsWith("Capyta")) continue;
+
+            Vector3 p = t.position;
+            float dx = p.x - centerXZ.x;
+            float dz = p.z - centerXZ.z;
+            float dist = Mathf.Sqrt(dx * dx + dz * dz);
+            if (dist >= minDist) continue;
+
+            Vector3 dir = dist > 0.05f
+                ? new Vector3(dx, 0f, dz).normalized
+                : new Vector3(-1f, 0f, -0.4f).normalized;
+            Vector3 next = new Vector3(centerXZ.x, 0f, centerXZ.z) + dir * (minDist + 2f);
+            t.position = GroundAt(next, land);
+        }
     }
 
     public void ResetForNewGame()
@@ -83,7 +194,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
         PlayerPrefs.Save();
         _talkIndex = 0;
         var player = AdventurePlayerController.Instance
-                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
         if (player != null)
         {
             player.hasCapytaSuperJump = false;
@@ -105,7 +216,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
     void GrantSuperJump(bool silent)
     {
         var player = AdventurePlayerController.Instance
-                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
         if (player == null) return;
 
         bool already = player.hasCapytaSuperJump;
@@ -348,23 +459,28 @@ public class AdventureCapytaBlessing : MonoBehaviour
     {
         if (!_promptVisible) return;
 
-        float w = Mathf.Min(720f, Screen.width * 0.9f);
-        float h = 64f;
+        // Retina / 大画面でも米粒にならないよう特大表示
+        float scale = Mathf.Clamp(Screen.height / 720f, 1.15f, 2.2f);
+        float w = Mathf.Min(980f * scale, Screen.width * 0.94f);
+        float h = 96f * scale;
         float x = (Screen.width - w) * 0.5f;
-        float y = Screen.height - 150f;
+        float y = Screen.height - (170f * scale);
+        float bar = 4f * scale;
 
-        GUI.color = new Color(0.05f, 0.12f, 0.08f, 0.78f);
+        GUI.color = new Color(0.03f, 0.10f, 0.06f, 0.88f);
         GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
-        GUI.color = new Color(0.55f, 0.95f, 0.65f, 0.95f);
-        GUI.DrawTexture(new Rect(x, y, w, 3f), Texture2D.whiteTexture);
+        GUI.color = new Color(0.55f, 0.98f, 0.70f, 0.98f);
+        GUI.DrawTexture(new Rect(x, y, w, bar), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(x, y + h - bar, w, bar), Texture2D.whiteTexture);
 
         var style = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 21,
+            fontSize = Mathf.RoundToInt(32f * scale),
             fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter
+            alignment = TextAnchor.MiddleCenter,
+            wordWrap = true
         };
-        style.normal.textColor = new Color(0.9f, 1f, 0.85f, 1f);
+        style.normal.textColor = new Color(0.95f, 1f, 0.88f, 1f);
         string tip = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.hasCapytaSuperJump
             ? "【E】カピタと話す（機嫌で潤滑油 5〜48）"
             : "【E】カピタと話す（スーパージャンプ＆機嫌で油たっぷり）";

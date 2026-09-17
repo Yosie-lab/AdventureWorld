@@ -24,7 +24,7 @@ public class AdventureScrapManager : MonoBehaviour
     public int collectedCount => CollectedCount;
     public bool hasPetRadar => CollectedCount >= 9;
 
-    const string PrefKeyScrapLayout = "RustAndFloat_ScrapLayoutXZ";
+    const string PrefKeyScrapLayout = "RustAndFloat_ScrapLayoutXZ_v5";
     const float MinDistFromPrevious = 28f;
     const float MinDistBetweenScraps = 22f;
 
@@ -34,42 +34,51 @@ public class AdventureScrapManager : MonoBehaviour
     /// <summary>
     /// 各パーツの候補座標プール（同一ステージ内で複数地点）。
     /// インデックス0が既定レイアウト。ニューゲームでは前回と違う候補を選ぶ。
+    /// 前半4個は砂浜〜海岸、後半8個が内陸。
     /// </summary>
     static readonly Vector3[][] ScrapCandidatePools =
     {
-        // 1. 砂浜スタート付近（視界内の別地点）
+        // 1. 南西岬〜南砂浜（海岸の南端付近）
+        new[]
+        {
+            new Vector3(200f, 0f, 185f),
+            new Vector3(175f, 0f, 200f),
+            new Vector3(215f, 0f, 205f),
+            new Vector3(160f, 0f, 195f),
+        },
+        // 2. スタート座礁艇まわり（南寄り中央）
         new[]
         {
             new Vector3(167f, 0f, 277f),
-            new Vector3(175f, 0f, 268f),
-            new Vector3(158f, 0f, 288f),
-            new Vector3(172f, 0f, 292f),
+            new Vector3(145f, 0f, 260f),
+            new Vector3(185f, 0f, 250f),
+            new Vector3(155f, 0f, 290f),
         },
-        // 2. 焚き火キャンプ周辺
+        // 3. 西砂浜中央〜焚き火キャンプ帯
         new[]
         {
-            new Vector3(182f, 0f, 332f),
-            new Vector3(198f, 0f, 318f),
-            new Vector3(170f, 0f, 345f),
-            new Vector3(190f, 0f, 350f),
+            new Vector3(140f, 0f, 320f),
+            new Vector3(185f, 0f, 335f),
+            new Vector3(125f, 0f, 305f),
+            new Vector3(200f, 0f, 315f),
         },
-        // 3. 南西岬・砂浜登り口
+        // 4. 北西砂浜テラス（海岸の北端付近）
         new[]
         {
-            new Vector3(195f, 0f, 230f),
-            new Vector3(210f, 0f, 245f),
-            new Vector3(185f, 0f, 215f),
-            new Vector3(220f, 0f, 225f),
+            new Vector3(150f, 0f, 380f),
+            new Vector3(130f, 0f, 360f),
+            new Vector3(170f, 0f, 400f),
+            new Vector3(145f, 0f, 410f),
         },
-        // 4. 大草原入り口
+        // 5. 大草原入り口
         new[]
         {
-            new Vector3(240f, 0f, 290f),
             new Vector3(255f, 0f, 305f),
-            new Vector3(228f, 0f, 270f),
+            new Vector3(240f, 0f, 290f),
             new Vector3(265f, 0f, 280f),
+            new Vector3(248f, 0f, 320f),
         },
-        // 5. せせらぎ池周辺
+        // 6. せせらぎ池周辺（★6個付近）
         new[]
         {
             new Vector3(290f, 0f, 325f),
@@ -77,7 +86,7 @@ public class AdventureScrapManager : MonoBehaviour
             new Vector3(275f, 0f, 310f),
             new Vector3(300f, 0f, 300f),
         },
-        // 6. 大河飛び石周辺
+        // 7. 大河飛び石周辺
         new[]
         {
             new Vector3(330f, 0f, 240f),
@@ -85,7 +94,7 @@ public class AdventureScrapManager : MonoBehaviour
             new Vector3(315f, 0f, 225f),
             new Vector3(350f, 0f, 230f),
         },
-        // 7. カルデラ湖周辺
+        // 8. カルデラ湖周辺
         new[]
         {
             new Vector3(390f, 0f, 430f),
@@ -93,7 +102,7 @@ public class AdventureScrapManager : MonoBehaviour
             new Vector3(375f, 0f, 415f),
             new Vector3(430f, 0f, 420f),
         },
-        // 8. 深林渓流周辺
+        // 9. 深林渓流周辺（★9個付近）
         new[]
         {
             new Vector3(540f, 0f, 440f),
@@ -101,21 +110,13 @@ public class AdventureScrapManager : MonoBehaviour
             new Vector3(520f, 0f, 425f),
             new Vector3(555f, 0f, 420f),
         },
-        // 9. 大樹海
+        // 10. 大樹海
         new[]
         {
             new Vector3(680f, 0f, 520f),
             new Vector3(700f, 0f, 540f),
             new Vector3(655f, 0f, 500f),
             new Vector3(690f, 0f, 490f),
-        },
-        // 10. 北東高地
-        new[]
-        {
-            new Vector3(640f, 0f, 650f),
-            new Vector3(660f, 0f, 670f),
-            new Vector3(620f, 0f, 635f),
-            new Vector3(655f, 0f, 625f),
         },
         // 11. 北の大滑空崖周辺
         new[]
@@ -399,21 +400,21 @@ public class AdventureScrapManager : MonoBehaviour
 
         var root = new GameObject("ScrapItemsRoot");
 
-        // 海岸から内陸へと続く12個のストーリープログレッション配置
+        // 砂浜4＋内陸8のストーリープログレッション配置
         string[] itemNames = new string[]
         {
-            "古代の推進黄金ギア",       // 1. 座礁艇
-            "耐熱スタビライザー",         // 2. 焚き火キャンプ跡
-            "海風のエネルギーコア",       // 3. 砂浜岬 (★3個: ダッシュ速度UP)
-            "反重力サスペンション",       // 4. 草原小道
-            "清流の共鳴プリズム",         // 5. せせらぎ池
-            "跳躍反重力コア",             // 6. 大河飛び石 (★6個: 二段ジャンプ)
-            "水冷コンデンサー",           // 7. カルデラ湖
-            "高周波ソナークリスタル",     // 8. 深林渓流
-            "古代探知コア",               // 9. 大樹海 (★9個: 探知ソナー)
-            "超伝導エアフォイル",         // 10. 北東高地
+            "古代の推進黄金ギア",       // 1. 南西岬〜南砂浜
+            "耐熱スタビライザー",         // 2. スタート座礁艇まわり
+            "海風のエネルギーコア",       // 3. 西砂浜中央〜焚き火 (★3個: ダッシュ)
+            "潮騒のバランスリング",       // 4. 北西砂浜テラス
+            "反重力サスペンション",       // 5. 大草原入り口
+            "跳躍反重力コア",             // 6. せせらぎ池 (★6個: 二段ジャンプ)
+            "清流の共鳴プリズム",         // 7. 大河飛び石
+            "水冷コンデンサー",           // 8. カルデラ湖
+            "高周波ソナークリスタル",     // 9. 深林渓流 (★9個: 探知ソナー)
+            "古代探知コア",               // 10. 大樹海
             "高空ジェットスラスター",     // 11. 北の大滑空崖
-            "天蓋開放マスターコア"        // 12. 中央タワー (★12個: 大滑空完成)
+            "天蓋開放マスターコア"        // 12. 中央タワー (★12個)
         };
 
         for (int i = 0; i < _scrapSpawnPositions.Count; i++)

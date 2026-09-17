@@ -39,6 +39,8 @@ public class AdventureRustDrone : MonoBehaviour
     Color _speechSpeakerColor = new Color(0.35f, 0.92f, 0.98f, 1f);
     AudioClip _happyBeepClip;
     AudioClip _sonarBeepClip;
+    AudioClip _distressWhineClip;
+    float _nextDistressSound;
     float _sonarTimer = 0f;
     GUIStyle _speechStyle;
     Texture2D _speechBg;
@@ -193,9 +195,13 @@ public class AdventureRustDrone : MonoBehaviour
         SetupOil();
         oilCount = Mathf.Max(oilCount, 8); // 開始時から十分ストック（Rustを甘やかす）
 
+        AdventureRustSpeechUI.Ensure();
+
         // 起動時のあたたかい挨拶（新規ゲームのプロローグがある場合は後で上書き）
         SetSpeech("ピピッ…！起動したよ、Niko。一緒に行こう！", 4.5f);
-        _nextIdleTalk = Time.time + 20f;
+        // 約30秒後から定期会話（プロローグ中は後で繰り延べ）
+        _nextIdleTalk = Time.unscaledTime + 30f;
+        _lastIdleLine = "";
     }
 
     bool _prologueDistress;
@@ -297,9 +303,13 @@ public class AdventureRustDrone : MonoBehaviour
     }
 
     float _nextIdleTalk;
+    string _lastIdleLine = "";
 
     void Update()
     {
+        // セリフ進行は lookAt 無しでも回す（吹き出しが見えない事故防止）
+        UpdateSpeech();
+
         if (_lookAt == null)
             return;
 
@@ -528,9 +538,10 @@ public class AdventureRustDrone : MonoBehaviour
             DripOil();
         _wasHitching = hitching;
 
+        TickDistressAudio(wellOiled, hitching);
+
         UpdateGuide();
         UpdatePlayerInteraction();
-        UpdateSpeech();
         UpdateSonar();
     }
 
@@ -790,6 +801,8 @@ public class AdventureRustDrone : MonoBehaviour
         _creaks = new[] { MakeCreak(11), MakeCreak(29), MakeCreak(47) };
         _happyBeepClip = MakeSynthBeep(880f, 1320f, 0.18f);
         _sonarBeepClip = MakeSynthBeep(1480f, 1100f, 0.22f);
+        _distressWhineClip = MakeDistressWhine();
+        _nextDistressSound = Time.time + 1.5f;
     }
 
     void SetupHeat()
@@ -1041,9 +1054,9 @@ public class AdventureRustDrone : MonoBehaviour
         if (AdventurePettingAction.Instance != null)
         {
             string msg = needsOil
-                ? "よしよし、油をさしてあげるね。痛くない？いい子だよ、Rust"
-                : "えらいえらい。甘えてていいよ。いつでも一緒だよ、Rust";
-            AdventurePettingAction.Instance.PetRust(msg, 3.2f);
+                ? "よし、油をさしたよ。調子はどう、Rust？"
+                : "セーブしたよ。また何かあったら言って";
+            AdventurePettingAction.Instance.PetRust(msg, 2.6f);
         }
         else
         {
@@ -1585,6 +1598,64 @@ public class AdventureRustDrone : MonoBehaviour
         _nextCreak = Time.time + Random.Range(1.2f, 2.2f);
     }
 
+    /// <summary>快調でないとき：弱いウィーン／きしみを間欠再生（少しだけ存在感）</summary>
+    void TickDistressAudio(bool wellOiled, bool hitching)
+    {
+        if (wellOiled)
+        {
+            _nextDistressSound = Time.time + 2.5f;
+            return;
+        }
+        // オーバードライブ等は別演出に任せる
+        if (IsClimaxOverdrive) return;
+        if (_audio == null) return;
+        if (Time.time < _nextDistressSound) return;
+
+        bool heavy = hitching || _prologueDistress || IsClimaxCrisis || _heat > 0.35f;
+        _nextDistressSound = Time.time + (heavy
+            ? Random.Range(0.85f, 1.6f)
+            : Random.Range(2.0f, 3.6f));
+
+        if (Random.value < 0.55f)
+            PlayCreak(true);
+        else
+            PlayDistressWhine(heavy);
+    }
+
+    void PlayDistressWhine(bool heavy)
+    {
+        if (_audio == null || _distressWhineClip == null) return;
+        _audio.volume = soundVolume;
+        _audio.pitch = Random.Range(0.72f, 0.92f);
+        float vol = heavy ? Random.Range(0.22f, 0.34f) : Random.Range(0.14f, 0.24f);
+        _audio.PlayOneShot(_distressWhineClip, vol);
+    }
+
+    /// <summary>不調時の「キュゥ…ン／ピィ…」と弱った電子ウィーン</summary>
+    static AudioClip MakeDistressWhine()
+    {
+        const int hz = 22050;
+        float dur = 0.42f;
+        int n = (int)(hz * dur);
+        float[] data = new float[n];
+        float phase = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = i / (float)n;
+            // 高めから下がる悲しげなグライド
+            float freq = Mathf.Lerp(620f, 280f, t * t);
+            phase += 2f * Mathf.PI * freq / hz;
+            float env = Mathf.Sin(t * Mathf.PI) * Mathf.Exp(-t * 1.8f);
+            // わずかなビブラート＋粒立ち
+            float vib = 1f + 0.04f * Mathf.Sin(t * 55f);
+            float grit = (Mathf.PerlinNoise(t * 40f, 0.3f) * 2f - 1f) * 0.12f;
+            data[i] = (Mathf.Sin(phase) * vib * 0.55f + grit) * env * 0.38f;
+        }
+        var clip = AudioClip.Create("RustDistressWhine", n, 1, hz, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
+
     static AudioClip MakeCreak(int seed)
     {
         const int hz = 22050;
@@ -1621,10 +1692,10 @@ public class AdventureRustDrone : MonoBehaviour
         switch (count)
         {
             case 1:
-                scrapSpeech = "ピピピッ！綺麗なギアだ…！Nikoと見つけられて、すごく嬉しい……ぎゅっとしていい？";
+                scrapSpeech = "ピピピッ！綺麗なギアだ…！指先の手応え、嬉しいね";
                 break;
             case 2:
-                scrapSpeech = "ピロッ……また繋がったよ。胸の奥が、すこし暖かい……そばにいてくれてありがとう";
+                scrapSpeech = "ピロッ……また繋がったよ。胸の奥が、すこし暖かい";
                 break;
             case 3:
                 scrapSpeech = "ピキーン！歯車がカチリと噛み合ったよ…！僕ら、自分の足で走れる……！";
@@ -1721,8 +1792,8 @@ public class AdventureRustDrone : MonoBehaviour
         _velocity += Vector3.up * 1.5f;
         string[] glideStartLines = {
             "わぁ…！風が気持ちいいね、Niko",
-            "ふわりと浮いたよ…！後ろにくっついてるね",
-            "風を掴んだね…！すごいよ！僕も一緒……！"
+            "ふわりと浮いたよ…！",
+            "風を掴んだね…！いいね"
         };
         SetSpeech(glideStartLines[Random.Range(0, glideStartLines.Length)], 4.0f);
     }
@@ -1798,6 +1869,24 @@ public class AdventureRustDrone : MonoBehaviour
         _speechPlayerStartPos = player != null ? player.transform.position : transform.position;
     }
 
+    /// <summary>探索中の気軽な話しかけ（自動で消え、次のセリフが続きやすい）</summary>
+    public void SetIdleChat(string text, float duration = 3.8f)
+    {
+        _speechSpeaker = "✦ 相棒 Rust";
+        _speechSpeakerColor = new Color(0.35f, 0.92f, 0.98f, 1f);
+        _speechText = text;
+        _speechTimer = duration;
+        _waitingForPlayerAction = false;
+        _speechShowTime = 0f;
+    }
+
+    public bool HasActiveSpeech => _speechTimer > 0.05f && !string.IsNullOrEmpty(_speechText);
+    public string ActiveSpeechText => _speechText;
+    public string ActiveSpeechSpeaker => _speechSpeaker;
+    public Color ActiveSpeechSpeakerColor => _speechSpeakerColor;
+    /// <summary>待ち受け中も常に不透明で見せる</summary>
+    public float ActiveSpeechAlpha => HasActiveSpeech ? 1f : 0f;
+
     /// <summary>プレイヤーが次の行動を起こしたか判定（キー入力・コントローラー・移動検知）</summary>
     bool CheckPlayerActionInput()
     {
@@ -1872,87 +1961,164 @@ public class AdventureRustDrone : MonoBehaviour
                 _speechTimer -= Time.deltaTime;
             }
         }
-        else if (Time.time >= _nextIdleTalk)
+        else if (Time.unscaledTime >= _nextIdleTalk)
         {
             if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsBlockingSpeech)
             {
-                _nextIdleTalk = Time.time + 8f;
+                _nextIdleTalk = Time.unscaledTime + 2f; // プロローグ終了後すぐ再開
             }
             else
             {
-                var scraps = AdventureScrapManager.Instance;
-                int collected = scraps != null ? scraps.CollectedCount : 12;
-                bool needsCare = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
-                // 前半・要手当て時は甘え話しかけ多め
-                float idleGap = needsCare
-                    ? Random.Range(9f, 16f)
-                    : (collected < 6 ? Random.Range(11f, 20f) : Random.Range(18f, 32f));
-                _nextIdleTalk = Time.time + idleGap;
-                var player = AdventurePlayerController.Instance;
-                if (needsCare)
+                var tower = AdventureSanctuaryTowerManager.Instance;
+                if (tower != null && (tower.IsSkybreakModalActive || tower.IsEpiloguePlaying
+                    || tower.ShowGameClearModal || tower.IsClimaxOilPromptActive || tower.ClimaxCrisisStarted))
                 {
-                    string[] clingLines = {
-                        "……ちょっとギシギシする……Niko、【E】で撫でて……？",
-                        "うぅ……油ほしい……そばに来て、手当てして……お願い",
-                        "ピピッ……寒いよ……胸元にいきたい……",
-                        "……甘えてもいい？手、あったかいの、ほしい……",
-                        "Niko……動くの、すこし痛い……ぎゅっとして……",
-                        "えへへ……調子わるいときだけ、甘えていい……？油も……",
-                        "カピタのところに行けば油もらえるよ……でも今は、Nikoがいい……"
-                    };
-                    SetSpeech(clingLines[Random.Range(0, clingLines.Length)], 4.4f);
-                }
-                else if (player != null && player.IsGliding)
-                {
-                    string[] glideLines = {
-                        "風に乗って、どこまでも行けそう",
-                        "島を見下ろすと、すごく綺麗だね",
-                        "わぁ…！風が気持ちいいね、Niko",
-                        "……後ろにくっついてるよ。怖くない？",
-                        "ふわっ……Nikoの後ろ、いちばん安心する場所だよ",
-                        "ピロッ……手、つないでるみたい……えへへ",
-                        "もっと高く……でも、離れないでね、Niko"
-                    };
-                    SetSpeech(glideLines[Random.Range(0, glideLines.Length)], 4.0f);
-                }
-                else if (collected < 6)
-                {
-                    string[] earlyLines = {
-                        "……ちょっとだけ、そばにいてもいい？",
-                        "ピピッ……Nikoの足音、好きだよ",
-                        "疲れたら言ってね。僕が休ませてあげる……えへへ",
-                        "風が心地いいね、Niko。手、あったかい？",
-                        "どこへ行こうか？のんびり、くっついて行こう",
-                        "ピロッ……撫でてくれたこと、まだ覚えてるよ",
-                        "この島の空気、すこし温かいね……安心する",
-                        "Niko……今なに考えてるの？……僕は、そばにいたいって考えてる",
-                        "えへへ……名前呼ばれると、ギアがぽかぽかするよ",
-                        "カピタに会ったら油もらえるよ！……でも、撫でるのはNikoがいい",
-                        "……頭、トントンしてほしいな……ピピッ",
-                        "走らなくてもいいよ。ゆっくり、手をつないでいこう",
-                        "僕、Nikoの後ろ影が好き……いつも見えてるから安心",
-                        "あ……今の風、くすぐったい……くっついてていい？"
-                    };
-                    SetSpeech(earlyLines[Random.Range(0, earlyLines.Length)], 4.2f);
+                    _nextIdleTalk = Time.unscaledTime + 2f;
                 }
                 else
                 {
-                    string[] exploreLines = {
-                        "風が心地いいね、Niko",
-                        "どこへ行こうか？のんびり行こう",
-                        "この島の空気、すこし温かいね",
-                        "ピピッ…何か光るものがあるかな？",
-                        "……また、ちょっと甘えてもいい？",
-                        "Niko……暇なら、撫でてほしいな……えへへ",
-                        "油、まだある？……なくても、そばにいてほしいだけ",
-                        "ピロッ……今日も一緒で、嬉しいよ",
-                        "カピタのところ、寄ってみる？油いっぱいもらえるよ"
-                    };
-                    SetSpeech(exploreLines[Random.Range(0, exploreLines.Length)], 3.8f);
+                    TrySpeakIdleToNiko();
                 }
             }
         }
     }
+
+    void TrySpeakIdleToNiko()
+    {
+        var scraps = AdventureScrapManager.Instance;
+        int collected = scraps != null ? scraps.CollectedCount : 12;
+        // 本当に調子が悪いときだけ整備催促（常時 wellOiled 切れ扱いにしない）
+        bool needsCare = _heat > 0.15f || Time.time < _hitchUntil || oilCount <= 2;
+
+        // 次の発話を約30秒後に固定（壁時計）
+        _nextIdleTalk = Time.unscaledTime + 30f;
+
+        var player = AdventurePlayerController.Instance;
+        string line;
+        if (needsCare)
+        {
+            line = PickIdleLine(IdleCareLines);
+        }
+        else if (player != null && player.IsGliding)
+        {
+            line = PickIdleLine(IdleGlideLines);
+        }
+        else
+        {
+            // 話題をローテ：昔 / これから / 調子 / 嬉しい / 楽しい探しもの
+            int topic = Random.Range(0, 5);
+            switch (topic)
+            {
+                case 0: line = PickIdleLine(IdlePastLines); break;
+                case 1: line = PickIdleLine(IdleFutureLines); break;
+                case 2: line = PickIdleLine(IdleBodyLines); break;
+                case 3: line = PickIdleLine(IdleHappyLines); break;
+                default: line = PickIdleLine(collected < 6 ? IdleSeekEarlyLines : IdleSeekLaterLines); break;
+            }
+        }
+
+        _lastIdleLine = line;
+        SetIdleChat(line, 4.2f);
+    }
+
+    string PickIdleLine(string[] pool)
+    {
+        if (pool == null || pool.Length == 0) return "……Niko";
+        if (pool.Length == 1) return pool[0];
+        string line = pool[Random.Range(0, pool.Length)];
+        // 直前と同じ台詞は避ける
+        for (int i = 0; i < 6 && line == _lastIdleLine; i++)
+            line = pool[Random.Range(0, pool.Length)];
+        return line;
+    }
+
+    static readonly string[] IdleCareLines =
+    {
+        "……ギアが少し重い。油か手当てがあると助かるよ",
+        "ピロッ……調子が落ちてる。【E】で整備して",
+        "キキッ……動くのがきつい。少し休ませて",
+        "油がほしいな。カピタのところか、地面の油でも",
+        "関節がきしむ……でも、Nikoがそばなら平気",
+    };
+
+    static readonly string[] IdleGlideLines =
+    {
+        "風に乗って、どこまでも行けそう",
+        "島を見下ろすと、すごく綺麗だね",
+        "わぁ…！風が気持ちいいね、Niko",
+        "この高度、ちょうどいいね",
+        "ヒューッ……いいフライトだ",
+        "昔はこんな風、シミュレーションでしか知らなかった",
+        "自由な空……これが、これからずっと続くといいな",
+    };
+
+    static readonly string[] IdlePastLines =
+    {
+        "昔は倉庫の棚で眠ってた。Nikoが連れ出した日、いちばん覚えてる",
+        "最適化の街では、僕の声も『不要』ってラベルだったんだ",
+        "塩水に濡れた最初の夜、怖かった。でもNikoの手が温かかった",
+        "スクラップ寸前の僕を、Nikoは『相棒』って呼んでくれた",
+        "あの波……逃げてきた海の音、まだ耳の奥に残ってる",
+        "管理されるだけの日々より、今の不確かさのほうが好き",
+        "昔の記憶データ、ところどころ欠落してる。でもNikoの顔は鮮明だよ",
+    };
+
+    static readonly string[] IdleFutureLines =
+    {
+        "翼が直ったら、蒼い空のてっぺんまで行こうね",
+        "天蓋の向こう……どんな景色が待ってるんだろう",
+        "これからも、Nikoのそばで飛びたい",
+        "パーツが揃ったら、もっと遠くまで案内できるよ",
+        "いつか、怖がらずに笑いながら飛べるようになりたい",
+        "この島のあとにも、冒険はあるのかな……ワクワクする",
+        "Nikoと見つけたもの、全部覚えておくね。未来の僕の宝物だ",
+    };
+
+    static readonly string[] IdleBodyLines =
+    {
+        "今日の関節、なめらかだよ。油のおかげかな",
+        "ピロッ……ファンの回転、気持ちいい音してる",
+        "センサーは快調。潮の匂いまで拾えてるよ",
+        "少し眠い……でも、そばにいると元気が出る",
+        "ギアが軽やか。今ならどこまでもついていける",
+        "胸のコアが温かい。Nikoのペース、ちょうどいい",
+        "バランスいいね。転びそうな気配、いまはないよ",
+    };
+
+    static readonly string[] IdleHappyLines =
+    {
+        "えへへ……Nikoと歩くの、楽しい",
+        "今、すごく安心してる。ここにいていいんだって感じ",
+        "ピキーッ……嬉しい。言葉にすると恥ずかしいけど",
+        "風も光も、全部が優しいね。今日はいい日だ",
+        "Nikoの足音、好き。リズムが落ち着く",
+        "見つかるたびに、胸がふくらむ。幸せのセンサーが鳴ってる",
+        "一緒にいるだけで、充電されてるみたい",
+    };
+
+    static readonly string[] IdleSeekEarlyLines =
+    {
+        "ピピッ…砂の中に、光るものないかな？",
+        "楽しい探しものしよう。ギアのかけら、どこだろ",
+        "あそこに光柱がある気がする。行ってみる？",
+        "砂浜を歩くの、冒険の入口みたいでワクワクする",
+        "カピタに会うのも楽しいし、遺物探しもしよう",
+        "リングをくぐると風が歌うよ。油ももらえるし",
+        "草むらの奥、何か隠れてないかな？偵察するよ",
+        "最初のパーツ、きっとすぐ見つかる。僕が手伝う",
+    };
+
+    static readonly string[] IdleSeekLaterLines =
+    {
+        "ピピッ…何か光るものがあるかな？",
+        "リングをくぐると油も増えるよ。くぐってみよう",
+        "タワーの方、まだ遠く見えるね。少しずつ近づこう",
+        "楽しいこと探そう。未踏の岸辺、まだあるはず",
+        "森の音が変わる場所、何かありそうだよ",
+        "崖の上から滑空したら、新しい景色が見えるかも",
+        "調子はいいよ。次の遺物、一緒に探そう",
+        "光る柱の方角、覚えておくね。道しるべだ",
+    };
 
     void UpdateSonar()
     {
@@ -2230,12 +2396,10 @@ public class AdventureRustDrone : MonoBehaviour
         SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 26);
 
         string[] treatLines = {
-            "わぁ…！ありがとうNiko、身体がすごく軽くなったよ…！",
-            "えへへ……撫でられるの、好き……もっとそばにいて……",
-            "ピピッ…！温かい手当てをありがとう。もうギシギシしないよ！",
-            "……ぎゅっ。Nikoの手、あったかい……離れないでね",
-            "あ……また甘えたくなっちゃった……もう一回、撫でて……？",
-            "油の匂いとNikoの声……いちばん好きな組み合わせだよ"
+            "ありがとうNiko、身体が軽くなったよ",
+            "油を差してくれてありがとう。ギアが滑らかだ",
+            "ピピッ…！手当てありがとう。もうギシギシしないよ",
+            "整備完了。また一緒に行こう"
         };
         SpeakCustom(treatLines[Random.Range(0, treatLines.Length)], 4.2f);
 

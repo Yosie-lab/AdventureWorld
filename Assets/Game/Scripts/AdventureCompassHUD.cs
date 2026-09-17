@@ -328,14 +328,8 @@ public class AdventureCompassHUD : MonoBehaviour
         if (cam == null)
             return;
 
-        // 追従カメラの論理ヨーを優先（transform との1フレームズレを防ぐ）
-        float yaw;
-        var follow = cam.GetComponent<AdventureCameraFollow>();
-        if (follow != null)
-            yaw = follow.CurrentYaw;
-        else
-            yaw = cam.transform.eulerAngles.y;
-        yaw = (yaw % 360f + 360f) % 360f;
+        // カメラ正面XZから方位を取る（CurrentYaw累積や1フレームズレに依存しない）
+        float yaw = YawFromForward(cam.transform.forward);
 
         // 1. 各方角要素のシームレス配置（DeltaAngle方式：境界でのワープが物理的にゼロ）
         for (int i = 0; i < _elements.Count; i++)
@@ -374,19 +368,11 @@ public class AdventureCompassHUD : MonoBehaviour
                 Vector3 toScrap = nearest.transform.position - player.transform.position;
                 toScrap.y = 0f;
 
-                Vector3 camFwd = cam.transform.forward;
-                camFwd.y = 0f;
-
-                if (toScrap.sqrMagnitude > 0.04f && camFwd.sqrMagnitude > 0.01f)
+                if (toScrap.sqrMagnitude > 0.04f)
                 {
-                    toScrap.Normalize();
-                    camFwd.Normalize();
-
-                    // カメラ正面から見たパーツへの符号付き角度（-180° 〜 +180°）
-                    float angle = Vector3.SignedAngle(camFwd, toScrap, Vector3.up);
-
-                    // パーツへの絶対方角（北・東・南・西）
-                    float scrapYaw = (Quaternion.LookRotation(toScrap).eulerAngles.y + 360f) % 360f;
+                    // パーツの絶対方位も同じYaw定義で計算（リボンと矢印を一致させる）
+                    float scrapYaw = YawFromForward(toScrap);
+                    float angle = Mathf.DeltaAngle(yaw, scrapYaw);
                     string scrapCardinal = GetCardinal(scrapYaw);
 
                     // コンパスリボン上に「✦」マーカーをダイレクト描画
@@ -470,6 +456,16 @@ public class AdventureCompassHUD : MonoBehaviour
                 }
             }
         }
+    }
+
+    /// <summary>ワールドXZ前方ベクトル → コンパス方位角（北=0 / 東=90 / 南=180 / 西=270）</summary>
+    static float YawFromForward(Vector3 forward)
+    {
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.0001f)
+            return 0f;
+        forward.Normalize();
+        return Mathf.Repeat(Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg, 360f);
     }
 
     public static string GetCardinal(float yaw)

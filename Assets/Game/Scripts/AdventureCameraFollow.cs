@@ -4,10 +4,10 @@ using UnityEngine.InputSystem;
 public class AdventureCameraFollow : MonoBehaviour
 {
     public Transform target;
-    public float height = 1.7f;
-    public float distance = 6.5f;
+    public float height = 1.25f;
+    public float distance = 6.2f;
     public float sensitivity = 0.16f; // マウスの快適で自然な感度
-    public float pitchMin = -10f;
+    public float pitchMin = -12f;
     public float pitchMax = 32f;
 
     [Header("位置スムージング（段差・揺れの吸収）")]
@@ -16,8 +16,14 @@ public class AdventureCameraFollow : MonoBehaviour
     [Header("シネマティック用")]
     public float CurrentYaw { get; private set; }
 
+    /// <summary>歩行：水平寄りだがNiko全身が画角に入る程度の俯角</summary>
+    const float WalkPitch = 9f;
+    /// <summary>歩行時の注視点（胸〜頭の間＝画角中央にNiko）</summary>
+    const float WalkFocusHeight = 1.15f;
+    const float WalkPivotHeight = 1.28f;
+
     float _yaw;
-    float _pitch = 12f;
+    float _pitch = WalkPitch;
     float _lastMouseInputTime;
 
     Vector3 _currentPivot;
@@ -122,7 +128,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
         if (kb != null && kb.rKey.wasPressedThisFrame)
         {
-            _pitch = 12f;
+            _pitch = WalkPitch;
             _yaw = target.eulerAngles.y;
         }
 
@@ -210,12 +216,20 @@ public class AdventureCameraFollow : MonoBehaviour
         // シネマ／オートグライド中は背後フォローを強め、後頭部ドアップを避ける
         float followIdle = cine > 0.2f || isAutoGlide ? 0.35f : 1.2f;
         float followRate = cine > 0.2f || isAutoGlide ? 55f : 36f;
+        bool walkingGround = !isGliding && !isAutoGlide && cine < 0.05f;
         if ((isGliding || isAutoGlide) && (Time.time - _lastMouseInputTime > followIdle))
         {
             float targetHeading = target.eulerAngles.y;
             _yaw = Mathf.MoveTowardsAngle(_yaw, targetHeading, followRate * Time.deltaTime);
             if (cine > 0.01f)
-                _pitch = Mathf.MoveTowards(_pitch, Mathf.Lerp(12f, 8f, cine), 24f * Time.deltaTime);
+                _pitch = Mathf.MoveTowards(_pitch, Mathf.Lerp(WalkPitch, 6f, cine), 24f * Time.deltaTime);
+        }
+        // 歩行中：Nikoが画角に収まる俯角へ戻す（水平すぎると足元だけ／姿消え）
+        else if (walkingGround)
+        {
+            float idle = Time.time - _lastMouseInputTime;
+            float settle = idle > 0.35f ? 40f : 10f;
+            _pitch = Mathf.MoveTowards(_pitch, WalkPitch, settle * Time.deltaTime);
         }
 
         // シネマ中はマウス旋回を弱めて映画構図を崩しにくくする
@@ -226,12 +240,20 @@ public class AdventureCameraFollow : MonoBehaviour
         }
 
         // 1. 回転はプレイヤーの入力に即座に1対1で忠実追従（遅延・ラグを完全排除）
+        // ヨーを 0〜360 に正規化（累積巨大化でコンパス／回転がおかしくなるのを防ぐ）
+        _yaw = Mathf.Repeat(_yaw, 360f);
         CurrentYaw = _yaw;
         Quaternion currentRot = Quaternion.Euler(_pitch, _yaw, 0f);
 
-        // 2. ピボット位置のスムーズダンピング（キャラクターの小刻みな段差ショックだけを滑らかに吸収）
-        float useHeight = Mathf.Lerp(height, CinematicHeight, cine);
-        Vector3 targetPivot = target.position + Vector3.up * useHeight;
+        // 2. ピボット：歩行時は胸〜肩高さ（頭だと水平時に姿が画角外へ落ちる）
+        Vector3 targetPivot;
+        if (walkingGround)
+            targetPivot = target.position + Vector3.up * WalkPivotHeight;
+        else
+        {
+            float useHeight = Mathf.Lerp(height, CinematicHeight, cine);
+            targetPivot = target.position + Vector3.up * useHeight;
+        }
         float pivotSmooth = isAutoGlide ? 0.08f : (isGliding ? 0.045f : positionSmoothTime);
         _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, pivotSmooth);
 
@@ -248,27 +270,57 @@ public class AdventureCameraFollow : MonoBehaviour
         // シネマ中は後頭部に寄らないよう、障害物で詰めても最低3.2mを確保
         if (cine > 0.2f)
             safeTargetDist = Mathf.Max(safeTargetDist, Mathf.Lerp(0.9f, 3.2f, cine));
+        // 歩行時も最低距離を確保してNikoがフレームアウトしないようにする
+        if (walkingGround)
+            safeTargetDist = Mathf.Max(safeTargetDist, 3.6f);
         _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, cine > 0.2f ? 0.12f : 0.05f);
 
-        // 5. 最終カメラ位置の計算（二重ダンピングを廃止し、ピボット基準で直結配置することで位相差振動・カクつきを完全根絶）
+        // 5. 最終カメラ位置
         Vector3 targetPos = _currentPivot + currentRot * new Vector3(0f, 0f, -_currentDistance);
-        float minCamY = Mathf.Lerp(1.1f, 1.35f, cine);
+        float minCamY = Mathf.Lerp(1.05f, 1.35f, cine);
         targetPos.y = Mathf.Max(targetPos.y, target.position.y + minCamY);
 
         // 地面めり込み防止
         if (_land == null)
             _land = AdventureQuestLocations.FindLand();
+        float raisedByGround = 0f;
         if (_land != null)
         {
             float groundY = AdventureQuestLocations.GroundY(_land, targetPos.x, targetPos.z) + 0.8f;
             if (targetPos.y < groundY)
             {
+                raisedByGround = groundY - targetPos.y;
                 targetPos.y = groundY;
             }
         }
 
         transform.position = targetPos;
-        transform.rotation = currentRot;
+
+        // 歩行時：Nikoの胸を画角中央付近に保つ（地面でカメラが持ち上がっても姿を見失わない）
+        if (walkingGround)
+        {
+            Vector3 focus = target.position + Vector3.up * WalkFocusHeight;
+            Vector3 toFocus = focus - targetPos;
+            if (toFocus.sqrMagnitude > 0.01f)
+            {
+                float pitchToNiko = Quaternion.LookRotation(toFocus.normalized).eulerAngles.x;
+                if (pitchToNiko > 180f) pitchToNiko -= 360f;
+                // プレイヤー俯角と「Nikoを捉える俯角」の大きい方（＝より下を見る方）を採用
+                float framed = Mathf.Max(_pitch, pitchToNiko);
+                if (raisedByGround > 0.05f)
+                    framed = Mathf.Max(framed, pitchToNiko);
+                framed = Mathf.Clamp(framed, pitchMin, pitchMax);
+                transform.rotation = Quaternion.Euler(framed, _yaw, 0f);
+            }
+            else
+            {
+                transform.rotation = currentRot;
+            }
+        }
+        else
+        {
+            transform.rotation = currentRot;
+        }
     }
 
     float CalculateSafeDistance(Vector3 pivot, Quaternion rot, float maxDist)
