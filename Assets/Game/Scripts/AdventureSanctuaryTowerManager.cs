@@ -2833,7 +2833,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         _epilogueTriggered = true;
         AdventureMusicDirector.Ensure();
-        AdventureMusicDirector.Instance?.KeepEndingThemeUntilQuit();
+        AdventureMusicDirector.Instance?.KeepEndingThemeActive();
         StartCoroutine(EpilogueSequenceRoutine());
     }
 
@@ -3023,7 +3023,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _showGameClearModal = false;
         HideGameClearModalUI();
         AdventureMusicDirector.Ensure();
-        AdventureMusicDirector.Instance?.KeepEndingThemeUntilQuit();
+        AdventureMusicDirector.Instance?.RestoreExplorationTheme();
         var player = AdventurePlayerController.Instance;
         if (player != null)
             player.SetAutoGlideMode(false);
@@ -3049,7 +3049,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _showGameClearModal = false;
         HideGameClearModalUI();
         AdventureMusicDirector.Ensure();
-        AdventureMusicDirector.Instance?.KeepEndingThemeUntilQuit();
+        AdventureMusicDirector.Instance?.RestoreExplorationTheme();
         var player = AdventurePlayerController.Instance;
         if (player != null)
         {
@@ -3122,7 +3122,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _showGameClearModal = true;
         SuppressAllSpeechAndBanners();
         AdventureMusicDirector.Ensure();
-        AdventureMusicDirector.Instance?.KeepEndingThemeUntilQuit();
+        AdventureMusicDirector.Instance?.KeepEndingThemeActive();
     }
 
     static void KeepAutoGlide(AdventurePlayerController player)
