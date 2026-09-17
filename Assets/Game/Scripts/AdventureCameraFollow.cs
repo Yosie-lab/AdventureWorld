@@ -19,8 +19,8 @@ public class AdventureCameraFollow : MonoBehaviour
     [Header("シネマティック用")]
     public float CurrentYaw { get; private set; }
 
-    /// <summary>歩行：Niko全身が入る俯角</summary>
-    const float WalkPitch = 10f;
+    /// <summary>歩行：完全水平</summary>
+    const float WalkPitch = 0f;
     /// <summary>歩行時の注視点（腰〜胸）</summary>
     const float WalkFocusHeight = 1.05f;
     const float WalkPivotHeight = 1.35f;
@@ -237,7 +237,7 @@ public class AdventureCameraFollow : MonoBehaviour
             float targetHeading = target.eulerAngles.y;
             _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading, followRate * Time.deltaTime);
             if (cine > 0.01f)
-                _targetPitch = Mathf.MoveTowards(_targetPitch, Mathf.Lerp(WalkPitch, 6f, cine), 24f * Time.deltaTime);
+                _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, 24f * Time.deltaTime);
         }
         else if (walkingGround)
         {

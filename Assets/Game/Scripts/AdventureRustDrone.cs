@@ -2473,7 +2473,7 @@ public class AdventureRustDrone : MonoBehaviour
             "ありがとうNiko、身体が軽くなったよ",
             "油を差してくれてありがとう。ギアが滑らかだ",
             "ピピッ…！手当てありがとう。もうギシギシしないよ",
-            "整備完了。一緒に進もう"
+            "整備完了。よし進もう"
         };
         SpeakCustom(treatLines[Random.Range(0, treatLines.Length)], 4.2f);
 
