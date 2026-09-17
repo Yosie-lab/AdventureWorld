@@ -24,7 +24,7 @@ public class AdventureScrapManager : MonoBehaviour
     public int collectedCount => CollectedCount;
     public bool hasPetRadar => CollectedCount >= 9;
 
-    const string PrefKeyScrapLayout = "RustAndFloat_ScrapLayoutXZ_v5";
+    const string PrefKeyScrapLayout = "RustAndFloat_ScrapLayoutXZ_v6";
     const float MinDistFromPrevious = 28f;
     const float MinDistBetweenScraps = 22f;
 
@@ -126,13 +126,13 @@ public class AdventureScrapManager : MonoBehaviour
             new Vector3(490f, 0f, 715f),
             new Vector3(520f, 0f, 695f),
         },
-        // 12. 中央タワー白亜テラス周辺
+        // 12. 中央タワー南アプローチ階段帯（テラス上ではなく、登り途中の低い段に置く）
         new[]
         {
-            new Vector3(512f, 0f, 496f),
-            new Vector3(500f, 0f, 508f),
-            new Vector3(524f, 0f, 508f),
-            new Vector3(512f, 0f, 524f),
+            new Vector3(486f, 0f, 460f),
+            new Vector3(498f, 0f, 468f),
+            new Vector3(478f, 0f, 465f),
+            new Vector3(505f, 0f, 472f),
         },
     };
 
@@ -240,6 +240,17 @@ public class AdventureScrapManager : MonoBehaviour
     /// <summary>パーツ取得時の快感チャイム音（心洗われるヒーリングトーンチャイム）を再生</summary>
     public void PlayScrapCollectFanfare()
     {
+        PlayChimeInternal(Mathf.Min(chimeVolume, 0.02f));
+    }
+
+    /// <summary>クライマックス祝福など、意図的に聴かせるチャイム</summary>
+    public void PlayCelebrationChime(float volume = 0.28f)
+    {
+        PlayChimeInternal(Mathf.Clamp(volume, 0.05f, 0.45f));
+    }
+
+    void PlayChimeInternal(float vol)
+    {
         if (_fanfareClip == null)
             LoadChimeClip();
 
@@ -247,10 +258,7 @@ public class AdventureScrapManager : MonoBehaviour
             SetupAudio();
 
         if (_audioSource != null && _fanfareClip != null)
-        {
-            float vol = Mathf.Min(chimeVolume, 0.02f);
             _audioSource.PlayOneShot(_fanfareClip, vol);
-        }
     }
 
     /// <summary>『脳リフレクソ』の白泡破裂時チャイムを進化させた、極上のヒーリングトーンチャイム（Cメジャーペンタトニック＋ソフトアタック＋温かなオクターブ倍音＋雲海リバーブ）の合成</summary>

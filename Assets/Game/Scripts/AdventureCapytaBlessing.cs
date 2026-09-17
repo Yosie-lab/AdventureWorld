@@ -10,6 +10,18 @@ public class AdventureCapytaBlessing : MonoBehaviour
     static AdventureCapytaBlessing _instance;
     public static AdventureCapytaBlessing Instance => _instance;
 
+    /// <summary>カピタ会話プロンプト表示中（Eキーはカピタ優先）</summary>
+    public static bool IsTalkPromptActive =>
+        _instance != null && _instance._promptVisible;
+
+    /// <summary>プレイヤーがカピタ会話レンジ内か（Rust手当てより優先判定用）</summary>
+    public static bool IsPlayerNearTalkableCapyta(Vector3 playerPos)
+    {
+        Ensure();
+        Transform nearest = FindNearestCapyta(playerPos, out float dist);
+        return nearest != null && dist <= TalkRadius;
+    }
+
     public const float SuperJumpMultiplier = 1.55f;
     const float TalkRadius = 4.8f;
     const string PrefKey = "RustAndFloat_CapytaSuperJump";
@@ -94,6 +106,12 @@ public class AdventureCapytaBlessing : MonoBehaviour
         var existingBeach = FindBeachCapitas();
         if (existingBeach.Count > 0)
         {
+            // 過去の二重生成ぶんを掃除
+            for (int i = BeachCapytaSpots.Length; i < existingBeach.Count; i++)
+            {
+                if (existingBeach[i] != null)
+                    Object.Destroy(existingBeach[i].gameObject);
+            }
             for (int i = 0; i < existingBeach.Count && i < BeachCapytaSpots.Length; i++)
                 PlaceCapytaOnGround(existingBeach[i], BeachCapytaSpots[i], land);
             PushCapitasClearOfPoint(nikoSpawn, 10f, land);
@@ -126,9 +144,8 @@ public class AdventureCapytaBlessing : MonoBehaviour
         for (int i = 0; i < all.Length; i++)
         {
             var t = all[i];
-            if (t == null) continue;
+            if (!IsCapytaInstanceRoot(t)) continue;
             if (!t.name.StartsWith("Capyta_Beach_")) continue;
-            if (t.parent != null && t.parent.name.StartsWith("Capyta")) continue;
             list.Add(t);
         }
         return list;
@@ -170,9 +187,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
         for (int i = 0; i < all.Length; i++)
         {
             var t = all[i];
-            if (t == null) continue;
-            if (!t.name.StartsWith("Capyta")) continue;
-            if (t.parent != null && t.parent.name.StartsWith("Capyta")) continue;
+            if (!IsCapytaInstanceRoot(t)) continue;
 
             Vector3 p = t.position;
             float dx = p.x - centerXZ.x;
@@ -186,6 +201,28 @@ public class AdventureCapytaBlessing : MonoBehaviour
             Vector3 next = new Vector3(centerXZ.x, 0f, centerXZ.z) + dir * (minDist + 2f);
             t.position = GroundAt(next, land);
         }
+    }
+
+    /// <summary>
+    /// 会話可能なカピタ本体か判定。
+    /// Prefab内部の子メッシュや Capyta_Beach_Root などのコンテナは除外する。
+    /// </summary>
+    static bool IsCapytaInstanceRoot(Transform t)
+    {
+        if (t == null) return false;
+        string n = t.name;
+        if (n == "Capyta") return true;
+        if (!n.StartsWith("Capyta_")) return false;
+        if (n.Contains("Root")) return false;
+
+        // 親もカピタ個体なら、こちらは子パーツ
+        if (t.parent != null)
+        {
+            string pn = t.parent.name;
+            if (pn == "Capyta" || (pn.StartsWith("Capyta_") && !pn.Contains("Root")))
+                return false;
+        }
+        return true;
     }
 
     public void ResetForNewGame()
@@ -303,7 +340,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
 
     void Update()
     {
-        var player = AdventurePlayerController.Instance;
+        var player = AdventurePlayerController.Resolve();
         if (player == null)
         {
             _promptVisible = false;
@@ -434,9 +471,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
         for (int i = 0; i < all.Length; i++)
         {
             var t = all[i];
-            if (t == null) continue;
-            if (!t.name.StartsWith("Capyta")) continue;
-            if (t.parent != null && t.parent.name.StartsWith("Capyta")) continue;
+            if (!IsCapytaInstanceRoot(t)) continue;
             float d = FlatDist(playerPos, t.position);
             if (d < bestDist)
             {
@@ -459,31 +494,31 @@ public class AdventureCapytaBlessing : MonoBehaviour
     {
         if (!_promptVisible) return;
 
-        // Retina / 大画面でも米粒にならないよう特大表示
-        float scale = Mathf.Clamp(Screen.height / 720f, 1.15f, 2.2f);
-        float w = Mathf.Min(980f * scale, Screen.width * 0.94f);
-        float h = 96f * scale;
+        // 小さめ・半透明（下部セリフを隠さない）
+        float scale = Mathf.Clamp(Screen.height / 720f, 1f, 1.35f);
+        float w = Mathf.Min(440f * scale, Screen.width * 0.58f);
+        float h = 34f * scale;
         float x = (Screen.width - w) * 0.5f;
-        float y = Screen.height - (170f * scale);
-        float bar = 4f * scale;
+        // セリフ帯（画面下〜約160px）より上に置く
+        float y = Screen.height - (198f * scale);
+        float bar = 2f * scale;
 
-        GUI.color = new Color(0.03f, 0.10f, 0.06f, 0.88f);
+        GUI.color = new Color(0.04f, 0.12f, 0.08f, 0.38f);
         GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
-        GUI.color = new Color(0.55f, 0.98f, 0.70f, 0.98f);
+        GUI.color = new Color(0.55f, 0.95f, 0.70f, 0.55f);
         GUI.DrawTexture(new Rect(x, y, w, bar), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(x, y + h - bar, w, bar), Texture2D.whiteTexture);
 
         var style = new GUIStyle(GUI.skin.label)
         {
-            fontSize = Mathf.RoundToInt(32f * scale),
+            fontSize = Mathf.RoundToInt(15f * scale),
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
-            wordWrap = true
+            wordWrap = false
         };
-        style.normal.textColor = new Color(0.95f, 1f, 0.88f, 1f);
+        style.normal.textColor = new Color(0.92f, 1f, 0.88f, 0.92f);
         string tip = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.hasCapytaSuperJump
-            ? "【E】カピタと話す（機嫌で潤滑油 5〜48）"
-            : "【E】カピタと話す（スーパージャンプ＆機嫌で油たっぷり）";
+            ? "【E】カピタと話す"
+            : "【E】カピタと話す（ジャンプ＆油）";
         GUI.Label(new Rect(x, y, w, h), tip, style);
         GUI.color = Color.white;
     }

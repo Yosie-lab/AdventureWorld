@@ -21,6 +21,14 @@ public class AdventureCompassHUD : MonoBehaviour
 
     const float PixelsPerDegree = 2.4f; // 1度あたりのピクセル幅（表示視野角 約±68度）
     const float RibbonHalfWidth = 160f; // コンパス枠の表示半幅
+    const float YawSmoothTime = 0.07f;
+    const float MarkerSmoothTime = 0.09f;
+
+    float _displayYaw;
+    float _displayYawVel;
+    float _scrapMarkerX;
+    float _scrapMarkerXVel;
+    bool _yawInitialized;
 
     struct CompassElement
     {
@@ -328,8 +336,20 @@ public class AdventureCompassHUD : MonoBehaviour
         if (cam == null)
             return;
 
-        // カメラ正面XZから方位を取る（CurrentYaw累積や1フレームズレに依存しない）
-        float yaw = YawFromForward(cam.transform.forward);
+        // カメラ正面XZから方位を取る（表示側は短いスムージングでリボンのカクつきを消す）
+        float rawYaw = YawFromForward(cam.transform.forward);
+        if (!_yawInitialized)
+        {
+            _displayYaw = rawYaw;
+            _yawInitialized = true;
+        }
+        else
+        {
+            _displayYaw = Mathf.SmoothDampAngle(
+                _displayYaw, rawYaw, ref _displayYawVel, YawSmoothTime, Mathf.Infinity, Time.unscaledDeltaTime);
+        }
+        _displayYaw = Mathf.Repeat(_displayYaw, 360f);
+        float yaw = _displayYaw;
 
         // 1. 各方角要素のシームレス配置（DeltaAngle方式：境界でのワープが物理的にゼロ）
         for (int i = 0; i < _elements.Count; i++)
@@ -375,14 +395,14 @@ public class AdventureCompassHUD : MonoBehaviour
                     float angle = Mathf.DeltaAngle(yaw, scrapYaw);
                     string scrapCardinal = GetCardinal(scrapYaw);
 
-                    // コンパスリボン上に「✦」マーカーをダイレクト描画
+                    // コンパスリボン上に「✦」マーカー（X位置をスムーズ追従）
                     if (_scrapMarkerRt != null)
                     {
                         _scrapMarkerRt.gameObject.SetActive(true);
+                        float targetX;
                         if (Mathf.Abs(angle) <= 65f)
                         {
-                            // 視野内：正確な方角位置にプロット
-                            _scrapMarkerRt.anchoredPosition = new Vector2(angle * PixelsPerDegree, 0f);
+                            targetX = angle * PixelsPerDegree;
                             if (_scrapMarkerText != null)
                             {
                                 _scrapMarkerText.text = Mathf.Abs(angle) < 6f ? "★" : "✦";
@@ -391,28 +411,31 @@ public class AdventureCompassHUD : MonoBehaviour
                         }
                         else if (angle > 65f)
                         {
-                            // 右側画面外：右端にクランプして「✦▶」表示
-                            _scrapMarkerRt.anchoredPosition = new Vector2(RibbonHalfWidth - 10f, 0f);
+                            targetX = RibbonHalfWidth - 10f;
                             if (_scrapMarkerText != null)
                             {
                                 _scrapMarkerText.text = "✦▶";
                                 Color c = nearest.itemColor;
-                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 7f); // 脈動
+                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 7f);
                                 _scrapMarkerText.color = c;
                             }
                         }
                         else
                         {
-                            // 左側画面外：左端にクランプして「◀✦」表示
-                            _scrapMarkerRt.anchoredPosition = new Vector2(-RibbonHalfWidth + 10f, 0f);
+                            targetX = -RibbonHalfWidth + 10f;
                             if (_scrapMarkerText != null)
                             {
                                 _scrapMarkerText.text = "◀✦";
                                 Color c = nearest.itemColor;
-                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 7f); // 脈動
+                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 7f);
                                 _scrapMarkerText.color = c;
                             }
                         }
+
+                        _scrapMarkerX = Mathf.SmoothDamp(
+                            _scrapMarkerX, targetX, ref _scrapMarkerXVel, MarkerSmoothTime,
+                            Mathf.Infinity, Time.unscaledDeltaTime);
+                        _scrapMarkerRt.anchoredPosition = new Vector2(_scrapMarkerX, 0f);
                     }
 
                     // テキストによる誘導表示（方角・距離・相対方向を明確に伝達）

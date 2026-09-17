@@ -13,6 +13,10 @@ public class AdventureCameraFollow : MonoBehaviour
     [Header("位置スムージング（段差・揺れの吸収）")]
     public float positionSmoothTime = 0.04f;
 
+    [Header("視点スムージング（マウス／キーの角加速度を吸収）")]
+    public float lookSmoothTime = 0.055f;
+    public float mouseDeltaSmooth = 18f;
+
     [Header("シネマティック用")]
     public float CurrentYaw { get; private set; }
 
@@ -24,6 +28,12 @@ public class AdventureCameraFollow : MonoBehaviour
 
     float _yaw;
     float _pitch = WalkPitch;
+    float _targetYaw;
+    float _targetPitch = WalkPitch;
+    float _yawVel;
+    float _pitchVel;
+    float _mouseSmoothX;
+    float _mouseSmoothY;
     float _lastMouseInputTime;
 
     Vector3 _currentPivot;
@@ -59,6 +69,8 @@ public class AdventureCameraFollow : MonoBehaviour
         if (target != null)
         {
             _yaw = target.eulerAngles.y;
+            _targetYaw = _yaw;
+            _targetPitch = _pitch;
             CurrentYaw = _yaw;
             _currentPivot = target.position + Vector3.up * height;
         }
@@ -129,7 +141,13 @@ public class AdventureCameraFollow : MonoBehaviour
         if (kb != null && kb.rKey.wasPressedThisFrame)
         {
             _pitch = WalkPitch;
+            _targetPitch = WalkPitch;
             _yaw = target.eulerAngles.y;
+            _targetYaw = _yaw;
+            _yawVel = 0f;
+            _pitchVel = 0f;
+            _mouseSmoothX = 0f;
+            _mouseSmoothY = 0f;
         }
 
         // 1. マウス入力の取得（Input System + レガシーInputの多重サポート）
@@ -151,6 +169,13 @@ public class AdventureCameraFollow : MonoBehaviour
             catch { }
         }
 
+        // 生デルタの微小ジッターを指数平滑で吸収（応答は保ったままカクつきだけ落とす）
+        float mouseBlend = 1f - Mathf.Exp(-mouseDeltaSmooth * Time.unscaledDeltaTime);
+        _mouseSmoothX = Mathf.Lerp(_mouseSmoothX, mouseX, mouseBlend);
+        _mouseSmoothY = Mathf.Lerp(_mouseSmoothY, mouseY, mouseBlend);
+        mouseX = _mouseSmoothX;
+        mouseY = _mouseSmoothY;
+
         // モーダルボードが画面に出ていない時は、マウス移動だけで100%確実にカメラ旋回！
         // （右ドラッグでも、カーソルロック中でも、通常のマウス移動でも確実に視点が追従）
         bool isRightDragging = mouse != null && (mouse.rightButton.isPressed || mouse.middleButton.isPressed);
@@ -161,8 +186,8 @@ public class AdventureCameraFollow : MonoBehaviour
 
         if (canRotateByMouse && (Mathf.Abs(mouseX) > 0.001f || Mathf.Abs(mouseY) > 0.001f))
         {
-            _yaw += mouseX * sensitivity;
-            _pitch = Mathf.Clamp(_pitch - mouseY * sensitivity, pitchMin, pitchMax);
+            _targetYaw += mouseX * sensitivity;
+            _targetPitch = Mathf.Clamp(_targetPitch - mouseY * sensitivity, pitchMin, pitchMax);
             _lastMouseInputTime = Time.time;
         }
 
@@ -188,8 +213,8 @@ public class AdventureCameraFollow : MonoBehaviour
 
         if (Mathf.Abs(keyYaw) > 0.01f || Mathf.Abs(keyPitch) > 0.01f)
         {
-            _yaw += keyYaw * 95f * Time.deltaTime;
-            _pitch = Mathf.Clamp(_pitch - keyPitch * 75f * Time.deltaTime, pitchMin, pitchMax);
+            _targetYaw += keyYaw * 95f * Time.deltaTime;
+            _targetPitch = Mathf.Clamp(_targetPitch - keyPitch * 75f * Time.deltaTime, pitchMin, pitchMax);
             _lastMouseInputTime = Time.time;
         }
 
@@ -200,8 +225,8 @@ public class AdventureCameraFollow : MonoBehaviour
             Vector2 rStick = pad.rightStick.ReadValue();
             if (rStick.sqrMagnitude > 0.04f)
             {
-                _yaw += rStick.x * 130f * sensitivity * Time.deltaTime;
-                _pitch = Mathf.Clamp(_pitch - rStick.y * 100f * sensitivity * Time.deltaTime, pitchMin, pitchMax);
+                _targetYaw += rStick.x * 130f * sensitivity * Time.deltaTime;
+                _targetPitch = Mathf.Clamp(_targetPitch - rStick.y * 100f * sensitivity * Time.deltaTime, pitchMin, pitchMax);
                 _lastMouseInputTime = Time.time;
             }
         }
@@ -220,28 +245,34 @@ public class AdventureCameraFollow : MonoBehaviour
         if ((isGliding || isAutoGlide) && (Time.time - _lastMouseInputTime > followIdle))
         {
             float targetHeading = target.eulerAngles.y;
-            _yaw = Mathf.MoveTowardsAngle(_yaw, targetHeading, followRate * Time.deltaTime);
+            _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading, followRate * Time.deltaTime);
             if (cine > 0.01f)
-                _pitch = Mathf.MoveTowards(_pitch, Mathf.Lerp(WalkPitch, 6f, cine), 24f * Time.deltaTime);
+                _targetPitch = Mathf.MoveTowards(_targetPitch, Mathf.Lerp(WalkPitch, 6f, cine), 24f * Time.deltaTime);
         }
         // 歩行中：Nikoが画角に収まる俯角へ戻す（水平すぎると足元だけ／姿消え）
         else if (walkingGround)
         {
             float idle = Time.time - _lastMouseInputTime;
             float settle = idle > 0.35f ? 40f : 10f;
-            _pitch = Mathf.MoveTowards(_pitch, WalkPitch, settle * Time.deltaTime);
+            _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, settle * Time.deltaTime);
         }
 
         // シネマ中はマウス旋回を弱めて映画構図を崩しにくくする
         if (cine > 0.4f && !isAutoGlide)
         {
             // 入力は上で加算済み。ピッチだけ映画用レンジに緩くクランプ
-            _pitch = Mathf.Clamp(_pitch, -6f, 22f);
+            _targetPitch = Mathf.Clamp(_targetPitch, -6f, 22f);
         }
 
-        // 1. 回転はプレイヤーの入力に即座に1対1で忠実追従（遅延・ラグを完全排除）
+        // 目標角へ短いスムージング（マウスの段差・高Hzジッターを消しつつ操作感は保つ）
+        float lookSmooth = Mathf.Max(0.01f, lookSmoothTime);
+        _yaw = Mathf.SmoothDampAngle(_yaw, _targetYaw, ref _yawVel, lookSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
+        _pitch = Mathf.SmoothDamp(_pitch, _targetPitch, ref _pitchVel, lookSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
+        _pitch = Mathf.Clamp(_pitch, pitchMin, pitchMax);
+
         // ヨーを 0〜360 に正規化（累積巨大化でコンパス／回転がおかしくなるのを防ぐ）
         _yaw = Mathf.Repeat(_yaw, 360f);
+        _targetYaw = Mathf.Repeat(_targetYaw, 360f);
         CurrentYaw = _yaw;
         Quaternion currentRot = Quaternion.Euler(_pitch, _yaw, 0f);
 

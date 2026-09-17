@@ -77,13 +77,42 @@ public class AdventurePlayerController : MonoBehaviour
     const float CliffFwdSpeed    = 10.5f;
 
     // 滑空フライト定数
-    const float GlideYawRate     = 145f;
-    const float GlideYawRateBoosted = 110f;
+    const float GlideYawRate     = 125f;
+    const float GlideYawRateBoosted = 100f;
     const float GlideBankAngle   = 22f;
-    const float GlidePitchRateDive = 7.5f;
+    const float GlidePitchRateDive = 5.5f;
+    const float GlideInputSmooth = 0.08f;
+    const float GlideYawAccel    = 280f;
+    const float GlideAttitudeSmooth = 0.12f;
+    const float GlideSpeedSmooth = 0.22f;
+    const float AirSteerAccel    = 7.5f;
+    const float AirSteerMaxSpeed = 4.2f;
+
+    // 滑空スムージング内部状態
+    Vector2 _glideInputSmooth;
+    Vector2 _glideInputVel;
+    float   _glideYawRateCurrent;
+    float   _glidePitchCurrent;
+    float   _glidePitchVel;
+    float   _glideRollCurrent;
+    float   _glideRollVel;
+    float   _glideSpeedCurrent;
+    float   _glideSpeedVel;
+    float   _glideFallCurrent;
+    float   _glideFallVel;
+    Vector3 _airMomVel;
 
     // ─── 公開プロパティ ────────────────────────────────────────────────
     public static AdventurePlayerController Instance { get; private set; }
+
+    /// <summary>ホットリロード等で static が消えてもプレイヤーを取り戻す</summary>
+    public static AdventurePlayerController Resolve()
+    {
+        if (Instance != null) return Instance;
+        Instance = FindAnyObjectByType<AdventurePlayerController>();
+        return Instance;
+    }
+
     public bool InteractPressed { get; private set; }
     public bool IsGliding    => _gliding;
     public bool IsGrounded   => _grounded;
@@ -107,6 +136,17 @@ public class AdventurePlayerController : MonoBehaviour
         InitCharacterController();
         InitAnimator();
         CacheTerrains();
+    }
+
+    void OnEnable()
+    {
+        Instance = this;
+    }
+
+    void OnDisable()
+    {
+        if (Instance == this)
+            Instance = null;
     }
 
     void Start()
@@ -369,6 +409,7 @@ public class AdventurePlayerController : MonoBehaviour
                 _doubleJumpUsed   = false;
                 _airborneTime     = 0f;
                 if (_hop < 0f) _hop = -2f;
+                ResetGlideSmoothing();
             }
             else
             {
@@ -384,6 +425,7 @@ public class AdventurePlayerController : MonoBehaviour
             _doubleJumpUsed = false;
             _gliding        = false;
             _airborneTime   = 0f;
+            ResetGlideSmoothing();
         }
         else
         {
@@ -563,7 +605,7 @@ public class AdventurePlayerController : MonoBehaviour
 
         if (_grounded)     return ComputeGroundHorizontal(wishWalk, running);
         if (_gliding)      return ComputeGlideHorizontal(input);
-        return ComputeAirHorizontal();
+        return ComputeAirHorizontal(input);
     }
 
     /// <summary>地上移動量の計算（砂浜登坂アシスト・回転含む）</summary>
@@ -612,44 +654,83 @@ public class AdventurePlayerController : MonoBehaviour
             _glideBoostTimer -= Time.deltaTime;
         bool isBoosted = _glideBoostTimer > 0f;
 
-        // ヨー（左右旋回）
-        float yawRate    = isBoosted ? GlideYawRateBoosted : GlideYawRate;
-        float currentYaw = transform.eulerAngles.y + input.x * yawRate * Time.deltaTime;
+        // 滑空開始直後は現在の速度／姿勢からシード（ゼロから加速する違和感を防ぐ）
+        if (_glideSpeedCurrent < 0.4f && _airMomentum.sqrMagnitude > 0.25f)
+            _glideSpeedCurrent = _airMomentum.SetY(0f).magnitude;
+        if (Mathf.Abs(_glideRollCurrent) < 0.01f && Mathf.Abs(_glidePitchCurrent) < 0.01f)
+        {
+            Vector3 e = transform.eulerAngles;
+            float rx = e.x > 180f ? e.x - 360f : e.x;
+            float rz = e.z > 180f ? e.z - 360f : e.z;
+            if (Mathf.Abs(rx) > 0.5f || Mathf.Abs(rz) > 0.5f)
+            {
+                _glidePitchCurrent = Mathf.Clamp(rx, -12f, 12f);
+                _glideRollCurrent = Mathf.Clamp(rz, -GlideBankAngle, GlideBankAngle);
+            }
+        }
+
+        // 入力を滑らかに（スティック／キーの段差を消して機体のキレを抑える）
+        _glideInputSmooth = Vector2.SmoothDamp(
+            _glideInputSmooth, input, ref _glideInputVel, GlideInputSmooth,
+            Mathf.Infinity, Time.deltaTime);
+        Vector2 gIn = _glideInputSmooth;
+        float dt = Time.deltaTime;
+
+        // ヨー：目標角速度へ加速／減速（急ハンドルをやわらかく）
+        float maxYawRate = isBoosted ? GlideYawRateBoosted : GlideYawRate;
+        float desiredYawRate = gIn.x * maxYawRate;
+        _glideYawRateCurrent = Mathf.MoveTowards(
+            _glideYawRateCurrent, desiredYawRate, GlideYawAccel * dt);
+        float currentYaw = transform.eulerAngles.y + _glideYawRateCurrent * dt;
 
         // バンク（機体傾き）
-        float targetRoll  = -input.x * GlideBankAngle;
-        float currentRoll = Mathf.MoveTowardsAngle(transform.eulerAngles.z, targetRoll, 90f * Time.deltaTime);
+        float targetRoll = -gIn.x * GlideBankAngle;
+        _glideRollCurrent = Mathf.SmoothDampAngle(
+            _glideRollCurrent, targetRoll, ref _glideRollVel, GlideAttitudeSmooth,
+            Mathf.Infinity, dt);
 
-        // ピッチ設定（W=ダイブ加速 / S=フレア滞空 / なし=巡航）
-        float targetSpeed, targetFall, pitchAngle;
-        if (input.y > 0.15f)        // W：ダイブ加速
-        {
-            targetSpeed = (isBoosted ? 15.0f : 11.5f) * moveSpeedMultiplier;
-            targetFall  = isBoosted ? -0.8f : -2.8f;
-            pitchAngle  = 8f;
-        }
-        else if (input.y < -0.15f) // S：フレア滞空
-        {
-            targetSpeed = (isBoosted ? 8.5f : 4.6f) * moveSpeedMultiplier;
-            targetFall  = isBoosted ? 0.3f : -0.28f;
-            pitchAngle  = -6f;
-        }
-        else                        // 通常巡航
-        {
-            targetSpeed = (isBoosted ? 11.0f : 7.4f) * moveSpeedMultiplier;
-            targetFall  = isBoosted ? 0.2f : -1.15f;
-            pitchAngle  = 0f;
-        }
+        // ピッチ／速度：W=ダイブ、S=フレア、中央=巡航を連続ブレンド
+        float diveT  = Mathf.Clamp01(gIn.y);
+        float flareT = Mathf.Clamp01(-gIn.y);
+
+        float cruiseSpeed = (isBoosted ? 11.0f : 7.4f) * moveSpeedMultiplier;
+        float diveSpeed   = (isBoosted ? 15.0f : 11.5f) * moveSpeedMultiplier;
+        float flareSpeed  = (isBoosted ? 8.5f : 4.6f) * moveSpeedMultiplier;
+        float targetSpeed = cruiseSpeed;
+        targetSpeed = Mathf.Lerp(targetSpeed, diveSpeed, diveT);
+        targetSpeed = Mathf.Lerp(targetSpeed, flareSpeed, flareT);
+
+        float cruiseFall = isBoosted ? 0.2f : -1.15f;
+        float diveFall   = isBoosted ? -0.8f : -2.8f;
+        float flareFall  = isBoosted ? 0.3f : -0.28f;
+        float targetFall = cruiseFall;
+        targetFall = Mathf.Lerp(targetFall, diveFall, diveT);
+        targetFall = Mathf.Lerp(targetFall, flareFall, flareT);
+
+        float targetPitch = Mathf.Lerp(0f, 8f, diveT) + Mathf.Lerp(0f, -6f, flareT);
+        _glidePitchCurrent = Mathf.SmoothDamp(
+            _glidePitchCurrent, targetPitch, ref _glidePitchVel, GlideAttitudeSmooth,
+            Mathf.Infinity, dt);
+
+        _glideSpeedCurrent = Mathf.SmoothDamp(
+            _glideSpeedCurrent, targetSpeed, ref _glideSpeedVel, GlideSpeedSmooth,
+            Mathf.Infinity, dt);
+        _glideFallCurrent = Mathf.SmoothDamp(
+            _glideFallCurrent, targetFall, ref _glideFallVel, GlideSpeedSmooth,
+            Mathf.Infinity, dt);
 
         // 機体姿勢を反映（ピッチ・ヨー・ロール）
-        transform.rotation = Quaternion.Euler(pitchAngle, currentYaw, currentRoll);
+        transform.rotation = Quaternion.Euler(_glidePitchCurrent, currentYaw, _glideRollCurrent);
 
         // 前進方向ベクトル（XZ 平面に投影）
         Vector3 forwardFlat = transform.forward.SetY(0f);
         if (forwardFlat.sqrMagnitude < 0.001f) forwardFlat = Vector3.forward;
         forwardFlat.Normalize();
 
-        _airMomentum = Vector3.Lerp(_airMomentum, forwardFlat * targetSpeed, 6.5f * Time.deltaTime);
+        Vector3 desiredMom = forwardFlat * Mathf.Max(_glideSpeedCurrent, 0.5f);
+        _airMomentum = Vector3.SmoothDamp(
+            _airMomentum, desiredMom, ref _airMomVel, GlideSpeedSmooth,
+            Mathf.Infinity, dt);
 
         // 上昇気流（サーマル）適用
         if (_skybreakPillarLock)
@@ -660,23 +741,46 @@ public class AdventurePlayerController : MonoBehaviour
         if (_updraftTimer > 0f)
         {
             _updraftTimer -= Time.deltaTime;
-            targetFall = _updraftLift;
             // 強い上昇気流はゆっくり加速せず、即座に上昇速度へ合わせる（光の柱用）
             if (_updraftLift >= 12f)
             {
                 _hop = Mathf.Max(_hop, _updraftLift);
                 return _airMomentum;
             }
+            _glideFallCurrent = Mathf.Max(_glideFallCurrent, _updraftLift);
         }
 
-        _hop = Mathf.MoveTowards(_hop, targetFall, GlidePitchRateDive * Time.deltaTime);
+        _hop = Mathf.MoveTowards(_hop, _glideFallCurrent, GlidePitchRateDive * dt);
         return _airMomentum;
     }
 
-    /// <summary>空中（非滑空）の移動量計算（慣性減衰＋重力）</summary>
-    Vector3 ComputeAirHorizontal()
+    /// <summary>空中（非滑空）の移動量計算（慣性減衰＋軽い空中操舵）</summary>
+    Vector3 ComputeAirHorizontal(Vector2 input)
     {
-        _airMomentum = Vector3.MoveTowards(_airMomentum, Vector3.zero, 2.2f * Time.deltaTime);
+        // カメラ相対の軽い空中操舵（落下中も向きを微調整できる）
+        if (input.sqrMagnitude > 0.01f && cameraPivot != null)
+        {
+            Vector3 camF = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
+            Vector3 camR = Vector3.ProjectOnPlane(cameraPivot.right, Vector3.up);
+            if (camF.sqrMagnitude > 0.001f) camF.Normalize();
+            else camF = transform.forward.SetY(0f).normalized;
+            camR.Normalize();
+
+            Vector3 wish = Vector3.ClampMagnitude(camR * input.x + camF * input.y, 1f) * AirSteerMaxSpeed;
+            _airMomentum = Vector3.MoveTowards(_airMomentum, wish, AirSteerAccel * Time.deltaTime);
+
+            Vector3 flat = _airMomentum.SetY(0f);
+            if (flat.sqrMagnitude > 0.2f)
+            {
+                Quaternion want = Quaternion.LookRotation(flat.normalized);
+                transform.rotation = Quaternion.Slerp(transform.rotation, want, 6f * Time.deltaTime);
+            }
+        }
+        else
+        {
+            _airMomentum = Vector3.MoveTowards(_airMomentum, Vector3.zero, 1.6f * Time.deltaTime);
+        }
+
         _hop += gravity * Time.deltaTime;
         return _airMomentum;
     }
@@ -825,6 +929,23 @@ public class AdventurePlayerController : MonoBehaviour
         _doubleJumpUsed      = false;
         _updraftTimer        = 0f;
         _updraftLift         = 0f;
+        ResetGlideSmoothing();
+    }
+
+    void ResetGlideSmoothing()
+    {
+        _glideInputSmooth = Vector2.zero;
+        _glideInputVel = Vector2.zero;
+        _glideYawRateCurrent = 0f;
+        _glidePitchCurrent = 0f;
+        _glidePitchVel = 0f;
+        _glideRollCurrent = 0f;
+        _glideRollVel = 0f;
+        _glideSpeedCurrent = 0f;
+        _glideSpeedVel = 0f;
+        _glideFallCurrent = 0f;
+        _glideFallVel = 0f;
+        _airMomVel = Vector3.zero;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -847,7 +968,12 @@ public class AdventurePlayerController : MonoBehaviour
         dir.Normalize();
 
         _airMomentum       = dir * (10.5f * moveSpeedMultiplier);
+        _glideSpeedCurrent = _airMomentum.magnitude;
+        _airMomVel         = Vector3.zero;
         transform.rotation = Quaternion.LookRotation(dir);
+        _glideRollCurrent  = 0f;
+        _glidePitchCurrent = 0f;
+        _glideYawRateCurrent = 0f;
     }
 
     /// <summary>上昇気流（サーマル）突入時の浮遊・上昇力付与</summary>
@@ -1049,10 +1175,10 @@ public class AdventurePlayerController : MonoBehaviour
         _skybreakLastY = nextY;
     }
 
-    /// <summary>光の柱ゾーン内にいる間の補助。クライマックス後は再ロックしない。</summary>
+    /// <summary>光の柱ゾーン内にいる間の補助。クライマックス後／到達済みは再ロックしない。</summary>
     public void ForceSkybreakPillarAscend(Vector3 pillarBase, float liftSpeed, bool pullToCenter)
     {
-        if (_autoGlide) return;
+        if (_autoGlide || _skybreakPillarDone) return;
         var tower = AdventureSanctuaryTowerManager.Instance;
         if (tower != null && (tower.ClimaxCrisisStarted || tower.ShowGameClearModal || tower.EpilogueTriggered))
             return;

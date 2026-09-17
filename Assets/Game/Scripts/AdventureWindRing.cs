@@ -24,10 +24,10 @@ public class AdventureWindRing : MonoBehaviour
         CreateBeaconPillar();
         SetupAudio();
 
-        // 物理トリガー＋Rigidbody（CharacterControllerとの確実な接触用）
+        // 物理トリガーは補助のみ（狭い球）。本判定は Update のゲート判定
         var col = gameObject.AddComponent<SphereCollider>();
         col.isTrigger = true;
-        col.radius = 4.5f;
+        col.radius = 2.8f;
 
         var rb = gameObject.AddComponent<Rigidbody>();
         rb.isKinematic = true;
@@ -153,25 +153,34 @@ public class AdventureWindRing : MonoBehaviour
             _beaconPillar.localScale = new Vector3(0.25f * bPulse, 7.5f, 0.25f * bPulse);
         }
 
-        // 確実な通過感知（巨大な円筒ゲート判定：半径5.2m、前後厚み3.2m）
+        // 確実な通過感知（リング開口の薄いゲートのみ）
         if (!_isCooldown)
         {
-            var player = AdventurePlayerController.Instance;
-            if (player != null)
-            {
-                Vector3 playerCenter = player.transform.position + Vector3.up * 0.9f;
-                // リングのローカル空間に変換
-                Vector3 localPos = transform.InverseTransformPoint(playerCenter);
-                float radiusDist = Mathf.Sqrt(localPos.x * localPos.x + localPos.y * localPos.y);
-                float zDist = Mathf.Abs(localPos.z);
-
-                // 半径5.2m以内（リングの内外）かつ厚み前後3.2m以内を通過
-                if (radiusDist <= 5.2f && zDist <= 3.2f)
-                {
-                    TriggerBoost(player);
-                }
-            }
+            var player = AdventurePlayerController.Resolve();
+            if (player != null && IsPlayerInsideGate(player))
+                TriggerBoost(player);
         }
+    }
+
+    bool IsPlayerInsideGate(AdventurePlayerController player)
+    {
+        // リング半径約3.5mの開口内＋薄い厚さだけ（手前で誤爆して押し戻さない）
+        Vector3[] samplePoints =
+        {
+            player.transform.position + Vector3.up * 0.5f,
+            player.transform.position + Vector3.up * 1.1f,
+            player.transform.position + Vector3.up * 1.6f,
+        };
+
+        for (int i = 0; i < samplePoints.Length; i++)
+        {
+            Vector3 localPos = transform.InverseTransformPoint(samplePoints[i]);
+            float radiusDist = Mathf.Sqrt(localPos.x * localPos.x + localPos.y * localPos.y);
+            float zDist = Mathf.Abs(localPos.z);
+            if (radiusDist <= 3.8f && zDist <= 1.35f)
+                return true;
+        }
+        return false;
     }
 
     void OnTriggerEnter(Collider other)
@@ -180,34 +189,60 @@ public class AdventureWindRing : MonoBehaviour
 
         var player = other.GetComponent<AdventurePlayerController>()
             ?? other.GetComponentInParent<AdventurePlayerController>();
-        if (player != null)
-        {
+        // 球トリガーは広めになりやすいので、開口内にいるときだけ発火
+        if (player != null && IsPlayerInsideGate(player))
             TriggerBoost(player);
-        }
     }
 
     void TriggerBoost(AdventurePlayerController player)
     {
-        // 滑空中の時のみ風のリングの空中加速ブーストを発動（地上歩行中の意図しない浮遊を防止）
-        if (player == null || !player.IsGliding)
-            return;
+        if (player == null) return;
 
         _isCooldown = true;
 
-        // プレイヤーに前進ロケット加速ブーストを付与（リングの貫通方向へ猛烈に射出！）
-        player.ApplyGlideBoost(boostMultiplier, boostDuration, transform.forward);
+        // プレイヤーの向き／進入方向に合わせて押し出す（逆向きブーストで押し戻さない）
+        Vector3 through = ResolveBoostDirection(player);
+        float mult = player.IsGliding ? boostMultiplier : Mathf.Lerp(1.35f, boostMultiplier, 0.55f);
+        float dur = player.IsGliding ? boostDuration : 2.2f;
+        player.ApplyGlideBoost(mult, dur, through);
 
-        // 爽快な風切りブースト効果音
         if (_audio != null && _boostClip != null)
             _audio.PlayOneShot(_boostClip);
 
-        // 相棒Rustのリアクション＋光るリング通過ボーナス油（量は都度ランダム）
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
-            drone.OnFloatWindCaught(); // 内部で油量をランダム決定
+            drone.OnFloatWindCaught();
 
-        // リングショックウェーブ演出
         StartCoroutine(ShockwaveAndCooldown());
+    }
+
+    /// <summary>リング貫通方向を、プレイヤーの向きに合わせて前後どちらにするか決める</summary>
+    Vector3 ResolveBoostDirection(AdventurePlayerController player)
+    {
+        Vector3 through = transform.forward;
+        through.y = 0f;
+        if (through.sqrMagnitude < 0.001f)
+            through = player.transform.forward;
+        through.Normalize();
+
+        Vector3 face = player.transform.forward;
+        face.y = 0f;
+        if (face.sqrMagnitude > 0.001f)
+        {
+            face.Normalize();
+            if (Vector3.Dot(through, face) < 0f)
+                through = -through;
+        }
+        else
+        {
+            // 向き不明ならリング中心からプレイヤーへ向かう逆＝くぐり抜け方向
+            Vector3 fromRing = player.transform.position - transform.position;
+            fromRing.y = 0f;
+            if (fromRing.sqrMagnitude > 0.001f && Vector3.Dot(through, fromRing.normalized) < 0f)
+                through = -through;
+        }
+
+        return through;
     }
 
     IEnumerator ShockwaveAndCooldown()
