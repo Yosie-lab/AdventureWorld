@@ -59,7 +59,7 @@ public class AdventurePlayerController : MonoBehaviour
     string              _clip;
 
     // ─── 定数 ─────────────────────────────────────────────────────────
-    const float Skin                 = 0.1f;
+    const float Skin                 = 0.15f;
     const float StepOffsetGround     = 1.35f;
     const float SteepNormalThreshold = 0.20f;
 
@@ -81,12 +81,13 @@ public class AdventurePlayerController : MonoBehaviour
     const float GlideYawRateBoosted = 100f;
     const float GlideBankAngle   = 22f;
     const float GlidePitchRateDive = 5.5f;
-    const float GlideInputSmooth = 0.08f;
-    const float GlideYawAccel    = 280f;
-    const float GlideAttitudeSmooth = 0.12f;
-    const float GlideSpeedSmooth = 0.22f;
-    const float AirSteerAccel    = 7.5f;
+    const float GlideInputSmooth = 0.05f;
+    const float GlideYawAccel    = 320f;
+    const float GlideAttitudeSmooth = 0.08f;
+    const float GlideSpeedSmooth = 0.12f;
+    const float AirSteerAccel    = 10f;
     const float AirSteerMaxSpeed = 4.2f;
+    const float AirMomentumBrake = 28f; // 操作なし時の空中水平ブレーキ（秒速減衰）
 
     // 滑空スムージング内部状態
     Vector2 _glideInputSmooth;
@@ -232,6 +233,8 @@ public class AdventurePlayerController : MonoBehaviour
         // 上昇ロック中は ApplyMotion 後にもう一度高度を保証（衝突で押し戻されても落ちない）
         if (_skybreakPillarLock)
             EnforceSkybreakPillarHeight();
+        else
+            PreventGroundBurial();
 
         FloatOnWater();
         KeepWalkable();
@@ -259,9 +262,10 @@ public class AdventurePlayerController : MonoBehaviour
     void InitCharacterController()
     {
         _cc = GetComponent<CharacterController>();
-        _cc.slopeLimit     = 78f;           // 78度の急斜面もスムーズに駆け上がれる
-        _cc.stepOffset     = StepOffsetGround;
+        _cc.slopeLimit      = 78f;
+        _cc.stepOffset      = StepOffsetGround;
         _cc.minMoveDistance = 0f;
+        _cc.skinWidth       = Mathf.Max(_cc.skinWidth, 0.08f);
     }
 
     void InitAnimator()
@@ -408,8 +412,10 @@ public class AdventurePlayerController : MonoBehaviour
                 _gliding          = false;
                 _doubleJumpUsed   = false;
                 _airborneTime     = 0f;
-                if (_hop < 0f) _hop = -2f;
+                if (_hop < 0f) _hop = -0.85f;
                 ResetGlideSmoothing();
+                _airMomentum = Vector3.zero;
+                _airMomVel = Vector3.zero;
             }
             else
             {
@@ -420,12 +426,14 @@ public class AdventurePlayerController : MonoBehaviour
         }
         else if (Floating() || (_cc.isGrounded && _hop <= 0.05f && !TooSteep() && !StandingOnSeafloor()))
         {
-            if (_hop < 0f) _hop = -2f;
+            if (_hop < 0f) _hop = -0.85f;
             _grounded       = true;
             _doubleJumpUsed = false;
             _gliding        = false;
             _airborneTime   = 0f;
             ResetGlideSmoothing();
+            _airMomentum = Vector3.zero;
+            _airMomVel = Vector3.zero;
         }
         else
         {
@@ -611,35 +619,43 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>地上移動量の計算（砂浜登坂アシスト・回転含む）</summary>
     Vector3 ComputeGroundHorizontal(Vector3 wishWalk, bool running)
     {
-        Vector3 horizontal = wishWalk;
-        _airMomentum = wishWalk;
+        // 操作を離したら即停止（空中慣性・滑空スムーズの持ち越しを切る）
+        if (wishWalk.sqrMagnitude < 0.0001f)
+        {
+            _airMomentum = Vector3.zero;
+            _airMomVel = Vector3.zero;
+            _glideInputSmooth = Vector2.zero;
+            _glideInputVel = Vector2.zero;
+            _glideYawRateCurrent = 0f;
+            _glideSpeedCurrent = 0f;
+            _glideSpeedVel = 0f;
 
-        if (wishWalk.sqrMagnitude > 0.0001f)
-        {
-            // 砂浜から内陸方向への登坂アシスト
-            if (IsInBeachOrCoastZone(transform.position))
-            {
-                Vector3 inward = GetIslandCenterXZ() - transform.position.SetY(0f);
-                if (inward.sqrMagnitude > 0.1f)
-                {
-                    inward.Normalize();
-                    if (Vector3.Dot(wishWalk.normalized, inward) > 0.1f)
-                        horizontal += inward * (running ? 3.5f : 2.0f);
-                }
-            }
-            transform.rotation = Quaternion.Slerp(
-                transform.rotation,
-                Quaternion.LookRotation(wishWalk),
-                turnSpeed * Time.deltaTime);
-        }
-        else
-        {
-            // 静止時はピッチ・ロールを水平にリセット
             Vector3 euler = transform.eulerAngles;
             if (Mathf.Abs(Mathf.DeltaAngle(euler.x, 0f)) > 0.1f ||
                 Mathf.Abs(Mathf.DeltaAngle(euler.z, 0f)) > 0.1f)
                 transform.rotation = Quaternion.Euler(0f, euler.y, 0f);
+            return Vector3.zero;
         }
+
+        Vector3 horizontal = wishWalk;
+        _airMomentum = wishWalk;
+        _airMomVel = Vector3.zero;
+
+        // 砂浜から内陸方向への登坂アシスト
+        if (IsInBeachOrCoastZone(transform.position))
+        {
+            Vector3 inward = GetIslandCenterXZ() - transform.position.SetY(0f);
+            if (inward.sqrMagnitude > 0.1f)
+            {
+                inward.Normalize();
+                if (Vector3.Dot(wishWalk.normalized, inward) > 0.1f)
+                    horizontal += inward * (running ? 3.5f : 2.0f);
+            }
+        }
+        transform.rotation = Quaternion.Slerp(
+            transform.rotation,
+            Quaternion.LookRotation(wishWalk),
+            turnSpeed * Time.deltaTime);
         return horizontal;
     }
 
@@ -669,10 +685,17 @@ public class AdventurePlayerController : MonoBehaviour
             }
         }
 
-        // 入力を滑らかに（スティック／キーの段差を消して機体のキレを抑える）
+        // 入力を滑らかに（離したときは素早くゼロへ戻して残留操作を残さない）
+        float inputSmooth = input.sqrMagnitude < 0.01f ? 0.03f : GlideInputSmooth;
         _glideInputSmooth = Vector2.SmoothDamp(
-            _glideInputSmooth, input, ref _glideInputVel, GlideInputSmooth,
+            _glideInputSmooth, input, ref _glideInputVel, inputSmooth,
             Mathf.Infinity, Time.deltaTime);
+        if (input.sqrMagnitude < 0.01f && _glideInputSmooth.sqrMagnitude < 0.0025f)
+        {
+            _glideInputSmooth = Vector2.zero;
+            _glideInputVel = Vector2.zero;
+            _glideYawRateCurrent = 0f;
+        }
         Vector2 gIn = _glideInputSmooth;
         float dt = Time.deltaTime;
 
@@ -757,7 +780,6 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>空中（非滑空）の移動量計算（慣性減衰＋軽い空中操舵）</summary>
     Vector3 ComputeAirHorizontal(Vector2 input)
     {
-        // カメラ相対の軽い空中操舵（落下中も向きを微調整できる）
         if (input.sqrMagnitude > 0.01f && cameraPivot != null)
         {
             Vector3 camF = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
@@ -778,7 +800,11 @@ public class AdventurePlayerController : MonoBehaviour
         }
         else
         {
-            _airMomentum = Vector3.MoveTowards(_airMomentum, Vector3.zero, 1.6f * Time.deltaTime);
+            // 操作なし：水平慣性を素早く止める（1〜2秒ズルズル滑るのを防ぐ）
+            _airMomentum = Vector3.MoveTowards(_airMomentum, Vector3.zero, AirMomentumBrake * Time.deltaTime);
+            _airMomVel = Vector3.zero;
+            if (_airMomentum.sqrMagnitude < 0.05f)
+                _airMomentum = Vector3.zero;
         }
 
         _hop += gravity * Time.deltaTime;
@@ -897,17 +923,17 @@ public class AdventurePlayerController : MonoBehaviour
 
     public void Teleport(Vector3 pos)
     {
-        // エンディング中は地上Stickで高度を潰さない
+        // 空中エンディング中のみ地上Stickで高度を潰さない（天蓋開放後の地上探索は通常Stick）
         var tower = AdventureSanctuaryTowerManager.Instance;
-        bool ending = _skybreakPillarLock || _autoGlide
-                      || (tower != null && (tower.ClimaxCrisisStarted || tower.EpilogueTriggered
-                                           || AdventureSanctuaryTowerManager.IsCanopyBroken));
-        if (!ending)
+        bool airborneEnding = _skybreakPillarLock || _autoGlide
+                              || (tower != null && (tower.ClimaxCrisisStarted || tower.EpilogueTriggered
+                                                   || tower.IsEpiloguePlaying));
+        if (!airborneEnding)
             pos = Stick(pos);
         if (_cc != null) _cc.enabled = false;
         transform.position = pos;
         if (_cc != null) _cc.enabled = true;
-        if (!ending)
+        if (!airborneEnding)
             ForceGroundReset();
     }
 
@@ -918,7 +944,7 @@ public class AdventurePlayerController : MonoBehaviour
         _skybreakPillarDone  = false;
         _skybreakStuckTimer  = 0f;
         _skybreakPillarEndAt = 0f;
-        _hop                 = 0f;
+        _hop                 = -0.85f;
         _grounded            = true;
         _gliding             = false;
         _autoGlide           = false;
@@ -930,6 +956,49 @@ public class AdventurePlayerController : MonoBehaviour
         _updraftTimer        = 0f;
         _updraftLift         = 0f;
         ResetGlideSmoothing();
+
+        // 低高度で地面より下に潜っているときだけ引き上げ（階段・台座から引きずり下ろさない）
+        if (transform.position.y < 90f)
+        {
+            Vector3 p = transform.position;
+            float minY = SurfaceY(p) + Skin;
+            if (p.y < minY - 0.02f)
+            {
+                p.y = minY;
+                if (_cc != null) _cc.enabled = false;
+                transform.position = p;
+                if (_cc != null) _cc.enabled = true;
+            }
+        }
+
+        // カメラが取り残されてNikoが見えない状態を解除
+        var follow = cameraPivot != null
+            ? cameraPivot.GetComponent<AdventureCameraFollow>()
+            : Object.FindAnyObjectByType<AdventureCameraFollow>();
+        if (follow != null)
+        {
+            follow.SetCinematicMode(false);
+            follow.SnapBehindTarget();
+        }
+    }
+
+    /// <summary>地形／テラスより下へ潜った場合に引き上げる（地面吸い込み防止）</summary>
+    void PreventGroundBurial()
+    {
+        if (_autoGlide) return;
+        if (_gliding && transform.position.y > 45f) return;
+
+        Vector3 p = transform.position;
+        float minY = SurfaceY(p) + Skin;
+        if (p.y >= minY - 0.01f) return;
+
+        if (_cc != null) _cc.enabled = false;
+        transform.position = new Vector3(p.x, minY, p.z);
+        if (_cc != null) _cc.enabled = true;
+
+        if (_hop < 0f) _hop = -0.85f;
+        _grounded = true;
+        _gliding = false;
     }
 
     void ResetGlideSmoothing()
