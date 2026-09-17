@@ -222,7 +222,69 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         _instance = this;
         _isCanopyBroken = PlayerPrefs.GetInt(PrefKeyCanopyBroken, 0) == 1;
+        // Domain/Scene Reload 無効時に前プレイの台本・保留クライマックスが残ると
+        // 再生直後にエンディングへ突入するため、ランタイム演出だけは必ず落とす
+        AbortEndingSequenceKeepWorldProgress();
         // 開放済みでもレバー再演できるように、ここでは _leverPulled を立てない
+    }
+
+    /// <summary>
+    /// Rキー等の緊急リセット：エンディング台本／保留クライマックスを止め、探索へ戻す。
+    /// セーブ上の天蓋開放フラグもクリアする（再プレイ可能な初期探索へ）。
+    /// </summary>
+    public void AbortEndingForEmergencyReset()
+    {
+        ClearEndingRuntimeState(ignoreSavedCanopy: false);
+        DestroySkybreakWorldFx();
+        SetExplorationHudVisible(true);
+        SetCinematicCamera(false);
+        SetLeverPromptUI(false, false);
+        AdventureMusicDirector.Ensure();
+        AdventureMusicDirector.Instance?.RestoreExplorationTheme();
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+        {
+            drone.StopSkybreakNestle();
+            drone.ResetClimaxState();
+            drone.ClearSpeech();
+        }
+        EnsureLandTerrainColliderEnabled();
+    }
+
+    /// <summary>再生開始時：進行フラグは残し、進行中の演出だけ止める</summary>
+    void AbortEndingSequenceKeepWorldProgress()
+    {
+        StopAllCoroutines();
+        Time.timeScale = 1f;
+        _endingSequenceActive = false;
+        _suppressClimax = false;
+        _climaxCrisisStarted = false;
+        _climaxOilInjected = false;
+        _climaxOilWaiting = false;
+        _oilHoldTimer = 0f;
+        _scriptRequireInputRelease = false;
+        _climaxBeatIndex = -1;
+        _climaxOverdriveCinematicUntil = 0f;
+        _climaxPostOilPhase = 0;
+        _climaxPostOilUntil = 0f;
+        _epilogueTriggered = false;
+        _epilogueAlpha = 0f;
+        _epilogueAct = 0;
+        _scriptBoardVisible = false;
+        _scriptBoardAdvance = false;
+        _scriptBoardTitle = "";
+        _scriptBoardSpeaker = "";
+        _scriptBoardBody = "";
+        _canopyBeatIndex = -1;
+        _scriptHoldTimer = 0f;
+        ClearPendingClimax();
+        _showGameClearModal = false;
+        _leverHoldTimer = 0f;
+        _leverPullLockUntil = 0f;
+        if (_scriptUiRoot != null)
+            _scriptUiRoot.SetActive(false);
+        HideOilPromptUI();
+        HideGameClearModalUI();
     }
 
     void OnDestroy()
@@ -1495,7 +1557,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     public void NotifyPillarAscendComplete()
     {
         if (_climaxCrisisStarted || _epilogueTriggered) return;
-        ArmPendingClimax(failsafeSeconds: 0f);
+        // 高度到達待ち。0秒＝無期限タイムアウトではなく「高さ条件のみ」
+        ArmPendingClimax(failsafeSeconds: 8f);
         _suppressClimax = false;
         _ignoreSavedCanopyState = false;
         if (!_isCanopyBroken)
@@ -1514,7 +1577,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         bool highEnough = player != null
             && (player.transform.position.y >= 140f || player.IsAutoGliding);
-        bool timedOut = Time.unscaledTime >= _pendingClimaxDeadline;
+        // deadline<=0 は「高さ待ちのみ」。0を即タイムアウト扱いすると地上リセット後にエンディングが再点火する
+        bool timedOut = _pendingClimaxDeadline > 0f
+                        && Time.unscaledTime >= _pendingClimaxDeadline;
         if (!highEnough && !timedOut) return;
 
         ClearPendingClimax();
@@ -1541,7 +1606,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         _pendingClimaxAfterCanopy = true;
         _pendingClimaxDeadline = failsafeSeconds <= 0f
-            ? 0f
+            ? 0f // 0 = タイムアウトなし（高さ条件のみ）
             : Time.unscaledTime + failsafeSeconds;
     }
 
@@ -2278,6 +2343,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         // ワールド全体：光の柱カプセル内の固体を無効化
+        // ※ TerrainCollider は島全体を覆う巨大コライダーなので絶対に触らない
+        //   （無効化すると接地判定が消え、空中で止まったように見える）
         var hits = Physics.OverlapCapsule(
             new Vector3(512f, 68f, 512f),
             new Vector3(512f, 260f, 512f),
@@ -2288,12 +2355,30 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             var h = hits[i];
             if (h == null) continue;
+            if (h is TerrainCollider) continue;
+            if (h.GetComponentInParent<Terrain>() != null) continue;
             if (h.GetComponentInParent<AdventurePlayerController>() != null) continue;
             if (h.GetComponentInParent<AdventureThermalUpdraft>() != null) continue;
             if (h.GetComponentInParent<AdventureRustDrone>() != null) continue;
             // テラス床は残す
             if (h.bounds.max.y < 68f) continue;
             h.enabled = false;
+        }
+
+        EnsureLandTerrainColliderEnabled();
+    }
+
+    /// <summary>島の歩行面コライダーが誤って落ちていたら復帰させる</summary>
+    static void EnsureLandTerrainColliderEnabled()
+    {
+        foreach (var terrain in Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude))
+        {
+            if (terrain == null) continue;
+            string n = terrain.name;
+            if (n != "LandTerrain" && n != "IslandTerrain") continue;
+            var col = terrain.GetComponent<TerrainCollider>();
+            if (col != null && !col.enabled)
+                col.enabled = true;
         }
     }
 

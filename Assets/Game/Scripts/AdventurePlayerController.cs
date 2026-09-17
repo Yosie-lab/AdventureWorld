@@ -362,6 +362,11 @@ public class AdventurePlayerController : MonoBehaviour
         bool resetPressed = kb != null && kb.rKey.wasPressedThisFrame;
         try { if (Input.GetKeyDown(KeyCode.R)) resetPressed = true; } catch { }
         if (!resetPressed) return false;
+
+        // エンディング途中のRで保留クライマックスが再点火しないよう演出を止める
+        AdventureSanctuaryTowerManager.Ensure();
+        AdventureSanctuaryTowerManager.Instance?.AbortEndingForEmergencyReset();
+
         ForceGroundReset();
         Teleport(spawnPosition);
         return true;
@@ -1400,7 +1405,13 @@ public class AdventurePlayerController : MonoBehaviour
         foreach (var terrain in Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude))
         {
             if (terrain.name == "LandTerrain" || terrain.name == "IslandTerrain")
+            {
                 _land = terrain;
+                // 光柱クリア等で誤無効化された場合に歩行面を復帰
+                var landCol = terrain.GetComponent<TerrainCollider>();
+                if (landCol != null && !landCol.enabled)
+                    landCol.enabled = true;
+            }
             else if (terrain.name.IndexOf("Water", System.StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 var col = terrain.GetComponent<TerrainCollider>();
