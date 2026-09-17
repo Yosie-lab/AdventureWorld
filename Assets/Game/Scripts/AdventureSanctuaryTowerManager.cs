@@ -2833,7 +2833,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         _epilogueTriggered = true;
         AdventureMusicDirector.Ensure();
-        AdventureMusicDirector.Instance?.KeepEndingThemeUntilQuit();
+        AdventureMusicDirector.Instance?.KeepEndingThemeActive();
         StartCoroutine(EpilogueSequenceRoutine());
     }
 
@@ -3122,7 +3122,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _showGameClearModal = true;
         SuppressAllSpeechAndBanners();
         AdventureMusicDirector.Ensure();
-        AdventureMusicDirector.Instance?.KeepEndingThemeUntilQuit();
+        AdventureMusicDirector.Instance?.KeepEndingThemeActive();
     }
 
     static void KeepAutoGlide(AdventurePlayerController player)

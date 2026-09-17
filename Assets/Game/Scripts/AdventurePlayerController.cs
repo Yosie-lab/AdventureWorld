@@ -413,9 +413,7 @@ public class AdventurePlayerController : MonoBehaviour
                 _doubleJumpUsed   = false;
                 _airborneTime     = 0f;
                 if (_hop < 0f) _hop = -0.85f;
-                ResetGlideSmoothing();
-                _airMomentum = Vector3.zero;
-                _airMomVel = Vector3.zero;
+                ClearLocomotionInertia();
             }
             else
             {
@@ -431,9 +429,7 @@ public class AdventurePlayerController : MonoBehaviour
             _doubleJumpUsed = false;
             _gliding        = false;
             _airborneTime   = 0f;
-            ResetGlideSmoothing();
-            _airMomentum = Vector3.zero;
-            _airMomVel = Vector3.zero;
+            ClearLocomotionInertia();
         }
         else
         {
@@ -622,13 +618,7 @@ public class AdventurePlayerController : MonoBehaviour
         // 操作を離したら即停止（空中慣性・滑空スムーズの持ち越しを切る）
         if (wishWalk.sqrMagnitude < 0.0001f)
         {
-            _airMomentum = Vector3.zero;
-            _airMomVel = Vector3.zero;
-            _glideInputSmooth = Vector2.zero;
-            _glideInputVel = Vector2.zero;
-            _glideYawRateCurrent = 0f;
-            _glideSpeedCurrent = 0f;
-            _glideSpeedVel = 0f;
+            ClearLocomotionInertia();
 
             Vector3 euler = transform.eulerAngles;
             if (Mathf.Abs(Mathf.DeltaAngle(euler.x, 0f)) > 0.1f ||
@@ -999,6 +989,12 @@ public class AdventurePlayerController : MonoBehaviour
         if (_hop < 0f) _hop = -0.85f;
         _grounded = true;
         _gliding = false;
+    }
+
+    void ClearLocomotionInertia()
+    {
+        _airMomentum = Vector3.zero;
+        ResetGlideSmoothing();
     }
 
     void ResetGlideSmoothing()

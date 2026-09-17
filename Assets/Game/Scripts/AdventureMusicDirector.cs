@@ -123,7 +123,7 @@ public class AdventureMusicDirector : MonoBehaviour
     }
 
     /// <summary>エンディング進行中：天空BGMを維持</summary>
-    public void KeepEndingThemeUntilQuit()
+    public void KeepEndingThemeActive()
     {
         _preferAmbientAfterEnding = false;
         _keepEndingThemeActive = true;
@@ -131,27 +131,16 @@ public class AdventureMusicDirector : MonoBehaviour
         KeepEndingThemePlaying(restartIfNeeded: true);
     }
 
+    /// <summary>互換：旧名。エンディング進行中の天空BGM維持</summary>
+    public void KeepEndingThemeUntilQuit() => KeepEndingThemeActive();
+
     /// <summary>エンディング終了後の自由探索：探索アンビエントへ戻す</summary>
     public void RestoreExplorationTheme()
     {
         _keepEndingThemeActive = false;
         _preferAmbientAfterEnding = true;
         _hasSwitchedToSkybreak = false;
-        StopAllCoroutines();
-
-        if (_bgmSourceB != null)
-            StartCoroutine(FadeVolume(_bgmSourceB, 0f, 1.4f));
-
-        if (_ambientThemeClip == null)
-            _ambientThemeClip = GenerateAmbientTheme();
-        if (_bgmSourceA != null && _ambientThemeClip != null)
-        {
-            _bgmSourceA.clip = _ambientThemeClip;
-            _bgmSourceA.loop = true;
-            if (!_bgmSourceA.isPlaying)
-                _bgmSourceA.Play();
-            StartCoroutine(FadeVolume(_bgmSourceA, AmbientThemeVolume, 2.0f));
-        }
+        FadeOutSkybreakAndPlayAmbient(skyFade: 1.4f, ambientFade: 2.0f, stopSkyImmediate: false);
     }
 
     void KeepEndingThemePlaying(bool restartIfNeeded)
@@ -191,20 +180,36 @@ public class AdventureMusicDirector : MonoBehaviour
         _keepEndingThemeActive = false;
         _preferAmbientAfterEnding = false;
         _hasSwitchedToSkybreak = false;
+        FadeOutSkybreakAndPlayAmbient(skyFade: 0f, ambientFade: 1.2f, stopSkyImmediate: true);
+    }
+
+    void FadeOutSkybreakAndPlayAmbient(float skyFade, float ambientFade, bool stopSkyImmediate)
+    {
         StopAllCoroutines();
+
         if (_bgmSourceB != null)
         {
-            _bgmSourceB.Stop();
-            _bgmSourceB.volume = 0f;
+            if (stopSkyImmediate || skyFade <= 0f)
+            {
+                _bgmSourceB.Stop();
+                _bgmSourceB.volume = 0f;
+            }
+            else
+            {
+                StartCoroutine(FadeVolume(_bgmSourceB, 0f, skyFade));
+            }
         }
-        if (_bgmSourceA != null && _ambientThemeClip != null)
-        {
-            _bgmSourceA.clip = _ambientThemeClip;
-            _bgmSourceA.loop = true;
-            if (!_bgmSourceA.isPlaying)
-                _bgmSourceA.Play();
-            StartCoroutine(FadeVolume(_bgmSourceA, AmbientThemeVolume, 1.2f));
-        }
+
+        if (_ambientThemeClip == null)
+            _ambientThemeClip = GenerateAmbientTheme();
+        if (_bgmSourceA == null || _ambientThemeClip == null)
+            return;
+
+        _bgmSourceA.clip = _ambientThemeClip;
+        _bgmSourceA.loop = true;
+        if (!_bgmSourceA.isPlaying)
+            _bgmSourceA.Play();
+        StartCoroutine(FadeVolume(_bgmSourceA, AmbientThemeVolume, ambientFade));
     }
 
     /// <summary>天空突破BGMへ切替。force=true で再演時も必ず再生（クリップ再生成）</summary>
