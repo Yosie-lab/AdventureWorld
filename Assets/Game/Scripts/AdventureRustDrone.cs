@@ -39,6 +39,7 @@ public class AdventureRustDrone : MonoBehaviour
     Color _speechSpeakerColor = new Color(0.35f, 0.92f, 0.98f, 1f);
     AudioClip _happyBeepClip;
     AudioClip _sonarBeepClip;
+    AudioClip _pipiChimeClip;
     AudioClip _distressWhineClip;
     float _nextDistressSound;
     float _sonarTimer = 0f;
@@ -801,6 +802,7 @@ public class AdventureRustDrone : MonoBehaviour
         _creaks = new[] { MakeCreak(11), MakeCreak(29), MakeCreak(47) };
         _happyBeepClip = MakeSynthBeep(880f, 1320f, 0.18f);
         _sonarBeepClip = MakeSynthBeep(1480f, 1100f, 0.22f);
+        _pipiChimeClip = MakePipiChime();
         _distressWhineClip = MakeDistressWhine();
         _nextDistressSound = Time.time + 1.5f;
     }
@@ -1006,6 +1008,10 @@ public class AdventureRustDrone : MonoBehaviour
 
         // レバーの近くにいる場合はレバー操作を最優先
         if (towerMgr != null && towerMgr.IsPlayerNearLever)
+            return;
+
+        // カピタ会話レンジ内では E をカピタに譲る（Rust手当てと取り合いにしない）
+        if (AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(player.transform.position))
             return;
 
         if (_isPlayerNear && ePressed && Time.time - _lastInteractTime > 0.35f)
@@ -1307,12 +1313,73 @@ public class AdventureRustDrone : MonoBehaviour
         SpawnClimaxJetFx();
         DestroyClimaxTrail();
 
-        if (_audio != null)
+        // 「ピピッ！」に合わせて復活チャイム
+        PlayPipiRevivalChime();
+    }
+
+    /// <summary>全出力セリフ冒頭の「ピピッ！」用チャイム（二連ビープ＋明るい和音）</summary>
+    public void PlayPipiRevivalChime()
+    {
+        if (_audio == null)
+            SetupAudio();
+        if (_audio == null) return;
+
+        if (_pipiChimeClip == null)
+            _pipiChimeClip = MakePipiChime();
+
+        float savedPitch = _audio.pitch;
+        _audio.pitch = 1f;
+        if (_pipiChimeClip != null)
+            _audio.PlayOneShot(_pipiChimeClip, 0.9f);
+        if (_happyBeepClip != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.55f);
+        _audio.pitch = savedPitch;
+
+        // パーツ回収と同系のヒーリングチャイムも重ねて祝福感を出す
+        AdventureScrapManager.Instance?.PlayCelebrationChime(0.32f);
+    }
+
+    /// <summary>ピ・ピッ の二連電子音＋短い高音チャイム</summary>
+    static AudioClip MakePipiChime()
+    {
+        const int hz = 44100;
+        float duration = 0.55f;
+        int samples = (int)(hz * duration);
+        float[] data = new float[samples];
+
+        void AddBeep(float startSec, float dur, float f0, float f1, float amp)
         {
-            _audio.pitch = 1.45f;
-            if (_happyBeepClip != null)
-                _audio.PlayOneShot(_happyBeepClip, 1.0f);
+            int start = Mathf.FloorToInt(startSec * hz);
+            int len = Mathf.FloorToInt(dur * hz);
+            float phase = 0f;
+            for (int i = 0; i < len; i++)
+            {
+                int idx = start + i;
+                if (idx < 0 || idx >= samples) continue;
+                float t = i / (float)Mathf.Max(1, len - 1);
+                float freq = Mathf.Lerp(f0, f1, t);
+                phase += 2f * Mathf.PI * freq / hz;
+                float env = Mathf.Sin(Mathf.Clamp01(t) * Mathf.PI);
+                // ソフトアタック
+                if (t < 0.08f) env *= t / 0.08f;
+                data[idx] += Mathf.Sin(phase) * env * amp;
+            }
         }
+
+        // ピ（短）・ピッ（少し長め上昇）
+        AddBeep(0.00f, 0.09f, 980f, 1180f, 0.42f);
+        AddBeep(0.12f, 0.16f, 1200f, 1560f, 0.48f);
+        // 明るい和音の余韻
+        AddBeep(0.22f, 0.30f, 784f, 784f, 0.18f);   // G5
+        AddBeep(0.24f, 0.28f, 988f, 988f, 0.16f);   // B5
+        AddBeep(0.26f, 0.26f, 1319f, 1319f, 0.14f); // E6
+
+        for (int i = 0; i < samples; i++)
+            data[i] = Mathf.Clamp(data[i], -1f, 1f);
+
+        var clip = AudioClip.Create("RustPipiChime", samples, 1, hz, false);
+        clip.SetData(data, 0);
+        return clip;
     }
 
     void SnapBesideNiko(bool healingNestle)
@@ -2184,8 +2251,15 @@ public class AdventureRustDrone : MonoBehaviour
             }
         }
 
+        bool nearCapyta = AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(
+            AdventurePlayerController.Instance != null
+                ? AdventurePlayerController.Instance.transform.position
+                : transform.position);
+
         // 0. Eキー検知のフォールバック（押しっぱなし連打防止）
-        if (!cinematicHide && _isPlayerNear && Event.current != null
+        // カピタ会話中は触れない（Update側と同じ優先順位）
+        if (!cinematicHide && _isPlayerNear && !nearCapyta
+            && Event.current != null
             && Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.E
             && Time.time - _lastInteractTime > 0.35f)
         {
@@ -2193,8 +2267,8 @@ public class AdventureRustDrone : MonoBehaviour
             InteractWithNiko();
         }
 
-        // 1. Niko接近時の頭上インタラクションプロンプト（シネマ中は非表示）
-        if (!cinematicHide && _isPlayerNear && Camera.main != null)
+        // 1. Niko接近時の頭上インタラクションプロンプト（シネマ中／カピタ会話中は非表示）
+        if (!cinematicHide && _isPlayerNear && !nearCapyta && Camera.main != null)
         {
             Vector3 headPos = transform.position + Vector3.up * 0.85f;
             Vector3 screenPos = Camera.main.WorldToScreenPoint(headPos);
@@ -2399,7 +2473,7 @@ public class AdventureRustDrone : MonoBehaviour
             "ありがとうNiko、身体が軽くなったよ",
             "油を差してくれてありがとう。ギアが滑らかだ",
             "ピピッ…！手当てありがとう。もうギシギシしないよ",
-            "整備完了。また一緒に行こう"
+            "整備完了。一緒に進もう"
         };
         SpeakCustom(treatLines[Random.Range(0, treatLines.Length)], 4.2f);
 

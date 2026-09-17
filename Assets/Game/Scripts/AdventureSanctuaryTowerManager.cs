@@ -106,10 +106,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     }
     static readonly CanopyBeat[] CanopyBeats =
     {
-        new CanopyBeat("天蓋崩壊　未知の荒野への跳躍", "", "空が割れた。\n冷たい本物の風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f)),
+        new CanopyBeat("天蓋崩壊　未知の荒野への跳躍", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f)),
         new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f)),
         new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Niko！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
-        new CanopyBeat("", "✦ Niko", "ありがとうRust…！君がいたからここまで来られた。行こう！", new Color(1f, 0.88f, 0.45f, 1f)),
+        new CanopyBeat("", "✦ Niko", "ありがとうRust…！あなたがいたからここまで来られたの。さあ行こう！", new Color(1f, 0.88f, 0.45f, 1f)),
         new CanopyBeat("", "✦ 相棒 Rust", "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Niko！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
         new CanopyBeat("", "", "タワー中央の光の柱へ飛び込み、\n空の裂け目へ突き抜ける。", new Color(0.85f, 0.95f, 1f, 1f)),
         new CanopyBeat("空の裂け目へ", "", "【Space長押し / クリック】でダイブする", new Color(1f, 0.88f, 0.4f, 1f), true),
@@ -152,6 +152,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     float _oilHoldTimer = 0f;
     float _oilWaitOpenedAt = 0f;
     const float OilHoldRequired = 0.7f;
+    /// <summary>注油長押しの持ち越しで次台本を即スキップしないよう、一度離すまで送り不可</summary>
+    bool _scriptRequireInputRelease = false;
     int _climaxBeatIndex = -1; // -1=非アクティブ / 0..=台本 / OilPhaseIndex=注油待ち後の再開用
     float _climaxOverdriveCinematicUntil = 0f;
     int _climaxPostOilPhase = 0; // 0=なし / 1=蘇生セリフ待ち / 2=全出力セリフ待ち
@@ -541,9 +543,19 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         TickClimaxSequence();
         TickGameClearModal();
 
-        // 台本ボード：Updateでも進む入力を拾う
+        // 台本ボード：Updateでも進む入力を拾う（注油直後の押しっぱなしは除外）
         if (_scriptBoardVisible && !_scriptBoardAdvance && !_climaxOilWaiting)
-            PollScriptBoardAdvance();
+        {
+            if (_scriptRequireInputRelease)
+            {
+                if (!IsDiveConfirmHeld())
+                    _scriptRequireInputRelease = false;
+            }
+            else
+            {
+                PollScriptBoardAdvance();
+            }
+        }
 
         var player = AdventurePlayerController.Instance
                      ?? Object.FindFirstObjectByType<AdventurePlayerController>();
@@ -577,8 +589,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
         _endingStuckTimer = 0f;
 
-        // 台本／危機／エピローグ／シークエンス実行中はレバー入力を止める
-        if (_scriptBoardVisible || _climaxCrisisStarted || _epilogueTriggered || _endingSequenceActive)
+        // 台本／危機／エピローグ／柱上昇待ち／天蓋開放後はレバー入力を止める
+        // （ダイブ後の Space 長押しがレバー再作動→台本最初へ巻き戻るのを防ぐ）
+        if (_scriptBoardVisible || _climaxCrisisStarted || _epilogueTriggered || _endingSequenceActive
+            || _pendingClimaxAfterCanopy || IsCanopyBroken)
         {
             SetLeverPromptUI(false, false);
             return;
@@ -637,9 +651,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void UpdateLeverProximity(AdventurePlayerController player)
     {
-        // クリア後の自由探索ではレバー再演プロンプトを出さない（再演は F9）
+        // クリア後／天蓋開放後の自由探索ではレバー再演プロンプトを出さない（再演は F9）
         // ※F9確認中（_ignoreSavedCanopyState）はクリア済みでもレバー操作を許可
-        if (IsGameCleared && !_ignoreSavedCanopyState)
+        if ((IsGameCleared || IsCanopyBroken || _pendingClimaxAfterCanopy) && !_ignoreSavedCanopyState)
         {
             _playerNearby = false;
             return;
@@ -862,13 +876,19 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     /// <summary>レバーから天蓋開放へ。forceRestart=true のときだけ再演（F9）。通常操作中の再入は台本を最初に戻さない。</summary>
     void BeginCanopyOpeningFromLever(bool allCollected, bool forceRestart = false)
     {
-        // 台本／シークエンス実行中は通常操作で絶対に再スタートしない
-        // （以前は5秒ロック後の再入で StopAllCoroutines → 最初のセリフに戻っていた）
-        if (!forceRestart && (_scriptBoardVisible || _endingSequenceActive || _leverPulled || _epilogueTriggered || _canopyBeatIndex >= 0))
-            return;
+        // 台本／シークエンス／柱上昇／クライマックス進行中は通常操作で絶対に再スタートしない
+        if (!forceRestart)
+        {
+            if (_scriptBoardVisible || _endingSequenceActive || _leverPulled || _epilogueTriggered || _canopyBeatIndex >= 0)
+                return;
+            if (_climaxCrisisStarted || _pendingClimaxAfterCanopy || IsCanopyBroken || IsGameCleared)
+                return;
 
-        if (_climaxCrisisStarted && !forceRestart)
-            return;
+            var ascending = AdventurePlayerController.Instance
+                            ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+            if (ascending != null && (ascending.IsSkybreakPillarAscending || ascending.IsAutoGliding))
+                return;
+        }
 
         if (!allCollected)
         {
@@ -876,7 +896,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             return;
         }
 
-        if (forceRestart || _leverPulled || IsCanopyBroken || IsGameCleared || _endingSequenceActive)
+        // F9再演のみ全リセット。開放済みフラグだけでは絶対に巻き戻さない
+        if (forceRestart)
         {
             StopAllCoroutines();
             Time.timeScale = 1f;
@@ -885,6 +906,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             _climaxOilInjected = false;
             _climaxOilWaiting = false;
             _oilHoldTimer = 0f;
+            _scriptRequireInputRelease = false;
             _climaxBeatIndex = -1;
             _climaxOverdriveCinematicUntil = 0f;
             _climaxPostOilPhase = 0;
@@ -903,6 +925,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             IsGameCleared = false;
             IsCanopyBroken = false;
             _leverPulled = false;
+            ClearPendingClimax();
             HideGameClearModalUI();
             if (_clearUiRoot != null)
             {
@@ -1034,6 +1057,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _climaxOilInjected = false;
         _climaxOilWaiting = false;
         _oilHoldTimer = 0f;
+        _scriptRequireInputRelease = false;
         _climaxBeatIndex = -1;
         _climaxOverdriveCinematicUntil = 0f;
         _climaxPostOilPhase = 0;
@@ -1394,8 +1418,13 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
                 _scriptHoldTimer = 0f;
             }
 
-            // 入力が一切取れなくても必ず進む（通常3秒／ダイブ5秒）
+            // 入力が一切取れなくても必ず進む
+            // 1枚目7秒／2〜6枚目3.5秒／ダイブ5秒
             float autoSec = _scriptBoardIsDive ? 5f : 3.0f;
+            if (_canopyBeatIndex == 0)
+                autoSec = 7.0f;
+            else if (!_scriptBoardIsDive && _canopyBeatIndex >= 1 && _canopyBeatIndex <= 5)
+                autoSec = 3.5f;
             if (openFor >= autoSec)
                 _scriptBoardAdvance = true;
         }
@@ -1427,10 +1456,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             _scriptUiRoot.SetActive(false);
 
         _endingSequenceActive = false;
-        _leverPulled = false;
-        _leverPullLockUntil = 0f;
+        // レバー再入禁止を維持（false にすると Space 長押しで台本が最初へ巻き戻る）
+        _leverPulled = true;
+        _leverPullLockUntil = Time.unscaledTime + 3600f;
         _suppressClimax = false;
         _climaxOilInjected = false;
+        // クライマックスは柱上昇完了後に開始（ここでは立てない）
         _climaxCrisisStarted = false;
         _ignoreSavedCanopyState = false;
         IsCanopyBroken = true;
@@ -1532,7 +1563,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     }
 
     /// <summary>台本を1枚のボードで表示し、進む入力まで待つ（吹き出しと重ねない）</summary>
-    IEnumerator ShowScriptBeat(string title, string speaker, string body, Color accent, bool isDive = false)
+    /// <param name="autoAdvanceOverride">0より大きいとき、通常の自動送り秒数の代わりに使う</param>
+    IEnumerator ShowScriptBeat(string title, string speaker, string body, Color accent, bool isDive = false, float autoAdvanceOverride = -1f)
     {
         SuppressAllSpeechAndBanners();
 
@@ -1582,7 +1614,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             yield return null;
 
         float holdTimer = 0f;
-        float autoAfter = isDive ? 8f : 3.5f; // 入力が取れなくても必ず進む
+        float autoAfter = isDive ? 8f : 3.5f;
+        if (autoAdvanceOverride > 0f)
+            autoAfter = autoAdvanceOverride;
         while (!_scriptBoardAdvance)
         {
             PollScriptBoardAdvance();
@@ -1620,7 +1654,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     public void NotifyScriptBoardAdvance()
     {
         if (!_scriptBoardVisible) return;
-        float minShow = _climaxCrisisStarted && _climaxBeatIndex >= ClimaxOilSlot ? 1.8f : 0.45f;
+        if (_scriptRequireInputRelease) return;
+        float minShow = _climaxCrisisStarted && _climaxBeatIndex >= ClimaxOilSlot ? 2.2f : 0.45f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
         _scriptBoardAdvance = true;
         Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");
@@ -1652,7 +1687,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     void PollScriptBoardAdvance()
     {
         if (!_scriptBoardVisible || _scriptBoardAdvance) return;
-        if (Time.unscaledTime - _scriptBoardOpenedAt < 0.35f) return;
+        if (_scriptRequireInputRelease) return;
+
+        // 注油後セリフは短すぎるスキップを防ぐ
+        float minShow = _climaxCrisisStarted && _climaxBeatIndex >= ClimaxOilSlot ? 2.2f : 0.35f;
+        if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
 
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null &&
@@ -2296,7 +2335,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             return;
 
         bool allCollected = IsLeverReadyToOpen;
-        bool showLeverUi = IsPlayerNearLever || (allCollected && !IsCanopyBroken);
+        bool showLeverUi = IsPlayerNearLever && !IsCanopyBroken && !_pendingClimaxAfterCanopy;
         if (!showLeverUi)
             return;
 
@@ -2505,13 +2544,29 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         bool postOilBeat = _climaxBeatIndex >= ClimaxOilSlot;
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
-        if (openFor >= 0.35f)
+
+        // 注油完了直後：Space/E が押されたままだと「温かい油」が即スキップされる
+        if (_scriptRequireInputRelease)
+        {
+            if (IsDiveConfirmHeld())
+            {
+                _scriptHoldTimer = 0f;
+                _scriptBoardAdvance = false;
+                return;
+            }
+            _scriptRequireInputRelease = false;
+            _scriptHoldTimer = 0f;
+        }
+
+        // 注油後の最初のセリフは最低2.2秒見せる
+        float minHoldOpen = postOilBeat && _climaxBeatIndex == ClimaxOilSlot ? 2.2f : 0.35f;
+        if (openFor >= minHoldOpen)
         {
             PollScriptBoardAdvance();
             if (IsDiveConfirmHeld())
             {
                 _scriptHoldTimer += Time.unscaledDeltaTime;
-                if (_scriptHoldTimer >= 0.08f)
+                if (_scriptHoldTimer >= 0.18f)
                     _scriptBoardAdvance = true;
             }
             else _scriptHoldTimer = 0f;
@@ -2619,6 +2674,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _climaxBeatIndex = ClimaxOilSlot;
         _climaxPostOilPhase = 0;
         _climaxPostOilUntil = 0f;
+        _scriptBoardAdvance = false;
+        _scriptHoldTimer = 0f;
+        // 注油ゲージを満たした押しっぱなしが、そのまま台本送りにならないようにする
+        _scriptRequireInputRelease = true;
         PresentClimaxBeat(ClimaxOilSlot);
         Debug.Log("[RustAndFloat] 注油完了 → 台本11（蘇生セリフ）");
     }
@@ -2804,7 +2863,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     static readonly string[] EpilogueActs =
     {
         "空が割れた。\n100%最適化された箱庭の外には、\n凍えるほどリアルな風が吹いていた。",
-        "人は最短距離を進んでいる時じゃなく、\n寄り道をして、躓き、\n息をのむような場面に出会った時、生きてる感動を得るんだ。",
+        "人は最適で最短距離を進んでる時じゃなく、\n寄り道をしては、躓きながらも、\n突然出会えた感動に、生きてる証(あかし)を得るんだ。",
         "傷つくかもしれない自由と、命の重みを取り戻した\n二人の旅が、また始まる。\n―― 『Rust & Float』"
     };
 
@@ -2902,7 +2961,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var body = MakeScriptText(panelGo.transform, "Body", new Vector2(0f, 20f), new Vector2(0.5f, 0.5f), new Vector2(880f, 280f), 24, TextAnchor.UpperCenter, font);
         body.color = new Color(0.9f, 0.95f, 1f, 1f);
         body.text =
-            "天蓋の檻を打ち破り、二人は未知なる本物の風の流れる空へ羽ばたいた。\n\n" +
+            "天蓋の檻を打ち破り、二人は蒼い風が吹く空へ羽ばたいた。\n\n" +
             "✦ 漂着古代パーツ回収： 12 / 12\n" +
             "✦ 相棒Rust： 二段ジャンプ・超滑空・探知ソナー\n\n" +
             "「ありがとう、Niko。僕たちの翼で、どこまでも行こう……！」\n\n" +
@@ -3034,16 +3093,28 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             "",
             "✦ 相棒 Rust",
             "わぁぁ……！見て、Niko！世界はこんなに広かったんだ……！！",
-            new Color(0.35f, 0.92f, 0.98f, 1f)));
+            new Color(0.35f, 0.92f, 0.98f, 1f),
+            false,
+            5.0f));
 
         for (int i = 0; i < EpilogueActs.Length; i++)
         {
             KeepAutoGlide(player);
+            // 幕ごとの自動送り（標準3.5秒からの延長）
+            float autoSec = i switch
+            {
+                0 => 7.0f, // エピローグ導入
+                1 => 10.0f, // 証の幕
+                2 => 6.5f, // 結び
+                _ => -1f
+            };
             yield return StartCoroutine(ShowScriptBeat(
                 i == 0 ? "エピローグ" : "",
                 "",
                 EpilogueActs[i],
-                new Color(1f, 0.92f, 0.55f, 1f)));
+                new Color(1f, 0.92f, 0.55f, 1f),
+                false,
+                autoSec));
         }
 
         KeepAutoGlide(player);

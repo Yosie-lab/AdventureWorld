@@ -49,12 +49,12 @@ public class AdventureFlightManager : MonoBehaviour
         var course = new GameObject("Course_Beach");
         course.transform.SetParent(parent, false);
 
-        // スタート座礁艇やや北・岸沿い（歩行〜短い滑空で届く高さ）
-        CreateRingAt(course.transform, new Vector3(168f, 0f, 295f), 3.8f, Quaternion.Euler(0f, 10f, 0f), land);
+        // スタート座礁艇やや北・岸沿い（ジャンプ〜短い滑空で届く高さ）
+        CreateRingAt(course.transform, new Vector3(168f, 0f, 295f), 2.4f, Quaternion.Euler(0f, 10f, 0f), land);
         // 西砂浜中央〜焚き火帯
-        CreateRingAt(course.transform, new Vector3(148f, 0f, 330f), 4.2f, Quaternion.Euler(0f, -5f, 0f), land);
+        CreateRingAt(course.transform, new Vector3(148f, 0f, 330f), 2.6f, Quaternion.Euler(0f, -5f, 0f), land);
         // 南西砂浜寄り（南へ散策したとき用）
-        CreateRingAt(course.transform, new Vector3(188f, 0f, 215f), 4.0f, Quaternion.Euler(0f, 25f, 0f), land);
+        CreateRingAt(course.transform, new Vector3(188f, 0f, 215f), 2.5f, Quaternion.Euler(0f, 25f, 0f), land);
     }
 
     /// <summary>コース1: スタート地点正面〜大草原フライトライン（開始直後に正面で一目で体験可能）</summary>
