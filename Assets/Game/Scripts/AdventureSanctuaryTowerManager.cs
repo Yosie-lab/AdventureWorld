@@ -222,40 +222,62 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         _instance = this;
         _isCanopyBroken = PlayerPrefs.GetInt(PrefKeyCanopyBroken, 0) == 1;
-        // Domain/Scene Reload 無効時に前プレイの台本・保留クライマックスが残ると
-        // 再生直後にエンディングへ突入するため、ランタイム演出だけは必ず落とす
-        AbortEndingSequenceKeepWorldProgress();
+        // Domain/Scene Reload 無効時に前プレイの台本・保留が残ると再生直後にエンディングへ突入する
+        ResetEndingSequenceFlags(clearWorldProgress: false, teardownUiFully: false);
         // 開放済みでもレバー再演できるように、ここでは _leverPulled を立てない
     }
 
     /// <summary>
-    /// Rキー等の緊急リセット：エンディング台本／保留クライマックスを止め、探索へ戻す。
-    /// セーブ上の天蓋開放フラグもクリアする（再プレイ可能な初期探索へ）。
+    /// Rキー等の緊急リセット：エンディングを止め探索へ戻す（天蓋／クリア進行もクリア）。
     /// </summary>
     public void AbortEndingForEmergencyReset()
     {
         ClearEndingRuntimeState(ignoreSavedCanopy: false);
+        RestoreExplorationPresentation(resetMusicToAmbient: true);
+        EnsureLandTerrainColliderEnabled();
+    }
+
+    /// <summary>クリア後／F8：天蓋・クリア・クライマックス進行をニューゲーム用に完全リセット</summary>
+    public void ResetProgressForNewGame()
+    {
+        ClearEndingRuntimeState(ignoreSavedCanopy: false);
+        RestoreSkybreakAscentBlockers();
+        RestoreExplorationPresentation(resetMusicToAmbient: false);
+        AdventureMusicDirector.Ensure();
+        AdventureMusicDirector.Instance?.ResetSkybreakMusicState();
+        Debug.Log("[RustAndFloat] ニューゲーム用に天蓋／クリア進行をリセットしました");
+    }
+
+    /// <summary>探索HUD・カメラ・光柱FX・（必要なら）BGM／Rust状態を探索向けに戻す</summary>
+    void RestoreExplorationPresentation(bool resetMusicToAmbient)
+    {
         DestroySkybreakWorldFx();
         SetExplorationHudVisible(true);
         SetCinematicCamera(false);
         SetLeverPromptUI(false, false);
-        AdventureMusicDirector.Ensure();
-        AdventureMusicDirector.Instance?.RestoreExplorationTheme();
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
-        if (drone != null)
+        if (resetMusicToAmbient)
         {
-            drone.StopSkybreakNestle();
-            drone.ResetClimaxState();
-            drone.ClearSpeech();
+            AdventureMusicDirector.Ensure();
+            AdventureMusicDirector.Instance?.RestoreExplorationTheme();
+            var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+            if (drone != null)
+            {
+                drone.StopSkybreakNestle();
+                drone.ResetClimaxState();
+                drone.ClearSpeech();
+            }
         }
-        EnsureLandTerrainColliderEnabled();
     }
 
-    /// <summary>再生開始時：進行フラグは残し、進行中の演出だけ止める</summary>
-    void AbortEndingSequenceKeepWorldProgress()
+    /// <summary>
+    /// エンディング台本／クライマックス／保留のランタイム状態を落とす共通処理。
+    /// clearWorldProgress=true のとき天蓋・クリア・レバー進行もクリアする。
+    /// </summary>
+    void ResetEndingSequenceFlags(bool clearWorldProgress, bool teardownUiFully)
     {
         StopAllCoroutines();
         Time.timeScale = 1f;
+
         _endingSequenceActive = false;
         _suppressClimax = false;
         _climaxCrisisStarted = false;
@@ -281,10 +303,43 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _showGameClearModal = false;
         _leverHoldTimer = 0f;
         _leverPullLockUntil = 0f;
-        if (_scriptUiRoot != null)
-            _scriptUiRoot.SetActive(false);
-        HideOilPromptUI();
-        HideGameClearModalUI();
+
+        if (clearWorldProgress)
+        {
+            IsCanopyBroken = false;
+            IsGameCleared = false;
+            _leverPulled = false;
+            _playerNearby = false;
+        }
+
+        if (teardownUiFully)
+        {
+            TeardownScriptBoardUi();
+            HideOilPromptUI();
+            HideGameClearModalUI();
+            if (_clearUiRoot != null)
+            {
+                Destroy(_clearUiRoot);
+                _clearUiRoot = null;
+            }
+            if (_oilUiRoot != null)
+            {
+                Destroy(_oilUiRoot);
+                _oilUiRoot = null;
+                _oilGaugeFill = null;
+                _oilTitleUi = null;
+                _oilPromptUi = null;
+                _oilHoldLabelUi = null;
+                _oilHoldBtn = null;
+            }
+        }
+        else
+        {
+            if (_scriptUiRoot != null)
+                _scriptUiRoot.SetActive(false);
+            HideOilPromptUI();
+            HideGameClearModalUI();
+        }
     }
 
     void OnDestroy()
@@ -583,7 +638,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void Update()
     {
-        // F9: レバー前へ＋自動開放
+        // F9/F10: オープニング中でも最優先でレバー検証（二重起動防止のためここ一本化）
         var debugKb = UnityEngine.InputSystem.Keyboard.current;
         if (debugKb != null && (debugKb.f9Key.wasPressedThisFrame || debugKb.f10Key.wasPressedThisFrame))
         {
@@ -961,45 +1016,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // F9再演のみ全リセット。開放済みフラグだけでは絶対に巻き戻さない
         if (forceRestart)
         {
-            StopAllCoroutines();
-            Time.timeScale = 1f;
-            _endingSequenceActive = false;
-            _climaxCrisisStarted = false;
-            _climaxOilInjected = false;
-            _climaxOilWaiting = false;
-            _oilHoldTimer = 0f;
-            _scriptRequireInputRelease = false;
-            _climaxBeatIndex = -1;
-            _climaxOverdriveCinematicUntil = 0f;
-            _climaxPostOilPhase = 0;
-            _climaxPostOilUntil = 0f;
-            _scriptHoldTimer = 0f;
-            _canopyBeatIndex = -1;
-            _epilogueTriggered = false;
-            _epilogueAlpha = 0f;
-            _epilogueAct = 0;
-            _scriptBoardVisible = false;
-            _scriptBoardAdvance = false;
-            _scriptBoardTitle = "";
-            _scriptBoardSpeaker = "";
-            _scriptBoardBody = "";
-            _showGameClearModal = false;
-            IsGameCleared = false;
-            IsCanopyBroken = false;
-            _leverPulled = false;
-            ClearPendingClimax();
-            HideGameClearModalUI();
-            if (_clearUiRoot != null)
-            {
-                Destroy(_clearUiRoot);
-                _clearUiRoot = null;
-            }
-            _leverPullLockUntil = 0f;
-            if (_scriptUiRoot != null)
-                _scriptUiRoot.SetActive(false);
-            SetLeverPromptUI(false, false);
-            SetExplorationHudVisible(true);
-            SetCinematicCamera(false);
+            ClearEndingRuntimeState(ignoreSavedCanopy: true);
+            RestoreExplorationPresentation(resetMusicToAmbient: false);
             var p = AdventurePlayerController.Instance;
             if (p != null)
             {
@@ -1018,19 +1036,6 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         TryPullLever(true);
     }
 
-    /// <summary>クリア後／F8：天蓋・クリア・クライマックス進行をニューゲーム用に完全リセット</summary>
-    public void ResetProgressForNewGame()
-    {
-        ClearEndingRuntimeState(ignoreSavedCanopy: false);
-        DestroySkybreakWorldFx();
-        RestoreSkybreakAscentBlockers();
-        SetExplorationHudVisible(true);
-        SetCinematicCamera(false);
-        AdventureMusicDirector.Ensure();
-        AdventureMusicDirector.Instance?.ResetSkybreakMusicState();
-        Debug.Log("[RustAndFloat] ニューゲーム用に天蓋／クリア進行をリセットしました");
-    }
-
     /// <summary>
     /// 演出確認用（F9）：パーツ12個・南側レバー前へ移動し、少し待って自動でレバー開放。
     /// </summary>
@@ -1045,12 +1050,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _instance = this;
 
         ClearEndingRuntimeState(ignoreSavedCanopy: true);
-        _leverPullLockUntil = 0f;
         FixPodiumColliders();
         BuildTowerLever();
-        DestroySkybreakWorldFx();
-        SetExplorationHudVisible(true);
-        SetCinematicCamera(false);
+        RestoreExplorationPresentation(resetMusicToAmbient: false);
         EnsureEventSystemForUi();
 
         AdventureScrapManager.Ensure();
@@ -1105,58 +1107,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void ClearEndingRuntimeState(bool ignoreSavedCanopy)
     {
-        StopAllCoroutines();
-        Time.timeScale = 1f;
-
         _ignoreSavedCanopyState = ignoreSavedCanopy;
-        IsCanopyBroken = false;
-        IsGameCleared = false;
-
-        _leverPulled = false;
-        _endingSequenceActive = false;
-        _suppressClimax = false;
-        _climaxCrisisStarted = false;
-        _climaxOilInjected = false;
-        _climaxOilWaiting = false;
-        _oilHoldTimer = 0f;
-        _scriptRequireInputRelease = false;
-        _climaxBeatIndex = -1;
-        _climaxOverdriveCinematicUntil = 0f;
-        _climaxPostOilPhase = 0;
-        _climaxPostOilUntil = 0f;
-        _epilogueTriggered = false;
-        _epilogueAlpha = 0f;
-        _epilogueAct = 0;
-        _scriptBoardVisible = false;
-        _scriptBoardAdvance = false;
-        _scriptBoardTitle = "";
-        _scriptBoardSpeaker = "";
-        _scriptBoardBody = "";
-        _canopyBeatIndex = -1;
-        _scriptHoldTimer = 0f;
-        ClearPendingClimax();
-        _showGameClearModal = false;
-        _playerNearby = false;
-        _leverHoldTimer = 0f;
-
-        TeardownScriptBoardUi();
-        HideOilPromptUI();
-        HideGameClearModalUI();
-        if (_clearUiRoot != null)
-        {
-            Destroy(_clearUiRoot);
-            _clearUiRoot = null;
-        }
-        if (_oilUiRoot != null)
-        {
-            Destroy(_oilUiRoot);
-            _oilUiRoot = null;
-            _oilGaugeFill = null;
-            _oilTitleUi = null;
-            _oilPromptUi = null;
-            _oilHoldLabelUi = null;
-            _oilHoldBtn = null;
-        }
+        ResetEndingSequenceFlags(clearWorldProgress: true, teardownUiFully: true);
     }
 
     void TeardownScriptBoardUi()

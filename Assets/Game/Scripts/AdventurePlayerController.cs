@@ -159,23 +159,6 @@ public class AdventurePlayerController : MonoBehaviour
     void Update()
     {
         var kb = GetKeyboard();
-        // F9/F10はオープニング中でも最優先（レバー検証用）
-        if (kb != null && (kb.f9Key.wasPressedThisFrame || kb.f10Key.wasPressedThisFrame))
-        {
-            AdventureSanctuaryTowerManager.Ensure();
-            AdventureSanctuaryTowerManager.Instance?.DebugJumpToCanopyOpening();
-            return;
-        }
-        try
-        {
-            if (Input.GetKeyDown(KeyCode.F9) || Input.GetKeyDown(KeyCode.F10))
-            {
-                AdventureSanctuaryTowerManager.Ensure();
-                AdventureSanctuaryTowerManager.Instance?.DebugJumpToCanopyOpening();
-                return;
-            }
-        }
-        catch { }
 
         // オープニングボード表示中は操作不可（進行中に誤表示された場合は強制閉じ）
         var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
