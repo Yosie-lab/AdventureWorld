@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 
 /// <summary>
-/// 2つの池（オアシス湧水池 SanctuarySpringPond / 草原せせらぎ池 MeadowLowlandPond）の岸辺を
+/// プレイヤー目前の段々池（RiverSeg_15 / RiverSeg_16）および各池（オアシス湧水池 / 草原せせらぎ池）の岸辺を
 /// 天然岩と水草（睡蓮）で囲い込み、自然な池として美化するエディタ拡張。
 /// </summary>
 public static class AdventureEnclosePondsWithRocks
@@ -85,7 +85,29 @@ public static class AdventureEnclosePondsWithRocks
 
         Terrain terrain = Terrain.activeTerrain;
 
-        // 1. オアシス湧水池 (480, 48.2, 455)
+        // 1. プレイヤー目前の段々池：RiverSeg_15（標高9.7m, 215, 218）
+        EncloseRectangularWater(
+            segmentName: "RiverSeg_15",
+            holderName: "RiverSeg_15_Rocks",
+            bigRocks: bigRocks,
+            medRocks: medRocks,
+            smallRocks: smallRocks,
+            terrain: terrain,
+            seed: 515
+        );
+
+        // 2. プレイヤー目前の段々池：RiverSeg_16（標高8.7m, 202, 201）
+        EncloseRectangularWater(
+            segmentName: "RiverSeg_16",
+            holderName: "RiverSeg_16_Rocks",
+            bigRocks: bigRocks,
+            medRocks: medRocks,
+            smallRocks: smallRocks,
+            terrain: terrain,
+            seed: 516
+        );
+
+        // 3. オアシス湧水池 (480, 48.2, 455)
         EncloseSinglePond(
             pondName: "SanctuarySpringPond",
             holderName: "SanctuarySpringPond_Rocks",
@@ -100,7 +122,7 @@ public static class AdventureEnclosePondsWithRocks
             seed: 42
         );
 
-        // 2. 草原せせらぎ池 (290, 14.5, 320)
+        // 4. 草原せせらぎ池 (290, 14.5, 320)
         EncloseSinglePond(
             pondName: "MeadowLowlandPond",
             holderName: "MeadowLowlandPond_Rocks",
@@ -117,11 +139,93 @@ public static class AdventureEnclosePondsWithRocks
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
-        Debug.Log("<color=#00FFAA><b>[AdventureEnclosePonds]</b> 2つの池（オアシス湧水池・草原せせらぎ池）の岩組み美化が完了し、シーンを正常に保存しました！</color>");
+        Debug.Log("<color=#00FFAA><b>[AdventureEnclosePonds]</b> 目の前の2つの池（RiverSeg_15 & 16）および各池の岩組み美化が完了し、シーンを正常に保存しました！</color>");
 
         if (interactive)
         {
-            EditorUtility.DisplayDialog("岩組み美化完了", "2つの池の周囲に天然岩と睡蓮を配置し、シーンを保存しました！", "OK");
+            EditorUtility.DisplayDialog("岩組み美化完了", "プレイヤー目前の段々池（RiverSeg_15 & 16）および各池の周囲に天然岩と水草を配置し、シーンを保存しました！", "OK");
+        }
+    }
+
+    private static void EncloseRectangularWater(
+        string segmentName,
+        string holderName,
+        List<GameObject> bigRocks,
+        List<GameObject> medRocks,
+        List<GameObject> smallRocks,
+        Terrain terrain,
+        int seed)
+    {
+        Random.InitState(seed);
+        GameObject waterGo = GameObject.Find(segmentName);
+        if (waterGo == null) return;
+
+        // 既存の岩ホルダーをクリーンアップ
+        GameObject existingHolder = GameObject.Find(holderName);
+        if (existingHolder != null)
+        {
+            Undo.DestroyObjectImmediate(existingHolder);
+        }
+
+        GameObject holder = new GameObject(holderName);
+        holder.transform.position = waterGo.transform.position;
+        Undo.RegisterCreatedObjectUndo(holder, "Create " + holderName);
+
+        Vector3 center = waterGo.transform.position;
+        Quaternion rot = waterGo.transform.rotation;
+        Vector3 scale = waterGo.transform.lossyScale;
+        // Standard Plane は 10m x 10m
+        float halfX = scale.x * 5.0f;
+        float halfZ = scale.z * 5.0f;
+
+        // 外周に沿って岩を密に配置
+        int stepsX = Mathf.Max(6, Mathf.CeilToInt(halfX * 2f / 2.0f));
+        int stepsZ = Mathf.Max(7, Mathf.CeilToInt(halfZ * 2f / 2.0f));
+
+        var edgeOffsets = new List<Vector3>();
+
+        for (int i = 0; i <= stepsX; i++)
+        {
+            float t = (float)i / stepsX;
+            edgeOffsets.Add(new Vector3(Mathf.Lerp(-halfX, halfX, t), 0f, -halfZ));
+        }
+        for (int i = 0; i <= stepsZ; i++)
+        {
+            float t = (float)i / stepsZ;
+            edgeOffsets.Add(new Vector3(halfX, 0f, Mathf.Lerp(-halfZ, halfZ, t)));
+        }
+        for (int i = 0; i <= stepsX; i++)
+        {
+            float t = (float)i / stepsX;
+            edgeOffsets.Add(new Vector3(Mathf.Lerp(halfX, -halfX, t), 0f, halfZ));
+        }
+        for (int i = 0; i <= stepsZ; i++)
+        {
+            float t = (float)i / stepsZ;
+            edgeOffsets.Add(new Vector3(-halfX, 0f, Mathf.Lerp(halfZ, -halfZ, t)));
+        }
+
+        int rockIdx = 0;
+        foreach (var localOffset in edgeOffsets)
+        {
+            Vector3 dir = localOffset.normalized;
+            Vector3 offset = localOffset + dir * Random.Range(0.2f, 0.6f);
+
+            Vector3 worldPos = center + rot * offset;
+            float groundY = GetGroundHeight(worldPos, terrain, center.y);
+            worldPos.y = Mathf.Max(center.y - 0.25f, groundY - 0.2f);
+
+            var list = (rockIdx % 2 == 0 && bigRocks.Count > 0) ? bigRocks : medRocks;
+            GameObject prefab = list[Random.Range(0, list.Count)];
+            GameObject rock = (GameObject)PrefabUtility.InstantiatePrefab(prefab, holder.transform);
+            rock.transform.position = worldPos;
+            rock.transform.rotation = Quaternion.Euler(
+                Random.Range(-8f, 8f),
+                Random.Range(0f, 360f),
+                Random.Range(-8f, 8f)
+            );
+            rock.transform.localScale = Vector3.one * Random.Range(1.3f, 1.9f);
+            rockIdx++;
         }
     }
 
@@ -165,7 +269,6 @@ public static class AdventureEnclosePondsWithRocks
 
             Vector3 pos = center + new Vector3(Mathf.Cos(rad) * dist, 0f, Mathf.Sin(rad) * dist);
             float groundY = GetGroundHeight(pos, terrain, waterY);
-            // 水面と地面のうち高い方に合わせ、さらに岩が水面境界を完全に覆うよう高さを微調整
             pos.y = Mathf.Max(waterY - 0.25f, groundY - 0.2f);
 
             var prefabList = (i % 2 == 0 && bigRocks.Count > 0) ? bigRocks : medRocks;
@@ -231,7 +334,7 @@ public static class AdventureEnclosePondsWithRocks
             rock.transform.localScale = Vector3.one * scale;
         }
 
-        // D. 睡蓮（Waterlily）の配置（水面に浮かぶ 5〜7 箇所）
+        // D. 睡蓮（Waterlily）の配置
         if (waterlilies.Count > 0)
         {
             int lilyCount = Random.Range(5, 8);
