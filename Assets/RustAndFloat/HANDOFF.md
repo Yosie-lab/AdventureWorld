@@ -39,10 +39,18 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
   - **東の深林大渓流（Eastern Mountain Torrent）**: 標高40mの東部高地原生林からカルデラ湖（25.5m）へ急流で下る全長300m・落差約15mの本格的な山岳渓谷（V字谷掘り込み、24セグメント水面）。
     - 渓流の川底・川岸に **450個以上の巨石・苔岩・飛び石** を敷き詰め、白波を立てて縫うように激しく下るダイナミックな渓流美を再現。
     - 岸辺には葦・シダ・ガマなどの水辺植物と、岩陰から響くカジカガエルの美声（4箇所）。
-  - **オアシス湧水池（SanctuarySpringPond）**: 中央台地足元（x=480, z=455, 標高48.2m, 半径16m）。
+  - **白砂ビーチ前・段々池（Beach Step Ponds / RiverSeg_14〜17）の岩組み美化 & 海上突出解消**:
+    - スタート地点（白砂ビーチ・座礁艇前）の目の前に広がる段々水面。
+    - 海面（5.5m）の上空（6.8m〜5.6m）に浮いて海底へ黒い四角い影を落としていた最下流セグメント（`RiverSeg_18`, `RiverSeg_19`）を完全非アクティブ化。
+    - 最下段 `RiverSeg_17` の位置・長さを陸地（標高6.2〜6.5mの白砂渚）の内側へ収まるよう適正化。
+    - 各段の左右両岸に、中型岩（`Stone_Medium_01〜03`, `Rock_Medium_01〜03`）および小型岩（`Rock_Small_01〜03`, `Stones_01〜03`）を水際と土手の2列ジグザグで隙間なく配置し、人工的な直線エッジを自然な岩組みに美化。
+    - 段差の落ち口（小滝・堰）に平らな石組みを横一列に並べ、水面中央にも飛び石を配置。
+    - 河口先端から砂浜にかけて扇状に丸石・小石を敷き詰め、海への突出と不自然な影を100%解消。
+    - メニュー: **Adventure → 🏞️ Beautify Beach Step Ponds (白砂ビーチ前段々池の美化)**（`AdventureBeautifyStepPonds.cs`）
+  - **オアシス湧水池（SanctuarySpringPond）**: 中央台地足元（x=480, z=455, 標高48.2m, 半径16m）。天然岩の石組みと睡蓮で周囲を囲み美化済み（メニュー: **Adventure → 🪨 Enclose Ponds with Natural Rocks**）。
   - **上流急流（UpperParadiseStream）**: オアシス湧水池からカルデラ湖へ下るせせらぎ。
   - **大カルデラ湖（CalderaLake）**: x=420, z=440, 標高25.5m, 半径38mの広大な湖。水面一面の睡蓮・蓮の葉、湖畔のカエルの大合唱。
-  - **大草原の憩いのせせらぎ池（MeadowLowlandPond）**: 西側の大草原の真ん中（x=290, z=320, 標高14.5m, 半径16m）。
+  - **大草原の憩いのせせらぎ池（MeadowLowlandPond）**: 西側の大草原の真ん中（x=290, z=320, 標高14.5m, 半径16m）。天然岩の石組みと睡蓮で周囲を囲み美化済み。
   - **本流大河（ParadiseRiver）**: カルデラ湖から草原池の脇を蛇行し南西の海（5.5m）へ注ぐ大河・小川（飛び石2箇所付き）。
   - **水辺の生き物**: カエル36匹（跳躍アニメーション）、トンボ28匹（ホバリング飛行）。
 - **抜けるように澄んだ青空と気持ちの良い雲群（Sky & Clouds）**:
@@ -144,6 +152,8 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
 - グリッド床スクリプト: `Assets/Game/Scripts/AdventureSanctuaryGridGlow.cs`（Play中、プレイヤー接近で発光）
 - ヤシ生成: `Assets/Game/Scripts/AdventurePalmFactory.cs`（Hawaii Beach House アセットの高精細ヤシの木モデル + URP両面マテリアル `Assets/RustAndFloat/Materials/HawaiiPalm_URP.mat` を使用、高さ約12〜18mのリアル大ヤシ）
 - 蝶: `Assets/Game/Scripts/AdventureButterflyDrift.cs` + Idyllic の Butterfly prefab
+- 白砂ビーチ前段々池美化: `Assets/Game/Scripts/Editor/AdventureBeautifyStepPonds.cs`（メニュー: Adventure → 🏞️ Beautify Beach Step Ponds）
+- 内陸池岩囲み美化: `Assets/Game/Scripts/Editor/AdventureEnclosePondsWithRocks.cs`（メニュー: Adventure → 🪨 Enclose Ponds with Natural Rocks）
 
 ## 設定メモ
 
@@ -224,6 +234,26 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
   - **オーバードライブ突破**: 魂の再点火！蒼いロケット噴射とともに高度150mの天蓋の割れ目を突き抜ける大跳躍。
   - **エピローグ字幕**: 割れ目の外側の山脈シルエットと光芒、映画のような特大字幕（フルHDでタイトル56pt、本文36pt）。
   - **ゲームクリア達成モーダル**: 『✦ GAME CLEAR ✦』モーダル（リプレイ、フリーフライト、クリア記録永続化 `IsGameCleared`）。
+
+## 直近の完了作業（Antigravityセッション 2026-09-18）
+
+1. **白砂ビーチ前・段々池（RiverSeg_14〜17）の岩組み美化 & 海上突き出し・影の完全解消**:
+   - **海上の青い板・影の根本原因**: `RiverSeg_17` の後半から海底（標高2.2m）へ地形が急落しており、下流の `RiverSeg_18`（標高6.85m）と `RiverSeg_19`（標高5.6m）が海面（標高5.5m）の上空に浮いて海面に黒い四角い影を落としていた。
+   - **解消措置**:
+     - `RiverSeg_18`, `RiverSeg_19` を完全に非アクティブ化（`SetActive(false)`）。
+     - 最下段 `RiverSeg_17` を陸地の波打ち際内側（標高6.2〜6.5mの白砂渚）に収まるよう位置・長さを適正化（`pos=(196, 7.95, 195)`, `scale=(1.5, 1.0, 0.65)`）。
+     - 各段（`RiverSeg_14〜17`）の両岸に、中型岩（`Stone_Medium_01〜03`, `Rock_Medium_01〜03`）と小型岩（`Rock_Small_01〜03`, `Stones_01〜03`）を水際と土手の2列ジグザグで隙間なく配置し、人工的な直線エッジを自然な岩組みに美化。
+     - 段差の落ち口（小滝・堰）に平らな石組みを横一列に並べ、水面中央にも飛び石を配置。
+     - 最下流の河口から白砂ビーチにかけて扇状に丸石・小石を敷き詰め、海への突出と不自然な影を100%解消。
+   - **エディタ拡張**: `Assets/Game/Scripts/Editor/AdventureBeautifyStepPonds.cs`（メニュー: **Adventure → 🏞️ Beautify Beach Step Ponds**）
+
+2. **内陸2池（オアシス湧水池・大草原せせらぎ池）の岩囲み美化**:
+   - 水面の円柱側面露出を天然岩（`Stone_Big`, `Stone_Medium`, `Rock_Medium`）と睡蓮（Water Lily）で囲み、自然な池に美化。
+   - **エディタ拡張**: `Assets/Game/Scripts/Editor/AdventureEnclosePondsWithRocks.cs`（メニュー: **Adventure → 🪨 Enclose Ponds with Natural Rocks**）
+
+3. **Git 同期状況**:
+   - 最新コミット: `253da41` ("feat: 白砂ビーチ前段々池の岸辺・落ち口・渚の岩組み美化および海への突出解消")
+   - ブランチ: `main`（GitHubリモート `origin/main` へプッシュ済み）
 
 ## 次の作業（Cursorへの引き継ぎタスク）
 
