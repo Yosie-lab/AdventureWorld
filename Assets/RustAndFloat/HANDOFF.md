@@ -154,6 +154,8 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
 - 蝶: `Assets/Game/Scripts/AdventureButterflyDrift.cs` + Idyllic の Butterfly prefab
 - 白砂ビーチ前段々池美化: `Assets/Game/Scripts/Editor/AdventureBeautifyStepPonds.cs`（メニュー: Adventure → 🏞️ Beautify Beach Step Ponds）
 - 内陸池岩囲み美化: `Assets/Game/Scripts/Editor/AdventureEnclosePondsWithRocks.cs`（メニュー: Adventure → 🪨 Enclose Ponds with Natural Rocks）
+- 全池水面質感・水底土肌・水草美化: `Assets/Game/Scripts/Editor/AdventureBeautifyAllPondsWater.cs`（メニュー: Adventure → 💧 Beautify All Ponds & Streams Water）
+- 専用水面URPマテリアル: `Assets/RustAndFloat/Materials/PondWater_URP.mat`（`Water.shadergraph`、エメラルド〜セルリアン水深フェード、波紋法線、水際ソフト白泡）
 
 ## 設定メモ
 
@@ -251,9 +253,19 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
    - 水面の円柱側面露出を天然岩（`Stone_Big`, `Stone_Medium`, `Rock_Medium`）と睡蓮（Water Lily）で囲み、自然な池に美化。
    - **エディタ拡張**: `Assets/Game/Scripts/Editor/AdventureEnclosePondsWithRocks.cs`（メニュー: **Adventure → 🪨 Enclose Ponds with Natural Rocks**）
 
-3. **Git 同期状況**:
-   - 最新コミット: `253da41` ("feat: 白砂ビーチ前段々池の岸辺・落ち口・渚の岩組み美化および海への突出解消")
-   - ブランチ: `main`（GitHubリモート `origin/main` へプッシュ済み）
+3. **全ての池・小川の水面質感刷新・フラット水面ディスク・水底土肌ペイント・水草美化（完了）**:
+   - **水面マテリアル刷新**: プロジェクト内の高品質 URP `Water.shadergraph` を活用した専用マテリアル `PondWater_URP.mat` を作成。水深グラデーション（浅瀬のエメラルド〜深水のセルリアン）、波紋法線スクロール、水際ソフト白泡（Foam）、フレネル反射を実装。
+   - **水面メッシュ適正化**: 従来の円柱（Cylinder）メッシュは厚みがあるため半透明シェーダー適用時に側面や底面が透けて黒ずみ・影の二重描画が発生していた問題を解消。上面のみを滑らかに描画する64分割「円形平面（Flat Circular Disc）メッシュ」を自動生成して差し替え。コライダー・影落とし・受影を適正化。
+   - **水底土肌・砂地ペイント（Terrain AlphaMap）**: 水深0m〜3mの池底および浅瀬の Terrain Alphamap に泥・土肌・砂利（`Dirt_Stone_Layer` / `SandLayer`）をペイント。水面下に草が生えず、水底が美しく透き通るリアルな水辺を表現。
+   - **浅瀬の水草・葦・ガマ・睡蓮配置**: `Reeds`（葦）、`Cattail`（ガマ）、`Waterlily`（睡蓮の花と葉）を岸辺の岩陰や浅瀬に自然なスケールと向きで群生配置。
+   - **シーン保存完了**: Edit Mode にて `Assets/RustAndFloat/Scenes/RustAndFloat.unity` に確実に保存済み。
+   - **エディタ拡張**: `Assets/Game/Scripts/Editor/AdventureBeautifyAllPondsWater.cs`（メニュー: **Adventure → 💧 Beautify All Ponds & Streams Water**）
+
+4. **Cursor・Antigravity プロジェクト同期 & Git 状況**:
+   - Cursorワークスペース: `/Users/user/Unity project/Unity project`（Gitリポジトリルート）
+   - Antigravity作業ディレクトリ: `/Users/user/Unity project/RustAndFloat`
+   - 両プロジェクト間で `Assets/RustAndFloat/` および `Assets/Game/Scripts/` を完全同期（rsync）。
+   - GitHub リモート: `origin/main` (`https://github.com/Yosie-lab/AdventureWorld.git`) へコミット・プッシュ済み。
 
 ## 次の作業（Cursorへの引き継ぎタスク）
 
