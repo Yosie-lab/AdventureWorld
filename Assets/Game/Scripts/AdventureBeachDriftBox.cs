@@ -612,9 +612,6 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     #endregion
 
-        overlay.SetActive(false);
-    }
-
     public static void ShowModal(string title, string author, string body)
     {
         EnsureModalUI();

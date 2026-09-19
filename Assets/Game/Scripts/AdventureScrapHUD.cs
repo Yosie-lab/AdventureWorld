@@ -417,7 +417,8 @@ public class AdventureScrapHUD : MonoBehaviour
         var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
         if (player != null && !leverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken)
         {
-            var nearest = scrapMgr != null ? scrapMgr.GetNearestScrapItem(player.transform.position, out float dist) : null;
+            float dist = 0f;
+            var nearest = scrapMgr != null ? scrapMgr.GetNearestScrapItem(player.transform.position, out dist) : null;
             if (nearest != null)
             {
                 Vector3 diff = nearest.transform.position - player.transform.position;
