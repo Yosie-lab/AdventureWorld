@@ -399,10 +399,23 @@ public class AdventurePlayerController : MonoBehaviour
             return;
         }
 
+        bool ccGrounded = _cc.isGrounded;
+        // 下り坂や水際・小石を踏んだ時の微小浮遊（Jitter）を吸収するRaycast接地補助
+        bool rayGrounded = false;
+        if (!ccGrounded && _hop <= 0.05f && _grounded)
+        {
+            if (Physics.Raycast(transform.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit gHit, 0.45f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                rayGrounded = true;
+            }
+        }
+
+        bool isGroundedEffective = (ccGrounded || rayGrounded) && _hop <= 0.05f && !TooSteep();
+
         if (_glideBoostTimer > 0f)
         {
             // ブースト中でも着地していればタイマーを即キャンセル（宙で止まるバグを防止）
-            if (_cc.isGrounded && _hop <= 0.05f && !TooSteep())
+            if (isGroundedEffective)
             {
                 _glideBoostTimer  = 0f;
                 _grounded         = true;
@@ -419,7 +432,7 @@ public class AdventurePlayerController : MonoBehaviour
                 _airborneTime = Mathf.Max(_airborneTime, 1.0f);
             }
         }
-        else if (Floating() || (_cc.isGrounded && _hop <= 0.05f && !TooSteep()))
+        else if (Floating() || isGroundedEffective)
         {
             if (_hop < 0f) _hop = -0.85f;
             _grounded       = true;
@@ -805,7 +818,32 @@ public class AdventurePlayerController : MonoBehaviour
     void ApplyMotion(Vector3 horizontal)
     {
         Vector3 motion = ClipMotion(horizontal * Time.deltaTime);
-        motion.y = _hop * Time.deltaTime;
+
+        // 地上歩行時の斜面スナップ（池のフチ・下り坂でのCharacterController微小浮遊＆ガタつきを完全解消）
+        if (_grounded && _hop <= 0.05f && !_gliding && !_autoGlide && horizontal.sqrMagnitude > 0.001f)
+        {
+            if (Physics.Raycast(transform.position + Vector3.up * 0.20f, Vector3.down, out RaycastHit slopeHit, 0.65f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                float downDist = slopeHit.distance - 0.20f;
+                if (downDist > 0.02f)
+                {
+                    motion.y = -Mathf.Min(downDist, 0.25f);
+                }
+                else
+                {
+                    motion.y = _hop * Time.deltaTime;
+                }
+            }
+            else
+            {
+                motion.y = _hop * Time.deltaTime;
+            }
+        }
+        else
+        {
+            motion.y = _hop * Time.deltaTime;
+        }
+
         _cc.Move(motion);
     }
 
@@ -868,8 +906,8 @@ public class AdventurePlayerController : MonoBehaviour
         {
             if (hit.collider != null && !(hit.collider is TerrainCollider))
             {
-                // 人工物・スロープの上に立っている場合は、その衝突面の傾斜をチェック（緩やかであれば歩行可能）
-                return hit.normal.y < 0.35f;
+                // 人工物・岩・スロープの上に立っている場合は、ほぼ垂直な壁面（normal.y < 0.20f）のみ滑落判定とする
+                return hit.normal.y < SteepNormalThreshold;
             }
         }
 
@@ -1007,8 +1045,12 @@ public class AdventurePlayerController : MonoBehaviour
         Vector3 p = transform.position;
         float minY = SurfaceY(p) + Skin;
         // 通常の歩行（ミリ〜センチ単位の沈み込み）ではテレポートを行わない。
-        // 本当に地面を貫通して 0.25m 以上潜り落ちた時のみ緊急引き上げ
-        if (p.y >= minY - 0.25f) return;
+        // 本当に地面を貫通して 0.35m 以上潜り落ちた時のみ緊急引き上げ
+        if (p.y >= minY - 0.35f) return;
+
+        // 足元に物理コライダー（岩や床面）が存在している場合は、窪地や岩の上に乗っている正常状態なのでテレポートしない
+        if (Physics.Raycast(p + Vector3.up * 0.20f, Vector3.down, out RaycastHit hit, 0.60f, ~0, QueryTriggerInteraction.Ignore))
+            return;
 
         if (_cc != null) _cc.enabled = false;
         transform.position = new Vector3(p.x, minY, p.z);

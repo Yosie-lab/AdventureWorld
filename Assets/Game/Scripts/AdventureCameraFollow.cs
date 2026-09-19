@@ -41,6 +41,11 @@ public class AdventureCameraFollow : MonoBehaviour
     float _currentDistance;
     float _distVel;
 
+    float _framedPitch;
+    float _framedPitchVel;
+    float _camGroundY;
+    float _camGroundYVel;
+
     Terrain _land;
     Camera _cam;
 
@@ -74,6 +79,8 @@ public class AdventureCameraFollow : MonoBehaviour
         _pivotVelocity = Vector3.zero;
         _currentDistance = distance;
         _distVel = 0f;
+        _framedPitch = WalkPitch;
+        _framedPitchVel = 0f;
         CurrentYaw = _yaw;
     }
 
@@ -291,24 +298,33 @@ public class AdventureCameraFollow : MonoBehaviour
             safeTargetDist = Mathf.Max(safeTargetDist, Mathf.Lerp(0.9f, 3.2f, cine));
         if (walkingGround)
             safeTargetDist = Mathf.Max(safeTargetDist, WalkMinDistance);
-        _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, cine > 0.2f ? 0.12f : 0.05f);
+        _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, cine > 0.2f ? 0.12f : 0.08f);
 
         Vector3 targetPos = _currentPivot + currentRot * new Vector3(0f, 0f, -_currentDistance);
         float minCamY = Mathf.Lerp(1.15f, 1.35f, cine);
         targetPos.y = Mathf.Max(targetPos.y, target.position.y + minCamY);
 
+        // 地形スナップ：急激な垂直クリップによるガタつきを抑え、滑らかに地表以上をキープ
         if (_land == null)
             _land = AdventureQuestLocations.FindLand();
         if (_land != null)
         {
             float groundY = AdventureQuestLocations.GroundY(_land, targetPos.x, targetPos.z) + 0.85f;
             if (targetPos.y < groundY)
-                targetPos.y = groundY;
+            {
+                if (_camGroundY < 0.1f) _camGroundY = groundY;
+                _camGroundY = Mathf.SmoothDamp(_camGroundY, groundY, ref _camGroundYVel, 0.06f);
+                targetPos.y = Mathf.Max(targetPos.y, _camGroundY);
+            }
+            else
+            {
+                _camGroundY = targetPos.y;
+            }
         }
 
         transform.position = targetPos;
 
-        // 歩行：常にNikoの上半身を画角中央へ（俯角の取り合いで空だけ／足元だけになるのを防ぐ）
+        // 歩行：常にNikoの上半身を画角中央へ（ピッチ角をSmoothDampAngleで滑らかに遷移させジッターを完全解消）
         if (walkingGround)
         {
             Vector3 focus = target.position + Vector3.up * WalkFocusHeight;
@@ -319,18 +335,20 @@ public class AdventureCameraFollow : MonoBehaviour
                 float lookPitch = look.eulerAngles.x;
                 if (lookPitch > 180f) lookPitch -= 360f;
                 lookPitch = Mathf.Clamp(lookPitch, pitchMin, pitchMax);
-                // プレイヤー操作ピッチと注視点の中間〜注視点寄り
                 float framed = Mathf.Lerp(_pitch, lookPitch, 0.72f);
                 framed = Mathf.Clamp(framed, pitchMin, pitchMax);
-                transform.rotation = Quaternion.Euler(framed, _yaw, 0f);
+                _framedPitch = Mathf.SmoothDampAngle(_framedPitch, framed, ref _framedPitchVel, 0.045f, Mathf.Infinity, Time.unscaledDeltaTime);
+                transform.rotation = Quaternion.Euler(_framedPitch, _yaw, 0f);
             }
             else
             {
+                _framedPitch = _pitch;
                 transform.rotation = currentRot;
             }
         }
         else
         {
+            _framedPitch = _pitch;
             transform.rotation = currentRot;
         }
     }
@@ -344,12 +362,19 @@ public class AdventureCameraFollow : MonoBehaviour
             if (target != null && (hit.transform == target || hit.transform.IsChildOf(target)))
                 return maxDist;
 
-            // Rust／小さな草木／足元の床・テラス・台座・階段で急激にカメラが寄ってガタガタ揺れるのを防ぐ
+            // Rust／小さな草木／池／岩／水草／足元の床・テラス・台座・階段で急激にカメラが寄ってガタガタ揺れるのを防ぐ
             string n = hit.collider != null ? hit.collider.name : "";
             if (n.IndexOf("Rust", System.StringComparison.OrdinalIgnoreCase) >= 0
                 || n.IndexOf("Grass", System.StringComparison.OrdinalIgnoreCase) >= 0
                 || n.IndexOf("Flower", System.StringComparison.OrdinalIgnoreCase) >= 0
                 || n.IndexOf("Bush", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Rock", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Stone", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Pond", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("River", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Water", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Plant", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Reed", System.StringComparison.OrdinalIgnoreCase) >= 0
                 || n.IndexOf("Podium", System.StringComparison.OrdinalIgnoreCase) >= 0
                 || n.IndexOf("Floor", System.StringComparison.OrdinalIgnoreCase) >= 0
                 || n.IndexOf("Terrace", System.StringComparison.OrdinalIgnoreCase) >= 0
