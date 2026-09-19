@@ -24,6 +24,56 @@ public class AdventureScrapManager : MonoBehaviour
     public int collectedCount => CollectedCount;
     public bool hasPetRadar => CollectedCount >= 9;
 
+    // ── 総合ポイント制（20ポイント以上でタワーレバー解除） ──
+    public const int RequiredPointsForCanopy = 20;
+    public const int PointsPerScrap = 1;
+    public const int PointsPerDriftBox = 2;
+    public const int PointsForPianoRelic = 3;
+
+    private const string PrefKeyPianoRelic = "AncientPiano_Relic_Collected";
+    private const string PrefKeyLeverUnlockedNotified = "RustAndFloat_LeverUnlockedNotified";
+
+    /// <summary>ドリフトボックス（漂着サバイバルケース）の開封数</summary>
+    public int OpenedDriftBoxCount
+    {
+        get
+        {
+            int count = 0;
+            for (int i = 1; i <= 5; i++)
+            {
+                if (PlayerPrefs.GetInt("DriftBox_Opened_" + i, 0) == 1)
+                    count++;
+            }
+            return count;
+        }
+    }
+
+    /// <summary>ピアノの上の光る古代遺物を回収済みか</summary>
+    public bool IsPianoRelicCollected
+    {
+        get => PlayerPrefs.GetInt(PrefKeyPianoRelic, 0) == 1;
+        set
+        {
+            PlayerPrefs.SetInt(PrefKeyPianoRelic, value ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+    }
+
+    /// <summary>総合探索ポイント（パーツ1pt×12 + ドリフトボックス2pt×5 + ピアノ遺物3pt = 最大25pt / 20ptでレバー解除）</summary>
+    public int TotalProgressPoints
+    {
+        get
+        {
+            int pts = CollectedCount * PointsPerScrap;
+            pts += OpenedDriftBoxCount * PointsPerDriftBox;
+            if (IsPianoRelicCollected) pts += PointsForPianoRelic;
+            return pts;
+        }
+    }
+
+    /// <summary>20ポイント以上集まり、中央タワーのレバーロックが解除された状態か</summary>
+    public bool IsLeverUnlocked => TotalProgressPoints >= RequiredPointsForCanopy;
+
     const string PrefKeyScrapLayout = "RustAndFloat_ScrapLayoutXZ_v6";
     const float MinDistFromPrevious = 28f;
     const float MinDistBetweenScraps = 22f;
@@ -504,19 +554,78 @@ public class AdventureScrapManager : MonoBehaviour
         // 冒頭ドラマ：1個目蘇生／3個目ダッシュ祝福
         AdventurePrologueDrama.Instance?.NotifyScrapCollected(CollectedCount);
 
-        // 12個達成：巨大レバーを確実に操作可能にする
-        if (CollectedCount >= TotalScrapCount)
-        {
-            var tower = AdventureSanctuaryTowerManager.Instance
-                        ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
-            tower?.OnAllScrapsCollectedForLever();
-        }
+        // 20ポイント達成判定：巨大レバーのロックを解除（※実際にタワーで引くまで天蓋は開放されない）
+        CheckPointsAndNotifyLeverUnlock();
 
         // オートセーブを実行！
         if (AdventureSaveManager.Instance != null)
         {
             AdventureSaveManager.Instance.SaveGame($"パーツ発見！({CollectedCount}/{TotalScrapCount})");
         }
+    }
+
+    /// <summary>総合ポイントを判定し、20pt達成時にレバーロック解除を通知（※レバーを実際に引くまでは開放されない）</summary>
+    public void CheckPointsAndNotifyLeverUnlock()
+    {
+        if (TotalProgressPoints >= RequiredPointsForCanopy)
+        {
+            var tower = AdventureSanctuaryTowerManager.Instance
+                        ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
+            tower?.OnLeverUnlockedByPoints();
+
+            bool alreadyNotified = PlayerPrefs.GetInt(PrefKeyLeverUnlockedNotified, 0) == 1;
+            if (!alreadyNotified)
+            {
+                PlayerPrefs.SetInt(PrefKeyLeverUnlockedNotified, 1);
+                PlayerPrefs.Save();
+
+                var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
+                if (hud != null)
+                {
+                    hud.ShowUpgradeBanner($"✦ 総合20ポイント達成！中央タワーのレバーロック解除！ ✦\n💡 中央タワーへ向かい、レバーを引いて天蓋を開放しよう！");
+                }
+
+                var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+                if (drone != null)
+                {
+                    drone.SpeakCustom("20ポイント集まったよ！中央タワーのレバーロックが解除されたみたいだ。タワーに行ってレバーを引こう、Niko！！", 7.0f);
+                }
+            }
+        }
+    }
+
+    /// <summary>ピアノの上の光る古代遺物（3ポイント）を獲得</summary>
+    public void CollectPianoRelic()
+    {
+        if (IsPianoRelicCollected) return;
+        IsPianoRelicCollected = true;
+
+        PlayCelebrationChime(0.45f);
+
+        var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
+        if (hud != null)
+        {
+            hud.ShowUpgradeBanner($"✨ ピアノの古代遺物を回収！ (+3 pt) ✨\n✦ 探索ポイント: {TotalProgressPoints} / {RequiredPointsForCanopy} pt");
+        }
+
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+        {
+            drone.SpeakCustom("わぁぁ！ピアノの上に光るパーツがあったよ！これで3ポイントゲットだね！", 5.5f);
+        }
+
+        CheckPointsAndNotifyLeverUnlock();
+
+        if (AdventureSaveManager.Instance != null)
+        {
+            AdventureSaveManager.Instance.SaveGame($"ピアノ遺物回収！({TotalProgressPoints}pt)");
+        }
+    }
+
+    /// <summary>ドリフトボックス開封時のポイント加算通知</summary>
+    public void OnDriftBoxOpened(int boxId, string boxTitle)
+    {
+        CheckPointsAndNotifyLeverUnlock();
     }
 
     /// <summary>セーブデータから収集済みパーツ一覧を適用し、能力とHUDを復元</summary>

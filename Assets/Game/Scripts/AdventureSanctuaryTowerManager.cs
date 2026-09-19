@@ -8,6 +8,8 @@ using System.Collections;
 /// </summary>
 public class AdventureSanctuaryTowerManager : MonoBehaviour
 {
+    #region 1. プロパティ・定数・状態変数
+
     static AdventureSanctuaryTowerManager _instance;
     public static AdventureSanctuaryTowerManager Instance => _instance;
 
@@ -217,6 +219,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var go = new GameObject("AdventureSanctuaryTowerManager");
         _instance = go.AddComponent<AdventureSanctuaryTowerManager>();
     }
+
+    #endregion
+
+    #region 2. ライフサイクル & シーケンスリセット
 
     void Awake()
     {
@@ -469,6 +475,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     public Vector3 MainLeverPosition => _mainLeverPos;
 
+    #endregion
+
+    #region 3. 台座レバーギミック & プロンプトUI
+
     void BuildTowerLever()
     {
         string[] oldNames = {
@@ -630,13 +640,13 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         && !_climaxCrisisStarted
         && !_epilogueTriggered;
 
-    /// <summary>全パーツ回収済みでレバー操作可能な状態（再演含む）</summary>
+    /// <summary>総合20ポイント以上達成でレバーロック解除状態（再演含む）</summary>
     public bool IsLeverReadyToOpen
     {
         get
         {
             var scrapMgr = AdventureScrapManager.Instance ?? Object.FindFirstObjectByType<AdventureScrapManager>();
-            return scrapMgr != null && scrapMgr.CollectedCount >= AdventureScrapManager.TotalScrapCount;
+            return scrapMgr != null && scrapMgr.IsLeverUnlocked;
         }
     }
 
@@ -842,9 +852,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _leverUiRoot.SetActive(true);
         if (_leverUiLabel != null)
         {
+            int pts = AdventureScrapManager.Instance != null ? AdventureScrapManager.Instance.TotalProgressPoints : 0;
             _leverUiLabel.text = ready
                 ? "【ここを押す / E / Space】巨大真鍮レバーを引く"
-                : "レバーはロック中（遺物12個が必要）";
+                : $"レバーはロック中（20ポイントが必要 / 現在: {pts} pt）";
             _leverUiLabel.color = ready
                 ? new Color(0.35f, 0.98f, 0.88f, 1f)
                 : new Color(1f, 0.85f, 0.4f, 1f);
@@ -899,11 +910,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _leverUiRoot.SetActive(false);
     }
 
-    /// <summary>パーツ12個達成時：巨大レバーを再生成し、操作UIを確実に出す</summary>
-    public void OnAllScrapsCollectedForLever()
+    /// <summary>総合20ポイント達成時：巨大レバーのロックを解除（※実際にタワーで引くまで天蓋開放は発動しない）</summary>
+    public void OnLeverUnlockedByPoints()
     {
         // 誤って残った危機／台本フラグをクリア（レバー操作を塞がない）
-        if (!_endingSequenceActive)
+        if (!_endingSequenceActive && !IsCanopyBroken)
         {
             _climaxCrisisStarted = false;
             _climaxOilInjected = false;
@@ -924,11 +935,13 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (player != null)
             UpdateLeverProximity(player);
 
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
-        if (drone != null)
-            drone.SpeakCustom("翼が完成したよ！巨大な真鍮レバーを引いて、天蓋を開こう、Niko！！", 6.0f);
+        Debug.Log("[RustAndFloat] 総合20ポイント達成：巨大レバーロック解除（プレイヤーがタワーで引くまで待機）");
+    }
 
-        Debug.Log("[RustAndFloat] パーツ12/12：巨大レバー操作可能");
+    /// <summary>パーツ12個達成時：巨大レバーを再生成し、操作UIを確実に出す</summary>
+    public void OnAllScrapsCollectedForLever()
+    {
+        OnLeverUnlockedByPoints();
     }
 
     bool WasInteractEdge()
@@ -957,6 +970,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         catch { }
         return false;
     }
+
+    #endregion
+
+    #region 4. 天蓋開放トリガー & 音響・環境制御
 
     /// <summary>レバー前に残る詩的バナー／砂浜読み物／オープニングを消して操作を塞がない</summary>
     void ClearBoardsBlockingLever()
@@ -1067,7 +1084,15 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         EnsureEventSystemForUi();
 
         AdventureScrapManager.Ensure();
-        AdventureScrapManager.Instance?.ResetToCount(AdventureScrapManager.TotalScrapCount);
+        var sm = AdventureScrapManager.Instance;
+        if (sm != null)
+        {
+            sm.ResetToCount(AdventureScrapManager.TotalScrapCount);
+            sm.IsPianoRelicCollected = true;
+            for (int i = 1; i <= 5; i++)
+                PlayerPrefs.SetInt("DriftBox_Opened_" + i, 1);
+            PlayerPrefs.Save();
+        }
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.ResetSkybreakMusicState();
 
@@ -1280,11 +1305,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (!allCollected)
         {
             var scrapMgr = AdventureScrapManager.Instance;
-            int count = scrapMgr != null ? scrapMgr.CollectedCount : 0;
-            int remaining = 12 - count;
+            int pts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
+            int remaining = Mathf.Max(0, AdventureScrapManager.RequiredPointsForCanopy - pts);
             if (drone != null)
             {
-                drone.SpeakCustom($"まだレバーがロックされてるみたい…あと{remaining}個の遺物を集めて、僕たちの翼を完全に直そう！", 4.5f);
+                drone.SpeakCustom($"まだレバーがロックされてるみたい…あと{remaining}ポイント集めよう！（現在: {pts}/20 pt）\nパーツ(1pt)、ドリフトボックス(2pt)、カピタのピアノ(3pt)を探してみて！", 5.5f);
             }
             if (_audio != null)
                 _audio.PlayOneShot(MakeClankSound(), 0.6f);
@@ -1347,6 +1372,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             yield return null;
         }
     }
+
+    #endregion
+
+    #region 5. 天蓋開放台本ビート制御
 
     void BeginCanopyScriptBeats()
     {
@@ -1710,6 +1739,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         catch { }
         return false;
     }
+
+    #endregion
+
+    #region 6. 台本ボードUI (uGUI) & 入力ハンドリング
 
     /// <summary>クリック／Space で台本を進める（Input System の wasPressed を直接見る）</summary>
     void PollScriptBoardAdvance()
@@ -2164,6 +2197,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         return false;
     }
 
+    #endregion
+
+    #region 7. 天蓋破壊VFX & 上昇気流光柱
+
     void SpawnLeverSparks(Vector3 pos)
     {
         var pGo = new GameObject("LeverSparkBurst");
@@ -2374,6 +2411,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // 頂上レバーは BuildTowerLever で作り直される
     }
 
+    #endregion
+
+    #region 8. OnGUI & 入力フォールバック
+
     void OnGUI()
     {
         // クリア／台本／注油／クライマックス中は IMGUI 禁止
@@ -2463,6 +2504,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             _oilHoldTimer += Time.unscaledDeltaTime;
         GUI.color = Color.white;
     }
+
+    #endregion
+
+    #region 9. クライマックス (Rust凍結危機 & 注油インタラクション)
 
     void BeginClimaxSequence()
     {
@@ -2893,6 +2938,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             yield return null;
     }
 
+    #endregion
+
+    #region 10. エピローグ演出 & オートグライド
+
     void DrawScriptBoardGUI()
     {
         // IMGUI日本語描画は停止（Gizmos文字化け防止）。入力は DrawScriptBoardInputFallback。
@@ -2927,6 +2976,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         // IMGUI クリア画面は廃止（空ボード＋Gizmos化の原因）。uGUI の TickGameClearModal を使う。
     }
+
+    #endregion
+
+    #region 11. ゲームクリアモーダルUI
 
     void TickGameClearModal()
     {
@@ -3213,6 +3266,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             follow.SetCinematicMode(enabled);
     }
 
+    #endregion
+
+    #region 12. 外の世界パノラマ & 極寒環境霧
+
     /// <summary>天蓋の割れ目の外側：未知の荒野。危機時は凍える稜線と氷霞、突破後は朝焼けの金へ</summary>
     void SpawnWildernessPanorama(bool coldCrisis = true)
     {
@@ -3415,6 +3472,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _coldAtmosphereActive = false;
     }
 
+    #endregion
+
+    #region 13. 古代アプローチ階段 & 効果音合成
+
     /// <summary>オアシス湧水池（480, 455）からタワー台地（512, 512）へ登る白亜の古代神殿アプローチ階段道を生成</summary>
     void BuildTowerStairs(Transform parent, Terrain land)
     {
@@ -3526,4 +3587,6 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         clip.SetData(d, 0);
         return clip;
     }
+
+    #endregion
 }
