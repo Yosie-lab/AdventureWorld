@@ -278,7 +278,7 @@ public class AdventureCameraFollow : MonoBehaviour
             _distVel = 0f;
         }
 
-        float pivotSmooth = isAutoGlide ? 0.08f : (isGliding ? 0.045f : positionSmoothTime);
+        float pivotSmooth = walkingGround ? 0.085f : (isAutoGlide ? 0.08f : (isGliding ? 0.045f : positionSmoothTime));
         _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, pivotSmooth);
 
         float targetFov = Mathf.Lerp(isGliding ? 64f : 58f, CinematicFov, cine);
@@ -344,12 +344,18 @@ public class AdventureCameraFollow : MonoBehaviour
             if (target != null && (hit.transform == target || hit.transform.IsChildOf(target)))
                 return maxDist;
 
-            // Rust／小さな草木で寄られすぎない
+            // Rust／小さな草木／足元の床・テラス・台座・階段で急激にカメラが寄ってガタガタ揺れるのを防ぐ
             string n = hit.collider != null ? hit.collider.name : "";
             if (n.IndexOf("Rust", System.StringComparison.OrdinalIgnoreCase) >= 0
                 || n.IndexOf("Grass", System.StringComparison.OrdinalIgnoreCase) >= 0
                 || n.IndexOf("Flower", System.StringComparison.OrdinalIgnoreCase) >= 0
-                || n.IndexOf("Bush", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                || n.IndexOf("Bush", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Podium", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Floor", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Terrace", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Pedestal", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Step", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || n.IndexOf("Stair", System.StringComparison.OrdinalIgnoreCase) >= 0)
                 return maxDist;
 
             return Mathf.Clamp(hit.distance - 0.15f, WalkMinDistance * 0.85f, maxDist);

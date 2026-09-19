@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using System.Collections;
 
 /// <summary>
@@ -33,6 +34,9 @@ public class AdventureBeachDriftBox : MonoBehaviour
     private static Text _modalAuthorText;
     private static Text _modalCloseHintText;
     private static bool _isModalOpen = false;
+    private static float _modalOpenTimestamp = 0f;
+
+    public static bool IsModalOpen => _isModalOpen;
 
     void Awake()
     {
@@ -85,12 +89,6 @@ public class AdventureBeachDriftBox : MonoBehaviour
                     OpenBox();
                 }
             }
-        }
-
-        // モーダル表示中のキー入力（SpaceやEnter、E、クリックで閉じる）
-        if (_isModalOpen && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0)))
-        {
-            CloseModal();
         }
     }
 
@@ -188,7 +186,20 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     private static void EnsureModalUI()
     {
-        if (_modalCanvas != null) return;
+        if (_modalCanvas != null && _modalPanel != null) return;
+
+        // 孤児化した古いCanvasがあれば掃除
+        var oldCanvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var c in oldCanvases)
+        {
+            if (c != null && c.name == "DriftBoxModalCanvas")
+            {
+                if (Application.isPlaying) Object.Destroy(c.gameObject);
+                else Object.DestroyImmediate(c.gameObject);
+            }
+        }
+        _modalCanvas = null;
+        _modalPanel = null;
 
         var canvasGo = new GameObject("DriftBoxModalCanvas");
         DontDestroyOnLoad(canvasGo);
@@ -204,24 +215,28 @@ public class AdventureBeachDriftBox : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
 
         canvasGo.AddComponent<GraphicRaycaster>();
+        canvasGo.AddComponent<DriftBoxModalInputHandler>();
 
         Font defaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-        // 背景暗転パネル
+        // 背景暗転パネル（画面のどこをクリックしても閉じられる）
         var overlay = new GameObject("Overlay");
         overlay.transform.SetParent(canvasGo.transform, false);
         var overlayImg = overlay.AddComponent<Image>();
-        overlayImg.color = new Color(0f, 0f, 0f, 0.45f);
+        overlayImg.color = new Color(0f, 0f, 0f, 0.50f);
         var overlayRt = overlay.GetComponent<RectTransform>();
         overlayRt.anchorMin = Vector2.zero;
         overlayRt.anchorMax = Vector2.one;
         overlayRt.sizeDelta = Vector2.zero;
+        var overlayBtn = overlay.AddComponent<Button>();
+        overlayBtn.transition = Selectable.Transition.None;
+        overlayBtn.onClick.AddListener(CloseModal);
 
-        // メインパネル
+        // メインパネル（クリックが背後へ突き抜けないようにRaycastTargetを持つ）
         _modalPanel = new GameObject("ModalPanel");
         _modalPanel.transform.SetParent(overlay.transform, false);
         var panelImg = _modalPanel.AddComponent<Image>();
-        panelImg.color = new Color(0.12f, 0.15f, 0.20f, 0.94f); // 深いネイビーグレー
+        panelImg.color = new Color(0.12f, 0.15f, 0.20f, 0.96f); // 深いネイビーグレー
         var panelRt = _modalPanel.GetComponent<RectTransform>();
         panelRt.sizeDelta = new Vector2(680, 420);
         panelRt.anchoredPosition = Vector2.zero;
@@ -270,18 +285,38 @@ public class AdventureBeachDriftBox : MonoBehaviour
         bodyRt.sizeDelta = new Vector2(580, 200);
 
         // 閉じるヒントボタン
-        var closeGo = new GameObject("CloseHintText");
+        var closeGo = new GameObject("CloseHintButton");
         closeGo.transform.SetParent(_modalPanel.transform, false);
-        _modalCloseHintText = closeGo.AddComponent<Text>();
+        var closeImg = closeGo.AddComponent<Image>();
+        closeImg.color = new Color(0.18f, 0.24f, 0.32f, 0.85f);
+        var closeBtn = closeGo.AddComponent<Button>();
+        closeBtn.onClick.AddListener(CloseModal);
+        var closeColors = closeBtn.colors;
+        closeColors.highlightedColor = new Color(0.28f, 0.38f, 0.50f, 1f);
+        closeColors.pressedColor = new Color(0.10f, 0.15f, 0.22f, 1f);
+        closeBtn.colors = closeColors;
+
+        var closeOutline = closeGo.AddComponent<Outline>();
+        closeOutline.effectColor = new Color(0.45f, 0.85f, 1.0f, 0.6f);
+        closeOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+        var closeTextGo = new GameObject("Text");
+        closeTextGo.transform.SetParent(closeGo.transform, false);
+        _modalCloseHintText = closeTextGo.AddComponent<Text>();
         _modalCloseHintText.font = defaultFont;
         _modalCloseHintText.fontSize = 17;
         _modalCloseHintText.fontStyle = FontStyle.Bold;
-        _modalCloseHintText.color = new Color(0.45f, 0.85f, 1.0f);
+        _modalCloseHintText.color = new Color(0.65f, 0.92f, 1.0f);
         _modalCloseHintText.alignment = TextAnchor.MiddleCenter;
-        _modalCloseHintText.text = "【 Space または クリックで閉じる 】";
+        _modalCloseHintText.text = "【 Space / Enter / クリックで閉じる 】";
+        var closeTextRt = closeTextGo.GetComponent<RectTransform>();
+        closeTextRt.anchorMin = Vector2.zero;
+        closeTextRt.anchorMax = Vector2.one;
+        closeTextRt.sizeDelta = Vector2.zero;
+
         var closeRt = closeGo.GetComponent<RectTransform>();
         closeRt.anchoredPosition = new Vector2(0, -165);
-        closeRt.sizeDelta = new Vector2(500, 40);
+        closeRt.sizeDelta = new Vector2(440, 42);
 
         overlay.SetActive(false);
     }
@@ -301,6 +336,11 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
         _modalPanel.transform.parent.gameObject.SetActive(true);
         _isModalOpen = true;
+        _modalOpenTimestamp = Time.unscaledTime;
+
+        // マウスカーソルを解放してクリックできるようにする
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     public static void CloseModal()
@@ -310,6 +350,10 @@ public class AdventureBeachDriftBox : MonoBehaviour
             _modalPanel.transform.parent.gameObject.SetActive(false);
         }
         _isModalOpen = false;
+
+        // ゲームプレイ用にマウスカーソルを再度ロック
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -336,5 +380,58 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var clip = AudioClip.Create("DriftBoxChime", samples, 1, rate, false);
         clip.SetData(data, 0);
         return clip;
+    }
+}
+
+/// <summary>
+/// 漂着ボックスモーダルの入力ハンドラー
+/// 新旧Input Systemの両方で、キー入力やクリックによるモーダル閉じを100%確実に処理する
+/// </summary>
+public class DriftBoxModalInputHandler : MonoBehaviour
+{
+    void Update()
+    {
+        if (!AdventureBeachDriftBox.IsModalOpen) return;
+
+        // 開いた直後の誤爆防止（0.12秒）
+        // （Time.unscaledTime を使用してポーズ中や低フレームレートでも安全）
+        bool closeTriggered = false;
+
+        // 1. 新Input System
+        var kb = Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.spaceKey.wasPressedThisFrame ||
+                kb.enterKey.wasPressedThisFrame ||
+                kb.numpadEnterKey.wasPressedThisFrame ||
+                kb.escapeKey.wasPressedThisFrame ||
+                kb.eKey.wasPressedThisFrame)
+            {
+                closeTriggered = true;
+            }
+        }
+
+        var mouse = Mouse.current;
+        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+        {
+            closeTriggered = true;
+        }
+
+        // 2. 旧Input System（フォールバック）
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) ||
+                Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E) ||
+                Input.GetMouseButtonDown(0))
+            {
+                closeTriggered = true;
+            }
+        }
+        catch { }
+
+        if (closeTriggered)
+        {
+            AdventureBeachDriftBox.CloseModal();
+        }
     }
 }

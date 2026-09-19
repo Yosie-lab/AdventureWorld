@@ -375,7 +375,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
     {
         if (_guideText == null) return;
         _guideText.text = isGliding
-            ? "【A / D】方向修正　【S】ふわり上昇　【W】ダイブ降下　【Space長押し】滑空"
+            ? "【A / D】旋回　【W】ダイブ　【S】フレア　【Space長押し】滑空"
             : "【WASD】移動　【マウス / 矢印キー】視点　【Space長押し】崖から滑空　【R】リセット";
     }
 

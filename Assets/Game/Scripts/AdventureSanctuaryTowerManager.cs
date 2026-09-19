@@ -368,59 +368,74 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var tower = GameObject.Find("SanctuaryZero_Tower");
         if (tower == null) return;
 
-        // 薄い上面コライダーは CharacterController.skinWidth より薄く貫通→地形に落下→台座に埋まる。
-        // 上面が歩行面の「厚い固体スラブ」に差し替え、XZ内では絶対に床下へ潜れないようにする。
-        MakeSolidTerraceCollider(tower.transform.Find("WhiteMarblePodium")?.gameObject, thickness: 5f);
-        MakeSolidTerraceCollider(tower.transform.Find("SanctuaryGridFloor")?.gameObject, thickness: 2.5f);
+        // 過去の余計な直方体BoxCollider（四隅がはみ出して地面から浮く原因）を削除
+        var oldPodiumSolid = tower.transform.Find("WhiteMarblePodium/WhiteMarblePodium_SolidWalk")
+            ?? tower.transform.Find("WhiteMarblePodium_SolidWalk");
+        if (oldPodiumSolid != null) Destroy(oldPodiumSolid.gameObject);
+
+        var oldGridSolid = tower.transform.Find("SanctuaryGridFloor/SanctuaryGridFloor_SolidWalk")
+            ?? tower.transform.Find("SanctuaryGridFloor_SolidWalk");
+        if (oldGridSolid != null) Destroy(oldGridSolid.gameObject);
+
+        // WhiteMarblePodium（白大理石円盤テラス）本体に正確なMeshColliderを付与
+        var podium = tower.transform.Find("WhiteMarblePodium")?.gameObject;
+        if (podium != null)
+        {
+            foreach (var c in podium.GetComponents<Collider>())
+                Destroy(c);
+            var mc = podium.AddComponent<MeshCollider>();
+            var mf = podium.GetComponent<MeshFilter>();
+            if (mf != null && mf.sharedMesh != null) mc.sharedMesh = mf.sharedMesh;
+        }
+
+        // SanctuaryGridFloor（金属格子床）はコライダーを削除（テラス面と18cm重複してジッターするのを防止）
+        var grid = tower.transform.Find("SanctuaryGridFloor")?.gameObject;
+        if (grid != null)
+        {
+            foreach (var c in grid.GetComponents<Collider>())
+                Destroy(c);
+        }
     }
 
-    /// <summary>タワー白亜テラス上なら歩行面Y、それ以外は負の無限大</summary>
+    /// <summary>タワー白亜テラス上（またはレバー基壇上）なら歩行面Y、それ以外は負の無限大</summary>
     public static float GetTerraceSurfaceY(Vector3 worldPos)
     {
-        float dx = worldPos.x - 512f;
-        float dz = worldPos.z - 512f;
-        // 直径70mの基壇より少し内側
-        if (dx * dx + dz * dz > 34f * 34f)
-            return float.NegativeInfinity;
-        return TerraceTopY;
+        Vector2 posXZ = new Vector2(worldPos.x, worldPos.z);
+
+        // 1. 4基のレバー台座の範囲（上面 64.02m）
+        Vector2[] leverCenters = new Vector2[]
+        {
+            new Vector2(512f, 501.5f), // 南メインレバー
+            new Vector2(501.5f, 512f), // 西レバー
+            new Vector2(512f, 522.5f), // 北レバー
+            new Vector2(522.5f, 512f)  // 東レバー
+        };
+
+        foreach (var center in leverCenters)
+        {
+            if (Vector2.SqrMagnitude(posXZ - center) <= 3.2f * 3.2f)
+            {
+                return 64.02f; // レバー台座の上面
+            }
+        }
+
+        // 2. 白大理石円盤テラスの範囲（中心 512, 512、半径 34.5m、上面 63.00m）
+        Vector2 towerCenter = new Vector2(512f, 512f);
+        if (Vector2.SqrMagnitude(posXZ - towerCenter) <= 34.5f * 34.5f)
+        {
+            return 63.00f; // テラス上面
+        }
+
+        // それ以外の台地全域（芝生・木立・森林）はTerrain（自然な地面・標高62.0m）を歩行
+        return float.NegativeInfinity;
     }
 
-    public const float TerraceTopY = 63.05f;
+    public const float TerraceTopY = 64.02f;
 
-    static void MakeSolidTerraceCollider(GameObject floor, float thickness)
-    {
-        if (floor == null) return;
-
-        foreach (var c in floor.GetComponents<Collider>())
-            Destroy(c);
-
-        Transform parent = floor.transform.parent != null ? floor.transform.parent : floor.transform;
-        string solidName = floor.name + "_SolidWalk";
-        var existing = parent.Find(solidName);
-        GameObject solid = existing != null ? existing.gameObject : new GameObject(solidName);
-        if (existing == null)
-            solid.transform.SetParent(parent, false);
-
-        // 単位円柱: 半径0.5 → lossyScale.x が直径、上面 = pos.y + lossyScale.y
-        float topY = floor.transform.position.y + floor.transform.lossyScale.y;
-        float diameter = Mathf.Max(floor.transform.lossyScale.x, floor.transform.lossyScale.z);
-        thickness = Mathf.Max(thickness, 1.5f);
-
-        solid.transform.position = new Vector3(floor.transform.position.x, topY - thickness * 0.5f, floor.transform.position.z);
-        solid.transform.rotation = Quaternion.identity;
-        solid.transform.localScale = Vector3.one;
-
-        var box = solid.GetComponent<BoxCollider>();
-        if (box == null) box = solid.AddComponent<BoxCollider>();
-        box.center = Vector3.zero;
-        box.size = new Vector3(diameter, thickness, diameter);
-    }
-
-    /// <summary>台座に埋まった／潜ったNikoをテラス上面へ引き上げる</summary>
+    /// <summary>台座に完全に潜って落下したNikoをテラス上面へ安全救出する（通常歩行中は一切介入しない）</summary>
     public void RescuePlayerIfBuriedInTerrace(AdventurePlayerController player)
     {
         if (player == null) return;
-        // スカイブレイク上昇／オートグライド中は絶対に地上へ引きずり下ろさない
         if (player.IsSkybreakPillarAscending || player.IsAutoGliding) return;
         if (IsCanopyBroken && player.transform.position.y > 80f) return;
 
@@ -428,17 +443,13 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         float terraceY = GetTerraceSurfaceY(pos);
         if (terraceY <= float.NegativeInfinity) return;
 
-        // テラス上面より下、または薄いめり込み帯にいる
-        if (pos.y >= terraceY - 0.02f && pos.y <= terraceY + 0.35f)
-            return; // 正常に乗っている
-        if (pos.y > terraceY + 0.35f)
-            return; // ジャンプ／滑空中
-
-        if (pos.y < terraceY - 0.02f)
+        // 通常の歩行やジャンプ中は物理コライダーに任せ、テレポートを行わない
+        // 床下深く（0.6m以上下）に完全に潜り込んでしまった時のみ緊急救出
+        if (pos.y < terraceY - 0.60f)
         {
             var cc = player.GetComponent<CharacterController>();
             if (cc != null) cc.enabled = false;
-            player.transform.position = new Vector3(pos.x, terraceY + 0.05f, pos.z);
+            player.transform.position = new Vector3(pos.x, terraceY + 0.02f, pos.z);
             if (cc != null) cc.enabled = true;
             player.ForceGroundReset();
         }
