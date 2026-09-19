@@ -1,0 +1,525 @@
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+/// <summary>
+/// カピタ（Capyta）に話しかけると、スーパージャンプと潤滑油を授ける。
+/// 機嫌（その場の気分）で油の量が大きく変わる。
+/// </summary>
+public class AdventureCapytaBlessing : MonoBehaviour
+{
+    static AdventureCapytaBlessing _instance;
+    public static AdventureCapytaBlessing Instance => _instance;
+
+    /// <summary>カピタ会話プロンプト表示中（Eキーはカピタ優先）</summary>
+    public static bool IsTalkPromptActive =>
+        _instance != null && _instance._promptVisible;
+
+    /// <summary>プレイヤーがカピタ会話レンジ内か（Rust手当てより優先判定用）</summary>
+    public static bool IsPlayerNearTalkableCapyta(Vector3 playerPos)
+    {
+        Ensure();
+        Transform nearest = FindNearestCapyta(playerPos, out float dist);
+        return nearest != null && dist <= TalkRadius;
+    }
+
+    public const float SuperJumpMultiplier = 1.55f;
+    const float TalkRadius = 4.8f;
+    const string PrefKey = "RustAndFloat_CapytaSuperJump";
+
+    enum Mood { Calm, Happy, Generous, Jackpot }
+
+    static readonly string[] CapytaByMood =
+    {
+        "ブヒ…今日はまあまあ。油、これくらいで我慢してね。",
+        "ブヒヒ！機嫌がいいよ。潤滑油、多めにあげるね！",
+        "プヒヒ……！今日は気前がいい日。缶をあけて、たっぷりの油を持っていって！",
+        "ブヒッヒッヒ！！最高の気分だ！！油を山盛りにしてあげる！！Rustをぬるぬるにしてあげて！",
+    };
+
+    static readonly string[] CapytaFirst =
+    {
+        "ブヒヒ…！大地の弾力と、相棒のための潤滑油をわけてあげるね！機嫌次第でもっと出すよ！",
+        "ブヒッ。Rustのために油をたっぷり。調子がいい日は、もっと山盛りにしてあげる！",
+    };
+
+    static readonly string[] RustByMood =
+    {
+        "ピロッ……油もらったよ。あとで整備しよう",
+        "カピタ機嫌がいいね。油、ありがたい",
+        "わぁ……油がたくさん。助かるよ、Niko",
+        "ピキーッ……山盛りだ。これでしばらく安心だね",
+    };
+
+    static readonly string[] RustFirst =
+    {
+        "わぁ…！カピタの祝福だ！スーパージャンプと油をもらったよ、Niko！！",
+        "ピキーッ！カピタ優しい…！ジャンプも油も…Niko、あとで撫でてね……？",
+    };
+
+    bool _promptVisible;
+    float _lastTalkTime = -10f;
+    int _talkIndex;
+
+    public static void Ensure()
+    {
+        if (_instance != null) return;
+        var existing = Object.FindFirstObjectByType<AdventureCapytaBlessing>();
+        if (existing != null)
+        {
+            _instance = existing;
+            return;
+        }
+        var go = new GameObject("AdventureCapytaBlessing");
+        _instance = go.AddComponent<AdventureCapytaBlessing>();
+    }
+
+    void Awake()
+    {
+        if (_instance != null && _instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        _instance = this;
+    }
+
+    void Start()
+    {
+        if (PlayerPrefs.GetInt(PrefKey, 0) == 1)
+            GrantSuperJump(silent: true);
+        SpawnBeachCapitasIfNeeded();
+    }
+
+    static readonly Vector3[] BeachCapytaSpots =
+    {
+        new Vector3(148f, 0f, 248f), // スタート南方（Nikoスポーンから約28m）
+        new Vector3(132f, 0f, 328f), // 西砂浜中央帯
+        new Vector3(205f, 0f, 198f), // 南砂浜
+    };
+
+    /// <summary>砂浜にカピタを少しだけ配置（既に Beach 個体がいれば位置だけ補正）</summary>
+    static void SpawnBeachCapitasIfNeeded()
+    {
+        var land = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
+        Vector3 nikoSpawn = ResolveNikoSpawnXZ();
+
+        var existingBeach = FindBeachCapitas();
+        if (existingBeach.Count > 0)
+        {
+            // 過去の二重生成ぶんを掃除
+            for (int i = BeachCapytaSpots.Length; i < existingBeach.Count; i++)
+            {
+                if (existingBeach[i] != null)
+                    Object.Destroy(existingBeach[i].gameObject);
+            }
+            for (int i = 0; i < existingBeach.Count && i < BeachCapytaSpots.Length; i++)
+                PlaceCapytaOnGround(existingBeach[i], BeachCapytaSpots[i], land);
+            PushCapitasClearOfPoint(nikoSpawn, 10f, land);
+            return;
+        }
+
+        GameObject prefab = null;
+#if UNITY_EDITOR
+        prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+            "Assets/Niko&Capyta/Assets/Prefabs/Capyta.prefab");
+#endif
+        if (prefab == null) return;
+
+        var root = new GameObject("Capyta_Beach_Root");
+        for (int i = 0; i < BeachCapytaSpots.Length; i++)
+        {
+            Vector3 p = GroundAt(BeachCapytaSpots[i], land);
+            var go = Object.Instantiate(prefab, p, Quaternion.Euler(0f, 40f + i * 70f, 0f), root.transform);
+            go.name = "Capyta_Beach_" + i;
+            go.transform.localScale = Vector3.one * (0.92f + i * 0.04f);
+        }
+
+        PushCapitasClearOfPoint(nikoSpawn, 10f, land);
+    }
+
+    static System.Collections.Generic.List<Transform> FindBeachCapitas()
+    {
+        var list = new System.Collections.Generic.List<Transform>(4);
+        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            var t = all[i];
+            if (!IsCapytaInstanceRoot(t)) continue;
+            if (!t.name.StartsWith("Capyta_Beach_")) continue;
+            list.Add(t);
+        }
+        return list;
+    }
+
+    static Vector3 ResolveNikoSpawnXZ()
+    {
+        var player = AdventurePlayerController.Instance
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
+        if (player != null)
+        {
+            if (player.spawnPosition != Vector3.zero)
+                return new Vector3(player.spawnPosition.x, 0f, player.spawnPosition.z);
+            return new Vector3(player.transform.position.x, 0f, player.transform.position.z);
+        }
+        return new Vector3(158f, 0f, 275f);
+    }
+
+    static Vector3 GroundAt(Vector3 xz, Terrain land)
+    {
+        Vector3 p = xz;
+        if (land != null)
+            p.y = land.SampleHeight(p) + land.transform.position.y;
+        else
+            p.y = 1f;
+        return p;
+    }
+
+    static void PlaceCapytaOnGround(Transform capy, Vector3 xz, Terrain land)
+    {
+        if (capy == null) return;
+        capy.position = GroundAt(xz, land);
+    }
+
+    /// <summary>Nikoスポーン付近にいるカピタを外側へ押し出す</summary>
+    static void PushCapitasClearOfPoint(Vector3 centerXZ, float minDist, Terrain land)
+    {
+        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            var t = all[i];
+            if (!IsCapytaInstanceRoot(t)) continue;
+
+            Vector3 p = t.position;
+            float dx = p.x - centerXZ.x;
+            float dz = p.z - centerXZ.z;
+            float dist = Mathf.Sqrt(dx * dx + dz * dz);
+            if (dist >= minDist) continue;
+
+            Vector3 dir = dist > 0.05f
+                ? new Vector3(dx, 0f, dz).normalized
+                : new Vector3(-1f, 0f, -0.4f).normalized;
+            Vector3 next = new Vector3(centerXZ.x, 0f, centerXZ.z) + dir * (minDist + 2f);
+            t.position = GroundAt(next, land);
+        }
+    }
+
+    /// <summary>
+    /// 会話可能なカピタ本体か判定。
+    /// Prefab内部の子メッシュや Capyta_Beach_Root などのコンテナは除外する。
+    /// </summary>
+    static bool IsCapytaInstanceRoot(Transform t)
+    {
+        if (t == null) return false;
+        string n = t.name;
+        if (n == "Capyta") return true;
+        if (!n.StartsWith("Capyta_")) return false;
+        if (n.Contains("Root")) return false;
+
+        // 親もカピタ個体なら、こちらは子パーツ
+        if (t.parent != null)
+        {
+            string pn = t.parent.name;
+            if (pn == "Capyta" || (pn.StartsWith("Capyta_") && !pn.Contains("Root")))
+                return false;
+        }
+        return true;
+    }
+
+    public void ResetForNewGame()
+    {
+        PlayerPrefs.SetInt(PrefKey, 0);
+        PlayerPrefs.Save();
+        _talkIndex = 0;
+        var player = AdventurePlayerController.Instance
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
+        if (player != null)
+        {
+            player.hasCapytaSuperJump = false;
+            if (Mathf.Approximately(player.jumpMultiplier, SuperJumpMultiplier)
+                || player.jumpMultiplier > 1.01f)
+                player.jumpMultiplier = 1.0f;
+        }
+    }
+
+    /// <summary>AdventureGameDirector のカピタ会話からも呼べる（スーパージャンプ＋油）</summary>
+    public static void GrantSuperJumpFromTalk(bool showFx = true)
+    {
+        Ensure();
+        if (_instance == null) return;
+        _instance.GrantSuperJump(silent: !showFx);
+        _instance.GrantOilFromCapyta(showSpeech: showFx);
+    }
+
+    void GrantSuperJump(bool silent)
+    {
+        var player = AdventurePlayerController.Instance
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
+        if (player == null) return;
+
+        bool already = player.hasCapytaSuperJump;
+        player.hasCapytaSuperJump = true;
+        player.jumpMultiplier = SuperJumpMultiplier;
+        PlayerPrefs.SetInt(PrefKey, 1);
+        PlayerPrefs.Save();
+
+        if (silent) return;
+
+        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        if (!already)
+        {
+            drone?.SpeakCustom(RustFirst[0], 5.5f);
+            AdventureScrapHUD.Instance?.ShowUpgradeBanner(
+                "✦ カピタの祝福 ✦  【スーパージャンプ】獲得！（Spaceで高く跳べる）");
+        }
+    }
+
+    /// <summary>機嫌ロール：普段から多め。機嫌良し〜大盤振る舞いで山盛り。</summary>
+    static void RollMood(out Mood mood, out int amount)
+    {
+        float r = Random.value;
+        // 15% Calm / 35% Happy / 35% Generous / 15% Jackpot
+        if (r < 0.15f)
+        {
+            mood = Mood.Calm;
+            amount = Random.Range(5, 9);       // 5〜8
+        }
+        else if (r < 0.50f)
+        {
+            mood = Mood.Happy;
+            amount = Random.Range(10, 16);     // 10〜15
+        }
+        else if (r < 0.85f)
+        {
+            mood = Mood.Generous;
+            amount = Random.Range(18, 28);     // 18〜27
+        }
+        else
+        {
+            mood = Mood.Jackpot;
+            amount = Random.Range(30, 49);     // 30〜48
+        }
+    }
+
+    static string MoodLabel(Mood mood)
+    {
+        switch (mood)
+        {
+            case Mood.Calm: return "ふつうの機嫌";
+            case Mood.Happy: return "ご機嫌";
+            case Mood.Generous: return "気前よし";
+            default: return "大盤振る舞い！！";
+        }
+    }
+
+    /// <summary>カピタ会話で潤滑油を渡す（機嫌で量変動）</summary>
+    void GrantOilFromCapyta(bool showSpeech = true)
+    {
+        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        if (drone == null) return;
+
+        RollMood(out Mood mood, out int amount);
+        if (_talkIndex == 0)
+            amount = Mathf.Max(amount, 12);
+
+        drone.oilCount = Mathf.Max(0, drone.oilCount) + amount;
+
+        if (!showSpeech)
+        {
+            _talkIndex++;
+            return;
+        }
+
+        int mi = (int)mood;
+        ShowSpeechBubble(CapytaByMood[mi]);
+        drone.SpeakCustom(
+            $"{RustByMood[mi]}（{MoodLabel(mood)}：油 +{amount}／所持: {drone.oilCount}）", 5.2f);
+        AdventureScrapHUD.Instance?.ShowUpgradeBanner(
+            $"✦ カピタの贈り物（{MoodLabel(mood)}）✦  潤滑油 +{amount}（所持: {drone.oilCount}）");
+        _talkIndex++;
+    }
+
+    void Update()
+    {
+        var player = AdventurePlayerController.Resolve();
+        if (player == null)
+        {
+            _promptVisible = false;
+            return;
+        }
+
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null && (tower.IsSkybreakModalActive || tower.IsClimaxOilPromptActive
+            || (tower.IsPlayerNearLever && tower.IsLeverReadyToOpen)))
+        {
+            _promptVisible = false;
+            return;
+        }
+
+        Transform nearest = FindNearestCapyta(player.transform.position, out float dist);
+        if (nearest == null || dist > TalkRadius)
+        {
+            _promptVisible = false;
+            return;
+        }
+
+        _promptVisible = true;
+
+        bool ePressed = player.InteractPressed;
+        var kb = Keyboard.current;
+        if (kb != null && kb.eKey.wasPressedThisFrame) ePressed = true;
+        try { if (Input.GetKeyDown(KeyCode.E)) ePressed = true; } catch { }
+
+        if (ePressed && Time.unscaledTime - _lastTalkTime > 0.45f)
+        {
+            _lastTalkTime = Time.unscaledTime;
+            TalkToCapyta(player, nearest);
+        }
+    }
+
+    void TalkToCapyta(AdventurePlayerController player, Transform capy)
+    {
+        TryPlayCapytaReaction(capy);
+
+        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        bool firstJump = !player.hasCapytaSuperJump;
+
+        if (firstJump)
+            GrantSuperJump(silent: true);
+
+        RollMood(out Mood mood, out int amount);
+        if (firstJump)
+            amount = Mathf.Max(amount, 16);
+
+        if (drone != null)
+            drone.oilCount = Mathf.Max(0, drone.oilCount) + amount;
+
+        int oilNow = drone != null ? drone.oilCount : amount;
+        int mi = (int)mood;
+
+        if (firstJump)
+        {
+            int ci = Random.Range(0, CapytaFirst.Length);
+            int ri = Random.Range(0, RustFirst.Length);
+            ShowSpeechBubble($"{CapytaFirst[ci]}（{MoodLabel(mood)}）");
+            drone?.SpeakCustom(
+                $"{RustFirst[ri]}（{MoodLabel(mood)}：油 +{amount}／所持: {oilNow}）",
+                5.8f);
+            AdventureScrapHUD.Instance?.ShowUpgradeBanner(
+                $"✦ カピタの祝福（{MoodLabel(mood)}）✦  スーパージャンプ＆潤滑油 +{amount}");
+        }
+        else
+        {
+            ShowSpeechBubble(CapytaByMood[mi]);
+            drone?.SpeakCustom(
+                $"{RustByMood[mi]}（{MoodLabel(mood)}：油 +{amount}／所持: {oilNow}）",
+                5.0f);
+            AdventureScrapHUD.Instance?.ShowUpgradeBanner(
+                $"✦ カピタの贈り物（{MoodLabel(mood)}）✦  潤滑油 +{amount}（所持: {oilNow}）");
+        }
+
+        _talkIndex++;
+    }
+
+    static void TryPlayCapytaReaction(Transform capy)
+    {
+        if (capy == null) return;
+        var anim = capy.GetComponentInChildren<Animator>();
+        if (anim == null) return;
+        if (HasState(anim, "CapytaDance"))
+            anim.Play("CapytaDance", 0, 0f);
+        else if (HasState(anim, "CapytaSittingIdleLooksRight"))
+            anim.Play("CapytaSittingIdleLooksRight", 0, 0f);
+    }
+
+    static bool HasState(Animator anim, string stateName)
+    {
+        if (anim == null || anim.runtimeAnimatorController == null) return false;
+        for (int i = 0; i < anim.layerCount; i++)
+        {
+            if (anim.HasState(i, Animator.StringToHash(stateName)))
+                return true;
+        }
+        return false;
+    }
+
+    static void ShowSpeechBubble(string text)
+    {
+        AdventureScrapHUD.Instance?.ShowUpgradeBanner($"カピタ「{text}」");
+    }
+
+    static Transform FindNearestCapyta(Vector3 playerPos, out float bestDist)
+    {
+        bestDist = float.MaxValue;
+        Transform best = null;
+
+        var npcs = Object.FindObjectsByType<AdventureNpc>(FindObjectsSortMode.None);
+        for (int i = 0; i < npcs.Length; i++)
+        {
+            var n = npcs[i];
+            if (n == null) continue;
+            if (n.npcId != "capyta" && n.displayName != "カピタ")
+                continue;
+            float d = FlatDist(playerPos, n.transform.position);
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = n.transform;
+            }
+        }
+
+        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            var t = all[i];
+            if (!IsCapytaInstanceRoot(t)) continue;
+            float d = FlatDist(playerPos, t.position);
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = t;
+            }
+        }
+
+        return best;
+    }
+
+    static float FlatDist(Vector3 a, Vector3 b)
+    {
+        float dx = a.x - b.x;
+        float dz = a.z - b.z;
+        return Mathf.Sqrt(dx * dx + dz * dz);
+    }
+
+    void OnGUI()
+    {
+        if (!_promptVisible) return;
+
+        // 小さめ・半透明（下部セリフを隠さない）
+        float scale = Mathf.Clamp(Screen.height / 720f, 1f, 1.35f);
+        float w = Mathf.Min(440f * scale, Screen.width * 0.58f);
+        float h = 34f * scale;
+        float x = (Screen.width - w) * 0.5f;
+        // セリフ帯（画面下〜約160px）より上に置く
+        float y = Screen.height - (198f * scale);
+        float bar = 2f * scale;
+
+        GUI.color = new Color(0.04f, 0.12f, 0.08f, 0.38f);
+        GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
+        GUI.color = new Color(0.55f, 0.95f, 0.70f, 0.55f);
+        GUI.DrawTexture(new Rect(x, y, w, bar), Texture2D.whiteTexture);
+
+        var style = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = Mathf.RoundToInt(15f * scale),
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter,
+            wordWrap = false
+        };
+        style.normal.textColor = new Color(0.92f, 1f, 0.88f, 0.92f);
+        string tip = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.hasCapytaSuperJump
+            ? "【E】カピタと話す"
+            : "【E】カピタと話す（ジャンプ＆油）";
+        GUI.Label(new Rect(x, y, w, h), tip, style);
+        GUI.color = Color.white;
+    }
+}
