@@ -89,7 +89,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
         lampMat.name = "DriftBox_Lamp";
         lampMat.SetColor("_BaseColor", new Color(1.0f, 0.75f, 0.25f));
         lampMat.EnableKeyword("_EMISSION");
-        lampMat.SetColor("_EmissionColor", new Color(1.0f, 0.75f, 0.25f) * 2.2f);
+        lampMat.SetColor("_EmissionColor", new Color(1.0f, 0.75f, 0.25f) * 3.5f);
 
         var boxes = GetBoxDefinitions();
 
@@ -253,11 +253,11 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
         lamp.name = "SignalLamp";
         lamp.transform.SetParent(boxGo.transform, false);
         lamp.transform.localPosition = new Vector3(0.38f, 0.94f, 0.22f);
-        lamp.transform.localScale = new Vector3(0.12f, 0.12f, 0.12f);
+        lamp.transform.localScale = new Vector3(0.20f, 0.20f, 0.20f);
         lamp.GetComponent<Renderer>().sharedMaterial = lampMat;
         DestroyImmediate(lamp.GetComponent<Collider>());
 
-        // 5. 発見時のスパークルパーティクル
+        // 5. 発見・開封時の華やかなスパークルパーティクル
         var pGo = new GameObject("Sparks");
         pGo.transform.SetParent(boxGo.transform, false);
         pGo.transform.localPosition = new Vector3(0f, 0.5f, 0f);
@@ -265,22 +265,22 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
         var main = ps.main;
         main.playOnAwake = false;
         main.loop = false;
-        main.duration = 1.0f;
-        main.startLifetime = 1.2f;
-        main.startSpeed = 2.5f;
-        main.startSize = 0.12f;
+        main.duration = 1.2f;
+        main.startLifetime = 1.5f;
+        main.startSpeed = 3.2f;
+        main.startSize = 0.16f;
         main.startColor = new Color(1.0f, 0.88f, 0.35f);
 
         var emission = ps.emission;
-        emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 25) });
+        emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 40) });
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.4f;
+        shape.radius = 0.55f;
 
         var pRend = pGo.GetComponent<ParticleSystemRenderer>();
         var pMat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit"));
-        pMat.SetColor("_BaseColor", new Color(1.0f, 0.9f, 0.4f));
+        pMat.SetColor("_BaseColor", new Color(1.0f, 0.92f, 0.45f));
         pRend.sharedMaterial = pMat;
     }
 
