@@ -59,7 +59,7 @@ public class AdventurePlayerController : MonoBehaviour
     string              _clip;
 
     // ─── 定数 ─────────────────────────────────────────────────────────
-    const float Skin                 = 0.15f;
+    const float Skin                 = 0.05f;
     const float StepOffsetGround     = 1.35f;
     const float SteepNormalThreshold = 0.20f;
 
@@ -248,7 +248,9 @@ public class AdventurePlayerController : MonoBehaviour
         _cc.slopeLimit      = 78f;
         _cc.stepOffset      = StepOffsetGround;
         _cc.minMoveDistance = 0f;
-        _cc.skinWidth       = Mathf.Max(_cc.skinWidth, 0.08f);
+        _cc.skinWidth       = 0.035f;
+        _cc.center          = new Vector3(0f, 0.72f, 0f);
+        _cc.height          = 1.50f;
     }
 
     void InitAnimator()
@@ -393,7 +395,7 @@ public class AdventurePlayerController : MonoBehaviour
         if (_glideBoostTimer > 0f)
         {
             // ブースト中でも着地していればタイマーを即キャンセル（宙で止まるバグを防止）
-            if (_cc.isGrounded && _hop <= 0.05f && !TooSteep() && !StandingOnSeafloor())
+            if (_cc.isGrounded && _hop <= 0.05f && !TooSteep())
             {
                 _glideBoostTimer  = 0f;
                 _grounded         = true;
@@ -410,7 +412,7 @@ public class AdventurePlayerController : MonoBehaviour
                 _airborneTime = Mathf.Max(_airborneTime, 1.0f);
             }
         }
-        else if (Floating() || (_cc.isGrounded && _hop <= 0.05f && !TooSteep() && !StandingOnSeafloor()))
+        else if (Floating() || (_cc.isGrounded && _hop <= 0.05f && !TooSteep()))
         {
             if (_hop < 0f) _hop = -0.85f;
             _grounded       = true;
@@ -834,15 +836,19 @@ public class AdventurePlayerController : MonoBehaviour
         }
     }
 
+    /// <summary>遊泳・浮遊時の浸水深度（身長1.55mに対し、足元から約1.05m水に浸かることで胸〜首が水面に出て自然な水泳姿勢になる）</summary>
+    public const float SwimDepth = 1.05f;
+
     float WaterY()
     {
         var bounds = AdventureIslandBoundary.Instance;
         return bounds != null ? bounds.waterLevel : float.NegativeInfinity;
     }
 
-    bool OverWater(Vector3 pos) => GroundY(pos) < WaterY() - 0.2f;
-    bool Floating()             => OverWater(transform.position) && transform.position.y <= WaterY() + 0.45f;
-    bool StandingOnSeafloor()   => OverWater(transform.position) && transform.position.y < WaterY() - 0.05f;
+    // 水深がSwimDepthを超えて足が海底から浮いている状態
+    bool OverWater(Vector3 pos) => GroundY(pos) < WaterY() - SwimDepth;
+    bool Floating()             => OverWater(transform.position) && transform.position.y <= (WaterY() - SwimDepth) + 0.35f;
+    bool StandingOnSeafloor()   => !OverWater(transform.position);
 
     bool TooSteep()
     {
@@ -857,8 +863,16 @@ public class AdventurePlayerController : MonoBehaviour
     void FloatOnWater()
     {
         Vector3 pos = transform.position;
-        if (!OverWater(pos)) return;
-        float surface = WaterY() + Skin;
+        float water = WaterY();
+        if (float.IsNegativeInfinity(water)) return;
+
+        // 水深がSwimDepth未満の浅瀬では、海底をそのまま歩いて水の中へ入れる（海面上へ浮上テレポートさせない）
+        float landY = GroundY(pos);
+        float minSwimFootY = water - SwimDepth;
+        if (landY >= minSwimFootY) return;
+
+        // 深い場所でのみ、水没浮遊限界（minSwimFootY + Skin）でプカプカ浮く
+        float surface = minSwimFootY + Skin;
         if (pos.y > surface) return;
 
         _cc.enabled = false;
@@ -877,7 +891,10 @@ public class AdventurePlayerController : MonoBehaviour
     {
         float landY = GroundY(pos);
         float water = WaterY();
-        float baseY = landY < water ? water : landY;
+        // 水深がSwimDepth未満の浅瀬なら海底(landY)をそのまま歩いて海の中へ入れる
+        // 深い場所でのみ、浮遊限界（water - SwimDepth）を下限とする
+        float minSwimFootY = float.IsNegativeInfinity(water) ? float.NegativeInfinity : (water - SwimDepth);
+        float baseY = landY < minSwimFootY ? minSwimFootY : landY;
 
         // 中央タワー白亜テラスは地形より高い固体床。地形Yへスナップすると台座に埋まる
         float terrace = AdventureSanctuaryTowerManager.GetTerraceSurfaceY(pos);

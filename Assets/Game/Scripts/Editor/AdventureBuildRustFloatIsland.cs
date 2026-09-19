@@ -500,31 +500,49 @@ public static class AdventureBuildRustFloatIsland
                 float nRidge = Mathf.PerlinNoise(wx * 0.009f + 120f, wz * 0.009f + 70f) * 0.14f; // 中規模の丘・尾根
                 float nDetail = Mathf.PerlinNoise(wx * 0.025f + 40f, wz * 0.025f + 40f) * 0.035f; // 細かい起伏
 
-                float height = seaH * 0.4f; // デフォルトは海中
+                float floorH = 2.2f / islandH; // 海底 (2.2m)
+                float height;
+
+                if (d >= 1.06f)
+                {
+                    // 沖合の平坦な海底
+                    height = floorH;
+                }
+                else if (d >= 0.975f)
+                {
+                    // 波打ち際 (d=0.975, 5.5m) から浅瀬〜海底 (d=1.06, 2.2m) への滑らかな遠浅スロープ（段差ゼロ）
+                    float t = Mathf.InverseLerp(0.975f, 1.06f, d);
+                    float s = t * t * (3f - 2f * t);
+                    height = Mathf.Lerp(seaH, floorH, s);
+                }
+                else if (d >= 0.92f)
+                {
+                    // 砂浜渚 (d=0.92, 7.2m) から波打ち際 (d=0.975, 5.5m) への緩やかな砂浜スロープ
+                    float t = Mathf.InverseLerp(0.92f, 0.975f, d);
+                    float s = t * t * (3f - 2f * t);
+                    height = Mathf.Lerp(7.2f / islandH, seaH, s);
+                }
+                else if (d > 0.84f)
+                {
+                    // 広大な白砂ビーチテラス (d=0.84〜0.92, 8.5m → 7.2m)
+                    float t = Mathf.InverseLerp(0.84f, 0.92f, d);
+                    float s = t * t * (3f - 2f * t);
+                    height = Mathf.Lerp(8.5f / islandH, 7.2f / islandH, s);
+                }
+                else
+                {
+                    // 砂浜から内陸の丘陵・高原へ
+                    float tInland = Mathf.InverseLerp(0.84f, 0.0f, d);
+                    height = Mathf.Lerp(8.5f / islandH, 0.28f, Mathf.Pow(tInland, 0.7f));
+                }
+
+                if (d < 1.05f)
+                {
+                    height += (d < 0.86f ? (nBase + nRidge + nDetail) : (nDetail * 0.15f));
+                }
 
                 if (d <= 1.0f)
                 {
-                    // 砂浜から島内部への自然な立ち上がり（d=0.84〜0.96に広大な白砂ビーチテラスを確保）
-                    float beachProfile;
-                    if (d > 0.96f)
-                    {
-                        // 海から波打ち際（5.5m〜6.2m）
-                        beachProfile = Mathf.Lerp(seaH * 0.9f, 6.2f / islandH, Mathf.InverseLerp(1.0f, 0.96f, d));
-                    }
-                    else if (d > 0.84f)
-                    {
-                        // 広大な白砂ビーチ（6.2m〜8.5m、幅約50mのなだらかな砂浜）
-                        float tBeach = Mathf.InverseLerp(0.96f, 0.84f, d);
-                        beachProfile = Mathf.Lerp(6.2f / islandH, 8.5f / islandH, tBeach);
-                    }
-                    else
-                    {
-                        // 砂浜から内陸の丘陵・高原へ
-                        float tInland = Mathf.InverseLerp(0.84f, 0.0f, d);
-                        beachProfile = Mathf.Lerp(8.5f / islandH, 0.28f, Mathf.Pow(tInland, 0.7f));
-                    }
-
-                    height = beachProfile + (d < 0.86f ? (nBase + nRidge + nDetail) : (nDetail * 0.3f));
 
                     // 東部〜北東部：険しい岩山をなくし、広大でなだらかな「緑の丘陵大草原（Rolling Green Hills）」へ（標高22m〜35m）
                     // プレイヤーがどこまでも歩いて駆け抜けられる心地よい起伏
