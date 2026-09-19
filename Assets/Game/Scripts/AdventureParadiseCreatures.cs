@@ -4,24 +4,37 @@ using UnityEngine;
 /// 楽園の生き物たち（カニ、カエル、トンボ）のアニメーション挙動
 /// </summary>
 
-/// <summary>砂浜のカニ（横歩きとハサミ振り）</summary>
+/// <summary>砂浜のカニ（完全接地・傾斜追従・横歩きとハサミ振り）</summary>
 public class CrabWander : MonoBehaviour
 {
-    Vector3 _startPos;
-    float _timer;
-    float _moveDuration = 2f;
-    float _pauseDuration = 1.5f;
-    bool _moving = true;
-    int _dir = 1;
-    Transform _leftClaw;
-    Transform _rightClaw;
+    private Vector3 _startPos;
+    private float _timer;
+    private float _moveDuration = 2f;
+    private float _pauseDuration = 1.5f;
+    private bool _moving = true;
+    private int _dir = 1;
+    private Transform _leftClaw;
+    private Transform _rightClaw;
+    private Terrain _terrain;
+    private float _facingAngle;
+    private const float MaxRadius = 2.2f;
 
     void Start()
     {
+        _terrain = Terrain.activeTerrain;
+        if (_terrain == null)
+        {
+            _terrain = FindFirstObjectByType<Terrain>();
+        }
+
         _startPos = transform.position;
+        _facingAngle = transform.eulerAngles.y;
         _leftClaw = transform.Find("LeftClaw");
         _rightClaw = transform.Find("RightClaw");
         _dir = Random.value > 0.5f ? 1 : -1;
+
+        // 初期位置を地面にピタリと接地
+        SnapToGround();
     }
 
     void Update()
@@ -30,10 +43,31 @@ public class CrabWander : MonoBehaviour
 
         if (_moving)
         {
-            // カサカサと横歩き
-            transform.Translate(Vector3.right * (_dir * 0.45f * Time.deltaTime), Space.Self);
-            // 揺れ
-            transform.localRotation = Quaternion.Euler(0f, transform.localEulerAngles.y, Mathf.Sin(Time.time * 18f) * 3f);
+            // 水平方向（カニの真横）への移動ベクトル
+            Quaternion flatRot = Quaternion.Euler(0f, _facingAngle, 0f);
+            Vector3 rightDir = flatRot * Vector3.right;
+            Vector3 moveDelta = rightDir * (_dir * 0.38f * Time.deltaTime);
+
+            Vector3 nextPos = transform.position + moveDelta;
+
+            // 初期位置から離れすぎた場合、または海深く（y < 5.35m）へ向かった場合は反転
+            float distFromOrigin = Vector2.Distance(new Vector2(nextPos.x, nextPos.z), new Vector2(_startPos.x, _startPos.z));
+            float groundAtNext = GetTerrainHeight(nextPos);
+
+            if (distFromOrigin > MaxRadius || groundAtNext < 5.35f)
+            {
+                _dir *= -1;
+                nextPos = transform.position + rightDir * (_dir * 0.38f * Time.deltaTime);
+            }
+
+            transform.position = nextPos;
+
+            // 毎フレーム地面にピタリと吸着させ、浮遊を完全に防ぐ
+            SnapToGround(isWalking: true);
+
+            // 歩行中もハサミを前に構える
+            if (_leftClaw != null) _leftClaw.localRotation = Quaternion.Euler(6f, -22f, 0f);
+            if (_rightClaw != null) _rightClaw.localRotation = Quaternion.Euler(6f, 22f, 0f);
 
             if (_timer > _moveDuration)
             {
@@ -44,11 +78,16 @@ public class CrabWander : MonoBehaviour
         }
         else
         {
-            // 停止してハサミをチョキチョキ
+            // 停止中も地面に正しく接地
+            SnapToGround(isWalking: false);
+
+            // 停止してハサミをチョキチョキ上下＆開閉
+            float waveL = Mathf.Sin(Time.time * 8f);
+            float waveR = Mathf.Sin(Time.time * 8f + 1.2f);
             if (_leftClaw != null)
-                _leftClaw.localRotation = Quaternion.Euler(Mathf.Sin(Time.time * 8f) * 20f, 0f, 15f);
+                _leftClaw.localRotation = Quaternion.Euler(waveL * 16f, -22f + waveL * 8f, 5f);
             if (_rightClaw != null)
-                _rightClaw.localRotation = Quaternion.Euler(Mathf.Sin(Time.time * 8f + 1f) * 20f, 0f, -15f);
+                _rightClaw.localRotation = Quaternion.Euler(waveR * 16f, 22f - waveR * 8f, -5f);
 
             if (_timer > _pauseDuration)
             {
@@ -59,7 +98,62 @@ public class CrabWander : MonoBehaviour
             }
         }
     }
+
+    private float GetTerrainHeight(Vector3 worldPos)
+    {
+        if (_terrain == null) return worldPos.y;
+        return _terrain.SampleHeight(worldPos) + _terrain.transform.position.y;
+    }
+
+    private void SnapToGround(bool isWalking = false)
+    {
+        Vector3 pos = transform.position;
+        Vector3 groundNormal = Vector3.up;
+        float groundY = pos.y;
+
+        if (_terrain != null && _terrain.terrainData != null)
+        {
+            Vector3 tPos = _terrain.transform.position;
+            Vector3 tSize = _terrain.terrainData.size;
+
+            groundY = _terrain.SampleHeight(pos) + tPos.y;
+
+            float u = Mathf.Clamp01((pos.x - tPos.x) / tSize.x);
+            float v = Mathf.Clamp01((pos.z - tPos.z) / tSize.z);
+            groundNormal = _terrain.terrainData.GetInterpolatedNormal(u, v);
+        }
+        else
+        {
+            // Terrainが直接取れない場合のRaycastフォールバック
+            if (Physics.Raycast(pos + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                groundY = hit.point.y;
+                groundNormal = hit.normal;
+            }
+        }
+
+        // 足の厚みオフセット（0.02m）で白砂にピッタリ接地
+        pos.y = groundY + 0.02f;
+        transform.position = pos;
+
+        // 地形の法線（傾斜）に沿わせつつ、歩行時の細かなカサカサ揺れを加える
+        Vector3 forward = Quaternion.Euler(0f, _facingAngle, 0f) * Vector3.forward;
+        Vector3 right = Vector3.Cross(groundNormal, forward).normalized;
+        Vector3 correctedForward = Vector3.Cross(right, groundNormal).normalized;
+
+        Quaternion targetRot = Quaternion.LookRotation(correctedForward, groundNormal);
+
+        if (isWalking)
+        {
+            // 歩行中の小刻みなカサカサ揺れ
+            float wobble = Mathf.Sin(Time.time * 22f) * 3.5f;
+            targetRot *= Quaternion.Euler(0f, 0f, wobble);
+        }
+
+        transform.rotation = targetRot;
+    }
 }
+
 
 /// <summary>池や小川のカエル（時々ピョンと跳ねる）</summary>
 public class FrogHop : MonoBehaviour

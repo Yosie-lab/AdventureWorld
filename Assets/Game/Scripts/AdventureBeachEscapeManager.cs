@@ -202,13 +202,22 @@ public class AdventureBeachEscapeManager : MonoBehaviour
             float rad = deg * Mathf.Deg2Rad;
             Vector3 dir = new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad)).normalized;
 
-            // 砂浜の波打ち際手前（半径約445m）から内陸の草原（半径約370m）へ向かってウッドデッキ道を敷設
-            Vector3 beachPoint = center + dir * 445f;
+            // 砂浜の安全な白砂（標高 waterY + 0.25m 以上）から内陸の草原へ向かってウッドデッキ道を敷設
+            float r = 445f;
+            if (land != null)
+            {
+                while (r > 380f && (land.SampleHeight(center + dir * r) + land.transform.position.y) < waterY + 0.25f)
+                {
+                    r -= 3f;
+                }
+            }
+
+            Vector3 beachPoint = center + dir * r;
             Vector3 inlandPoint = center + dir * 370f;
 
             if (land != null)
             {
-                beachPoint.y = Mathf.Max(waterY + 0.35f, land.SampleHeight(beachPoint) + land.transform.position.y);
+                beachPoint.y = land.SampleHeight(beachPoint) + land.transform.position.y;
                 inlandPoint.y = land.SampleHeight(inlandPoint) + land.transform.position.y;
             }
             else
@@ -230,7 +239,7 @@ public class AdventureBeachEscapeManager : MonoBehaviour
         float width = 4.2f; // ゆったり広々歩ける幅広ウッドデッキ
         Vector3 totalDir = (inlandPoint - beachPoint);
 
-        // 各セグメントの標高を地形から計算
+        // 各セグメントの標高を地形から計算（空中に浮かさず、地面にぴったり沿わせる）
         Vector3[] points = new Vector3[segments + 1];
         for (int i = 0; i <= segments; i++)
         {
@@ -239,14 +248,16 @@ public class AdventureBeachEscapeManager : MonoBehaviour
             if (land != null)
             {
                 float ty = land.SampleHeight(p) + land.transform.position.y;
-                // 砂浜の端（t=0）は地面に少し埋め込んでスムーズに乗り込めるようにし、中間〜頂上は地面より+0.18m浮かせる
-                float lift = Mathf.Lerp(0.04f, 0.22f, Mathf.Sin(t * Mathf.PI * 0.5f));
-                p.y = Mathf.Max(p.y, ty + lift);
+                // 始点は白砂に先端を少し埋め込んで（-0.08m）段差を完全ゼロにし、スムーズに歩いて乗れるようにする
+                // 中間〜終点は地表+0.08mで地面に沿って美しく敷設
+                float lift = Mathf.Lerp(-0.08f, 0.08f, Mathf.Clamp01(t * 6f));
+                if (t > 0.85f) lift = Mathf.Lerp(0.08f, 0.02f, (t - 0.85f) / 0.15f);
+                p.y = ty + lift;
             }
             points[i] = p;
         }
 
-        // デッキ板（Plank）の配置
+        // デッキ板（Plank）の配置（厚み80cmで地下へ伸ばし、すり抜け・隙間ハマりを完全防止）
         for (int i = 0; i < segments; i++)
         {
             Vector3 p0 = points[i];
@@ -262,9 +273,10 @@ public class AdventureBeachEscapeManager : MonoBehaviour
             var plank = GameObject.CreatePrimitive(PrimitiveType.Cube);
             plank.name = $"Plank_{i}";
             plank.transform.SetParent(rampGo.transform, false);
-            plank.transform.position = center;
+            // 上面高さを維持したまま、下方向へ厚みを持たせて配置
+            plank.transform.position = center - Vector3.up * 0.25f;
             plank.transform.rotation = Quaternion.LookRotation(fwdNorm, Vector3.up);
-            plank.transform.localScale = new Vector3(width, 0.30f, length * 1.04f);
+            plank.transform.localScale = new Vector3(width, 0.80f, length * 1.08f);
 
             var mr = plank.GetComponent<MeshRenderer>();
             if (mr != null) mr.material = _cachedWoodMat;
@@ -284,7 +296,7 @@ public class AdventureBeachEscapeManager : MonoBehaviour
                     if (postMr != null) postMr.material = _cachedPostMat;
 
                     var col = post.GetComponent<Collider>();
-                    if (col != null) col.isTrigger = true; // 歩行の邪魔にならない
+                    if (col != null) Object.DestroyImmediate(col); // プレイヤーの歩行を邪魔しないようコライダー削除
                 }
             }
         }

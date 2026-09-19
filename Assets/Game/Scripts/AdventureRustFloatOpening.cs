@@ -9,6 +9,9 @@ using System.Collections;
 /// </summary>
 public class AdventureRustFloatOpening : MonoBehaviour
 {
+    private static AdventureRustFloatOpening _instance;
+    public static AdventureRustFloatOpening Instance => _instance != null ? _instance : (_instance = FindAnyObjectByType<AdventureRustFloatOpening>());
+
     public static bool IsGameStarted
     {
         get => _isGameStarted;
@@ -117,6 +120,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     void Awake()
     {
+        _instance = this;
         // スクリプト再コンパイル等で Awake が再走っても、進行中なら初期画面に戻さない
         if (ShouldSkipOpeningBoard())
         {
@@ -364,6 +368,15 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         AdventurePrologueDrama.Ensure();
         AdventurePrologueDrama.Instance?.BeginAfterOpening();
+    }
+
+    /// <summary>滑空状態に応じて操作ガイドの文言を動的に切り替える</summary>
+    public void SetGlideGuideActive(bool isGliding)
+    {
+        if (_guideText == null) return;
+        _guideText.text = isGliding
+            ? "【A / D】方向修正　【S】ふわり上昇　【W】ダイブ降下　【Space長押し】滑空"
+            : "【WASD】移動　【マウス / 矢印キー】視点　【Space長押し】崖から滑空　【R】リセット";
     }
 
     void BuildHud()

@@ -76,17 +76,17 @@ public class AdventurePlayerController : MonoBehaviour
     const float CliffBoostDur    = 3.8f;
     const float CliffFwdSpeed    = 10.5f;
 
-    // 滑空フライト定数
-    const float GlideYawRate     = 125f;
-    const float GlideYawRateBoosted = 100f;
-    const float GlideBankAngle   = 22f;
-    const float GlidePitchRateDive = 5.5f;
-    const float GlideInputSmooth = 0.05f;
-    const float GlideYawAccel    = 320f;
-    const float GlideAttitudeSmooth = 0.08f;
-    const float GlideSpeedSmooth = 0.12f;
-    const float AirSteerAccel    = 10f;
-    const float AirSteerMaxSpeed = 4.2f;
+    // 滑空フライト定数（自然な滑空感を保ちつつ、方向修正・昇降が効きやすいチューニング）
+    const float GlideYawRate     = 180f;
+    const float GlideYawRateBoosted = 145f;
+    const float GlideBankAngle   = 24f;
+    const float GlidePitchRateDive = 6.5f;
+    const float GlideInputSmooth = 0.04f;
+    const float GlideYawAccel    = 520f;
+    const float GlideAttitudeSmooth = 0.07f;
+    const float GlideSpeedSmooth = 0.10f;
+    const float AirSteerAccel    = 16f;
+    const float AirSteerMaxSpeed = 5.2f;
     const float AirMomentumBrake = 28f; // 操作なし時の空中水平ブレーキ（秒速減衰）
 
     // 滑空スムージング内部状態
@@ -569,8 +569,12 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>滑空開始瞬間にRustへ通知する</summary>
     void NotifyGlideStart()
     {
-        if (!_wasGliding && _gliding)
-            GetDrone()?.OnGlideStarted();
+        if (_wasGliding != _gliding)
+        {
+            if (!_wasGliding && _gliding)
+                GetDrone()?.OnGlideStarted();
+            AdventureRustFloatOpening.Instance?.SetGlideGuideActive(_gliding);
+        }
         _wasGliding = _gliding;
     }
 
@@ -682,6 +686,17 @@ public class AdventurePlayerController : MonoBehaviour
         // ヨー：目標角速度へ加速／減速（急ハンドルをやわらかく）
         float maxYawRate = isBoosted ? GlideYawRateBoosted : GlideYawRate;
         float desiredYawRate = gIn.x * maxYawRate;
+
+        // カメラ向きへの緩やかな方向アシスト（行きたい方向へ機首がスムーズに導かれる）
+        if (cameraPivot != null && gIn.sqrMagnitude > 0.04f)
+        {
+            float camYaw = cameraPivot.eulerAngles.y;
+            float delta = Mathf.DeltaAngle(transform.eulerAngles.y, camYaw);
+            // 前入力時はカメラ正面へ、横入力時もカメラ向きを考慮して自然にアシスト
+            float assistWeight = Mathf.Clamp01(gIn.y * 0.7f + Mathf.Abs(gIn.x) * 0.4f);
+            desiredYawRate += Mathf.Clamp(delta * 1.8f, -70f, 70f) * assistWeight;
+        }
+
         _glideYawRateCurrent = Mathf.MoveTowards(
             _glideYawRateCurrent, desiredYawRate, GlideYawAccel * dt);
         float currentYaw = transform.eulerAngles.y + _glideYawRateCurrent * dt;
@@ -692,25 +707,26 @@ public class AdventurePlayerController : MonoBehaviour
             _glideRollCurrent, targetRoll, ref _glideRollVel, GlideAttitudeSmooth,
             Mathf.Infinity, dt);
 
-        // ピッチ／速度：W=ダイブ、S=フレア、中央=巡航を連続ブレンド
+        // ピッチ／速度：W=ダイブ急降下、S=フレア緩やか上昇、中央=ふんわり巡航
         float diveT  = Mathf.Clamp01(gIn.y);
         float flareT = Mathf.Clamp01(-gIn.y);
 
-        float cruiseSpeed = (isBoosted ? 11.0f : 7.4f) * moveSpeedMultiplier;
-        float diveSpeed   = (isBoosted ? 15.0f : 11.5f) * moveSpeedMultiplier;
-        float flareSpeed  = (isBoosted ? 8.5f : 4.6f) * moveSpeedMultiplier;
+        float cruiseSpeed = (isBoosted ? 11.5f : 7.6f) * moveSpeedMultiplier;
+        float diveSpeed   = (isBoosted ? 16.0f : 12.0f) * moveSpeedMultiplier;
+        float flareSpeed  = (isBoosted ? 9.0f : 5.2f) * moveSpeedMultiplier;
         float targetSpeed = cruiseSpeed;
         targetSpeed = Mathf.Lerp(targetSpeed, diveSpeed, diveT);
         targetSpeed = Mathf.Lerp(targetSpeed, flareSpeed, flareT);
 
-        float cruiseFall = isBoosted ? 0.2f : -1.15f;
-        float diveFall   = isBoosted ? -0.8f : -2.8f;
-        float flareFall  = isBoosted ? 0.3f : -0.28f;
+        // 高度昇降：Sキーで風に乗ってふわりと上昇(+1.75m/s)、Wキーでしっかりダイブ降下(-3.5m/s)、無入力は穏やかな滞空(-0.60m/s)
+        float cruiseFall = isBoosted ? 0.8f : -0.60f;
+        float diveFall   = isBoosted ? -1.5f : -3.5f;
+        float flareFall  = isBoosted ? 2.8f : 1.75f;
         float targetFall = cruiseFall;
         targetFall = Mathf.Lerp(targetFall, diveFall, diveT);
         targetFall = Mathf.Lerp(targetFall, flareFall, flareT);
 
-        float targetPitch = Mathf.Lerp(0f, 8f, diveT) + Mathf.Lerp(0f, -6f, flareT);
+        float targetPitch = Mathf.Lerp(0f, 10f, diveT) + Mathf.Lerp(0f, -8f, flareT);
         _glidePitchCurrent = Mathf.SmoothDamp(
             _glidePitchCurrent, targetPitch, ref _glidePitchVel, GlideAttitudeSmooth,
             Mathf.Infinity, dt);
@@ -731,6 +747,14 @@ public class AdventurePlayerController : MonoBehaviour
         forwardFlat.Normalize();
 
         Vector3 desiredMom = forwardFlat * Mathf.Max(_glideSpeedCurrent, 0.5f);
+
+        // 左右入力による微小な風切りスライド（ピンポイントの足場位置合わせをアシスト）
+        if (Mathf.Abs(gIn.x) > 0.05f)
+        {
+            Vector3 sideFlat = transform.right.SetY(0f).normalized;
+            desiredMom += sideFlat * (gIn.x * 2.2f);
+        }
+
         _airMomentum = Vector3.SmoothDamp(
             _airMomentum, desiredMom, ref _airMomVel, GlideSpeedSmooth,
             Mathf.Infinity, dt);
@@ -852,6 +876,16 @@ public class AdventurePlayerController : MonoBehaviour
 
     bool TooSteep()
     {
+        // 足元に非Terrainコライダー（木道スロープ・橋・床など）がある場合はTerrain急斜面滑落をバイパス
+        if (Physics.Raycast(transform.position + Vector3.up * 0.5f, Vector3.down, out RaycastHit hit, 1.2f, ~0, QueryTriggerInteraction.Ignore))
+        {
+            if (hit.collider != null && !(hit.collider is TerrainCollider))
+            {
+                // 人工物・スロープの上に立っている場合は、その衝突面の傾斜をチェック（緩やかであれば歩行可能）
+                return hit.normal.y < 0.35f;
+            }
+        }
+
         if (_land == null || _land.terrainData == null) return false;
         Vector3 origin = _land.transform.position;
         Vector3 size   = _land.terrainData.size;
