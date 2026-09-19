@@ -280,6 +280,7 @@ public class AdventurePlayerController : MonoBehaviour
 
     void EnsureAllManagers()
     {
+        AdventureBeachDriftBoxManager.Ensure();
         AdventureIslandBoundary.Ensure();
         AdventureBeachWavesManager.Ensure();
         AdventureCicadaAmbienceManager.Ensure();

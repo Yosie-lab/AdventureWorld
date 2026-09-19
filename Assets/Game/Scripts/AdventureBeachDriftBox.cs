@@ -26,6 +26,16 @@ public class AdventureBeachDriftBox : MonoBehaviour
     private AudioClip _openClip;
     private MaterialPropertyBlock _mpb;
 
+    // ── 発光・視認性演出 ──
+    private Light _pointLight;
+    private Transform _beaconPillar;
+    private ParticleSystem _verticalBeamParticles;
+    private ParticleSystem _idleSparkles;
+    private Transform _glowBillboard;
+    private Material _beaconMat;
+    private Material _glowMat;
+    private Material _particleMat;
+
     // UI関連（シングルトン共有モーダル）
     private static Canvas _modalCanvas;
     private static GameObject _modalPanel;
@@ -56,7 +66,16 @@ public class AdventureBeachDriftBox : MonoBehaviour
         _audioSource.maxDistance = 25f;
         _openClip = CreateChimeSound();
 
+        SetupGlowEffects(lamp);
         EnsureModalUI();
+    }
+
+    void OnDestroy()
+    {
+        // 動的生成マテリアルの安全なメモリ解放
+        if (_beaconMat != null) Destroy(_beaconMat);
+        if (_glowMat != null) Destroy(_glowMat);
+        if (_particleMat != null) Destroy(_particleMat);
     }
 
     void Start()
@@ -67,30 +86,180 @@ public class AdventureBeachDriftBox : MonoBehaviour
         }
         else
         {
-            SetLampColor(new Color(1.0f, 0.65f, 0.15f), 1.6f); // 未開封: オレンジ点滅
+            SetLampColor(new Color(1.0f, 0.70f, 0.20f), 2.5f); // 未開封: 暖色ゴールド発光
         }
     }
 
     void Update()
     {
+        // カメラ向きグロービルボードの姿勢追従
+        if (_glowBillboard != null && Camera.main != null)
+        {
+            _glowBillboard.rotation = Camera.main.transform.rotation;
+        }
+
         if (!isOpened)
         {
+            float t = Time.time;
+
             // 未開封時はランプがゆったりと呼吸点滅
-            float pulse = 1.0f + Mathf.Sin(Time.time * 3.5f) * 0.5f;
-            SetLampColor(new Color(1.0f, 0.65f, 0.15f), pulse * 1.5f);
+            float pulse = 1.0f + Mathf.Sin(t * 3.5f) * 0.45f;
+            SetLampColor(new Color(1.0f, 0.70f, 0.20f), pulse * 2.8f);
+
+            // ポイントライトによる砂浜とチェストの呼吸照光
+            if (_pointLight != null)
+            {
+                _pointLight.intensity = 2.0f + Mathf.Sin(t * 3.5f) * 1.5f;
+                _pointLight.range = 8.5f + Mathf.Sin(t * 3.5f) * 1.5f;
+            }
+
+            // 天空へ昇る光の柱（ライトビーコン）の神秘的な脈動
+            if (_beaconPillar != null)
+            {
+                float bPulse = 1.0f + Mathf.Sin(t * 2.4f) * 0.18f;
+                _beaconPillar.localScale = new Vector3(0.38f * bPulse, 11f, 0.38f * bPulse);
+            }
+
+            // ランプグローの呼吸パルス
+            if (_glowBillboard != null)
+            {
+                _glowBillboard.localScale = Vector3.one * (0.42f + Mathf.Sin(t * 3.5f) * 0.10f);
+            }
 
             // プレイヤー接近判定
             var player = AdventurePlayerController.Instance;
             if (player != null)
             {
                 float dist = Vector3.Distance(transform.position, player.transform.position);
-                if (dist < 2.6f)
+                if (dist < 2.8f)
                 {
                     OpenBox();
                 }
             }
         }
     }
+
+    #region 発光・視認性エフェクト構築
+
+    private void SetupGlowEffects(Transform lamp)
+    {
+        Vector3 lampLocalPos = lamp != null ? lamp.localPosition : new Vector3(0.38f, 0.94f, 0.22f);
+        var smokeTex = AdventureRustDrone.GetSoftSmokeTexture();
+
+        // 1. 周囲をあたたかく照らす自発光ポイントライト
+        var lightGo = new GameObject("DriftBoxPointLight");
+        lightGo.transform.SetParent(transform, false);
+        lightGo.transform.localPosition = lampLocalPos;
+        _pointLight = lightGo.AddComponent<Light>();
+        _pointLight.type = LightType.Point;
+        _pointLight.range = 9.5f;
+        _pointLight.intensity = 2.8f;
+        _pointLight.color = new Color(1.0f, 0.72f, 0.24f);
+        _pointLight.shadows = LightShadows.None;
+
+        // 2. 天空へ伸びる光の柱（ライトビーコン: 高さ約22m）
+        var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        beacon.name = "BeaconPillar";
+        beacon.transform.SetParent(transform, false);
+        beacon.transform.localPosition = lampLocalPos + new Vector3(0f, 11f, 0f);
+        beacon.transform.localScale = new Vector3(0.38f, 11f, 0.38f);
+        Destroy(beacon.GetComponent<Collider>());
+
+        var beaconRend = beacon.GetComponent<Renderer>();
+        if (beaconRend != null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("RustAndFloat/WhiteSmoke")
+                ?? Shader.Find("Sprites/Default");
+            _beaconMat = new Material(shader);
+            _beaconMat.SetTexture("_BaseMap", smokeTex);
+            _beaconMat.SetColor("_BaseColor", new Color(1.0f, 0.82f, 0.35f, 0.55f));
+            _beaconMat.renderQueue = 3150;
+            beaconRend.material = _beaconMat;
+        }
+        _beaconPillar = beacon.transform;
+
+        // 3. 垂直光粒子ビーム（空へ向かって昇る光の粒子）
+        var pShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("RustAndFloat/WhiteSmoke")
+            ?? Shader.Find("Sprites/Default");
+        _particleMat = new Material(pShader);
+        _particleMat.SetTexture("_BaseMap", smokeTex);
+        _particleMat.SetColor("_BaseColor", new Color(1.0f, 0.88f, 0.40f, 2.5f));
+
+        var beamGo = new GameObject("VerticalBeamSparkles");
+        beamGo.transform.SetParent(transform, false);
+        beamGo.transform.localPosition = lampLocalPos;
+        _verticalBeamParticles = beamGo.AddComponent<ParticleSystem>();
+
+        var mainBeam = _verticalBeamParticles.main;
+        mainBeam.loop = true;
+        mainBeam.startLifetime = 2.2f;
+        mainBeam.startSpeed = 8.5f;
+        mainBeam.startSize = 0.26f;
+        mainBeam.startColor = new Color(1.0f, 0.88f, 0.40f, 0.9f);
+        mainBeam.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        var emissionBeam = _verticalBeamParticles.emission;
+        emissionBeam.rateOverTime = 12f;
+
+        var shapeBeam = _verticalBeamParticles.shape;
+        shapeBeam.shapeType = ParticleSystemShapeType.Cone;
+        shapeBeam.angle = 1.5f;
+        shapeBeam.radius = 0.12f;
+        shapeBeam.rotation = new Vector3(-90f, 0f, 0f);
+
+        var rendBeam = beamGo.GetComponent<ParticleSystemRenderer>();
+        if (rendBeam != null) rendBeam.material = _particleMat;
+
+        // 4. 周囲の浮遊スパークル（星くずのゆらめき）
+        var idleGo = new GameObject("IdleSparkles");
+        idleGo.transform.SetParent(transform, false);
+        idleGo.transform.localPosition = new Vector3(0f, 0.5f, 0f);
+        _idleSparkles = idleGo.AddComponent<ParticleSystem>();
+
+        var mainIdle = _idleSparkles.main;
+        mainIdle.loop = true;
+        mainIdle.startLifetime = 2.0f;
+        mainIdle.startSpeed = 0.28f;
+        mainIdle.startSize = 0.18f;
+        mainIdle.startColor = new Color(1.0f, 0.82f, 0.30f, 0.85f);
+        mainIdle.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        var emissionIdle = _idleSparkles.emission;
+        emissionIdle.rateOverTime = 10f;
+
+        var shapeIdle = _idleSparkles.shape;
+        shapeIdle.shapeType = ParticleSystemShapeType.Sphere;
+        shapeIdle.radius = 0.95f;
+
+        var rendIdle = idleGo.GetComponent<ParticleSystemRenderer>();
+        if (rendIdle != null) rendIdle.material = _particleMat;
+
+        // 5. アンテナランプのソフトグロービルボード
+        var glowQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        glowQuad.name = "LampGlowBillboard";
+        glowQuad.transform.SetParent(transform, false);
+        glowQuad.transform.localPosition = lampLocalPos;
+        glowQuad.transform.localScale = Vector3.one * 0.45f;
+        Destroy(glowQuad.GetComponent<Collider>());
+
+        var glowRend = glowQuad.GetComponent<Renderer>();
+        if (glowRend != null)
+        {
+            var gShader = Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("RustAndFloat/WhiteSmoke")
+                ?? Shader.Find("Sprites/Default");
+            _glowMat = new Material(gShader);
+            _glowMat.SetTexture("_BaseMap", smokeTex);
+            _glowMat.SetColor("_BaseColor", new Color(1.0f, 0.78f, 0.25f, 0.85f));
+            _glowMat.renderQueue = 3160;
+            glowRend.material = _glowMat;
+        }
+        _glowBillboard = glowQuad.transform;
+    }
+
+    #endregion
 
     public void OpenBox()
     {
@@ -132,13 +301,33 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     private IEnumerator AnimateOpen()
     {
-        // ランプを爽やかなエメラルドグリーンに切り替え
+        // ランプとポイントライトを爽やかなエメラルドグリーンに切り替え
         SetLampColor(new Color(0.2f, 1.0f, 0.6f), 2.2f);
+        if (_pointLight != null)
+        {
+            _pointLight.color = new Color(0.25f, 1.0f, 0.65f);
+            _pointLight.intensity = 1.6f;
+            _pointLight.range = 5.5f;
+        }
+        if (_glowMat != null)
+        {
+            _glowMat.SetColor("_BaseColor", new Color(0.25f, 1.0f, 0.65f, 0.70f));
+        }
 
-        // パーティクル演出
+        // アイドルスパークル＆垂直ビームの停止
+        if (_idleSparkles != null) _idleSparkles.Stop();
+        if (_verticalBeamParticles != null) _verticalBeamParticles.Stop();
+
+        // 開封祝祭パーティクル演出
         if (_particles != null)
         {
             _particles.Play();
+        }
+
+        // ビーコン光柱を滑らかにフェードアウト・縮小
+        if (_beaconPillar != null)
+        {
+            StartCoroutine(FadeOutBeacon());
         }
 
         // 蓋がパカッと後方へ95度開く
@@ -162,6 +351,36 @@ public class AdventureBeachDriftBox : MonoBehaviour
         }
     }
 
+    private IEnumerator FadeOutBeacon()
+    {
+        if (_beaconPillar == null) yield break;
+        Vector3 startScale = _beaconPillar.localScale;
+        float elapsed = 0f;
+        float dur = 0.55f;
+        Color c = _beaconMat != null ? _beaconMat.GetColor("_BaseColor") : Color.white;
+
+        while (elapsed < dur)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / dur;
+            if (_beaconPillar != null)
+            {
+                _beaconPillar.localScale = Vector3.Lerp(startScale, new Vector3(0f, startScale.y, 0f), t);
+            }
+            if (_beaconMat != null)
+            {
+                Color cur = c;
+                cur.a = Mathf.Lerp(c.a, 0f, t);
+                _beaconMat.SetColor("_BaseColor", cur);
+            }
+            yield return null;
+        }
+        if (_beaconPillar != null)
+        {
+            _beaconPillar.gameObject.SetActive(false);
+        }
+    }
+
     private void ApplyOpenedStateImmediate()
     {
         if (_lid != null)
@@ -169,6 +388,28 @@ public class AdventureBeachDriftBox : MonoBehaviour
             _lid.localRotation = Quaternion.Euler(-95f, 0f, 0f);
         }
         SetLampColor(new Color(0.2f, 1.0f, 0.6f), 1.2f); // 開封済み: 落ち着いた緑
+        if (_pointLight != null)
+        {
+            _pointLight.color = new Color(0.25f, 1.0f, 0.65f);
+            _pointLight.intensity = 1.2f;
+            _pointLight.range = 4.5f;
+        }
+        if (_beaconPillar != null)
+        {
+            _beaconPillar.gameObject.SetActive(false);
+        }
+        if (_verticalBeamParticles != null)
+        {
+            _verticalBeamParticles.gameObject.SetActive(false);
+        }
+        if (_idleSparkles != null)
+        {
+            _idleSparkles.gameObject.SetActive(false);
+        }
+        if (_glowMat != null)
+        {
+            _glowMat.SetColor("_BaseColor", new Color(0.25f, 1.0f, 0.65f, 0.50f));
+        }
     }
 
     private void SetLampColor(Color c, float intensity)
