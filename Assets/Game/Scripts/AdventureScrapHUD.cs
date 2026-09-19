@@ -92,7 +92,7 @@ public class AdventureScrapHUD : MonoBehaviour
         _questPanelRt.anchorMax = new Vector2(0f, 1f);
         _questPanelRt.pivot = new Vector2(0f, 1f);
         _questPanelRt.anchoredPosition = new Vector2(24f, -24f); // 画面左上にゆったり配置
-        _questPanelRt.sizeDelta = new Vector2(390f, 56f);
+        _questPanelRt.sizeDelta = new Vector2(460f, 58f); // 20ptポイント表示にも対応したゆったりサイズ
 
         // どんな背景でもクッキリ読める半透明ダーク背景プレート
         var panelBg = panelGo.AddComponent<Image>();
@@ -390,47 +390,51 @@ public class AdventureScrapHUD : MonoBehaviour
         }
 
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        int totalPts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
+        bool leverUnlocked = scrapMgr != null && scrapMgr.IsLeverUnlocked;
 
         // 1行目：現在のメイン目標
         string goalText;
-        if (count < 3)
-            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>漂着パーツ回収</b></color> <color=#00E5FF><b>({count}/3)</b></color>";
-        else if (count < 6)
-            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>反重力コア回収</b></color> <color=#00E5FF><b>({count}/6)</b></color> <color=#FFD54F>▶ 二段ジャンプ解放</color>";
-        else if (count < 9)
-            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>探知ソナー修復</b></color> <color=#00E5FF><b>({count}/9)</b></color> <color=#FFD54F>▶ レーダー解放</color>";
-        else if (count < 12)
-            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>スーパーグライダー完成</b></color> <color=#00E5FF><b>({count}/12)</b></color>";
-        else if (AdventureSanctuaryTowerManager.IsGameCleared)
+        if (AdventureSanctuaryTowerManager.IsGameCleared)
             goalText = "<color=#FFE066><b>✦ GAME CLEAR！</b></color> <color=#FFFFFF>箱庭からの脱獄達成！</color>";
-        else if (!AdventureSanctuaryTowerManager.IsCanopyBroken)
-            goalText = "<color=#00E5FF><b>✦ 全パーツ回収完了！</b></color> <color=#FFFFFF>中央タワーの黄金レバーへ</color>";
-        else
+        else if (AdventureSanctuaryTowerManager.IsCanopyBroken)
             goalText = "<color=#FFD700><b>✦ 天蓋崩壊！</b></color> <color=#FFFFFF>光の柱から空の裂け目へダイブ！</color>";
+        else if (leverUnlocked)
+            goalText = $"<color=#00E5FF><b>✦ レバーロック解除！</b></color> <color=#FFFFFF>中央タワーの黄金レバーへ</color> <color=#FFE066><b>({totalPts}/20 pt)</b></color>";
+        else if (count < 3)
+            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>パーツ回収</b></color> <color=#00E5FF><b>({count}/3)</b></color> <color=#FFE066><b>(計 {totalPts}/20 pt)</b></color>";
+        else if (count < 6)
+            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>反重力コア</b></color> <color=#00E5FF><b>({count}/6)</b></color> <color=#FFD54F>▶ 2段ジャンプ</color> <color=#FFE066><b>({totalPts}/20 pt)</b></color>";
+        else if (count < 9)
+            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>探知ソナー</b></color> <color=#00E5FF><b>({count}/9)</b></color> <color=#FFD54F>▶ レーダー</color> <color=#FFE066><b>({totalPts}/20 pt)</b></color>";
+        else if (count < 12)
+            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>グライダー完成</b></color> <color=#00E5FF><b>({count}/12)</b></color> <color=#FFE066><b>({totalPts}/20 pt)</b></color>";
+        else
+            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>ケースやピアノでポイント獲得</b></color> <color=#FFE066><b>({totalPts}/20 pt)</b></color>";
 
-        // 2行目：最寄りパーツ探知（方角と距離）
+        // 2行目：最寄りパーツ探知（方角と距離）またはレバー誘導
         string subInfo = "";
         var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
-        if (player != null && scrapMgr != null && count < 12)
+        if (player != null && !leverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken)
         {
-            var nearest = scrapMgr.GetNearestScrapItem(player.transform.position, out float dist);
+            var nearest = scrapMgr != null ? scrapMgr.GetNearestScrapItem(player.transform.position, out float dist) : null;
             if (nearest != null)
             {
                 Vector3 diff = nearest.transform.position - player.transform.position;
                 var (cardinal, hint) = GetDirectionParts(diff);
-                subInfo = $"<color=#80D8FF><b>📍 最寄り:</b></color> <color=#FFEB3B><b>{cardinal}</b></color><color=#ECEFF1>（{hint}）</color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color>";
+                subInfo = $"<color=#80D8FF><b>📍 最寄りパーツ:</b></color> <color=#FFEB3B><b>{cardinal}</b></color><color=#ECEFF1>（{hint}）</color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color>";
             }
             else
             {
-                subInfo = "<color=#B0BEC5>📍 最寄りのパーツを探知中…</color>";
+                subInfo = "<color=#B0BEC5>📍 漂着パーツ(1pt)・ケース(2pt)・ピアノ(3pt)を集めよう！</color>";
             }
         }
-        else if (count >= 12 && !AdventureSanctuaryTowerManager.IsCanopyBroken)
+        else if (leverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken)
         {
             var tower = AdventureSanctuaryTowerManager.Instance;
             if (tower != null && tower.IsPlayerNearLever)
             {
-                subInfo = "<size=24><color=#FFE066><b>✨ 【Eキー】で天蓋開放レバーを作動！</b></color></size> <color=#80D8FF>（タワー四方の黄金レバー）</color>";
+                subInfo = "<size=24><color=#FFE066><b>✨ 【Eキー】で巨大真鍮レバーを引く！</b></color></size> <color=#80D8FF>（天蓋開放開始）</color>";
             }
             else if (player != null)
             {
@@ -438,11 +442,11 @@ public class AdventureScrapHUD : MonoBehaviour
                 Vector3 diff = towerCenter - player.transform.position;
                 var (cardinal, hint) = GetDirectionParts(diff);
                 float dist = Vector3.Distance(player.transform.position, towerCenter);
-                subInfo = $"<color=#80D8FF><b>📍 目標:</b></color> <color=#FFEB3B><b>中央タワー白亜テラス（{cardinal}）</b></color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color> <color=#80D8FF>【四方に黄金レバーあり】</color>";
+                subInfo = $"<color=#80D8FF><b>📍 レバー解除済:</b></color> <color=#FFEB3B><b>中央タワー白亜テラス（{cardinal}）</b></color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color> <color=#80D8FF>【レバーを引いて天蓋開放】</color>";
             }
             else
             {
-                subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFEB3B><b>中央タワー白亜テラスの黄金レバー</b></color>";
+                subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFEB3B><b>中央タワー白亜テラスの巨大真鍮レバー</b></color>";
             }
         }
         else if (count >= 12 && AdventureSanctuaryTowerManager.IsGameCleared)

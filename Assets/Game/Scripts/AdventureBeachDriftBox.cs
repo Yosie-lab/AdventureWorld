@@ -19,6 +19,26 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     public bool isOpened = false;
 
+    // ── パラメータ定数 ──
+    private static class VisualConfig
+    {
+        public static readonly Color UnopenedGold = new Color(1.0f, 0.70f, 0.20f);
+        public static readonly Color OpenedEmerald = new Color(0.20f, 1.0f, 0.60f);
+        public static readonly Color OpenedLightColor = new Color(0.25f, 1.0f, 0.65f);
+
+        public const float TriggerDistance = 2.8f;
+        public const float LightRangeUnopenedBase = 8.5f;
+        public const float LightRangeUnopenedPulse = 1.5f;
+        public const float LightIntensityUnopenedBase = 2.0f;
+        public const float LightIntensityUnopenedPulse = 1.5f;
+
+        public const float LightRangeOpened = 5.0f;
+        public const float LightIntensityOpened = 1.4f;
+
+        public const float BeaconHeight = 22f;
+        public const float BeaconRadius = 0.38f;
+    }
+
     private Transform _lid;
     private Renderer _lampRenderer;
     private ParticleSystem _particles;
@@ -35,6 +55,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
     private Material _beaconMat;
     private Material _glowMat;
     private Material _particleMat;
+    private Coroutine _beaconFadeCoroutine;
 
     // UI関連（シングルトン共有モーダル）
     private static Canvas _modalCanvas;
@@ -80,14 +101,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     void Start()
     {
-        if (isOpened)
-        {
-            ApplyOpenedStateImmediate();
-        }
-        else
-        {
-            SetLampColor(new Color(1.0f, 0.70f, 0.20f), 2.5f); // 未開封: 暖色ゴールド発光
-        }
+        ApplyVisualState(isOpened, immediate: true);
     }
 
     void Update()
@@ -100,51 +114,67 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
         if (!isOpened)
         {
-            float t = Time.time;
+            UpdateUnopenedPulses();
+            CheckPlayerProximity();
+        }
+    }
 
-            // 未開封時はランプがゆったりと呼吸点滅
-            float pulse = 1.0f + Mathf.Sin(t * 3.5f) * 0.45f;
-            SetLampColor(new Color(1.0f, 0.70f, 0.20f), pulse * 2.8f);
+    private void UpdateUnopenedPulses()
+    {
+        float t = Time.time;
 
-            // ポイントライトによる砂浜とチェストの呼吸照光
-            if (_pointLight != null)
+        // ランプの呼吸点滅
+        float pulse = 1.0f + Mathf.Sin(t * 3.5f) * 0.45f;
+        SetLampColor(VisualConfig.UnopenedGold, pulse * 2.8f);
+
+        // ポイントライトによる砂浜とチェストの呼吸照光
+        if (_pointLight != null)
+        {
+            _pointLight.intensity = VisualConfig.LightIntensityUnopenedBase + Mathf.Sin(t * 3.5f) * VisualConfig.LightIntensityUnopenedPulse;
+            _pointLight.range = VisualConfig.LightRangeUnopenedBase + Mathf.Sin(t * 3.5f) * VisualConfig.LightRangeUnopenedPulse;
+        }
+
+        // 天空へ昇る光の柱（ライトビーコン）の神秘的な脈動
+        if (_beaconPillar != null)
+        {
+            float bPulse = 1.0f + Mathf.Sin(t * 2.4f) * 0.18f;
+            _beaconPillar.localScale = new Vector3(VisualConfig.BeaconRadius * bPulse, VisualConfig.BeaconHeight * 0.5f, VisualConfig.BeaconRadius * bPulse);
+        }
+
+        // ランプグローの呼吸パルス
+        if (_glowBillboard != null)
+        {
+            _glowBillboard.localScale = Vector3.one * (0.42f + Mathf.Sin(t * 3.5f) * 0.10f);
+        }
+    }
+
+    private void CheckPlayerProximity()
+    {
+        var player = AdventurePlayerController.Instance;
+        if (player != null)
+        {
+            float dist = Vector3.Distance(transform.position, player.transform.position);
+            if (dist < VisualConfig.TriggerDistance)
             {
-                _pointLight.intensity = 2.0f + Mathf.Sin(t * 3.5f) * 1.5f;
-                _pointLight.range = 8.5f + Mathf.Sin(t * 3.5f) * 1.5f;
-            }
-
-            // 天空へ昇る光の柱（ライトビーコン）の神秘的な脈動
-            if (_beaconPillar != null)
-            {
-                float bPulse = 1.0f + Mathf.Sin(t * 2.4f) * 0.18f;
-                _beaconPillar.localScale = new Vector3(0.38f * bPulse, 11f, 0.38f * bPulse);
-            }
-
-            // ランプグローの呼吸パルス
-            if (_glowBillboard != null)
-            {
-                _glowBillboard.localScale = Vector3.one * (0.42f + Mathf.Sin(t * 3.5f) * 0.10f);
-            }
-
-            // プレイヤー接近判定
-            var player = AdventurePlayerController.Instance;
-            if (player != null)
-            {
-                float dist = Vector3.Distance(transform.position, player.transform.position);
-                if (dist < 2.8f)
-                {
-                    OpenBox();
-                }
+                OpenBox();
             }
         }
     }
 
     #region 発光・視認性エフェクト構築
 
+    private static Shader GetSafeUnlitShader()
+    {
+        return Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("RustAndFloat/WhiteSmoke")
+            ?? Shader.Find("Sprites/Default");
+    }
+
     private void SetupGlowEffects(Transform lamp)
     {
         Vector3 lampLocalPos = lamp != null ? lamp.localPosition : new Vector3(0.38f, 0.94f, 0.22f);
         var smokeTex = AdventureRustDrone.GetSoftSmokeTexture();
+        var unlitShader = GetSafeUnlitShader();
 
         // 1. 周囲をあたたかく照らす自発光ポイントライト
         var lightGo = new GameObject("DriftBoxPointLight");
@@ -152,26 +182,23 @@ public class AdventureBeachDriftBox : MonoBehaviour
         lightGo.transform.localPosition = lampLocalPos;
         _pointLight = lightGo.AddComponent<Light>();
         _pointLight.type = LightType.Point;
-        _pointLight.range = 9.5f;
-        _pointLight.intensity = 2.8f;
-        _pointLight.color = new Color(1.0f, 0.72f, 0.24f);
+        _pointLight.range = VisualConfig.LightRangeUnopenedBase;
+        _pointLight.intensity = VisualConfig.LightIntensityUnopenedBase;
+        _pointLight.color = VisualConfig.UnopenedGold;
         _pointLight.shadows = LightShadows.None;
 
-        // 2. 天空へ伸びる光の柱（ライトビーコン: 高さ約22m）
+        // 2. 天空へ伸びる光の柱（ライトビーコン）
         var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         beacon.name = "BeaconPillar";
         beacon.transform.SetParent(transform, false);
-        beacon.transform.localPosition = lampLocalPos + new Vector3(0f, 11f, 0f);
-        beacon.transform.localScale = new Vector3(0.38f, 11f, 0.38f);
+        beacon.transform.localPosition = lampLocalPos + new Vector3(0f, VisualConfig.BeaconHeight * 0.5f, 0f);
+        beacon.transform.localScale = new Vector3(VisualConfig.BeaconRadius, VisualConfig.BeaconHeight * 0.5f, VisualConfig.BeaconRadius);
         Destroy(beacon.GetComponent<Collider>());
 
         var beaconRend = beacon.GetComponent<Renderer>();
         if (beaconRend != null)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Unlit")
-                ?? Shader.Find("RustAndFloat/WhiteSmoke")
-                ?? Shader.Find("Sprites/Default");
-            _beaconMat = new Material(shader);
+            _beaconMat = new Material(unlitShader);
             _beaconMat.SetTexture("_BaseMap", smokeTex);
             _beaconMat.SetColor("_BaseColor", new Color(1.0f, 0.82f, 0.35f, 0.55f));
             _beaconMat.renderQueue = 3150;
@@ -180,9 +207,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         _beaconPillar = beacon.transform;
 
         // 3. 垂直光粒子ビーム（空へ向かって昇る光の粒子）
-        var pShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-            ?? Shader.Find("RustAndFloat/WhiteSmoke")
-            ?? Shader.Find("Sprites/Default");
+        var pShader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? unlitShader;
         _particleMat = new Material(pShader);
         _particleMat.SetTexture("_BaseMap", smokeTex);
         _particleMat.SetColor("_BaseColor", new Color(1.0f, 0.88f, 0.40f, 2.5f));
@@ -247,10 +272,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var glowRend = glowQuad.GetComponent<Renderer>();
         if (glowRend != null)
         {
-            var gShader = Shader.Find("Universal Render Pipeline/Unlit")
-                ?? Shader.Find("RustAndFloat/WhiteSmoke")
-                ?? Shader.Find("Sprites/Default");
-            _glowMat = new Material(gShader);
+            _glowMat = new Material(unlitShader);
             _glowMat.SetTexture("_BaseMap", smokeTex);
             _glowMat.SetColor("_BaseColor", new Color(1.0f, 0.78f, 0.25f, 0.85f));
             _glowMat.renderQueue = 3160;
@@ -260,6 +282,76 @@ public class AdventureBeachDriftBox : MonoBehaviour
     }
 
     #endregion
+
+    /// <summary>
+    /// 開封・未開封のビジュアル状態を一元適用
+    /// </summary>
+    private void ApplyVisualState(bool opened, bool immediate)
+    {
+        if (opened)
+        {
+            if (immediate && _lid != null)
+            {
+                _lid.localRotation = Quaternion.Euler(-95f, 0f, 0f);
+            }
+
+            SetLampColor(VisualConfig.OpenedEmerald, immediate ? 1.2f : 2.2f);
+
+            if (_pointLight != null)
+            {
+                _pointLight.color = VisualConfig.OpenedLightColor;
+                _pointLight.intensity = VisualConfig.LightIntensityOpened;
+                _pointLight.range = VisualConfig.LightRangeOpened;
+            }
+
+            if (_glowMat != null)
+            {
+                _glowMat.SetColor("_BaseColor", new Color(0.25f, 1.0f, 0.65f, immediate ? 0.50f : 0.70f));
+            }
+
+            // アイドルスパークル＆垂直ビームの停止
+            if (_idleSparkles != null)
+            {
+                if (immediate) _idleSparkles.gameObject.SetActive(false);
+                else _idleSparkles.Stop();
+            }
+
+            if (_verticalBeamParticles != null)
+            {
+                if (immediate) _verticalBeamParticles.gameObject.SetActive(false);
+                else _verticalBeamParticles.Stop();
+            }
+
+            // ビーコン光柱の処理
+            if (_beaconPillar != null)
+            {
+                if (immediate)
+                {
+                    _beaconPillar.gameObject.SetActive(false);
+                }
+                else
+                {
+                    if (_beaconFadeCoroutine != null) StopCoroutine(_beaconFadeCoroutine);
+                    _beaconFadeCoroutine = StartCoroutine(FadeOutBeacon());
+                }
+            }
+        }
+        else
+        {
+            SetLampColor(VisualConfig.UnopenedGold, 2.5f);
+
+            if (_pointLight != null)
+            {
+                _pointLight.color = VisualConfig.UnopenedGold;
+                _pointLight.intensity = VisualConfig.LightIntensityUnopenedBase;
+                _pointLight.range = VisualConfig.LightRangeUnopenedBase;
+            }
+
+            if (_beaconPillar != null) _beaconPillar.gameObject.SetActive(true);
+            if (_verticalBeamParticles != null) _verticalBeamParticles.gameObject.SetActive(true);
+            if (_idleSparkles != null) _idleSparkles.gameObject.SetActive(true);
+        }
+    }
 
     public void OpenBox()
     {
@@ -278,6 +370,13 @@ public class AdventureBeachDriftBox : MonoBehaviour
             _audioSource.PlayOneShot(_openClip, 0.85f);
         }
 
+        // 総合探索ポイント（+2 pt）加算とレバーロック解除チェック
+        var scrapMgr = AdventureScrapManager.Instance;
+        if (scrapMgr != null)
+        {
+            scrapMgr.OnDriftBoxOpened(boxId, boxTitle);
+        }
+
         // 相棒Rustのセリフ
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null && !string.IsNullOrEmpty(rustDialogue))
@@ -285,14 +384,13 @@ public class AdventureBeachDriftBox : MonoBehaviour
             drone.SpeakCustom(rustDialogue, 6.0f);
         }
 
-        // クエストティッカーの更新
-        if (!string.IsNullOrEmpty(nextObjective))
+        // クエストティッカーの更新（+2 pt 獲得と現在ポイント）
+        var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
+        if (hud != null)
         {
-            var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
-            if (hud != null)
-            {
-                hud.ShowUpgradeBanner($"📦 【{boxTitle}】を発見！\n💡 目標: {nextObjective}");
-            }
+            int pts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
+            string objText = !string.IsNullOrEmpty(nextObjective) ? $"\n💡 目標: {nextObjective}" : "";
+            hud.ShowUpgradeBanner($"📦 【{boxTitle}】を開封！ (+2 pt)\n✦ 探索ポイント: {pts} / {AdventureScrapManager.RequiredPointsForCanopy} pt{objText}");
         }
 
         // 情報モーダルUIの表示
@@ -301,33 +399,13 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     private IEnumerator AnimateOpen()
     {
-        // ランプとポイントライトを爽やかなエメラルドグリーンに切り替え
-        SetLampColor(new Color(0.2f, 1.0f, 0.6f), 2.2f);
-        if (_pointLight != null)
-        {
-            _pointLight.color = new Color(0.25f, 1.0f, 0.65f);
-            _pointLight.intensity = 1.6f;
-            _pointLight.range = 5.5f;
-        }
-        if (_glowMat != null)
-        {
-            _glowMat.SetColor("_BaseColor", new Color(0.25f, 1.0f, 0.65f, 0.70f));
-        }
-
-        // アイドルスパークル＆垂直ビームの停止
-        if (_idleSparkles != null) _idleSparkles.Stop();
-        if (_verticalBeamParticles != null) _verticalBeamParticles.Stop();
+        // ビジュアルを開封状態へ移行（演出付き）
+        ApplyVisualState(opened: true, immediate: false);
 
         // 開封祝祭パーティクル演出
         if (_particles != null)
         {
             _particles.Play();
-        }
-
-        // ビーコン光柱を滑らかにフェードアウト・縮小
-        if (_beaconPillar != null)
-        {
-            StartCoroutine(FadeOutBeacon());
         }
 
         // 蓋がパカッと後方へ95度開く
@@ -378,37 +456,6 @@ public class AdventureBeachDriftBox : MonoBehaviour
         if (_beaconPillar != null)
         {
             _beaconPillar.gameObject.SetActive(false);
-        }
-    }
-
-    private void ApplyOpenedStateImmediate()
-    {
-        if (_lid != null)
-        {
-            _lid.localRotation = Quaternion.Euler(-95f, 0f, 0f);
-        }
-        SetLampColor(new Color(0.2f, 1.0f, 0.6f), 1.2f); // 開封済み: 落ち着いた緑
-        if (_pointLight != null)
-        {
-            _pointLight.color = new Color(0.25f, 1.0f, 0.65f);
-            _pointLight.intensity = 1.2f;
-            _pointLight.range = 4.5f;
-        }
-        if (_beaconPillar != null)
-        {
-            _beaconPillar.gameObject.SetActive(false);
-        }
-        if (_verticalBeamParticles != null)
-        {
-            _verticalBeamParticles.gameObject.SetActive(false);
-        }
-        if (_idleSparkles != null)
-        {
-            _idleSparkles.gameObject.SetActive(false);
-        }
-        if (_glowMat != null)
-        {
-            _glowMat.SetColor("_BaseColor", new Color(0.25f, 1.0f, 0.65f, 0.50f));
         }
     }
 
@@ -473,7 +520,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         overlayBtn.transition = Selectable.Transition.None;
         overlayBtn.onClick.AddListener(CloseModal);
 
-        // メインパネル（クリックが背後へ突き抜けないようにRaycastTargetを持つ）
+        // メインパネル
         _modalPanel = new GameObject("ModalPanel");
         _modalPanel.transform.SetParent(overlay.transform, false);
         var panelImg = _modalPanel.AddComponent<Image>();
@@ -483,51 +530,61 @@ public class AdventureBeachDriftBox : MonoBehaviour
         panelRt.anchoredPosition = Vector2.zero;
 
         // パネルの外枠（金色の飾り枠）
-        var outline = _modalPanel.AddComponent<Outline>();
-        outline.effectColor = new Color(0.85f, 0.72f, 0.40f, 0.85f);
-        outline.effectDistance = new Vector2(2, -2);
+        AddOutline(_modalPanel, new Color(0.85f, 0.72f, 0.40f, 0.85f), new Vector2(2, -2));
 
         // アイコン＆タイトル
-        var titleGo = new GameObject("TitleText");
-        titleGo.transform.SetParent(_modalPanel.transform, false);
-        _modalTitleText = titleGo.AddComponent<Text>();
-        _modalTitleText.font = defaultFont;
-        _modalTitleText.fontSize = 26;
-        _modalTitleText.fontStyle = FontStyle.Bold;
-        _modalTitleText.color = new Color(1.0f, 0.88f, 0.45f);
-        _modalTitleText.alignment = TextAnchor.MiddleCenter;
-        var titleRt = titleGo.GetComponent<RectTransform>();
-        titleRt.anchoredPosition = new Vector2(0, 160);
-        titleRt.sizeDelta = new Vector2(600, 50);
+        _modalTitleText = CreateTextElement(_modalPanel.transform, "TitleText", defaultFont, 26,
+            new Color(1.0f, 0.88f, 0.45f), FontStyle.Bold, TextAnchor.MiddleCenter,
+            new Vector2(0, 160), new Vector2(600, 50));
 
         // 差出人／記録者
-        var authorGo = new GameObject("AuthorText");
-        authorGo.transform.SetParent(_modalPanel.transform, false);
-        _modalAuthorText = authorGo.AddComponent<Text>();
-        _modalAuthorText.font = defaultFont;
-        _modalAuthorText.fontSize = 17;
-        _modalAuthorText.color = new Color(0.65f, 0.75f, 0.85f);
-        _modalAuthorText.alignment = TextAnchor.MiddleCenter;
-        var authorRt = authorGo.GetComponent<RectTransform>();
-        authorRt.anchoredPosition = new Vector2(0, 120);
-        authorRt.sizeDelta = new Vector2(600, 30);
+        _modalAuthorText = CreateTextElement(_modalPanel.transform, "AuthorText", defaultFont, 17,
+            new Color(0.65f, 0.75f, 0.85f), FontStyle.Normal, TextAnchor.MiddleCenter,
+            new Vector2(0, 120), new Vector2(600, 30));
 
-        // 本文（広々としたメッセージ）
-        var bodyGo = new GameObject("BodyText");
-        bodyGo.transform.SetParent(_modalPanel.transform, false);
-        _modalBodyText = bodyGo.AddComponent<Text>();
-        _modalBodyText.font = defaultFont;
-        _modalBodyText.fontSize = 20;
-        _modalBodyText.lineSpacing = 1.35f;
-        _modalBodyText.color = new Color(0.95f, 0.96f, 0.98f);
-        _modalBodyText.alignment = TextAnchor.UpperLeft;
-        var bodyRt = bodyGo.GetComponent<RectTransform>();
-        bodyRt.anchoredPosition = new Vector2(0, -10);
-        bodyRt.sizeDelta = new Vector2(580, 200);
+        // 本文
+        _modalBodyText = CreateTextElement(_modalPanel.transform, "BodyText", defaultFont, 20,
+            new Color(0.95f, 0.96f, 0.98f), FontStyle.Normal, TextAnchor.UpperLeft,
+            new Vector2(0, -10), new Vector2(580, 200), lineSpacing: 1.35f);
 
         // 閉じるヒントボタン
+        CreateCloseButton(_modalPanel.transform, defaultFont);
+
+        overlay.SetActive(false);
+    }
+
+    #region UIヘルパーメソッド
+
+    private static Text CreateTextElement(Transform parent, string name, Font font, int fontSize,
+        Color color, FontStyle fontStyle, TextAnchor alignment, Vector2 pos, Vector2 size, float lineSpacing = 1.0f)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var txt = go.AddComponent<Text>();
+        txt.font = font;
+        txt.fontSize = fontSize;
+        txt.fontStyle = fontStyle;
+        txt.color = color;
+        txt.alignment = alignment;
+        txt.lineSpacing = lineSpacing;
+
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = size;
+        return txt;
+    }
+
+    private static void AddOutline(GameObject target, Color color, Vector2 distance)
+    {
+        var outline = target.AddComponent<Outline>();
+        outline.effectColor = color;
+        outline.effectDistance = distance;
+    }
+
+    private static void CreateCloseButton(Transform parent, Font font)
+    {
         var closeGo = new GameObject("CloseHintButton");
-        closeGo.transform.SetParent(_modalPanel.transform, false);
+        closeGo.transform.SetParent(parent, false);
         var closeImg = closeGo.AddComponent<Image>();
         closeImg.color = new Color(0.18f, 0.24f, 0.32f, 0.85f);
         var closeBtn = closeGo.AddComponent<Button>();
@@ -537,20 +594,13 @@ public class AdventureBeachDriftBox : MonoBehaviour
         closeColors.pressedColor = new Color(0.10f, 0.15f, 0.22f, 1f);
         closeBtn.colors = closeColors;
 
-        var closeOutline = closeGo.AddComponent<Outline>();
-        closeOutline.effectColor = new Color(0.45f, 0.85f, 1.0f, 0.6f);
-        closeOutline.effectDistance = new Vector2(1.5f, -1.5f);
+        AddOutline(closeGo, new Color(0.45f, 0.85f, 1.0f, 0.6f), new Vector2(1.5f, -1.5f));
 
-        var closeTextGo = new GameObject("Text");
-        closeTextGo.transform.SetParent(closeGo.transform, false);
-        _modalCloseHintText = closeTextGo.AddComponent<Text>();
-        _modalCloseHintText.font = defaultFont;
-        _modalCloseHintText.fontSize = 17;
-        _modalCloseHintText.fontStyle = FontStyle.Bold;
-        _modalCloseHintText.color = new Color(0.65f, 0.92f, 1.0f);
-        _modalCloseHintText.alignment = TextAnchor.MiddleCenter;
-        _modalCloseHintText.text = "【 Space / Enter / クリックで閉じる 】";
-        var closeTextRt = closeTextGo.GetComponent<RectTransform>();
+        var closeText = CreateTextElement(closeGo.transform, "Text", font, 17,
+            new Color(0.65f, 0.92f, 1.0f), FontStyle.Bold, TextAnchor.MiddleCenter,
+            Vector2.zero, Vector2.zero);
+        closeText.text = "【 Space / Enter / クリックで閉じる 】";
+        var closeTextRt = closeText.GetComponent<RectTransform>();
         closeTextRt.anchorMin = Vector2.zero;
         closeTextRt.anchorMax = Vector2.one;
         closeTextRt.sizeDelta = Vector2.zero;
@@ -558,6 +608,9 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var closeRt = closeGo.GetComponent<RectTransform>();
         closeRt.anchoredPosition = new Vector2(0, -165);
         closeRt.sizeDelta = new Vector2(440, 42);
+    }
+
+    #endregion
 
         overlay.SetActive(false);
     }

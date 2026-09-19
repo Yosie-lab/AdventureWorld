@@ -152,7 +152,17 @@ public class AdventureAncientPianoRelic : MonoBehaviour
                 OnPlayerDiscovered();
             }
 
-            // 2. ピアノ＆カピタの前（3.2m以内）でのインタラクション
+            // 2. カピタ接近時（3.5m以内）：ピアノ上の光る遺物（3ポイント）の自動回収
+            if (dist < 3.5f && _relicTransform != null && _relicTransform.gameObject.activeSelf)
+            {
+                var scrapMgr = AdventureScrapManager.Instance;
+                if (scrapMgr != null && !scrapMgr.IsPianoRelicCollected)
+                {
+                    CollectRelic();
+                }
+            }
+
+            // 3. ピアノ＆カピタの前（3.2m以内）での連弾インタラクション
             if (dist < 3.2f)
             {
                 var kb = Keyboard.current;
@@ -164,6 +174,30 @@ public class AdventureAncientPianoRelic : MonoBehaviour
                     PlayPianoWithCapyta();
                 }
             }
+        }
+    }
+
+    /// <summary>カピタに近づいた時にピアノ上の光る古代遺物（3pt）を回収する演出</summary>
+    public void CollectRelic()
+    {
+        if (_relicTransform == null || !_relicTransform.gameObject.activeSelf) return;
+
+        // 遺物パーティクルの大放出
+        if (_relicParticles != null)
+        {
+            _relicParticles.Emit(45);
+        }
+
+        // 遺物を非表示化
+        _relicTransform.gameObject.SetActive(false);
+
+        // カピタの喜び反応
+        TriggerCapytaHappy();
+
+        // ScrapManagerへ3pt加算通知
+        if (AdventureScrapManager.Instance != null)
+        {
+            AdventureScrapManager.Instance.CollectPianoRelic();
         }
     }
 
@@ -267,6 +301,12 @@ public class AdventureAncientPianoRelic : MonoBehaviour
             if (relicMesh != null) _relicRenderer = relicMesh.GetComponent<Renderer>();
             _relicLight = _relicTransform.GetComponentInChildren<Light>();
             _relicParticles = _relicTransform.GetComponentInChildren<ParticleSystem>();
+
+            var scrapMgr = AdventureScrapManager.Instance;
+            if (scrapMgr != null && scrapMgr.IsPianoRelicCollected)
+            {
+                _relicTransform.gameObject.SetActive(false);
+            }
         }
 
         // ピアニスト・カピタの取得
