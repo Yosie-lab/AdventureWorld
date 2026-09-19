@@ -514,14 +514,38 @@ public static class AdventureParadiseBeachDecor
 
         for (int side = -1; side <= 1; side += 2)
         {
-            var claw = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            claw.name = side < 0 ? "LeftClaw" : "RightClaw";
-            claw.transform.SetParent(crab.transform, false);
-            claw.transform.localScale = new Vector3(0.08f, 0.05f, 0.10f);
-            claw.transform.localPosition = new Vector3(side * 0.14f, 0.07f, 0.10f);
-            claw.transform.localRotation = Quaternion.Euler(0f, side * 30f, 0f);
-            claw.GetComponent<Renderer>().sharedMaterial = crabMat;
-            Object.DestroyImmediate(claw.GetComponent<Collider>());
+            string clawName = side < 0 ? "LeftClaw" : "RightClaw";
+            var clawRoot = new GameObject(clawName);
+            clawRoot.transform.SetParent(crab.transform, false);
+            clawRoot.transform.localPosition = new Vector3(side * 0.085f, 0.055f, 0.055f);
+            clawRoot.transform.localRotation = Quaternion.Euler(0f, side * 22f, 0f);
+
+            var arm = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            arm.name = "Arm";
+            arm.transform.SetParent(clawRoot.transform, false);
+            arm.transform.localScale = new Vector3(0.045f, 0.035f, 0.065f);
+            arm.transform.localPosition = new Vector3(side * 0.02f, 0f, 0.028f);
+            arm.transform.localRotation = Quaternion.Euler(0f, side * 20f, 0f);
+            arm.GetComponent<Renderer>().sharedMaterial = crabMat;
+            Object.DestroyImmediate(arm.GetComponent<Collider>());
+
+            var clawMain = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            clawMain.name = "ClawMain";
+            clawMain.transform.SetParent(clawRoot.transform, false);
+            clawMain.transform.localScale = new Vector3(0.065f, 0.045f, 0.09f);
+            clawMain.transform.localPosition = new Vector3(side * 0.038f, 0.005f, 0.075f);
+            clawMain.transform.localRotation = Quaternion.Euler(0f, side * 15f, side * -10f);
+            clawMain.GetComponent<Renderer>().sharedMaterial = crabMat;
+            Object.DestroyImmediate(clawMain.GetComponent<Collider>());
+
+            var pincer = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            pincer.name = "Pincer";
+            pincer.transform.SetParent(clawRoot.transform, false);
+            pincer.transform.localScale = new Vector3(0.038f, 0.03f, 0.06f);
+            pincer.transform.localPosition = new Vector3(side * 0.022f, 0.005f, 0.115f);
+            pincer.transform.localRotation = Quaternion.Euler(0f, side * -25f, 0f);
+            pincer.GetComponent<Renderer>().sharedMaterial = crabMat;
+            Object.DestroyImmediate(pincer.GetComponent<Collider>());
         }
 
         for (int leg = -1; leg <= 1; leg++)
