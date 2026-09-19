@@ -301,5 +301,11 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
         EditorUtility.SetDirty(manager.gameObject);
         Debug.Log("Successfully spawned 5 Adventure Beach Drift Boxes with lore, navigation objectives, and animations!");
     }
+
+    [MenuItem("Adventure/Beach/Reset All Drift Boxes (全ボックス未開封化)")]
+    public static void EditorResetAllBoxes()
+    {
+        AdventureBeachDriftBox.ResetAllBoxesStatic();
+    }
 #endif
 }

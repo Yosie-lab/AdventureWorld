@@ -22,21 +22,21 @@ public class AdventureBeachDriftBox : MonoBehaviour
     // ── パラメータ定数 ──
     private static class VisualConfig
     {
-        public static readonly Color UnopenedGold = new Color(1.0f, 0.70f, 0.20f);
+        public static readonly Color UnopenedGold = new Color(1.0f, 0.72f, 0.18f);
         public static readonly Color OpenedEmerald = new Color(0.20f, 1.0f, 0.60f);
         public static readonly Color OpenedLightColor = new Color(0.25f, 1.0f, 0.65f);
 
-        public const float TriggerDistance = 2.8f;
-        public const float LightRangeUnopenedBase = 8.5f;
-        public const float LightRangeUnopenedPulse = 1.5f;
-        public const float LightIntensityUnopenedBase = 2.0f;
-        public const float LightIntensityUnopenedPulse = 1.5f;
+        public const float TriggerDistance = 4.5f; // 2.8fから4.5fへ拡大（確実に反応）
+        public const float LightRangeUnopenedBase = 18.0f; // 8.5fから倍増
+        public const float LightRangeUnopenedPulse = 4.0f;
+        public const float LightIntensityUnopenedBase = 6.5f; // 2.0fから大幅強化
+        public const float LightIntensityUnopenedPulse = 3.5f; // 最大10.0fまで脈動
 
-        public const float LightRangeOpened = 5.0f;
-        public const float LightIntensityOpened = 1.4f;
+        public const float LightRangeOpened = 8.0f;
+        public const float LightIntensityOpened = 2.5f;
 
-        public const float BeaconHeight = 22f;
-        public const float BeaconRadius = 0.38f;
+        public const float BeaconHeight = 65f; // 22fから65fへ大幅伸長（遠景から一目瞭然）
+        public const float BeaconRadius = 0.85f; // 0.38fから2倍以上太く
     }
 
     private Transform _lid;
@@ -52,8 +52,10 @@ public class AdventureBeachDriftBox : MonoBehaviour
     private ParticleSystem _verticalBeamParticles;
     private ParticleSystem _idleSparkles;
     private Transform _glowBillboard;
+    private Transform _glowHaloBillboard;
     private Material _beaconMat;
     private Material _glowMat;
+    private Material _haloMat;
     private Material _particleMat;
     private Coroutine _beaconFadeCoroutine;
 
@@ -84,7 +86,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         _audioSource = gameObject.AddComponent<AudioSource>();
         _audioSource.spatialBlend = 0.8f;
         _audioSource.playOnAwake = false;
-        _audioSource.maxDistance = 25f;
+        _audioSource.maxDistance = 35f;
         _openClip = CreateChimeSound();
 
         SetupGlowEffects(lamp);
@@ -96,6 +98,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         // 動的生成マテリアルの安全なメモリ解放
         if (_beaconMat != null) Destroy(_beaconMat);
         if (_glowMat != null) Destroy(_glowMat);
+        if (_haloMat != null) Destroy(_haloMat);
         if (_particleMat != null) Destroy(_particleMat);
     }
 
@@ -107,27 +110,48 @@ public class AdventureBeachDriftBox : MonoBehaviour
     void Update()
     {
         // カメラ向きグロービルボードの姿勢追従
-        if (_glowBillboard != null && Camera.main != null)
+        if (Camera.main != null)
         {
-            _glowBillboard.rotation = Camera.main.transform.rotation;
+            var camRot = Camera.main.transform.rotation;
+            if (_glowBillboard != null) _glowBillboard.rotation = camRot;
+            if (_glowHaloBillboard != null) _glowHaloBillboard.rotation = camRot;
         }
+
+        // 実行時デバッグ：Shift + B で全ドリフトボックスを即座に未開封リセット
+        CheckDebugResetKey();
 
         if (!isOpened)
         {
             UpdateUnopenedPulses();
             CheckPlayerProximity();
         }
+        else
+        {
+            // 開封済みでも近くでEキーを押せばいつでもメモを再読可能
+            CheckReopenProximity();
+        }
+    }
+
+    private void CheckDebugResetKey()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        var kb = Keyboard.current;
+        if (kb != null && kb.bKey.wasPressedThisFrame && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed))
+        {
+            ResetAllBoxesStatic();
+        }
+#endif
     }
 
     private void UpdateUnopenedPulses()
     {
         float t = Time.time;
 
-        // ランプの呼吸点滅
-        float pulse = 1.0f + Mathf.Sin(t * 3.5f) * 0.45f;
-        SetLampColor(VisualConfig.UnopenedGold, pulse * 2.8f);
+        // ランプの呼吸点滅（眩しい黄金色）
+        float pulse = 1.0f + Mathf.Sin(t * 3.5f) * 0.5f;
+        SetLampColor(VisualConfig.UnopenedGold, pulse * 5.0f);
 
-        // ポイントライトによる砂浜とチェストの呼吸照光
+        // ポイントライトによる砂浜とチェストの呼吸照光（遠くまで届く）
         if (_pointLight != null)
         {
             _pointLight.intensity = VisualConfig.LightIntensityUnopenedBase + Mathf.Sin(t * 3.5f) * VisualConfig.LightIntensityUnopenedPulse;
@@ -137,14 +161,18 @@ public class AdventureBeachDriftBox : MonoBehaviour
         // 天空へ昇る光の柱（ライトビーコン）の神秘的な脈動
         if (_beaconPillar != null)
         {
-            float bPulse = 1.0f + Mathf.Sin(t * 2.4f) * 0.18f;
+            float bPulse = 1.0f + Mathf.Sin(t * 2.2f) * 0.22f;
             _beaconPillar.localScale = new Vector3(VisualConfig.BeaconRadius * bPulse, VisualConfig.BeaconHeight * 0.5f, VisualConfig.BeaconRadius * bPulse);
         }
 
-        // ランプグローの呼吸パルス
+        // ランプグロー（内側コア＋外側ハロー）の呼吸パルス
         if (_glowBillboard != null)
         {
-            _glowBillboard.localScale = Vector3.one * (0.42f + Mathf.Sin(t * 3.5f) * 0.10f);
+            _glowBillboard.localScale = Vector3.one * (0.65f + Mathf.Sin(t * 3.5f) * 0.15f);
+        }
+        if (_glowHaloBillboard != null)
+        {
+            _glowHaloBillboard.localScale = Vector3.one * (1.6f + Mathf.Sin(t * 2.0f) * 0.35f);
         }
     }
 
@@ -156,7 +184,34 @@ public class AdventureBeachDriftBox : MonoBehaviour
             float dist = Vector3.Distance(transform.position, player.transform.position);
             if (dist < VisualConfig.TriggerDistance)
             {
+                // 4.5m接近で自動開封、またはEキーでも即時開封
                 OpenBox();
+            }
+        }
+    }
+
+    private void CheckReopenProximity()
+    {
+        if (_isModalOpen) return;
+        var player = AdventurePlayerController.Instance;
+        if (player != null)
+        {
+            float dist = Vector3.Distance(transform.position, player.transform.position);
+            if (dist < VisualConfig.TriggerDistance)
+            {
+                bool ePressed = false;
+                var kb = Keyboard.current;
+                if (kb != null && kb.eKey.wasPressedThisFrame) ePressed = true;
+                try
+                {
+                    if (Input.GetKeyDown(KeyCode.E)) ePressed = true;
+                }
+                catch { }
+
+                if (ePressed)
+                {
+                    ShowModal(boxTitle, author, message);
+                }
             }
         }
     }
@@ -165,9 +220,30 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     private static Shader GetSafeUnlitShader()
     {
-        return Shader.Find("Universal Render Pipeline/Unlit")
+        return Shader.Find("Universal Render Pipeline/Particles/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
             ?? Shader.Find("RustAndFloat/WhiteSmoke")
             ?? Shader.Find("Sprites/Default");
+    }
+
+    private static Material CreateTransparentAdditiveMaterial(Shader shader, Texture2D tex, Color color, int renderQueue = 3100)
+    {
+        var mat = new Material(shader);
+        mat.SetTexture("_BaseMap", tex);
+        mat.SetColor("_BaseColor", color);
+
+        // URP 半透明・加算ブレンド・両面描画設定
+        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f); // Transparent
+        if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 1f); // Additive
+        if (mat.HasProperty("_Cull")) mat.SetFloat("_Cull", 0f); // Double-sided (Cull Off)
+        if (mat.HasProperty("_ZWrite")) mat.SetFloat("_ZWrite", 0f);
+
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+        mat.renderQueue = renderQueue;
+        return mat;
     }
 
     private void SetupGlowEffects(Transform lamp)
@@ -176,7 +252,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var smokeTex = AdventureRustDrone.GetSoftSmokeTexture();
         var unlitShader = GetSafeUnlitShader();
 
-        // 1. 周囲をあたたかく照らす自発光ポイントライト
+        // 1. 周囲の広範囲を照らす強力な自発光ポイントライト
         var lightGo = new GameObject("DriftBoxPointLight");
         lightGo.transform.SetParent(transform, false);
         lightGo.transform.localPosition = lampLocalPos;
@@ -187,7 +263,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         _pointLight.color = VisualConfig.UnopenedGold;
         _pointLight.shadows = LightShadows.None;
 
-        // 2. 天空へ伸びる光の柱（ライトビーコン）
+        // 2. 天空を貫く超巨大光柱（ライトビーコン: 高さ65m、半径0.85m）
         var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         beacon.name = "BeaconPillar";
         beacon.transform.SetParent(transform, false);
@@ -198,19 +274,13 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var beaconRend = beacon.GetComponent<Renderer>();
         if (beaconRend != null)
         {
-            _beaconMat = new Material(unlitShader);
-            _beaconMat.SetTexture("_BaseMap", smokeTex);
-            _beaconMat.SetColor("_BaseColor", new Color(1.0f, 0.82f, 0.35f, 0.55f));
-            _beaconMat.renderQueue = 3150;
+            _beaconMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f, 0.82f, 0.25f, 0.65f), 3120);
             beaconRend.material = _beaconMat;
         }
         _beaconPillar = beacon.transform;
 
-        // 3. 垂直光粒子ビーム（空へ向かって昇る光の粒子）
-        var pShader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? unlitShader;
-        _particleMat = new Material(pShader);
-        _particleMat.SetTexture("_BaseMap", smokeTex);
-        _particleMat.SetColor("_BaseColor", new Color(1.0f, 0.88f, 0.40f, 2.5f));
+        // 3. 垂直光粒子ビーム（空へ高速で昇る星屑の柱）
+        _particleMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f, 0.92f, 0.45f, 1.0f), 3140);
 
         var beamGo = new GameObject("VerticalBeamSparkles");
         beamGo.transform.SetParent(transform, false);
@@ -219,19 +289,19 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
         var mainBeam = _verticalBeamParticles.main;
         mainBeam.loop = true;
-        mainBeam.startLifetime = 2.2f;
-        mainBeam.startSpeed = 8.5f;
-        mainBeam.startSize = 0.26f;
-        mainBeam.startColor = new Color(1.0f, 0.88f, 0.40f, 0.9f);
+        mainBeam.startLifetime = 3.5f;
+        mainBeam.startSpeed = 14.0f;
+        mainBeam.startSize = 0.35f;
+        mainBeam.startColor = new Color(1.0f, 0.90f, 0.45f, 0.95f);
         mainBeam.simulationSpace = ParticleSystemSimulationSpace.World;
 
         var emissionBeam = _verticalBeamParticles.emission;
-        emissionBeam.rateOverTime = 12f;
+        emissionBeam.rateOverTime = 25f; // 25個/秒で連続上昇
 
         var shapeBeam = _verticalBeamParticles.shape;
         shapeBeam.shapeType = ParticleSystemShapeType.Cone;
-        shapeBeam.angle = 1.5f;
-        shapeBeam.radius = 0.12f;
+        shapeBeam.angle = 2.0f;
+        shapeBeam.radius = 0.25f;
         shapeBeam.rotation = new Vector3(-90f, 0f, 0f);
 
         var rendBeam = beamGo.GetComponent<ParticleSystemRenderer>();
@@ -245,40 +315,53 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
         var mainIdle = _idleSparkles.main;
         mainIdle.loop = true;
-        mainIdle.startLifetime = 2.0f;
-        mainIdle.startSpeed = 0.28f;
-        mainIdle.startSize = 0.18f;
-        mainIdle.startColor = new Color(1.0f, 0.82f, 0.30f, 0.85f);
+        mainIdle.startLifetime = 2.2f;
+        mainIdle.startSpeed = 0.35f;
+        mainIdle.startSize = 0.24f;
+        mainIdle.startColor = new Color(1.0f, 0.85f, 0.30f, 0.90f);
         mainIdle.simulationSpace = ParticleSystemSimulationSpace.World;
 
         var emissionIdle = _idleSparkles.emission;
-        emissionIdle.rateOverTime = 10f;
+        emissionIdle.rateOverTime = 18f;
 
         var shapeIdle = _idleSparkles.shape;
         shapeIdle.shapeType = ParticleSystemShapeType.Sphere;
-        shapeIdle.radius = 0.95f;
+        shapeIdle.radius = 1.4f;
 
         var rendIdle = idleGo.GetComponent<ParticleSystemRenderer>();
         if (rendIdle != null) rendIdle.material = _particleMat;
 
-        // 5. アンテナランプのソフトグロービルボード
+        // 5. アンテナランプのソフトグロー（内側高輝度コア）
         var glowQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        glowQuad.name = "LampGlowBillboard";
+        glowQuad.name = "LampGlowCore";
         glowQuad.transform.SetParent(transform, false);
         glowQuad.transform.localPosition = lampLocalPos;
-        glowQuad.transform.localScale = Vector3.one * 0.45f;
+        glowQuad.transform.localScale = Vector3.one * 0.65f;
         Destroy(glowQuad.GetComponent<Collider>());
 
         var glowRend = glowQuad.GetComponent<Renderer>();
         if (glowRend != null)
         {
-            _glowMat = new Material(unlitShader);
-            _glowMat.SetTexture("_BaseMap", smokeTex);
-            _glowMat.SetColor("_BaseColor", new Color(1.0f, 0.78f, 0.25f, 0.85f));
-            _glowMat.renderQueue = 3160;
+            _glowMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f, 0.90f, 0.50f, 0.95f), 3160);
             glowRend.material = _glowMat;
         }
         _glowBillboard = glowQuad.transform;
+
+        // 6. アンテナランプの広範囲オーラハロー（遠景用外側グロー）
+        var haloQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        haloQuad.name = "LampGlowHalo";
+        haloQuad.transform.SetParent(transform, false);
+        haloQuad.transform.localPosition = lampLocalPos;
+        haloQuad.transform.localScale = Vector3.one * 1.6f;
+        Destroy(haloQuad.GetComponent<Collider>());
+
+        var haloRend = haloQuad.GetComponent<Renderer>();
+        if (haloRend != null)
+        {
+            _haloMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f, 0.70f, 0.15f, 0.45f), 3150);
+            haloRend.material = _haloMat;
+        }
+        _glowHaloBillboard = haloQuad.transform;
     }
 
     #endregion
@@ -286,16 +369,16 @@ public class AdventureBeachDriftBox : MonoBehaviour
     /// <summary>
     /// 開封・未開封のビジュアル状態を一元適用
     /// </summary>
-    private void ApplyVisualState(bool opened, bool immediate)
+    public void ApplyVisualState(bool opened, bool immediate)
     {
         if (opened)
         {
-            if (immediate && _lid != null)
+            if (_lid != null)
             {
-                _lid.localRotation = Quaternion.Euler(-95f, 0f, 0f);
+                if (immediate) _lid.localRotation = Quaternion.Euler(-95f, 0f, 0f);
             }
 
-            SetLampColor(VisualConfig.OpenedEmerald, immediate ? 1.2f : 2.2f);
+            SetLampColor(VisualConfig.OpenedEmerald, immediate ? 1.4f : 2.5f);
 
             if (_pointLight != null)
             {
@@ -307,6 +390,10 @@ public class AdventureBeachDriftBox : MonoBehaviour
             if (_glowMat != null)
             {
                 _glowMat.SetColor("_BaseColor", new Color(0.25f, 1.0f, 0.65f, immediate ? 0.50f : 0.70f));
+            }
+            if (_haloMat != null)
+            {
+                _haloMat.SetColor("_BaseColor", new Color(0.20f, 1.0f, 0.60f, 0.25f));
             }
 
             // アイドルスパークル＆垂直ビームの停止
@@ -338,7 +425,18 @@ public class AdventureBeachDriftBox : MonoBehaviour
         }
         else
         {
-            SetLampColor(VisualConfig.UnopenedGold, 2.5f);
+            if (_beaconFadeCoroutine != null)
+            {
+                StopCoroutine(_beaconFadeCoroutine);
+                _beaconFadeCoroutine = null;
+            }
+
+            if (_lid != null)
+            {
+                _lid.localRotation = Quaternion.identity;
+            }
+
+            SetLampColor(VisualConfig.UnopenedGold, 4.5f);
 
             if (_pointLight != null)
             {
@@ -347,11 +445,107 @@ public class AdventureBeachDriftBox : MonoBehaviour
                 _pointLight.range = VisualConfig.LightRangeUnopenedBase;
             }
 
-            if (_beaconPillar != null) _beaconPillar.gameObject.SetActive(true);
-            if (_verticalBeamParticles != null) _verticalBeamParticles.gameObject.SetActive(true);
-            if (_idleSparkles != null) _idleSparkles.gameObject.SetActive(true);
+            if (_beaconMat != null)
+            {
+                _beaconMat.SetColor("_BaseColor", new Color(1.0f, 0.82f, 0.25f, 0.65f));
+            }
+            if (_glowMat != null)
+            {
+                _glowMat.SetColor("_BaseColor", new Color(1.0f, 0.90f, 0.50f, 0.95f));
+            }
+            if (_haloMat != null)
+            {
+                _haloMat.SetColor("_BaseColor", new Color(1.0f, 0.70f, 0.15f, 0.45f));
+            }
+
+            if (_beaconPillar != null)
+            {
+                _beaconPillar.gameObject.SetActive(true);
+                _beaconPillar.localScale = new Vector3(VisualConfig.BeaconRadius, VisualConfig.BeaconHeight * 0.5f, VisualConfig.BeaconRadius);
+            }
+
+            if (_verticalBeamParticles != null)
+            {
+                _verticalBeamParticles.gameObject.SetActive(true);
+                if (!_verticalBeamParticles.isPlaying) _verticalBeamParticles.Play();
+            }
+
+            if (_idleSparkles != null)
+            {
+                _idleSparkles.gameObject.SetActive(true);
+                if (!_idleSparkles.isPlaying) _idleSparkles.Play();
+            }
+
+            if (_glowHaloBillboard != null)
+            {
+                _glowHaloBillboard.gameObject.SetActive(true);
+                _glowHaloBillboard.localScale = Vector3.one * 1.6f;
+            }
         }
     }
+
+    [ContextMenu("Reset Box to Unopened")]
+    public void ResetBoxToUnopened()
+    {
+        PlayerPrefs.DeleteKey("DriftBox_Opened_" + boxId);
+        PlayerPrefs.Save();
+        isOpened = false;
+        ApplyVisualState(false, immediate: true);
+        Debug.Log($"[DriftBox] ボックス #{boxId} ({boxTitle}) を未開封状態にリセットしました。");
+        var scrapMgr = AdventureScrapManager.Instance;
+        if (scrapMgr != null) scrapMgr.CheckPointsAndNotifyLeverUnlock();
+    }
+
+    [ContextMenu("Force Open Box")]
+    public void ForceOpenBox()
+    {
+        OpenBox();
+    }
+
+    /// <summary>
+    /// 全ドリフトボックス（#1〜#5）を未開封状態へ完全リセットし、ポイントとHUDを再同期
+    /// </summary>
+    public static void ResetAllBoxesStatic()
+    {
+        for (int i = 1; i <= 5; i++)
+        {
+            PlayerPrefs.DeleteKey("DriftBox_Opened_" + i);
+        }
+        PlayerPrefs.Save();
+
+        var boxes = Object.FindObjectsByType<AdventureBeachDriftBox>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var b in boxes)
+        {
+            if (b != null)
+            {
+                b.isOpened = false;
+                b.ApplyVisualState(false, immediate: true);
+            }
+        }
+
+        var scrapMgr = AdventureScrapManager.Instance;
+        if (scrapMgr != null)
+        {
+            scrapMgr.CheckPointsAndNotifyLeverUnlock();
+        }
+
+        var hud = AdventureScrapHUD.Instance ?? Object.FindFirstObjectByType<AdventureScrapHUD>();
+        if (hud != null)
+        {
+            int pts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
+            hud.ShowUpgradeBanner($"📦 全ドリフトボックスを未開封にリセット！\n✦ 現在の探索ポイント: {pts} / {AdventureScrapManager.RequiredPointsForCanopy} pt");
+        }
+
+        Debug.Log("📦 【DriftBox】全5個のドリフトボックスを未開封状態にリセットしました！");
+    }
+
+#if UNITY_EDITOR
+    [UnityEditor.MenuItem("Adventure/📦 全ドリフトボックスを未開封にリセット (Reset All Drift Boxes)")]
+    public static void EditorResetAllBoxes()
+    {
+        ResetAllBoxesStatic();
+    }
+#endif
 
     public void OpenBox()
     {
@@ -451,11 +645,19 @@ public class AdventureBeachDriftBox : MonoBehaviour
                 cur.a = Mathf.Lerp(c.a, 0f, t);
                 _beaconMat.SetColor("_BaseColor", cur);
             }
+            if (_glowHaloBillboard != null)
+            {
+                _glowHaloBillboard.localScale = Vector3.Lerp(Vector3.one * 1.6f, Vector3.zero, t);
+            }
             yield return null;
         }
         if (_beaconPillar != null)
         {
             _beaconPillar.gameObject.SetActive(false);
+        }
+        if (_glowHaloBillboard != null)
+        {
+            _glowHaloBillboard.gameObject.SetActive(false);
         }
     }
 
