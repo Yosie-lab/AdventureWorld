@@ -111,6 +111,7 @@ public static class AdventureBeautifyStepPonds
 
         // 4. ルートホルダーの作成
         GameObject rootHolder = new GameObject("BeachStepPonds_Rocks");
+        rootHolder.transform.position = Vector3.zero;
         Undo.RegisterCreatedObjectUndo(rootHolder, "Create BeachStepPonds_Rocks");
 
         Random.InitState(12345);
@@ -164,12 +165,13 @@ public static class AdventureBeautifyStepPonds
                         float ty = terrain.SampleHeight(reedWorld) + terrain.transform.position.y;
                         if (ty >= 5.5f)
                         {
-                            reedWorld.y = Mathf.Max(segPos.y, ty);
+                            reedWorld.y = ty;
                             var reedPrefab = reeds[Random.Range(0, reeds.Count)];
                             var reedGo = (GameObject)PrefabUtility.InstantiatePrefab(reedPrefab, rootHolder.transform);
                             reedGo.transform.position = reedWorld;
                             reedGo.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
                             reedGo.transform.localScale = Vector3.one * Random.Range(0.75f, 1.15f);
+                            SnapToGround(reedGo, terrain, 0.08f);
                         }
                     }
 
@@ -187,6 +189,7 @@ public static class AdventureBeautifyStepPonds
                             bushGo.transform.position = bushWorld;
                             bushGo.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
                             bushGo.transform.localScale = Vector3.one * Random.Range(0.65f, 0.9f);
+                            SnapToGround(bushGo, terrain, 0.03f);
                         }
                     }
                 }
@@ -215,6 +218,7 @@ public static class AdventureBeautifyStepPonds
                     ? medRocks[Random.Range(0, medRocks.Count)]
                     : smallRocks[Random.Range(0, smallRocks.Count)];
 
+                // 落ち口の岩組み
                 GameObject stepRock = (GameObject)PrefabUtility.InstantiatePrefab(rockPrefab, rootHolder.transform);
                 stepRock.transform.position = worldPos;
                 stepRock.transform.rotation = Quaternion.Euler(
@@ -224,6 +228,7 @@ public static class AdventureBeautifyStepPonds
                 );
                 // 自然なサイズ（0.70〜0.95倍）
                 stepRock.transform.localScale = Vector3.one * Random.Range(0.70f, 0.95f);
+                SnapToGround(stepRock, terrain, 0.05f);
             }
 
             // ========================================================
@@ -238,9 +243,6 @@ public static class AdventureBeautifyStepPonds
                 float groundY = terrain.SampleHeight(worldPos) + terrain.transform.position.y;
                 if (groundY < 5.4f) continue;
 
-                // 水面からわずかに顔を出す平らな岩
-                worldPos.y = segPos.y - 0.05f;
-
                 var prefab = smallRocks[Random.Range(0, smallRocks.Count)];
                 GameObject inRock = (GameObject)PrefabUtility.InstantiatePrefab(prefab, rootHolder.transform);
                 inRock.transform.position = worldPos;
@@ -250,6 +252,7 @@ public static class AdventureBeautifyStepPonds
                     Random.Range(-6f, 6f)
                 );
                 inRock.transform.localScale = Vector3.one * Random.Range(0.75f, 1.05f);
+                SnapToGround(inRock, terrain, 0.05f);
             }
 
             // ========================================================
@@ -270,8 +273,6 @@ public static class AdventureBeautifyStepPonds
                     float groundY = terrain.SampleHeight(worldPos) + terrain.transform.position.y;
                     if (groundY < 5.4f) continue;
 
-                    worldPos.y = groundY - 0.05f;
-
                     var mPrefab = smallRocks[Random.Range(0, smallRocks.Count)];
                     GameObject mRock = (GameObject)PrefabUtility.InstantiatePrefab(mPrefab, rootHolder.transform);
                     mRock.transform.position = worldPos;
@@ -281,6 +282,7 @@ public static class AdventureBeautifyStepPonds
                         Random.Range(-8f, 8f)
                     );
                     mRock.transform.localScale = Vector3.one * Random.Range(0.75f, 1.15f);
+                    SnapToGround(mRock, terrain, 0.05f);
                 }
             }
         }
@@ -312,9 +314,6 @@ public static class AdventureBeautifyStepPonds
         float groundY = terrain.SampleHeight(worldPos) + terrain.transform.position.y;
         if (groundY < 5.4f) return;
 
-        // 水面と地面の双方を考慮し、水際を自然に覆う高さに調整
-        worldPos.y = Mathf.Max(segPos.y - 0.10f, groundY - 0.10f);
-
         var list = (Random.value < 0.65f && med.Count > 0) ? med : small;
         var prefab = list[Random.Range(0, list.Count)];
 
@@ -326,6 +325,44 @@ public static class AdventureBeautifyStepPonds
             Random.Range(-8f, 8f)
         );
         rock.transform.localScale = Vector3.one * Random.Range(minS, maxS);
+        SnapToGround(rock, terrain, 0.05f);
+    }
+
+    private static void SnapToGround(GameObject go, Terrain terrain, float embed)
+    {
+        if (go == null || terrain == null) return;
+        
+        // 複合プレハブ（Stones_01/02/03など）の場合は各小石を地形に密着
+        if (go.transform.childCount > 0 && go.name.StartsWith("Stones_"))
+        {
+            for (int c = 0; c < go.transform.childCount; c++)
+            {
+                var child = go.transform.GetChild(c);
+                SnapSingleObjectToGround(child.gameObject, terrain, embed);
+            }
+        }
+        else
+        {
+            SnapSingleObjectToGround(go, terrain, embed);
+        }
+    }
+
+    private static void SnapSingleObjectToGround(GameObject go, Terrain terrain, float embed)
+    {
+        var rends = go.GetComponentsInChildren<MeshRenderer>(true);
+        if (rends == null || rends.Length == 0) return;
+
+        float minY = float.MaxValue;
+        foreach (var r in rends)
+        {
+            if (r.bounds.extents.sqrMagnitude > 0.001f && r.bounds.min.y < minY)
+                minY = r.bounds.min.y;
+        }
+        if (minY == float.MaxValue) return;
+
+        float gy = terrain.SampleHeight(go.transform.position) + terrain.transform.position.y;
+        float deltaY = (gy - embed) - minY;
+        go.transform.position = new Vector3(go.transform.position.x, go.transform.position.y + deltaY, go.transform.position.z);
     }
 
     private static void CleanupOldHolder(string name)
