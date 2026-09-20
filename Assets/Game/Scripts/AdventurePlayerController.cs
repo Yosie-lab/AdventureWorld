@@ -86,9 +86,9 @@ public class AdventurePlayerController : MonoBehaviour
     const float GlideYawAccel    = 320f;
     const float GlideAttitudeSmooth = 0.08f;
     const float GlideSpeedSmooth = 0.12f;
-    const float AirSteerAccel    = 10f;
-    const float AirSteerMaxSpeed = 4.2f;
-    const float AirMomentumBrake = 28f; // 操作なし時の空中水平ブレーキ（秒速減衰）
+    const float AirSteerAccel    = 14f;  // 空中方向転換の加速度（元:10 → 微増で着地操作性アップ）
+    const float AirSteerMaxSpeed = 5.2f;  // 空中水平最大速度（元:4.2 → 少し遠くへ動かせる）
+    const float AirMomentumBrake = 28f;   // 操作なし時の空中水平ブレーキ（浮遊感に直結、変更なし）
 
     // 滑空スムージング内部状態
     Vector2 _glideInputSmooth;
@@ -804,7 +804,7 @@ public class AdventurePlayerController : MonoBehaviour
             if (flat.sqrMagnitude > 0.2f)
             {
                 Quaternion want = Quaternion.LookRotation(flat.normalized);
-                transform.rotation = Quaternion.Slerp(transform.rotation, want, 6f * Time.deltaTime);
+                transform.rotation = Quaternion.Slerp(transform.rotation, want, 7f * Time.deltaTime); // 体の向き追従（元:6 → 微増）
             }
         }
         else
