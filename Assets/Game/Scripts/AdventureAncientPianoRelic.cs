@@ -201,6 +201,36 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         }
     }
 
+    /// <summary>新規冒険（ニューゲーム）用：遺物を再表示し発見フラグを初期化</summary>
+    public void ResetForNewGame()
+    {
+        isDiscovered = false;
+        _hasPlayedIntroDialogue = false;
+        PlayerPrefs.DeleteKey("AncientPiano_Relic_Collected");
+        PlayerPrefs.DeleteKey("AncientPiano_Discovered");
+        PlayerPrefs.Save();
+
+        if (_relicTransform != null)
+        {
+            _relicTransform.gameObject.SetActive(true);
+        }
+        Debug.Log("[AdventureAncientPianoRelic] 🎹 古代ピアノ遺物を未回収状態にリセットしました。");
+    }
+
+    /// <summary>シーン内のすべての古代ピアノ遺物を未回収状態に一括リセット</summary>
+    public static void ResetAllPianoRelicsStatic()
+    {
+        PlayerPrefs.DeleteKey("AncientPiano_Relic_Collected");
+        PlayerPrefs.DeleteKey("AncientPiano_Discovered");
+        PlayerPrefs.Save();
+
+        var pianos = Object.FindObjectsByType<AdventureAncientPianoRelic>(FindObjectsInactive.Include);
+        foreach (var p in pianos)
+        {
+            if (p != null) p.ResetForNewGame();
+        }
+    }
+
     /// <summary>プレイヤーが初めてピアノとカピタを発見した時の演出</summary>
     private void OnPlayerDiscovered()
     {

@@ -243,15 +243,19 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         EnsureLandTerrainColliderEnabled();
     }
 
-    /// <summary>クリア後／F8：天蓋・クリア・クライマックス進行をニューゲーム用に完全リセット</summary>
+    /// <summary>クリア後／ニューゲーム：天蓋・クリア・クライマックス・レバー進行を完全リセット</summary>
     public void ResetProgressForNewGame()
     {
-        ClearEndingRuntimeState(ignoreSavedCanopy: false);
+        ClearEndingRuntimeState(ignoreSavedCanopy: true);
+        ResetEndingSequenceFlags(clearWorldProgress: true, teardownUiFully: true);
         RestoreSkybreakAscentBlockers();
-        RestoreExplorationPresentation(resetMusicToAmbient: false);
+        RestoreExplorationPresentation(resetMusicToAmbient: true);
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.ResetSkybreakMusicState();
-        Debug.Log("[RustAndFloat] ニューゲーム用に天蓋／クリア進行をリセットしました");
+
+        // レバーのロック状態を再構築
+        BuildTowerLever();
+        Debug.Log("[RustAndFloat] ニューゲーム用に天蓋／クリア／レバー進行を完全リセットしました");
     }
 
     /// <summary>探索HUD・カメラ・光柱FX・（必要なら）BGM／Rust状態を探索向けに戻す</summary>

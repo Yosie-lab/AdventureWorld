@@ -58,6 +58,14 @@ public class AdventureScrapHUD : MonoBehaviour
         _instance = go.AddComponent<AdventureScrapHUD>();
     }
 
+    /// <summary>ニューゲーム用：内部カウントを0に巻き戻し、HUD表示を即時更新</summary>
+    public void ResetForNewGame()
+    {
+        _lastKnownCount = 0;
+        _lastOilShown = int.MinValue;
+        OnCollect("", 0, AdventureScrapManager.TotalScrapCount);
+    }
+
     void Awake()
     {
         _instance = this;

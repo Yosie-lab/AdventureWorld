@@ -900,12 +900,77 @@ public class AdventureScrapManager : MonoBehaviour
         return nearest;
     }
 
-    /// <summary>新規冒険（ニューゲーム）用：収集0個＋前回と違う配置で全パーツを再配置</summary>
+    /// <summary>
+    /// 新規冒険（ニューゲーム）用：
+    /// 漂着パーツ(0/12)だけでなく、ドリフトボックス(0/5)、ピアノ古代遺物(未回収)など
+    /// すべての探索ポイントを完全に0にリセットし、パーツを前回と違う配置で再配置する。
+    /// </summary>
     public void ResetAllScrapsForNewGame()
     {
+        ResetAllPointsAndScrapsForNewGame();
+    }
+
+    /// <summary>
+    /// 全探索ポイント（パーツ・ドリフトボックス・古代遺物）を0ptに完全初期化
+    /// </summary>
+    public void ResetAllPointsAndScrapsForNewGame()
+    {
+        // 1. 漂着パーツを0個にリセットし、新たな候補地へ再抽選・再配置
         ReshuffleSpawnLayoutForNewGame();
         ResetToCount(0);
+
+        // 2. 全ドリフトボックス（5個/各2pt）を未開封状態へ完全リセット
+        AdventureBeachDriftBox.ResetAllBoxesStatic();
+
+        // 3. ピアノ上の光る古代遺物（3pt）を未回収状態へ完全リセット
+        IsPianoRelicCollected = false;
+        PlayerPrefs.DeleteKey(PrefKeyPianoRelic);
+        PlayerPrefs.DeleteKey("AncientPiano_Discovered");
+        AdventureAncientPianoRelic.ResetAllPianoRelicsStatic();
+
+        // 4. レバーロック解除通知フラグをクリア
+        PlayerPrefs.DeleteKey(PrefKeyLeverUnlockedNotified);
+        PlayerPrefs.DeleteKey("Adventure_LeverUnlockedNotified");
+        PlayerPrefs.Save();
+
+        // 5. タワーレバーの状態をロック中へ再同期
+        var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
+        tower?.OnLeverUnlockedByPoints();
+
+        // 6. HUD表示を0個・0ptへ即時反映
+        AdventureScrapHUD.Instance?.ResetForNewGame();
+        AdventureScrapHUD.Instance?.OnCollect("", 0, TotalScrapCount);
+
+        Debug.Log($"[AdventureScrapManager] 🔄 ニューゲーム完全リセット完了: パーツ={CollectedCount}/12, ボックス={OpenedDriftBoxCount}/5, ピアノ遺物={IsPianoRelicCollected} (総ポイント: {TotalProgressPoints} pt)");
     }
+
+    [ContextMenu("Reset All Points To 0 (全ポイント完全初期化)")]
+    public void ContextResetAllPointsTo0()
+    {
+        ResetAllPointsAndScrapsForNewGame();
+    }
+
+#if UNITY_EDITOR
+    [UnityEditor.MenuItem("Adventure/🔄 全探索ポイントを0に完全リセット (パーツ・ボックス・遺物)")]
+    public static void EditorResetAllPointsTo0()
+    {
+        var sm = Instance ?? Object.FindFirstObjectByType<AdventureScrapManager>();
+        if (sm != null)
+        {
+            sm.ResetAllPointsAndScrapsForNewGame();
+        }
+        else
+        {
+            // インスタンスが無くてもPlayerPrefsを安全クリア
+            AdventureBeachDriftBox.ResetAllBoxesStatic();
+            AdventureAncientPianoRelic.ResetAllPianoRelicsStatic();
+            PlayerPrefs.DeleteKey(PrefKeyLeverUnlockedNotified);
+            PlayerPrefs.DeleteKey("Adventure_LeverUnlockedNotified");
+            PlayerPrefs.Save();
+            Debug.Log("[AdventureScrapManager] PlayerPrefsの全ポイントを0にクリアしました。");
+        }
+    }
+#endif
 
     void EnsureSpawnLayoutLoaded()
     {

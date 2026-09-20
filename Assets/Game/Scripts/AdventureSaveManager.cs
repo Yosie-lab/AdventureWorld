@@ -634,9 +634,17 @@ public class AdventureSaveManager : MonoBehaviour
         AdventureCapytaBlessing.Ensure();
         AdventureCapytaBlessing.Instance?.ResetForNewGame();
 
-        // 1. パーツ状態を0個にリセットし、前回と違う場所へ全再配置
+        // 1. パーツおよび全探索ポイント（ドリフトボックス・古代遺物）を0に完全リセット
         var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
-        scrapMgr?.ResetAllScrapsForNewGame();
+        if (scrapMgr != null)
+        {
+            scrapMgr.ResetAllPointsAndScrapsForNewGame();
+        }
+        else
+        {
+            AdventureBeachDriftBox.ResetAllBoxesStatic();
+            AdventureAncientPianoRelic.ResetAllPianoRelicsStatic();
+        }
 
         // 2. プレイヤーを西側白砂ビーチ（座礁脱出艇の前）へテレポート
         var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
