@@ -141,7 +141,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
     static System.Collections.Generic.List<Transform> FindBeachCapitas()
     {
         var list = new System.Collections.Generic.List<Transform>(4);
-        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        var all = Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude);
         for (int i = 0; i < all.Length; i++)
         {
             var t = all[i];
@@ -184,7 +184,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
     /// <summary>Nikoスポーン付近にいるカピタを外側へ押し出す</summary>
     static void PushCapitasClearOfPoint(Vector3 centerXZ, float minDist, Terrain land)
     {
-        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        var all = Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude);
         for (int i = 0; i < all.Length; i++)
         {
             var t = all[i];
@@ -211,19 +211,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
     static bool IsCapytaInstanceRoot(Transform t)
     {
         if (t == null) return false;
-        string n = t.name;
-        if (n == "Capyta") return true;
-        if (!n.StartsWith("Capyta_")) return false;
-        if (n.Contains("Root")) return false;
-
-        // 親もカピタ個体なら、こちらは子パーツ
-        if (t.parent != null)
-        {
-            string pn = t.parent.name;
-            if (pn == "Capyta" || (pn.StartsWith("Capyta_") && !pn.Contains("Root")))
-                return false;
-        }
-        return true;
+        return AdventureCapytaBodyCollider.IsCapytaRoot(t);
     }
 
     public void ResetForNewGame()
@@ -339,8 +327,17 @@ public class AdventureCapytaBlessing : MonoBehaviour
         _talkIndex++;
     }
 
+    private float _nextColliderCheckTime = 0f;
+
     void Update()
     {
+        // 4秒おきに全カピタのコライダー存在を安全保証（新規生成カピタ対応）
+        if (Time.unscaledTime >= _nextColliderCheckTime)
+        {
+            _nextColliderCheckTime = Time.unscaledTime + 4.0f;
+            AdventureCapytaBodyCollider.EnsureAllCapytasInScene();
+        }
+
         var player = AdventurePlayerController.Resolve();
         if (player == null)
         {
@@ -453,7 +450,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
         bestDist = float.MaxValue;
         Transform best = null;
 
-        var npcs = Object.FindObjectsByType<AdventureNpc>(FindObjectsSortMode.None);
+        var npcs = Object.FindObjectsByType<AdventureNpc>(FindObjectsInactive.Exclude);
         for (int i = 0; i < npcs.Length; i++)
         {
             var n = npcs[i];
@@ -468,7 +465,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
             }
         }
 
-        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        var all = Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude);
         for (int i = 0; i < all.Length; i++)
         {
             var t = all[i];
