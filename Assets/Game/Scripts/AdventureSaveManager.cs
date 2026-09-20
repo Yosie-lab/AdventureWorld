@@ -284,9 +284,9 @@ public class AdventureSaveManager : MonoBehaviour
             SaveGame("SAVEしました");
         }
 
-        // 【F8】キーで砂浜から0個で始めるニューゲームリセット
+        // 【Shift + F12】キーで砂浜から0個で始めるニューゲームリセット（誤爆防止）
         var kb = GetKeyboard();
-        if (kb != null && kb.f8Key.wasPressedThisFrame)
+        if (kb != null && kb.f12Key.wasPressedThisFrame && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed))
         {
             ResetToNewGame();
         }

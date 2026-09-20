@@ -373,7 +373,7 @@ public class AdventureScrapHUD : MonoBehaviour
     }
 
     /// <summary>画面左上の独立カードに収まる、美しく整理された2行クエスト表示</summary>
-    void RefreshQuestDisplay()
+    public void RefreshQuestDisplay()
     {
         if (_tickerText == null) return;
 

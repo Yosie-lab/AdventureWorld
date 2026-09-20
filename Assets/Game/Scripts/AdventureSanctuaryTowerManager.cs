@@ -1212,7 +1212,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
         if (hud != null)
         {
-            hud.ShowUpgradeBanner($"✦ デバッグ: 20ポイント達成状態をセットアップ ✦\n{modeStr}");
+            hud.RefreshQuestDisplay();
+            string bannerMsg = warpToLever
+                ? "✦ 20ポイント達成！タワー白亜テラス（レバー前）へワープ ✦\n💡 【Eキー】で巨大レバーを引いて天蓋を開放しよう！"
+                : "✦ 20ポイント達成！中央タワーのレバーロック解除！ ✦\n💡 相棒Rustとコンパスに従って中央タワーへ向かおう！";
+            hud.ShowUpgradeBanner(bannerMsg);
         }
     }
 
