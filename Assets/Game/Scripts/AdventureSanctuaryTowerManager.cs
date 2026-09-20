@@ -2563,41 +2563,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void OnGUI()
     {
-        // クリア／台本／注油／クライマックス中は IMGUI 禁止
-        // （GUI.Button＋壊れた日本語フォントが空ボード＋「Gizmos」3ボタンになる）
-        if (_showGameClearModal || _scriptBoardVisible || _climaxCrisisStarted || _epilogueTriggered
-            || _endingSequenceActive || _climaxOilWaiting || _climaxPostOilPhase > 0)
-            return;
-
-        bool allCollected = IsLeverReadyToOpen;
-        bool showLeverUi = IsPlayerNearLever && !IsCanopyBroken && !_pendingClimaxAfterCanopy;
-        if (!showLeverUi)
-            return;
-
-        bool canReplay = allCollected && (_leverPulled || IsCanopyBroken);
-        float w = Mathf.Min(1100f, Screen.width * 0.94f);
-        float h = 120f;
-        float x = (Screen.width - w) * 0.5f;
-        float y = Screen.height - 168f;
-        var boxRect = new Rect(x, y, w, h);
-
-        GUI.color = new Color(0.02f, 0.06f, 0.12f, 0.82f);
-        GUI.DrawTexture(boxRect, Texture2D.whiteTexture);
-        if (allCollected && _leverHoldTimer > 0f)
-        {
-            float fill = Mathf.Clamp01(_leverHoldTimer / LeverHoldSeconds);
-            GUI.color = new Color(0.25f, 0.95f, 0.85f, 0.9f);
-            GUI.DrawTexture(new Rect(x, y + h - 10f, w * fill, 10f), Texture2D.whiteTexture);
-        }
-        Color accentCol = allCollected ? new Color(0.35f, 0.95f, 1.0f, 0.95f) : new Color(1.0f, 0.85f, 0.40f, 0.9f);
-        GUI.color = accentCol;
-        GUI.DrawTexture(new Rect(x, y, w, 4f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(x, y + h - 4f, w, 4f), Texture2D.whiteTexture);
-
-        GUI.color = new Color(1f, 1f, 1f, 0.01f);
-        if (allCollected && GUI.Button(boxRect, GUIContent.none))
-            BeginCanopyOpeningFromLever(true);
-        GUI.color = Color.white;
+        // レバー表示・台本・注油・クリアUIはすべて高精細uGUI（LeverPromptCanvas等）で一元管理。
+        // 旧IMGUIの重複描画による半透明の空ボード（テキストなしの邪魔な枠）を完全排除。
     }
 
     /// <summary>台本：透明クリックのみ（文言はuGUI）</summary>
