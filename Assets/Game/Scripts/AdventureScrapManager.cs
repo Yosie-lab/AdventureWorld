@@ -622,9 +622,10 @@ public class AdventureScrapManager : MonoBehaviour
         }
     }
 
-    /// <summary>ドリフトボックス開封時のポイント加算通知</summary>
+    /// <summary>ドリフトボックス開封時のポイント加算通知と祝福チャイム再生</summary>
     public void OnDriftBoxOpened(int boxId, string boxTitle)
     {
+        PlayCelebrationChime(0.40f);
         CheckPointsAndNotifyLeverUnlock();
     }
 

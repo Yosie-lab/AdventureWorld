@@ -86,11 +86,14 @@ public class AdventureBeachDriftBox : MonoBehaviour
         // 保存された開封状態の復元
         isOpened = PlayerPrefs.GetInt("DriftBox_Opened_" + boxId, 0) == 1;
 
-        // オーディオソースの準備
+        // オーディオソースの準備（耳元でクリアに響くよう低減衰ステレオブレンド0.15fに設定）
         _audioSource = gameObject.AddComponent<AudioSource>();
-        _audioSource.spatialBlend = 0.8f;
+        _audioSource.spatialBlend = 0.15f;
         _audioSource.playOnAwake = false;
-        _audioSource.maxDistance = 35f;
+        _audioSource.minDistance = 8f;
+        _audioSource.maxDistance = 50f;
+        _audioSource.rolloffMode = AudioRolloffMode.Linear;
+        _audioSource.volume = 1.0f;
         _openClip = CreateChimeSound();
 
         SetupGlowEffects(lamp);
@@ -595,11 +598,11 @@ public class AdventureBeachDriftBox : MonoBehaviour
         // 開封アニメーション開始
         StartCoroutine(AnimateOpen());
 
-        // 効果音再生
+        // 効果音再生（澄んだクリスタルチャイム）
         if (_audioSource != null && _openClip != null)
         {
-            _audioSource.pitch = 1.0f + Random.Range(-0.05f, 0.05f);
-            _audioSource.PlayOneShot(_openClip, 0.85f);
+            _audioSource.pitch = 1.0f + Random.Range(-0.02f, 0.02f);
+            _audioSource.PlayOneShot(_openClip, 0.95f);
         }
 
         // 総合探索ポイント（+2 pt）加算とレバーロック解除チェック
@@ -873,28 +876,57 @@ public class AdventureBeachDriftBox : MonoBehaviour
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // 心地よい開錠サウンドのプロシージャル合成
+    // 心地よい開錠サウンドのプロシージャル合成（澄んだステレオクリスタルアルペジオ）
     // ═══════════════════════════════════════════════════════════════════
     private static AudioClip CreateChimeSound()
     {
         int rate = 44100;
-        float duration = 1.2f;
-        int samples = (int)(rate * duration);
-        float[] data = new float[samples];
+        float duration = 2.4f;
+        int samplesPerChannel = (int)(rate * duration);
+        int totalSamples = samplesPerChannel * 2; // 2チャンネル（ステレオ）
+        float[] interleavedData = new float[totalSamples];
 
-        // 2つの澄んだ高音（E6: 1318Hz, B6: 1975Hz）のチャイム和音
-        for (int i = 0; i < samples; i++)
+        // 澄んだ高音クリスタルベル（C6, E6, G6, B6, E7）が煌びやかに立ち上がるアルペジオ
+        float[] freqs = { 1046.50f, 1318.51f, 1567.98f, 1975.53f, 2637.02f };
+        float[] starts = { 0.00f, 0.045f, 0.095f, 0.150f, 0.210f };
+        // ステレオパンニング（左から右へと煌めきが駆け抜ける）
+        float[] pans = { -0.35f, -0.15f, 0.05f, 0.25f, 0.45f };
+
+        for (int note = 0; note < freqs.Length; note++)
         {
-            float t = (float)i / rate;
-            float env = Mathf.Exp(-t * 4.5f);
-            float s1 = Mathf.Sin(2f * Mathf.PI * 1318.5f * t);
-            float s2 = Mathf.Sin(2f * Mathf.PI * 1975.5f * t);
-            float s3 = Mathf.Sin(2f * Mathf.PI * 2637.0f * t) * 0.3f;
-            data[i] = (s1 * 0.5f + s2 * 0.35f + s3 * 0.15f) * env * 0.7f;
+            float f0 = freqs[note];
+            float startSec = starts[note];
+            int startSample = (int)(startSec * rate);
+            float pan = pans[note];
+            float gainL = Mathf.Cos((pan + 1f) * 0.25f * Mathf.PI);
+            float gainR = Mathf.Sin((pan + 1f) * 0.25f * Mathf.PI);
+
+            for (int i = 0; i < samplesPerChannel - startSample; i++)
+            {
+                int sampleIdx = startSample + i;
+                if (sampleIdx >= samplesPerChannel) break;
+
+                float t = (float)i / rate;
+                // クリスタルベルエンベロープ（3msソフトアタック、自然な指数減衰）
+                float attack = (t < 0.003f) ? (t / 0.003f) : 1.0f;
+                float decay = Mathf.Exp(-t * 3.2f);
+                float env = attack * decay;
+
+                // 基本波 + オクターブ倍音 + 金属的倍音（クリスタルの響き）
+                float s1 = Mathf.Sin(2f * Mathf.PI * f0 * t);
+                float s2 = Mathf.Sin(2f * Mathf.PI * (f0 * 2.002f) * t) * 0.35f;
+                float s3 = Mathf.Sin(2f * Mathf.PI * (f0 * 3.010f) * t) * 0.12f;
+                float sBell = Mathf.Sin(2f * Mathf.PI * (f0 * 2.76f) * t) * 0.08f * Mathf.Exp(-t * 6.0f);
+
+                float val = (s1 + s2 + s3 + sBell) * env * 0.28f;
+
+                interleavedData[sampleIdx * 2] += val * gainL;
+                interleavedData[sampleIdx * 2 + 1] += val * gainR;
+            }
         }
 
-        var clip = AudioClip.Create("DriftBoxChime", samples, 1, rate, false);
-        clip.SetData(data, 0);
+        var clip = AudioClip.Create("DriftBoxChime", samplesPerChannel, 2, rate, false);
+        clip.SetData(interleavedData, 0);
         return clip;
     }
 }
