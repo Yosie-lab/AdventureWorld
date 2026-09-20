@@ -1550,8 +1550,14 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             player.ForceGroundReset();
 
         AdventureMusicDirector.Ensure();
-        AdventureMusicDirector.Instance?.PlaySkybreakTheme(force: true);
-        StartSkybreakWindAmbience();
+        // 天蓋崩壊に入ったら元のアンビエントBGMと風の音を維持し、エンディングBGMには切り替えない
+        AdventureMusicDirector.Instance?.RestoreExplorationTheme();
+        StartSkybreakWindAmbience(); // 風の音は追加で流す
+
+        // ピアノが鳴っていたら2秒かけてフェードアウト
+        var piano = AdventureAncientPianoRelic.Instance
+                    ?? Object.FindFirstObjectByType<AdventureAncientPianoRelic>();
+        piano?.FadeOutPiano(2.0f);
 
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)

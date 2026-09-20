@@ -218,6 +218,38 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 天蓋崩壊シーケンス開始時に呼ぶ：ピアノ演奏を指定秒でフェードアウトして停止し、
+    /// BGMダッキングも通常に戻す。
+    /// </summary>
+    public void FadeOutPiano(float duration = 2.0f)
+    {
+        // BGMダッキング解除
+        if (AdventureMusicDirector.Instance != null)
+            AdventureMusicDirector.Instance.SetSpotDucking(0f);
+
+        if (_pianoAudioSource == null || !_pianoAudioSource.isPlaying) return;
+        StartCoroutine(FadeOutPianoRoutine(_pianoAudioSource, duration));
+    }
+
+    IEnumerator FadeOutPianoRoutine(AudioSource src, float duration)
+    {
+        if (src == null) yield break;
+        float startVol = src.volume;
+        float t = 0f;
+        while (t < duration && src != null && src.isPlaying)
+        {
+            t += Time.deltaTime;
+            src.volume = Mathf.Lerp(startVol, 0f, t / duration);
+            yield return null;
+        }
+        if (src != null)
+        {
+            src.Stop();
+            src.volume = 0f;
+        }
+    }
+
     /// <summary>新規冒険（ニューゲーム）用：遺物を再表示し発見フラグを初期化</summary>
     public void ResetForNewGame()
     {
