@@ -300,6 +300,7 @@ public class AdventurePlayerController : MonoBehaviour
         AdventureSaveManager.Ensure();
         AdventurePrologueDrama.Ensure();
         AdventureCapytaBlessing.Ensure();
+        AdventureCapytaBodyCollider.EnsureAllCapytasInScene();
 
         if (GetComponent<AdventureNikoFootsteps>() == null)
             gameObject.AddComponent<AdventureNikoFootsteps>();

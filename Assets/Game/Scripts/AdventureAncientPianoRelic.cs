@@ -309,12 +309,16 @@ public class AdventureAncientPianoRelic : MonoBehaviour
             }
         }
 
-        // ピアニスト・カピタの取得
+        // ピアニスト・カピタの取得とすり抜け防止コライダーの保証
         _capytaTransform = transform.Find("PianistCapyta");
         if (_capytaTransform != null)
         {
             _capytaAnimator = _capytaTransform.GetComponentInChildren<Animator>();
             _capytaMusicNotes = _capytaTransform.GetComponentInChildren<ParticleSystem>();
+
+            var bodyCol = _capytaTransform.GetComponent<AdventureCapytaBodyCollider>();
+            if (bodyCol == null) bodyCol = _capytaTransform.gameObject.AddComponent<AdventureCapytaBodyCollider>();
+            bodyCol.EnsureCollider();
         }
 
         // ピアノ専用の3Dオーディオソース
@@ -588,6 +592,10 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         capy.transform.localPosition = new Vector3(0f, 0.38f, -1.48f);
         capy.transform.localRotation = Quaternion.Euler(6.0f, 0f, 0f);
         capy.transform.localScale = Vector3.one * 0.40f;
+
+        // すり抜け防止固体コライダーの付与
+        var bodyCol = capy.AddComponent<AdventureCapytaBodyCollider>();
+        bodyCol.EnsureCollider();
 
         // アニメーション初期化（お座り待機モーション）
         var anim = capy.GetComponentInChildren<Animator>();

@@ -88,6 +88,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
         if (PlayerPrefs.GetInt(PrefKey, 0) == 1)
             GrantSuperJump(silent: true);
         SpawnBeachCapitasIfNeeded();
+        AdventureCapytaBodyCollider.EnsureAllCapytasInScene();
     }
 
     static readonly Vector3[] BeachCapytaSpots =
