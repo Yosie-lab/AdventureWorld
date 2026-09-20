@@ -579,6 +579,9 @@ public class AdventureScrapManager : MonoBehaviour
                 PlayerPrefs.SetInt(PrefKeyLeverUnlockedNotified, 1);
                 PlayerPrefs.Save();
 
+                // 20pt達成のクライマックス祝福チャイムを高らかに響かせる
+                PlayCelebrationChime(0.48f);
+
                 var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
                 if (hud != null)
                 {
@@ -588,7 +591,8 @@ public class AdventureScrapManager : MonoBehaviour
                 var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
                 if (drone != null)
                 {
-                    drone.SpeakCustom("20ポイント集まったよ！中央タワーのレバーロックが解除されたみたいだ。タワーに行ってレバーを引こう、Niko！！", 7.0f);
+                    drone.SpeakCustom("20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Niko！！", 8.0f);
+                    drone.TriggerTowerLeadGuidance();
                 }
             }
         }

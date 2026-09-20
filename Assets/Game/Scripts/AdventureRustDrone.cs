@@ -57,6 +57,25 @@ public class AdventureRustDrone : MonoBehaviour
     float _nextGuideNotice = 0f;
     bool _isPointingToScrap = false;
 
+    // 20pt達成時の中央タワー先導誘導
+    bool _isGuidingToTower = false;
+    float _nextTowerNotice = 0f;
+    bool _nearTowerNotified = false;
+    static readonly Vector3 SanctuaryTowerCenter = new Vector3(512f, 63.2f, 512f);
+
+    /// <summary>20pt達成時に中央タワーへの先導誘導を開始</summary>
+    public void TriggerTowerLeadGuidance()
+    {
+        _isGuidingToTower = true;
+        _nextTowerNotice = Time.time + 3.5f;
+        _nearTowerNotified = false;
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = 1.35f;
+            _audio.PlayOneShot(_happyBeepClip, 0.85f);
+        }
+    }
+
     // 連携アクション（Fキー指示・遠隔回収・偵察・宙返り・撫でスキンシップ）
     public enum RustState { Follow, Fetching, Returning, Scouting, Celebrating, Petting }
     public RustState CurrentState { get; private set; } = RustState.Follow;
@@ -478,7 +497,9 @@ public class AdventureRustDrone : MonoBehaviour
         else if (CurrentState == RustState.Follow)
         {
             to = _lookAt.position + Vector3.up * 0.7f - transform.position;
-            if (_isPointingToScrap && _guidedScrap != null)
+            if (_isGuidingToTower)
+                to = SanctuaryTowerCenter + Vector3.up * 2.0f - transform.position;
+            else if (_isPointingToScrap && _guidedScrap != null)
                 to = _guidedScrap.transform.position + Vector3.up * 0.3f - transform.position;
         }
         else if (CurrentState == RustState.Returning)
@@ -624,7 +645,54 @@ public class AdventureRustDrone : MonoBehaviour
         {
             _guidedScrap = null;
             _isPointingToScrap = false;
+            _isGuidingToTower = false;
             return;
+        }
+
+        // 20pt達成〜天蓋開放前：中央タワーへの先導誘導を最優先！
+        bool leverUnlocked = mgr.IsLeverUnlocked;
+        bool canopyBroken = AdventureSanctuaryTowerManager.IsCanopyBroken;
+
+        if (leverUnlocked && !canopyBroken)
+        {
+            _isGuidingToTower = true;
+            _guidedScrap = null;
+            _isPointingToScrap = false;
+
+            float distToTower = Vector3.Distance(_lookAt.position, SanctuaryTowerCenter);
+
+            if (distToTower <= 14f)
+            {
+                if (!_nearTowerNotified)
+                {
+                    _nearTowerNotified = true;
+                    SetSpeech("タワーに着いたよ！白亜のテラスに黄金のレバーがある！引いてみて、Niko！！", 5.0f);
+                    if (_audio != null && _happyBeepClip != null)
+                    {
+                        _audio.pitch = 1.45f;
+                        _audio.PlayOneShot(_happyBeepClip, 0.75f);
+                    }
+                }
+            }
+            else
+            {
+                _nearTowerNotified = false;
+                if (Time.time >= _nextTowerNotice)
+                {
+                    _nextTowerNotice = Time.time + 14f;
+                    SetSpeech("こっちだよ！中央タワーはこの方向だ！レバーを引きに行こう！", 4.0f);
+                    if (_audio != null && _happyBeepClip != null)
+                    {
+                        _audio.pitch = 1.35f;
+                        _audio.PlayOneShot(_happyBeepClip, 0.65f);
+                    }
+                }
+            }
+            return;
+        }
+        else
+        {
+            _isGuidingToTower = false;
         }
 
         var nearest = mgr.GetNearestScrapItem(_lookAt.position, out float dist);
@@ -736,6 +804,15 @@ public class AdventureRustDrone : MonoBehaviour
 
         if (IsClimaxOverdrive)
             return NestleBesideNikoOnScreen(0.8f, 0.4f, 0.12f);
+
+        // 20pt達成後：RustはNikoの前方2.4m（中央タワーに向かうベクトル）へ先行飛行して先導！
+        if (_isGuidingToTower)
+        {
+            Vector3 toTower = Vector3.ProjectOnPlane(SanctuaryTowerCenter - niko, Vector3.up).normalized;
+            Vector3 guidePos = niko + toTower * 2.4f;
+            float sBob = Mathf.Sin(Time.time * bobSpeed * 1.8f) * (bobAmount * 1.3f);
+            return new Vector3(guidePos.x, chest.y + 0.25f + sBob, guidePos.z);
+        }
 
         // 近くに未回収パーツがある場合、RustはNikoの少し前方（パーツ寄り）へ先行して合図
         if (_isPointingToScrap && _guidedScrap != null)

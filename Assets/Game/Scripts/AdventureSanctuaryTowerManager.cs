@@ -516,10 +516,22 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         gMat.SetColor("_BaseColor", new Color(0.80f, 0.18f, 0.15f));
         gMat.SetFloat("_Smoothness", 0.65f);
 
-        // 天を衝く光の柱マテリアル（シアン発光）
-        var bShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        // 天を衝く光の柱マテリアル（シアン発光、半透明加算ブレンドで遠景から美しく輝く）
+        var bShader = Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("RustAndFloat/WhiteSmoke")
+            ?? Shader.Find("Sprites/Default");
         var bMat = new Material(bShader);
-        bMat.SetColor("_BaseColor", new Color(0.35f, 0.92f, 1.0f, 0.75f));
+        bMat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
+        bMat.SetColor("_BaseColor", new Color(0.35f, 0.95f, 1.0f, 0.75f));
+        if (bMat.HasProperty("_Surface")) bMat.SetFloat("_Surface", 1f);
+        if (bMat.HasProperty("_Blend")) bMat.SetFloat("_Blend", 1f);
+        if (bMat.HasProperty("_Cull")) bMat.SetFloat("_Cull", 0f);
+        if (bMat.HasProperty("_ZWrite")) bMat.SetFloat("_ZWrite", 0f);
+        bMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        bMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        bMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        bMat.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+        bMat.renderQueue = 3150;
 
         // ── 四方＋頂上にレバーを配備（どの方向から来ても絶対に目の前に見つかる！） ──
         // 1. 南側正面レバー (512, 63.2, 501.5)

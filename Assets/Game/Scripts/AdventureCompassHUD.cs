@@ -376,26 +376,60 @@ public class AdventureCompassHUD : MonoBehaviour
             _headingBadgeText.text = $"{cardinal}  {Mathf.RoundToInt(yaw)}°";
         }
 
-        // 3. 最寄り漂着パーツへの方向と距離のナビゲーション
+        // 3. ナビゲーションターゲットの決定（20pt達成〜天蓋開放前は中央タワー、それ以外は最寄りパーツ）
         var mgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
         var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
 
         if (mgr != null && player != null)
         {
-            var nearest = mgr.GetNearestScrapItem(player.transform.position, out float dist);
-            if (nearest != null)
+            Vector3 playerPos = player.transform.position;
+            bool isGuidingToTower = mgr.IsLeverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken;
+
+            Vector3 targetPos;
+            string targetName;
+            Color targetColor;
+            float dist;
+            bool hasTarget = false;
+
+            if (isGuidingToTower)
             {
-                Vector3 toScrap = nearest.transform.position - player.transform.position;
-                toScrap.y = 0f;
-
-                if (toScrap.sqrMagnitude > 0.04f)
+                targetPos = new Vector3(512f, 63.2f, 512f);
+                targetName = "中央タワー（巨大レバー）";
+                targetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
+                dist = Vector3.Distance(playerPos, targetPos);
+                hasTarget = true;
+            }
+            else
+            {
+                var nearest = mgr.GetNearestScrapItem(playerPos, out dist);
+                if (nearest != null)
                 {
-                    // パーツの絶対方位も同じYaw定義で計算（リボンと矢印を一致させる）
-                    float scrapYaw = YawFromForward(toScrap);
-                    float angle = Mathf.DeltaAngle(yaw, scrapYaw);
-                    string scrapCardinal = GetCardinal(scrapYaw);
+                    targetPos = nearest.transform.position;
+                    targetName = nearest.itemName;
+                    targetColor = nearest.itemColor;
+                    hasTarget = true;
+                }
+                else
+                {
+                    targetPos = Vector3.zero;
+                    targetName = "";
+                    targetColor = Color.white;
+                    hasTarget = false;
+                }
+            }
 
-                    // コンパスリボン上に「✦」マーカー（X位置をスムーズ追従）
+            if (hasTarget)
+            {
+                Vector3 toTarget = targetPos - playerPos;
+                toTarget.y = 0f;
+
+                if (toTarget.sqrMagnitude > 4.0f)
+                {
+                    float targetYaw = YawFromForward(toTarget);
+                    float angle = Mathf.DeltaAngle(yaw, targetYaw);
+                    string targetCardinal = GetCardinal(targetYaw);
+
+                    // コンパスリボン上にマーカー（X位置をスムーズ追従）
                     if (_scrapMarkerRt != null)
                     {
                         _scrapMarkerRt.gameObject.SetActive(true);
@@ -405,8 +439,8 @@ public class AdventureCompassHUD : MonoBehaviour
                             targetX = angle * PixelsPerDegree;
                             if (_scrapMarkerText != null)
                             {
-                                _scrapMarkerText.text = Mathf.Abs(angle) < 6f ? "★" : "✦";
-                                _scrapMarkerText.color = nearest.itemColor;
+                                _scrapMarkerText.text = isGuidingToTower ? "🏛️" : (Mathf.Abs(angle) < 6f ? "★" : "✦");
+                                _scrapMarkerText.color = targetColor;
                             }
                         }
                         else if (angle > 65f)
@@ -414,8 +448,8 @@ public class AdventureCompassHUD : MonoBehaviour
                             targetX = RibbonHalfWidth - 10f;
                             if (_scrapMarkerText != null)
                             {
-                                _scrapMarkerText.text = "✦▶";
-                                Color c = nearest.itemColor;
+                                _scrapMarkerText.text = isGuidingToTower ? "🏛️▶" : "✦▶";
+                                Color c = targetColor;
                                 c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 7f);
                                 _scrapMarkerText.color = c;
                             }
@@ -425,8 +459,8 @@ public class AdventureCompassHUD : MonoBehaviour
                             targetX = -RibbonHalfWidth + 10f;
                             if (_scrapMarkerText != null)
                             {
-                                _scrapMarkerText.text = "◀✦";
-                                Color c = nearest.itemColor;
+                                _scrapMarkerText.text = isGuidingToTower ? "◀🏛️" : "◀✦";
+                                Color c = targetColor;
                                 c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 7f);
                                 _scrapMarkerText.color = c;
                             }
@@ -447,8 +481,9 @@ public class AdventureCompassHUD : MonoBehaviour
                         else if (angle <= -18f && angle > -155f) arrow = "◀ 左方向";
                         else arrow = "▼ 背後";
 
-                        _scrapNavText.text = $"✦ {nearest.itemName}  約{Mathf.RoundToInt(dist)}m（{scrapCardinal}方角） [{arrow}]";
-                        _scrapNavText.color = nearest.itemColor;
+                        string extra = isGuidingToTower ? " 【天蓋開放】" : "";
+                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m（{targetCardinal}方角） [{arrow}]{extra}";
+                        _scrapNavText.color = targetColor;
                     }
                 }
                 else
@@ -456,8 +491,16 @@ public class AdventureCompassHUD : MonoBehaviour
                     if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(false);
                     if (_scrapNavText != null)
                     {
-                        _scrapNavText.text = $"✦ {nearest.itemName}  [★ 足元]";
-                        _scrapNavText.color = nearest.itemColor;
+                        if (isGuidingToTower)
+                        {
+                            _scrapNavText.text = "✦ 中央タワー白亜テラス 【Eキーで巨大レバーを引く！】";
+                            _scrapNavText.color = new Color(1.0f, 0.90f, 0.35f, 1.0f);
+                        }
+                        else
+                        {
+                            _scrapNavText.text = $"✦ {targetName} [★ 足元]";
+                            _scrapNavText.color = targetColor;
+                        }
                     }
                 }
             }
