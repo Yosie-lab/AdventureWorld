@@ -145,9 +145,9 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
         Vector3 playerPos = _cachedCharacterController.transform.position;
         Vector3 capytaPos = transform.position;
 
-        // 地面からの高さ差をチェック（カピタの足元より下、または頭上高く飛んでいる場合は無視）
+        // 地面からの高さ差をチェック（砂浜の傾斜や段差を考慮して広めにカバー）
         float deltaY = playerPos.y - capytaPos.y;
-        if (deltaY < -0.4f || deltaY > targetWorldHeight + 0.3f)
+        if (deltaY < -0.6f || deltaY > targetWorldHeight + 0.6f)
         {
             return;
         }
@@ -264,13 +264,27 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
 
     /// <summary>
     /// カピタの個体ルートオブジェクトか判定
+    /// （プレハブ、野生カピタ、ビーチカピタ、ピアノカピタ、NPCカピタ等）
     /// </summary>
     public static bool IsCapytaRoot(Transform t)
     {
         if (t == null) return false;
         string n = t.name.ToLowerInvariant();
 
-        // 1. 名前に capyta または capy が含まれるか、NPCがカピタか
+        // 1. コンテナ自身（Capyta_Beach_Root, Animals等）は個体ではない
+        if (n.Contains("root") || n == "animals")
+        {
+            return false;
+        }
+
+        // 2. 子メッシュ・ボーン・パーティクル等の付属パーツは除外
+        if (n.Contains("armature") || n.Contains("bone") || n.Contains("cube") || 
+            n.Contains("notes") || n.Contains("mesh") || n.Contains("radar"))
+        {
+            return false;
+        }
+
+        // 3. 名前に capyta または capy が含まれるか、NPCがカピタか
         bool isCapyName = n.Contains("capyta") || n.Contains("capy");
         var npc = t.GetComponent<AdventureNpc>();
         bool isCapyNpc = npc != null && (npc.npcId == "capyta" || npc.displayName == "カピタ");
@@ -280,21 +294,19 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
             return false;
         }
 
-        // 2. 子メッシュ・ボーン・パーティクル等の付属パーツは除外
-        if (n.Contains("armature") || n.Contains("bone") || n.Contains("cube") || 
-            n.Contains("notes") || n.Contains("mesh") || n.Contains("radar") || n.Contains("root"))
-        {
-            return false;
-        }
-
-        // 3. 親または祖先に既にカピタオブジェクトが存在する場合、自身はルートではない
+        // 4. 親または祖先に既に「カピタ個体」が存在する場合、自身は子パーツと判定して除外
+        // （※親が Capyta_Beach_Root などのコンテナの場合はスキップして祖先をチェック）
         Transform p = t.parent;
         while (p != null)
         {
             string pn = p.name.ToLowerInvariant();
-            if (pn == "pianistcapyta" || pn == "capyta" || pn.StartsWith("capyta_") || pn.StartsWith("capy_"))
+            // コンテナオブジェクトは個体ではないので無視して親をたどる
+            if (!pn.Contains("root") && pn != "animals")
             {
-                return false;
+                if (pn == "pianistcapyta" || pn == "capyta" || pn.StartsWith("capyta_") || pn.StartsWith("capy_"))
+                {
+                    return false; // 親がカピタ個体なので、自身はその子パーツ
+                }
             }
             p = p.parent;
         }

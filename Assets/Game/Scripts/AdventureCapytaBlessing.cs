@@ -19,11 +19,12 @@ public class AdventureCapytaBlessing : MonoBehaviour
     {
         Ensure();
         Transform nearest = FindNearestCapyta(playerPos, out float dist);
-        return nearest != null && dist <= TalkRadius;
+        // Rust手当て(5.5m)との取り合いを防ぐため、カピタ会話を最優先保護
+        return nearest != null && dist <= TalkRadius + 0.8f;
     }
 
     public const float SuperJumpMultiplier = 1.55f;
-    const float TalkRadius = 4.8f;
+    const float TalkRadius = 5.2f;
     const string PrefKey = "RustAndFloat_CapytaSuperJump";
 
     enum Mood { Calm, Happy, Generous, Jackpot }
@@ -145,8 +146,9 @@ public class AdventureCapytaBlessing : MonoBehaviour
         for (int i = 0; i < all.Length; i++)
         {
             var t = all[i];
-            if (!IsCapytaInstanceRoot(t)) continue;
-            if (!t.name.StartsWith("Capyta_Beach_")) continue;
+            if (t == null) continue;
+            string n = t.name;
+            if (!n.StartsWith("Capyta_Beach_") || n.Contains("Root")) continue;
             list.Add(t);
         }
         return list;
@@ -492,31 +494,32 @@ public class AdventureCapytaBlessing : MonoBehaviour
     {
         if (!_promptVisible) return;
 
-        // 小さめ・半透明（下部セリフを隠さない）
+        // カピタ会話プロンプト（視認性の高いエメラルドグリーンの美しいバナー）
         float scale = Mathf.Clamp(Screen.height / 720f, 1f, 1.35f);
-        float w = Mathf.Min(440f * scale, Screen.width * 0.58f);
-        float h = 34f * scale;
+        float w = Mathf.Min(460f * scale, Screen.width * 0.65f);
+        float h = 38f * scale;
         float x = (Screen.width - w) * 0.5f;
-        // セリフ帯（画面下〜約160px）より上に置く
-        float y = Screen.height - (198f * scale);
-        float bar = 2f * scale;
+        float y = Screen.height - (185f * scale);
+        float bar = 3f * scale;
 
-        GUI.color = new Color(0.04f, 0.12f, 0.08f, 0.38f);
+        // 背景ボックス
+        GUI.color = new Color(0.02f, 0.10f, 0.07f, 0.85f);
         GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
-        GUI.color = new Color(0.55f, 0.95f, 0.70f, 0.55f);
+        // 上部アクセントライン
+        GUI.color = new Color(0.35f, 0.98f, 0.65f, 0.95f);
         GUI.DrawTexture(new Rect(x, y, w, bar), Texture2D.whiteTexture);
 
         var style = new GUIStyle(GUI.skin.label)
         {
-            fontSize = Mathf.RoundToInt(15f * scale),
+            fontSize = Mathf.RoundToInt(16f * scale),
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             wordWrap = false
         };
-        style.normal.textColor = new Color(0.92f, 1f, 0.88f, 0.92f);
+        style.normal.textColor = new Color(0.45f, 1f, 0.75f, 1.0f);
         string tip = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.hasCapytaSuperJump
-            ? "【E】カピタと話す"
-            : "【E】カピタと話す（ジャンプ＆油）";
+            ? "🐾 【E】カピタと話す"
+            : "🐾 【E】カピタと話す（スーパージャンプ＆潤滑油）";
         GUI.Label(new Rect(x, y, w, h), tip, style);
         GUI.color = Color.white;
     }

@@ -1088,7 +1088,8 @@ public class AdventureRustDrone : MonoBehaviour
             return;
 
         // カピタ会話レンジ内では E をカピタに譲る（Rust手当てと取り合いにしない）
-        if (AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(player.transform.position))
+        if (AdventureCapytaBlessing.IsTalkPromptActive ||
+            AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(player.transform.position))
             return;
 
         if (_isPlayerNear && ePressed && Time.time - _lastInteractTime > 0.35f)
@@ -2328,10 +2329,11 @@ public class AdventureRustDrone : MonoBehaviour
             }
         }
 
-        bool nearCapyta = AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(
-            AdventurePlayerController.Instance != null
-                ? AdventurePlayerController.Instance.transform.position
-                : transform.position);
+        bool nearCapyta = AdventureCapytaBlessing.IsTalkPromptActive ||
+            AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(
+                AdventurePlayerController.Instance != null
+                    ? AdventurePlayerController.Instance.transform.position
+                    : transform.position);
 
         // 0. Eキー検知のフォールバック（押しっぱなし連打防止）
         // カピタ会話中は触れない（Update側と同じ優先順位）
