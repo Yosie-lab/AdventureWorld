@@ -564,6 +564,20 @@ public class AdventureScrapManager : MonoBehaviour
         }
     }
 
+    [ContextMenu("Debug: 20pt達成・タワー誘導開始（その場）")]
+    public void DebugSetup20PointsCurrentPos()
+    {
+        var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
+        if (tower != null) tower.DebugSetup20PointsState(false);
+    }
+
+    [ContextMenu("Debug: 20pt達成・レバー前へワープ")]
+    public void DebugSetup20PointsWarpToLever()
+    {
+        var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
+        if (tower != null) tower.DebugSetup20PointsState(true);
+    }
+
     /// <summary>総合ポイントを判定し、20pt達成時にレバーロック解除を通知（※レバーを実際に引くまでは開放されない）</summary>
     public void CheckPointsAndNotifyLeverUnlock()
     {

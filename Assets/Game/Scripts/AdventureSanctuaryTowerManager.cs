@@ -671,15 +671,41 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void Update()
     {
-        // F9/F10: オープニング中でも最優先でレバー検証（二重起動防止のためここ一本化）
+        // デバッグショートカット（オープニング中でも最優先で検証可能）
         var debugKb = UnityEngine.InputSystem.Keyboard.current;
-        if (debugKb != null && (debugKb.f9Key.wasPressedThisFrame || debugKb.f10Key.wasPressedThisFrame))
+        if (debugKb != null)
         {
-            DebugJumpToCanopyOpening();
-            return;
+            // F8 / 数字8: 20pt達成・現在地からタワー誘導を体験
+            if (debugKb.f8Key.wasPressedThisFrame || debugKb.digit8Key.wasPressedThisFrame || debugKb.numpad8Key.wasPressedThisFrame)
+            {
+                DebugSetup20PointsState(warpToLever: false);
+                return;
+            }
+            // F7 / 数字7: 20pt達成・タワーテラス（レバー前）へワープ
+            if (debugKb.f7Key.wasPressedThisFrame || debugKb.digit7Key.wasPressedThisFrame || debugKb.numpad7Key.wasPressedThisFrame)
+            {
+                DebugSetup20PointsState(warpToLever: true);
+                return;
+            }
+            // F9 / F10: レバー前へワープして即時天蓋開放シーケンス開始
+            if (debugKb.f9Key.wasPressedThisFrame || debugKb.f10Key.wasPressedThisFrame)
+            {
+                DebugJumpToCanopyOpening();
+                return;
+            }
         }
         try
         {
+            if (Input.GetKeyDown(KeyCode.F8) || Input.GetKeyDown(KeyCode.Alpha8) || Input.GetKeyDown(KeyCode.Keypad8))
+            {
+                DebugSetup20PointsState(warpToLever: false);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.F7) || Input.GetKeyDown(KeyCode.Alpha7) || Input.GetKeyDown(KeyCode.Keypad7))
+            {
+                DebugSetup20PointsState(warpToLever: true);
+                return;
+            }
             if (Input.GetKeyDown(KeyCode.F9) || Input.GetKeyDown(KeyCode.F10))
             {
                 DebugJumpToCanopyOpening();
@@ -1074,6 +1100,120 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         TryPullLever(true);
+    }
+
+    [ContextMenu("Debug: 20pt達成・タワー誘導開始（現在地から）")]
+    public void DebugSetup20PointsCurrentPos() => DebugSetup20PointsState(warpToLever: false);
+
+    [ContextMenu("Debug: 20pt達成・タワーレバー前へワープ")]
+    public void DebugSetup20PointsWarpToLever() => DebugSetup20PointsState(warpToLever: true);
+
+    [ContextMenu("Debug: レバー即時開放シーケンス開始（F9）")]
+    public void DebugContextMenuJumpToCanopyOpening() => DebugJumpToCanopyOpening();
+
+    /// <summary>
+    /// デバッグ検証用（F8/8キー: その場から誘導、F7/7キー: レバー前ワープ）：
+    /// 総合20ポイント達成・レバーロック解除状態に即時セットアップし、その後の展開を自由に試せる。
+    /// </summary>
+    public void DebugSetup20PointsState(bool warpToLever)
+    {
+        var others = Object.FindObjectsByType<AdventureSanctuaryTowerManager>(FindObjectsSortMode.None);
+        for (int i = 0; i < others.Length; i++)
+        {
+            if (others[i] != null && others[i] != this)
+                Destroy(others[i].gameObject);
+        }
+        _instance = this;
+
+        // 過去のエンディング・天蓋崩壊フラグをクリア（未開放状態から開始）
+        ClearEndingRuntimeState(ignoreSavedCanopy: true);
+        _isCanopyBroken = false;
+        _canopyOpeningTriggered = false;
+        _leverSequenceTriggered = false;
+        _climaxCrisisStarted = false;
+        _climaxOilInjected = false;
+        _climaxOilWaiting = false;
+        _scriptBoardVisible = false;
+        _epilogueTriggered = false;
+        _isGameCleared = false;
+        _canopyBreakPercent = 0f;
+        RestoreExplorationPresentation(resetMusicToAmbient: true);
+        EnsureEventSystemForUi();
+        FixPodiumColliders();
+        ClearBoardsBlockingLever();
+
+        // スクラップマネージャーの進行度を合計21pt（20pt以上）にセットアップ
+        AdventureScrapManager.Ensure();
+        var sm = AdventureScrapManager.Instance;
+        if (sm != null)
+        {
+            sm.ResetToCount(12); // パーツ12個 (12pt)
+            sm.IsPianoRelicCollected = true; // ピアノ遺物 (3pt)
+            PlayerPrefs.SetInt("DriftBox_Opened_1", 1); // ドリフトボックス3箱 (6pt)
+            PlayerPrefs.SetInt("DriftBox_Opened_2", 1);
+            PlayerPrefs.SetInt("DriftBox_Opened_3", 1);
+            PlayerPrefs.SetInt("DriftBox_Opened_4", 0);
+            PlayerPrefs.SetInt("DriftBox_Opened_5", 0);
+            PlayerPrefs.DeleteKey("Adventure_LeverUnlockedNotified"); // 通知フラグをクリアしてチャイム＆誘導を確実に発火
+            PlayerPrefs.Save();
+        }
+
+        AdventureMusicDirector.Ensure();
+        AdventureMusicDirector.Instance?.ResetSkybreakMusicState();
+
+        // 白亜テラスの巨大真鍮レバー群を構築
+        BuildTowerLever();
+
+        // プレイヤーの移動
+        var player = AdventurePlayerController.Instance
+                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+        if (player != null)
+        {
+            player.SetAutoGlideMode(false);
+            player.ForceGroundReset();
+            if (warpToLever)
+            {
+                // 南側正面レバーの眼前（手前約3.2m）へワープ
+                Vector3 pos = new Vector3(_mainLeverPos.x, TerraceTopY + 0.12f, _mainLeverPos.z - 3.2f);
+                var cc = player.GetComponent<CharacterController>();
+                if (cc != null) cc.enabled = false;
+                player.transform.SetPositionAndRotation(pos, Quaternion.Euler(0f, 0f, 0f));
+                if (cc != null) cc.enabled = true;
+            }
+        }
+
+        // 相棒ドローンRustの状態初期化（クライマックス注油用オイル確保）
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+        {
+            drone.oilCount = Mathf.Max(drone.oilCount, 3);
+            drone.ResetClimaxState();
+            drone.ClearSpeech();
+        }
+
+        FindAnyObjectByType<AdventureRustFloatOpening>()?.ForceDismissForGameplay();
+
+        // 20pt達成通知・祝福チャイム・Rust先導・コンパスHUD誘導を同時発火！
+        if (sm != null)
+        {
+            sm.CheckPointsAndNotifyLeverUnlock();
+        }
+        else
+        {
+            OnLeverUnlockedByPoints();
+        }
+
+        if (player != null)
+            UpdateLeverProximity(player);
+
+        string modeStr = warpToLever ? "【タワー白亜テラス（レバー前）へワープ】" : "【現在位置からタワー誘導開始】";
+        Debug.Log($"[RustAndFloat] 20ポイント達成デバッグセットアップ完了: {modeStr}");
+
+        var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
+        if (hud != null)
+        {
+            hud.ShowUpgradeBanner($"✦ デバッグ: 20ポイント達成状態をセットアップ ✦\n{modeStr}");
+        }
     }
 
     /// <summary>
