@@ -572,12 +572,30 @@ public class AdventureSaveManager : MonoBehaviour
             drone.oilCount = Mathf.Max(1, Mathf.Max(drone.oilCount, data.oilCount));
         }
 
-        // 3. プレイヤー位置の復元
+        // 3. プレイヤー位置の復元（安全領域検証ガード）
         var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
         if (player != null && data.GetPosition() != Vector3.zero)
         {
-            player.Teleport(data.GetPosition());
+            Vector3 targetPos = data.GetPosition();
+
+            // パーツ0個（ゲーム開始直後）は必ず西側白砂ビーチの正規スポーン位置に固定
+            if (data.collectedCount == 0)
+            {
+                targetPos = new Vector3(158f, 6.5f, 275f);
+            }
+            else
+            {
+                // 島の外周海域（中心から半径440m以上）や海中など、異常な水没・空中座標の場合は安全な砂浜へ復帰
+                float distFromCenter = Vector2.Distance(new Vector2(targetPos.x, targetPos.z), new Vector2(512f, 512f));
+                if (distFromCenter > 435f || targetPos.y < 5.8f)
+                {
+                    targetPos = new Vector3(158f, 6.5f, 275f);
+                }
+            }
+
+            player.Teleport(targetPos);
             player.transform.rotation = Quaternion.Euler(0f, data.rotY, 0f);
+            player.ForceGroundReset();
         }
 
         ShowSaveNotification("セーブデータを復元しました", $"前回の冒険記録（パーツ: {data.collectedCount}個）を読み込みました");

@@ -41,6 +41,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         || _phase == Phase.DashCelebrate;
 
     public bool IsWaitingForOil => _phase == Phase.WaitOil;
+    public bool IsPrologueActive => _phase != Phase.Complete && _phase != Phase.Idle;
 
     public static void Ensure()
     {

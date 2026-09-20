@@ -56,6 +56,7 @@ public class AdventurePlayerController : MonoBehaviour
     Terrain             _land;
     float               _hop;
     bool                _grounded = true;
+    float               _spawnTime = 0f;
     string              _clip;
 
     // ─── 定数 ─────────────────────────────────────────────────────────
@@ -160,9 +161,9 @@ public class AdventurePlayerController : MonoBehaviour
     {
         var kb = GetKeyboard();
 
-        // オープニングボード表示中は操作不可（進行中に誤表示された場合は強制閉じ）
+        // オープニングボード表示中、または決定直後の入力ガード中（クリック・Space誤爆防止）は操作不可
         var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
-        if (opening != null && opening.IsModalBoardOpen())
+        if (opening != null && (opening.IsModalBoardOpen() || AdventureRustFloatOpening.IsInputGuarded))
         {
             var tower = AdventureSanctuaryTowerManager.Instance;
             bool inEnding = AdventureSanctuaryTowerManager.IsCanopyBroken
@@ -502,7 +503,9 @@ public class AdventurePlayerController : MonoBehaviour
                 escapeSpd: 7.5f, fwdSpd: 4.5f, totalSpd: 9.5f,
                 voice:     "ナイスジャンプ！風に乗って岸へ戻ろう、Niko！", voiceDur: 4.0f);
         }
-        else if (IsInBeachOrCoastZone(transform.position))
+        else if (IsInBeachOrCoastZone(transform.position)
+                 && (Time.time - _spawnTime > 3.0f)
+                 && (AdventureScrapManager.Instance != null && AdventureScrapManager.Instance.CollectedCount > 0))
         {
             Vector3 inwardDir = GetIslandCenterXZ() - transform.position.SetY(0f);
             LaunchBoostJump(
@@ -988,6 +991,7 @@ public class AdventurePlayerController : MonoBehaviour
         if (_cc != null) _cc.enabled = false;
         transform.position = pos;
         if (_cc != null) _cc.enabled = true;
+        _spawnTime = Time.time;
         if (!airborneEnding)
             ForceGroundReset();
     }

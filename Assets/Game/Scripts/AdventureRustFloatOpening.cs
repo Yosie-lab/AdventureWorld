@@ -39,13 +39,17 @@ public class AdventureRustFloatOpening : MonoBehaviour
     Image _playBtnImg;
     bool _isClosing = false;
     float _openTime = 0f;
+    static float _inputGuardUntil = 0f;
+
+    /// <summary>オープニング決定後、入力の誤爆（ジャンプや滑空）を防止する入力ガード中か判定</summary>
+    public static bool IsInputGuarded => Time.unscaledTime < _inputGuardUntil;
 
     public bool IsModalBoardOpen()
     {
         // エンディング進行中は絶対に操作ロックしない（再表示バグ対策）
         if (ShouldSkipOpeningBoard())
             return false;
-        return !IsGameStarted && _modalBoard != null && _modalBoard.activeSelf && !_isClosing;
+        return !IsGameStarted && _modalBoard != null && _modalBoard.activeSelf;
     }
 
     /// <summary>レバー操作などゲームプレイ優先時にオープニングボードを強制閉じ</summary>
@@ -332,8 +336,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         }
 
         _isClosing = true;
-        // 先に開始扱いにして操作ロックを即解除（フェード失敗でもボードが残らない）
-        IsGameStarted = true;
+        // PLAYボタン押下・決定キーのゲーム内誤爆（ジャンプや滑空）を確実に防ぐ入力ガードを設定
+        _inputGuardUntil = Time.unscaledTime + 0.85f;
         StartCoroutine(StartGameRoutine());
     }
 
@@ -357,6 +361,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         IsGameStarted = true;
         _isClosing = false;
+        // ボード完全消去後もさらに0.4秒間入力ガードを維持（クリックやSpaceキーの余韻による誤爆ジャンプを完全防止）
+        _inputGuardUntil = Mathf.Max(_inputGuardUntil, Time.unscaledTime + 0.40f);
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
