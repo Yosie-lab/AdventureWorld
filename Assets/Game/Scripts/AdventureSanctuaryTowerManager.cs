@@ -111,7 +111,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         new CanopyBeat("天蓋崩壊　未知の荒野への跳躍", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f)),
         new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f)),
         new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Niko！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
-        new CanopyBeat("", "✦ Niko", "ありがとうRust…！あなたがいたからここまで来られたの。さあ行こう！", new Color(1f, 0.88f, 0.45f, 1f)),
+        new CanopyBeat("", "✦ Niko", "ありがとうRust…！あなたがいたからここまで辿り着けた。", new Color(1f, 0.88f, 0.45f, 1f)),
         new CanopyBeat("", "✦ 相棒 Rust", "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Niko！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
         new CanopyBeat("", "", "タワー中央の光の柱へ飛び込み、\n空の裂け目へ突き抜ける。", new Color(0.85f, 0.95f, 1f, 1f)),
         new CanopyBeat("空の裂け目へ", "", "【Space長押し / クリック】でダイブする", new Color(1f, 0.88f, 0.4f, 1f), true),
