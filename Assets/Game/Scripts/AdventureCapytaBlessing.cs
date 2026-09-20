@@ -321,11 +321,10 @@ public class AdventureCapytaBlessing : MonoBehaviour
         }
 
         int mi = (int)mood;
-        ShowSpeechBubble(CapytaByMood[mi]);
-        drone.SpeakCustom(
-            $"{RustByMood[mi]}（{MoodLabel(mood)}：油 +{amount}／所持: {drone.oilCount}）", 5.2f);
-        AdventureScrapHUD.Instance?.ShowUpgradeBanner(
-            $"✦ カピタの贈り物（{MoodLabel(mood)}）✦  潤滑油 +{amount}（所持: {drone.oilCount}）");
+        string combined =
+            $"カピタ「{CapytaByMood[mi]}」\n" +
+            $"Rust「{RustByMood[mi]}（油 +{amount}／所持: {drone.oilCount}）」";
+        drone.SpeakAs($"🐾 カピタ（{MoodLabel(mood)}）", new Color(0.40f, 1f, 0.70f), combined, 5.0f);
         _talkIndex++;
     }
 
@@ -355,6 +354,12 @@ public class AdventureCapytaBlessing : MonoBehaviour
             return;
         }
 
+        if (Time.unscaledTime < _talkCooldownUntil)
+        {
+            _promptVisible = false;
+            return;
+        }
+
         Transform nearest = FindNearestCapyta(player.transform.position, out float dist);
         if (nearest == null || dist > TalkRadius)
         {
@@ -372,9 +377,13 @@ public class AdventureCapytaBlessing : MonoBehaviour
         if (ePressed && Time.unscaledTime - _lastTalkTime > 0.45f)
         {
             _lastTalkTime = Time.unscaledTime;
+            _talkCooldownUntil = Time.unscaledTime + 5.0f; // 会話中はプロンプトを隠してボード重複を防止
+            _promptVisible = false;
             TalkToCapyta(player, nearest);
         }
     }
+
+    private float _talkCooldownUntil = 0f;
 
     void TalkToCapyta(AdventurePlayerController player, Transform capy)
     {
@@ -396,25 +405,26 @@ public class AdventureCapytaBlessing : MonoBehaviour
         int oilNow = drone != null ? drone.oilCount : amount;
         int mi = (int)mood;
 
+        // ボードの多重重なりを完全解消：
+        // カピタの言葉と相棒Rustの声を美しい1つのシネマダイアログに統合
         if (firstJump)
         {
             int ci = Random.Range(0, CapytaFirst.Length);
             int ri = Random.Range(0, RustFirst.Length);
-            ShowSpeechBubble($"{CapytaFirst[ci]}（{MoodLabel(mood)}）");
-            drone?.SpeakCustom(
-                $"{RustFirst[ri]}（{MoodLabel(mood)}：油 +{amount}／所持: {oilNow}）",
-                5.8f);
-            AdventureScrapHUD.Instance?.ShowUpgradeBanner(
-                $"✦ カピタの祝福（{MoodLabel(mood)}）✦  スーパージャンプ＆潤滑油 +{amount}");
+
+            string combined =
+                $"カピタ「{CapytaFirst[ci]}」\n" +
+                $"Rust「{RustFirst[ri]}（油 +{amount}／所持: {oilNow}）」";
+
+            drone?.SpeakAs("🐾 カピタの祝福 ✦ スーパージャンプ獲得！", new Color(0.40f, 1f, 0.70f), combined, 6.2f);
         }
         else
         {
-            ShowSpeechBubble(CapytaByMood[mi]);
-            drone?.SpeakCustom(
-                $"{RustByMood[mi]}（{MoodLabel(mood)}：油 +{amount}／所持: {oilNow}）",
-                5.0f);
-            AdventureScrapHUD.Instance?.ShowUpgradeBanner(
-                $"✦ カピタの贈り物（{MoodLabel(mood)}）✦  潤滑油 +{amount}（所持: {oilNow}）");
+            string combined =
+                $"カピタ「{CapytaByMood[mi]}」\n" +
+                $"Rust「{RustByMood[mi]}（油 +{amount}／所持: {oilNow}）」";
+
+            drone?.SpeakAs($"🐾 カピタ（{MoodLabel(mood)}）", new Color(0.40f, 1f, 0.70f), combined, 5.0f);
         }
 
         _talkIndex++;
@@ -442,10 +452,6 @@ public class AdventureCapytaBlessing : MonoBehaviour
         return false;
     }
 
-    static void ShowSpeechBubble(string text)
-    {
-        AdventureScrapHUD.Instance?.ShowUpgradeBanner($"カピタ「{text}」");
-    }
 
     static Transform FindNearestCapyta(Vector3 playerPos, out float bestDist)
     {

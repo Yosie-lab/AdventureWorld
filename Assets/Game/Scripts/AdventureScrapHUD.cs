@@ -143,15 +143,15 @@ public class AdventureScrapHUD : MonoBehaviour
         outline.effectColor = new Color(0f, 0.02f, 0.06f, 0.98f);
         outline.effectDistance = new Vector2(1.5f, -1.5f);
 
-        // ── 詩的ロア・アップグレードバナー（画面下部中央・映画のようなシネマティック表示） ──
+        // ── 詩的ロア・アップグレードバナー（画面中央上部・下部のキャラクターセリフと被らない独立領域） ──
         _bannerGo = new GameObject("PoeticLoreBanner");
         _bannerGo.transform.SetParent(canvasGo.transform, false);
         var bannerRt = _bannerGo.AddComponent<RectTransform>();
-        bannerRt.anchorMin = new Vector2(0.5f, 0.0f);
-        bannerRt.anchorMax = new Vector2(0.5f, 0.0f);
-        bannerRt.pivot = new Vector2(0.5f, 0.0f);
-        bannerRt.anchoredPosition = new Vector2(0f, 85f); // 画面下部、足元より少し上
-        bannerRt.sizeDelta = new Vector2(1000f, 160f); // 1000pxのワイドな映画字幕ウィンドウ
+        bannerRt.anchorMin = new Vector2(0.5f, 1.0f);
+        bannerRt.anchorMax = new Vector2(0.5f, 1.0f);
+        bannerRt.pivot = new Vector2(0.5f, 1.0f);
+        bannerRt.anchoredPosition = new Vector2(0f, -90f); // 画面上部、クエスト枠の下にスッキリ配置
+        bannerRt.sizeDelta = new Vector2(860f, 120f);
 
         var bannerBg = _bannerGo.AddComponent<Image>();
         bannerBg.color = new Color(0.02f, 0.05f, 0.10f, 0.62f);
