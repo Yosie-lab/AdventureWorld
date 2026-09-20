@@ -393,8 +393,8 @@ public class AdventureCompassHUD : MonoBehaviour
 
             if (isGuidingToTower)
             {
-                targetPos = new Vector3(512f, 63.2f, 512f);
-                targetName = "中央タワー（巨大レバー）";
+                targetPos = new Vector3(512f, 63.2f, 501.5f); // 南正面メイン巨大レバー
+                targetName = "白亜タワー（巨大レバー）";
                 targetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
                 dist = Vector3.Distance(playerPos, targetPos);
                 hasTarget = true;

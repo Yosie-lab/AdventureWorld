@@ -494,7 +494,7 @@ public class AdventurePlayerController : MonoBehaviour
 
         float effectiveJumpHeight = jumpHeight * jumpMultiplier;
 
-        if (IsInLakeOrStreamBasin(transform.position))
+        if (IsInLakeOrStreamBasin(transform.position) && (Time.time - _spawnTime > 3.0f) && !AdventureRustFloatOpening.IsInputGuarded)
         {
             LaunchBoostJump(
                 hop:       LakeHop,
@@ -504,8 +504,9 @@ public class AdventurePlayerController : MonoBehaviour
                 voice:     "ナイスジャンプ！風に乗って岸へ戻ろう、Niko！", voiceDur: 4.0f);
         }
         else if (IsInBeachOrCoastZone(transform.position)
-                 && (Time.time - _spawnTime > 3.0f)
-                 && (AdventureScrapManager.Instance != null && AdventureScrapManager.Instance.CollectedCount > 0))
+                 && (Time.time - _spawnTime > 5.0f)
+                 && (AdventureScrapManager.Instance != null && AdventureScrapManager.Instance.CollectedCount > 0)
+                 && !AdventureRustFloatOpening.IsInputGuarded)
         {
             Vector3 inwardDir = GetIslandCenterXZ() - transform.position.SetY(0f);
             LaunchBoostJump(
@@ -895,7 +896,13 @@ public class AdventurePlayerController : MonoBehaviour
     float WaterY()
     {
         var bounds = AdventureIslandBoundary.Instance;
-        return bounds != null ? bounds.waterLevel : float.NegativeInfinity;
+        if (bounds != null)
+        {
+            // 旧プロジェクトの18mなどの異常高水位を弾き、Rust & Float の海面水位5.5mを安全上限として防衛
+            if (bounds.waterLevel > 0f && bounds.waterLevel <= 8.0f)
+                return bounds.waterLevel;
+        }
+        return 5.5f; // Rust & Float の正規海面水位
     }
 
     // 水深がSwimDepthを超えて足が海底から浮いている状態

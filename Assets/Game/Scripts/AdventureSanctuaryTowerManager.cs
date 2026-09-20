@@ -412,21 +412,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         Vector2 posXZ = new Vector2(worldPos.x, worldPos.z);
 
-        // 1. 4基のレバー台座の範囲（上面 64.02m）
-        Vector2[] leverCenters = new Vector2[]
+        // 1. 南正面メインレバー台座の範囲（上面 64.02m、半径3.2m）
+        Vector2 mainLeverCenter = new Vector2(512f, 501.5f);
+        if (Vector2.SqrMagnitude(posXZ - mainLeverCenter) <= 3.2f * 3.2f)
         {
-            new Vector2(512f, 501.5f), // 南メインレバー
-            new Vector2(501.5f, 512f), // 西レバー
-            new Vector2(512f, 522.5f), // 北レバー
-            new Vector2(522.5f, 512f)  // 東レバー
-        };
-
-        foreach (var center in leverCenters)
-        {
-            if (Vector2.SqrMagnitude(posXZ - center) <= 3.2f * 3.2f)
-            {
-                return 64.02f; // レバー台座の上面
-            }
+            return 64.02f; // レバー台座の上面
         }
 
         // 2. 白大理石円盤テラスの範囲（中心 512, 512、半径 34.5m、上面 63.00m）
@@ -537,21 +527,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         bMat.EnableKeyword("_ALPHAPREMULTIPLY_ON");
         bMat.renderQueue = 3150;
 
-        // ── 四方＋頂上にレバーを配備（どの方向から来ても絶対に目の前に見つかる！） ──
-        // 1. 南側正面レバー (512, 63.2, 501.5)
+        // ── 南側正面メインレバー1基のみを堂々と配備（白亜テラスの特等席） ──
+        // 南側正面レバー (512, 63.2, 501.5)
         CreateLeverStation("SanctuaryLeverStructure", _mainLeverPos, Quaternion.identity, pedMat, hMat, sMat, gMat, bMat, true);
-
-        // 2. 西側レバー (501.5, 63.2, 512)
-        CreateLeverStation("SanctuaryWestLeverStructure", new Vector3(501.5f, 63.2f, 512f), Quaternion.Euler(0f, 90f, 0f), pedMat, hMat, sMat, gMat, bMat, false);
-
-        // 3. 北側レバー (512, 63.2, 522.5) — 今まさにプレイヤーがいる北東側からも最短距離！
-        CreateLeverStation("SanctuaryNorthLeverStructure", new Vector3(512f, 63.2f, 522.5f), Quaternion.Euler(0f, 180f, 0f), pedMat, hMat, sMat, gMat, bMat, false);
-
-        // 4. 東側レバー (522.5, 63.2, 512)
-        CreateLeverStation("SanctuaryEastLeverStructure", new Vector3(522.5f, 63.2f, 512f), Quaternion.Euler(0f, 270f, 0f), pedMat, hMat, sMat, gMat, bMat, false);
-
-        // 5. 頂上レバー (512, 137.2, 512)
-        CreateLeverStation("SanctuaryTopLeverStructure", _topLeverPos, Quaternion.identity, pedMat, hMat, sMat, gMat, bMat, false);
     }
 
     void CreateLeverStation(string name, Vector3 worldPos, Quaternion rotation,
@@ -841,25 +819,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         Vector3 p = player.transform.position;
 
-        // 各レバー本体の近くだけ反応（遠距離UI誤認を防ぐ）
-        bool nearAnyLever = false;
-        Vector3[] leverSpots =
-        {
-            _mainLeverPos, _topLeverPos,
-            new Vector3(501.5f, 63.2f, 512f),
-            new Vector3(512f, 63.2f, 522.5f),
-            new Vector3(522.5f, 63.2f, 512f)
-        };
-        for (int i = 0; i < leverSpots.Length; i++)
-        {
-            if (Vector3.Distance(p, leverSpots[i]) < 28f)
-            {
-                nearAnyLever = true;
-                break;
-            }
-        }
+        // 南正面メインレバー台座の周辺（14m以内）にいる時だけ操作UIを表示
+        bool nearMainLever = Vector3.Distance(p, _mainLeverPos) < 14f;
 
-        _playerNearby = nearAnyLever && !_showSkybreakModal;
+        _playerNearby = nearMainLever && !_showSkybreakModal;
     }
 
     static void EnsureEventSystemForUi()

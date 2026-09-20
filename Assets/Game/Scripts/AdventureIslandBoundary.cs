@@ -9,7 +9,7 @@ public class AdventureIslandBoundary : MonoBehaviour
     public float walkMaxX = 295f;
     public float walkMinZ = 25f;
     public float walkMaxZ = 295f;
-    public float waterLevel = 18f;
+    public float waterLevel = 5.5f; // Rust & Float の正規海面水位（5.5m）
     public Vector2 lakeCenter = new Vector2(133f, 169f);
     public float lakeRadius = 36f;
     public float rockSpacing = 14f;
@@ -34,6 +34,7 @@ public class AdventureIslandBoundary : MonoBehaviour
             return;
         }
         Instance = this;
+        waterLevel = 5.5f; // Rust & Float 海面水位の絶対保証（旧プロジェクトの18m誤判定による空中浮遊を防止）
         _land = Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude)
             .FirstOrDefault(t => t.name == "LandTerrain" || t.name == "IslandTerrain");
         if (_land != null && _land.terrainData != null)
