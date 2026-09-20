@@ -36,6 +36,9 @@ public class AdventureSaveManager : MonoBehaviour
         public float rotY;
         public List<int> collectedScrapIds = new List<int>();
         public int collectedCount;
+        public List<int> openedDriftBoxIds = new List<int>();
+        public bool isPianoRelicCollected;
+        public int totalProgressPoints;
         public int oilCount;
         public bool isCanopyBroken;
         public string saveTime;
@@ -438,6 +441,18 @@ public class AdventureSaveManager : MonoBehaviour
                 data.collectedScrapIds = new List<int>(scrapMgr.GetCollectedIds());
                 data.collectedCount = scrapMgr.CollectedCount;
                 scrapCount = data.collectedCount;
+
+                // ドリフトボックス開封状態の保存
+                data.openedDriftBoxIds = new List<int>();
+                for (int i = 1; i <= 5; i++)
+                {
+                    if (PlayerPrefs.GetInt("DriftBox_Opened_" + i, 0) == 1)
+                        data.openedDriftBoxIds.Add(i);
+                }
+
+                // ピアノ古代遺物回収状態の保存
+                data.isPianoRelicCollected = scrapMgr.IsPianoRelicCollected;
+                data.totalProgressPoints = scrapMgr.TotalProgressPoints;
             }
 
             // 【超重要安全ガード】もし未初期化やドメインリロード事故でscrapCountが既存ファイルより少ない場合、
@@ -456,6 +471,16 @@ public class AdventureSaveManager : MonoBehaviour
                             data.collectedCount = oldData.collectedCount;
                             scrapCount = data.collectedCount;
                             Debug.LogWarning($"[AdventureSaveManager] 安全ガード発動: メモリ上のパーツ({scrapMgr?.CollectedCount})が既存記録({oldData.collectedCount})より少ないため、既存記録を保護維持しました。");
+                        }
+
+                        // ボックスやピアノの記録も既存データを保護維持
+                        if (oldData.openedDriftBoxIds != null && oldData.openedDriftBoxIds.Count > data.openedDriftBoxIds.Count)
+                        {
+                            data.openedDriftBoxIds = new List<int>(oldData.openedDriftBoxIds);
+                        }
+                        if (oldData.isPianoRelicCollected)
+                        {
+                            data.isPianoRelicCollected = true;
                         }
                     }
                 }
@@ -563,6 +588,26 @@ public class AdventureSaveManager : MonoBehaviour
         if (scrapMgr != null)
         {
             scrapMgr.ApplyLoadedScraps(data.collectedScrapIds, data.collectedCount);
+
+            // ドリフトボックス開封状態の復元
+            if (data.openedDriftBoxIds != null && data.openedDriftBoxIds.Count > 0)
+            {
+                foreach (int bId in data.openedDriftBoxIds)
+                {
+                    PlayerPrefs.SetInt("DriftBox_Opened_" + bId, 1);
+                }
+                PlayerPrefs.Save();
+            }
+
+            // ピアノ古代遺物回収状態の復元
+            if (data.isPianoRelicCollected)
+            {
+                scrapMgr.IsPianoRelicCollected = true;
+            }
+
+            // ポイント再判定とレバーロック解除・HUD同期
+            scrapMgr.CheckPointsAndNotifyLeverUnlock();
+            AdventureScrapHUD.Instance?.RefreshQuestDisplay();
         }
 
         // 2. Rustの油の復元

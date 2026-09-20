@@ -446,6 +446,17 @@ public class AdventureScrapManager : MonoBehaviour
     void Start()
     {
         SpawnAllScraps();
+        StartCoroutine(SyncInitialProgressRoutine());
+    }
+
+    System.Collections.IEnumerator SyncInitialProgressRoutine()
+    {
+        yield return null;
+        CheckPointsAndNotifyLeverUnlock();
+        if (AdventureScrapHUD.Instance != null)
+        {
+            AdventureScrapHUD.Instance.RefreshQuestDisplay();
+        }
     }
 
     void SpawnAllScraps()

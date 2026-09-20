@@ -7,7 +7,6 @@ using UnityEditor;
 /// </summary>
 public static class AdventureResetAllPointsTool
 {
-    [InitializeOnLoadMethod]
     [MenuItem("Adventure/🔄 全探索ポイントを0に完全リセット (パーツ・ボックス・遺物)")]
     public static void ResetAllPointsNow()
     {
