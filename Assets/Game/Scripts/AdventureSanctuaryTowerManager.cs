@@ -475,17 +475,39 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void BuildTowerLever()
     {
-        string[] oldNames = {
-            "SanctuaryLeverStructure", "SanctuaryWestLeverStructure",
-            "SanctuaryNorthLeverStructure", "SanctuaryEastLeverStructure", "SanctuaryTopLeverStructure"
-        };
-        foreach (var n in oldNames)
+        // 既に正常なメインレバーが存在している場合は再生成せず多重生成を防止
+        var existingStructure = transform.Find("SanctuaryLeverStructure");
+        if (existingStructure != null && _leverHandle != null)
         {
-            var old = GameObject.Find(n);
-            if (old != null) Destroy(old);
+            return;
         }
+
+        // 1. 自階層配下にある古いレバーオブジェクトを即座に完全一掃
+        for (int i = transform.childCount - 1; i >= 0; i--)
+        {
+            var child = transform.GetChild(i);
+            if (child != null && (child.name.Contains("LeverStructure") || child.name.Contains("SanctuaryLever")))
+            {
+                DestroyImmediate(child.gameObject);
+            }
+        }
+
+        // 2. シーン内にあるすべての古いレバーオブジェクトを根こそぎ即時完全消去
+        var allObjects = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var go in allObjects)
+        {
+            if (go == null) continue;
+            if (go.name == "SanctuaryLeverStructure" || go.name == "SanctuaryWestLeverStructure" ||
+                go.name == "SanctuaryNorthLeverStructure" || go.name == "SanctuaryEastLeverStructure" ||
+                go.name == "SanctuaryTopLeverStructure")
+            {
+                DestroyImmediate(go);
+            }
+        }
+
         _allLeverHandles.Clear();
         _allLeverLights.Clear();
+        _leverHandle = null;
 
         var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
 
@@ -1468,16 +1490,39 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         yield break;
     }
 
-    IEnumerator AnimateLeverPullRoutine()
+    System.Collections.IEnumerator AnimateLeverPullRoutine()
     {
+        // レバー作動時、南正面のメインレバー構造以外に重複している古いレバーがあれば完全一掃
+        var allStructures = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        GameObject activeMainRoot = (_leverHandle != null && _leverHandle.parent != null) ? _leverHandle.parent.gameObject : null;
+        foreach (var go in allStructures)
+        {
+            if (go == null) continue;
+            if (go.name == "SanctuaryLeverStructure" && go != activeMainRoot)
+            {
+                DestroyImmediate(go);
+            }
+        }
+
+        // ピボット（LeverPivot）が未登録ならメインレバーから再取得
+        if (_allLeverHandles.Count == 0 && _leverHandle != null)
+        {
+            _allLeverHandles.Add(_leverHandle);
+        }
+
         float elapsed = 0f;
         float duration = 0.65f;
         Quaternion startRot = _leverHandle != null ? _leverHandle.localRotation : Quaternion.identity;
         Quaternion endRot = Quaternion.Euler(38f, 0f, 0f);
+
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
+            if (_leverHandle != null)
+            {
+                _leverHandle.localRotation = Quaternion.Slerp(startRot, endRot, t * t);
+            }
             foreach (var h in _allLeverHandles)
             {
                 if (h != null) h.localRotation = Quaternion.Slerp(startRot, endRot, t * t);
