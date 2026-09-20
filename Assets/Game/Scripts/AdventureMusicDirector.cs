@@ -20,8 +20,18 @@ public class AdventureMusicDirector : MonoBehaviour
     bool _keepEndingThemeActive = false;
     /// <summary>エンディング後に探索曲へ戻したら、天蓋開放済みでも天空曲へ再切替しない</summary>
     bool _preferAmbientAfterEnding = false;
+    bool _isFadingA = false;
     const float EndingThemeVolume = 0.78f;
     const float AmbientThemeVolume = 0.30f;
+
+    /// <summary>外部（古代ピアノ等の環境スポット）からのダッキング要求度 (0.0 = 通常音量, 1.0 = 最大ダッキング)</summary>
+    public float spotDuckingFactor = 0f;
+
+    /// <summary>スポットダッキング係数の設定 (0.0〜1.0)</summary>
+    public void SetSpotDucking(float factor)
+    {
+        spotDuckingFactor = Mathf.Clamp01(factor);
+    }
 
     public static void Ensure()
     {
@@ -104,6 +114,13 @@ public class AdventureMusicDirector : MonoBehaviour
         {
             RestoreExplorationTheme();
             return;
+        }
+
+        // 通常探索時：スポットダッキング係数（古代ピアノ接近等）に応じて音量をスムーズに調整
+        if (!_keepEndingThemeActive && !_isFadingA && _bgmSourceA != null && _bgmSourceA.isPlaying)
+        {
+            float targetVol = Mathf.Lerp(AmbientThemeVolume, AmbientThemeVolume * 0.20f, spotDuckingFactor);
+            _bgmSourceA.volume = Mathf.MoveTowards(_bgmSourceA.volume, targetVol, Time.deltaTime * 0.45f);
         }
 
         if (_preferAmbientAfterEnding)
@@ -247,13 +264,17 @@ public class AdventureMusicDirector : MonoBehaviour
     IEnumerator FadeVolume(AudioSource src, float targetVol, float duration)
     {
         if (src == null) yield break;
+        if (src == _bgmSourceA) _isFadingA = true;
         float startVol = src.volume;
         float elapsed = 0f;
         while (elapsed < duration)
         {
             // エンディング維持中に天空曲を消すフェードは中断
             if (_keepEndingThemeActive && src == _bgmSourceB && targetVol <= 0f)
+            {
+                if (src == _bgmSourceA) _isFadingA = false;
                 yield break;
+            }
 
             elapsed += Time.unscaledDeltaTime;
             src.volume = Mathf.Lerp(startVol, targetVol, elapsed / duration);
@@ -262,6 +283,7 @@ public class AdventureMusicDirector : MonoBehaviour
         src.volume = targetVol;
         if (targetVol <= 0f && !(_keepEndingThemeActive && src == _bgmSourceB))
             src.Stop();
+        if (src == _bgmSourceA) _isFadingA = false;
     }
 
     void GenerateMusicClips()

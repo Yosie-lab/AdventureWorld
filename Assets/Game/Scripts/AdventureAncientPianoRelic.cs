@@ -75,6 +75,7 @@ public class AdventureAncientPianoRelic : MonoBehaviour
     private ParticleSystem _relicParticles;
     private AudioSource _pianoAudioSource;
     private AudioClip _pianoChordClip;
+    private AudioClip _pianoPerformanceClip;
     private bool _hasPlayedIntroDialogue = false;
     private float _bobTimer = 0f;
 
@@ -88,6 +89,15 @@ public class AdventureAncientPianoRelic : MonoBehaviour
     void Awake()
     {
         _instance = this;
+    }
+
+    void OnDisable()
+    {
+        // ピアノから離れたり無効化された際はBGMダッキングを通常音量にリセット
+        if (AdventureMusicDirector.Instance != null)
+        {
+            AdventureMusicDirector.Instance.SetSpotDucking(0f);
+        }
     }
 
     void Start()
@@ -145,6 +155,13 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         if (player != null)
         {
             float dist = Vector3.Distance(transform.position, player.transform.position);
+
+            // BGMディレクターへのスポットダッキング連携（35m〜10mで徐々に通常BGMを控えめにしてピアノ生演奏を際立たせる）
+            if (AdventureMusicDirector.Instance != null)
+            {
+                float duck = Mathf.Clamp01((35f - dist) / 25f);
+                AdventureMusicDirector.Instance.SetSpotDucking(duck);
+            }
 
             // 1. 初回接近時（8.5m以内）の発見演出
             if (dist < 8.5f && !isDiscovered)
@@ -354,12 +371,38 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         // ピアノ専用の3Dオーディオソース
         _pianoAudioSource = gameObject.GetComponent<AudioSource>();
         if (_pianoAudioSource == null) _pianoAudioSource = gameObject.AddComponent<AudioSource>();
-        _pianoAudioSource.spatialBlend = 0.85f;
-        _pianoAudioSource.minDistance = 3.5f;
+        _pianoAudioSource.spatialBlend = 0.75f;
+        _pianoAudioSource.minDistance = 6.5f;
         _pianoAudioSource.maxDistance = 45f;
+        _pianoAudioSource.rolloffMode = AudioRolloffMode.Custom;
+
+        // 遠くからでも風に乗って美しく届き、近づくとしっかり響く自然な減衰カーブ
+        var curve = new AnimationCurve(
+            new Keyframe(0f, 1f, 0f, 0f),
+            new Keyframe(6.5f / 45f, 1f, 0f, -1.2f),
+            new Keyframe(16f / 45f, 0.55f, -1.5f, -1.5f),
+            new Keyframe(28f / 45f, 0.22f, -0.8f, -0.8f),
+            new Keyframe(40f / 45f, 0.06f, -0.3f, -0.3f),
+            new Keyframe(1f, 0f, 0f, 0f)
+        );
+        _pianoAudioSource.SetCustomCurve(AudioSourceCurveType.CustomRolloff, curve);
+
+        _pianoAudioSource.volume = 0.92f;
         _pianoAudioSource.playOnAwake = false;
 
+        _pianoPerformanceClip = CreateFeltPianoPerformanceClip();
         _pianoChordClip = CreateFeltPianoChord();
+
+        // カピタがピアノの前で奏でる美しい自動演奏ループを開始
+        if (_pianoPerformanceClip != null)
+        {
+            _pianoAudioSource.clip = _pianoPerformanceClip;
+            _pianoAudioSource.loop = true;
+            if (!_pianoAudioSource.isPlaying)
+            {
+                _pianoAudioSource.Play();
+            }
+        }
     }
 
     /// <summary>ランダムな候補地へピアノと遺物をスポーン配置する</summary>
@@ -786,6 +829,129 @@ public class AdventureAncientPianoRelic : MonoBehaviour
             if (Application.isPlaying) Destroy(col);
             else DestroyImmediate(col);
         }
+    }
+
+    /// <summary>
+    /// カピタがピアノの前で奏でる温かく愛らしいフェルトピアノ自動演奏（約16秒シームレスループ、BPM 60）
+    /// ノスタルジックな Cmaj9 → Am9 → Fmaj7 → G6/9 進行にのせたアルペジオと優しいメロディ
+    /// </summary>
+    private static AudioClip CreateFeltPianoPerformanceClip()
+    {
+        int rate = 44100;
+        float duration = 16.0f;
+        int samples = (int)(rate * duration);
+        float[] data = new float[samples];
+
+        // 演奏ノート定義 (開始秒, 周波数Hz, ベロシティ音量, 減衰速度)
+        var notes = new (float time, float freq, float vel, float decayRate)[]
+        {
+            // ── 小節1: Cmaj9 (0.0s - 4.0s) ──
+            // 左手アルペジオ
+            (0.00f, 130.81f, 0.45f, 1.4f), // C3
+            (0.60f, 196.00f, 0.38f, 1.6f), // G3
+            (1.20f, 246.94f, 0.35f, 1.8f), // B3
+            (1.80f, 329.63f, 0.36f, 2.0f), // E4
+            (2.60f, 246.94f, 0.30f, 2.0f), // B3
+            // 右手メロディ
+            (0.35f, 659.25f, 0.52f, 2.2f), // E5
+            (1.50f, 587.33f, 0.48f, 2.4f), // D5
+            (2.80f, 493.88f, 0.55f, 2.0f), // B4
+
+            // ── 小節2: Am9 (4.0s - 8.0s) ──
+            // 左手アルペジオ
+            (4.00f, 110.00f, 0.48f, 1.3f), // A2
+            (4.60f, 164.81f, 0.38f, 1.6f), // E3
+            (5.20f, 196.00f, 0.36f, 1.8f), // G3
+            (5.80f, 261.63f, 0.35f, 2.0f), // C4
+            (6.60f, 196.00f, 0.30f, 2.0f), // G3
+            // 右手メロディ
+            (4.35f, 523.25f, 0.50f, 2.2f), // C5
+            (5.50f, 493.88f, 0.46f, 2.4f), // B4
+            (6.75f, 440.00f, 0.52f, 2.0f), // A4
+
+            // ── 小節3: Fmaj7 (8.0s - 12.0s) ──
+            // 左手アルペジオ
+            (8.00f, 87.31f,  0.50f, 1.2f), // F2
+            (8.60f, 130.81f, 0.40f, 1.5f), // C3
+            (9.20f, 164.81f, 0.38f, 1.7f), // E3
+            (9.80f, 220.00f, 0.36f, 1.9f), // A3
+            (10.60f, 164.81f,0.30f, 2.0f), // E3
+            // 右手メロディ
+            (8.35f, 440.00f, 0.48f, 2.2f), // A4
+            (9.50f, 523.25f, 0.50f, 2.3f), // C5
+            (10.50f, 659.25f, 0.56f, 2.2f), // E5
+            (11.20f, 783.99f, 0.58f, 2.5f), // G5
+
+            // ── 小節4: G6/9 (12.0s - 16.0s) ──
+            // 左手アルペジオ
+            (12.00f, 98.00f,  0.48f, 1.3f), // G2
+            (12.60f, 146.83f, 0.38f, 1.6f), // D3
+            (13.20f, 196.00f, 0.36f, 1.8f), // G3
+            (13.80f, 246.94f, 0.35f, 2.0f), // B3
+            (14.60f, 196.00f, 0.30f, 2.0f), // G3
+            // 右手メロディ
+            (12.35f, 659.25f, 0.52f, 2.2f), // E5
+            (13.50f, 587.33f, 0.48f, 2.4f), // D5
+            (14.70f, 493.88f, 0.50f, 2.2f), // B4
+        };
+
+        for (int n = 0; n < notes.Length; n++)
+        {
+            var note = notes[n];
+            int startSample = (int)(note.time * rate);
+            int noteLen = (int)(3.5f * rate); // 最大3.5秒の余韻
+            int endSample = Mathf.Min(samples, startSample + noteLen);
+
+            for (int i = startSample; i < endSample; i++)
+            {
+                float t = (float)(i - startSample) / rate;
+                // フェルトピアノ特有の穏やかな立ち上がりと自然な指数減衰
+                float attack = Mathf.Clamp01(t * 140f);
+                float decay = Mathf.Exp(-t * note.decayRate);
+                float env = attack * decay * note.vel;
+
+                // 基音 + 温かみのある第2倍音・第3倍音
+                float f0 = note.freq;
+                float w = Mathf.Sin(2f * Mathf.PI * f0 * t) * 0.65f
+                        + Mathf.Sin(4f * Mathf.PI * f0 * t) * 0.24f
+                        + Mathf.Sin(6f * Mathf.PI * f0 * t) * 0.08f;
+
+                data[i] += w * env * 0.42f;
+            }
+
+            // ループ終端の余韻が先頭に自然に重なるようにブレンド（シームレス接続）
+            if (startSample + noteLen > samples)
+            {
+                int wrapLen = (startSample + noteLen) - samples;
+                for (int i = 0; i < wrapLen; i++)
+                {
+                    float t = (float)(samples - startSample + i) / rate;
+                    float attack = Mathf.Clamp01(t * 140f);
+                    float decay = Mathf.Exp(-t * note.decayRate);
+                    float env = attack * decay * note.vel;
+
+                    float f0 = note.freq;
+                    float w = Mathf.Sin(2f * Mathf.PI * f0 * t) * 0.65f
+                            + Mathf.Sin(4f * Mathf.PI * f0 * t) * 0.24f
+                            + Mathf.Sin(6f * Mathf.PI * f0 * t) * 0.08f;
+
+                    data[i] += w * env * 0.42f;
+                }
+            }
+        }
+
+        // ループ端のクロスフェードで微小なクリックを完全除去
+        int fadeSamples = (int)(rate * 0.15f);
+        for (int i = 0; i < fadeSamples; i++)
+        {
+            float w = (float)i / fadeSamples;
+            data[i] *= Mathf.SmoothStep(0.85f, 1.0f, w);
+            data[samples - 1 - i] *= Mathf.SmoothStep(0.85f, 1.0f, w);
+        }
+
+        var clip = AudioClip.Create("PianoPerformanceLoop", samples, 1, rate, false);
+        clip.SetData(data, 0);
+        return clip;
     }
 
     /// <summary>暖かく美しいフェルトピアノの和音コードを合成</summary>
