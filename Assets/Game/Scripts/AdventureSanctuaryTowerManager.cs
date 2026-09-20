@@ -1127,16 +1127,6 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         // 過去のエンディング・天蓋崩壊フラグをクリア（未開放状態から開始）
         ClearEndingRuntimeState(ignoreSavedCanopy: true);
-        _isCanopyBroken = false;
-        _canopyOpeningTriggered = false;
-        _leverSequenceTriggered = false;
-        _climaxCrisisStarted = false;
-        _climaxOilInjected = false;
-        _climaxOilWaiting = false;
-        _scriptBoardVisible = false;
-        _epilogueTriggered = false;
-        _isGameCleared = false;
-        _canopyBreakPercent = 0f;
         RestoreExplorationPresentation(resetMusicToAmbient: true);
         EnsureEventSystemForUi();
         FixPodiumColliders();
