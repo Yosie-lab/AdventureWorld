@@ -148,74 +148,249 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
             new Vector3(620f, 0f, 140f), land);
     }
 
-    /// <summary>二人の座礁漂着艇（エスケープ・ポッド）</summary>
+    /// <summary>二人の座礁漂着艇（温かみのある木造手漕ぎボート）</summary>
     void CreateEscapePod(Transform parent, Vector3 pos, Terrain land)
     {
-        pos = AlignToGround(pos, land, 0.4f);
-        var podGo = new GameObject("NikoRust_EscapePod");
-        podGo.transform.SetParent(parent, false);
-        podGo.transform.position = pos;
-        podGo.transform.rotation = Quaternion.Euler(14f, 65f, -8f); // 砂浜に斜めに突き刺さった座礁姿勢
+        // 既存の古いオブジェクト（旧潜水艇ポッド等）があれば掃除
+        var old = GameObject.Find("NikoRust_EscapePod");
+        if (old != null) Destroy(old);
+        var oldBoat = GameObject.Find("NikoRust_WoodenBoat");
+        if (oldBoat != null) Destroy(oldBoat);
 
-        // 船体（丸みを帯びたSF脱出カプセル）
-        var hull = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        hull.name = "PodHull";
-        hull.transform.SetParent(podGo.transform, false);
-        hull.transform.localScale = new Vector3(2.4f, 3.8f, 2.4f);
-        hull.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        pos = AlignToGround(pos, land, 0.25f);
+        var boatGo = new GameObject("NikoRust_WoodenBoat");
+        boatGo.transform.SetParent(parent, false);
+        boatGo.transform.position = pos;
+        // 波打ち際に乗り上げて優しく傾いた自然な座礁姿勢
+        boatGo.transform.rotation = Quaternion.Euler(6f, 65f, -9f);
 
-        var ren = hull.GetComponent<Renderer>();
-        if (ren != null)
-        {
-            var mat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-            mat.color = new Color(0.25f, 0.30f, 0.38f); // 煤けたダークスチール
-            mat.SetFloat("_Metallic", 0.85f);
-            mat.SetFloat("_Smoothness", 0.45f);
-            ren.material = mat;
-        }
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
 
-        // 開いたキャノピーハッチ（脱出した痕跡）
-        var hatch = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        hatch.name = "OpenHatch";
-        hatch.transform.SetParent(podGo.transform, false);
-        hatch.transform.localPosition = new Vector3(0.8f, 0.9f, 0.5f);
-        hatch.transform.localRotation = Quaternion.Euler(-35f, 25f, 15f);
-        hatch.transform.localScale = new Vector3(1.2f, 0.15f, 1.8f);
+        // 1. アンティーク木材マテリアル（チーク・オーク調、温かい木目）
+        var woodMat = new Material(shader);
+        woodMat.name = "Boat_AgedWood";
+        woodMat.SetColor("_BaseColor", new Color(0.46f, 0.33f, 0.22f));
+        woodMat.SetFloat("_Smoothness", 0.32f);
 
-        // キャビン内の微かな青いエマージェンシーランプ
-        var lightGo = new GameObject("EmergencyBeacon");
-        lightGo.transform.SetParent(podGo.transform, false);
-        lightGo.transform.localPosition = new Vector3(0f, 0.5f, 0.2f);
-        var light = lightGo.AddComponent<Light>();
+        // 2. 船体内装木材マテリアル（やや明るい板材）
+        var innerWoodMat = new Material(shader);
+        innerWoodMat.name = "Boat_InnerPlank";
+        innerWoodMat.SetColor("_BaseColor", new Color(0.56f, 0.42f, 0.28f));
+        innerWoodMat.SetFloat("_Smoothness", 0.30f);
+
+        // 3. 真鍮金具マテリアル（留め金・ランタンフレーム）
+        var brassMat = new Material(shader);
+        brassMat.name = "Boat_Brass";
+        brassMat.SetColor("_BaseColor", new Color(0.78f, 0.62f, 0.32f));
+        brassMat.SetFloat("_Metallic", 0.85f);
+        brassMat.SetFloat("_Smoothness", 0.65f);
+
+        // 4. ランタン発光マテリアル（温かい琥珀色の灯火）
+        var lanternGlowMat = new Material(shader);
+        lanternGlowMat.name = "Boat_LanternGlow";
+        Color glowCol = new Color(1.0f, 0.76f, 0.42f);
+        lanternGlowMat.SetColor("_BaseColor", glowCol);
+        lanternGlowMat.EnableKeyword("_EMISSION");
+        lanternGlowMat.SetColor("_EmissionColor", glowCol * 2.2f);
+
+        // 5. 帆布・ロープマテリアル（生成りキャンバス）
+        var canvasMat = new Material(shader);
+        canvasMat.name = "Boat_Canvas";
+        canvasMat.SetColor("_BaseColor", new Color(0.85f, 0.82f, 0.74f));
+        canvasMat.SetFloat("_Smoothness", 0.20f);
+
+        var boatRoot = new GameObject("BoatModel");
+        boatRoot.transform.SetParent(boatGo.transform, false);
+
+        // ── A. 船底（Bottom Planks / Keel） ──
+        var floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        floor.name = "BoatFloor";
+        floor.transform.SetParent(boatRoot.transform, false);
+        floor.transform.localPosition = new Vector3(0f, 0.08f, 0f);
+        floor.transform.localScale = new Vector3(1.35f, 0.12f, 3.8f);
+        floor.GetComponent<Renderer>().sharedMaterial = innerWoodMat;
+
+        // キール（竜骨：船底中央を貫く強固な角材）
+        var keel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        keel.name = "BoatKeel";
+        keel.transform.SetParent(boatRoot.transform, false);
+        keel.transform.localPosition = new Vector3(0f, -0.06f, 0f);
+        keel.transform.localScale = new Vector3(0.20f, 0.18f, 4.2f);
+        keel.GetComponent<Renderer>().sharedMaterial = woodMat;
+
+        // ── B. 船首（Bow - 尖った前部・舳先） ──
+        var stem = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        stem.name = "BowStem";
+        stem.transform.SetParent(boatRoot.transform, false);
+        stem.transform.localPosition = new Vector3(0f, 0.45f, 2.15f);
+        stem.transform.localRotation = Quaternion.Euler(32f, 0f, 0f);
+        stem.transform.localScale = new Vector3(0.18f, 0.95f, 0.22f);
+        stem.GetComponent<Renderer>().sharedMaterial = woodMat;
+
+        var bowDeck = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        bowDeck.name = "BowDeck";
+        bowDeck.transform.SetParent(boatRoot.transform, false);
+        bowDeck.transform.localPosition = new Vector3(0f, 0.42f, 1.75f);
+        bowDeck.transform.localRotation = Quaternion.Euler(16f, 0f, 0f);
+        bowDeck.transform.localScale = new Vector3(0.95f, 0.10f, 0.90f);
+        bowDeck.GetComponent<Renderer>().sharedMaterial = woodMat;
+
+        // ── C. 舷側（Gunwales / Side Planks - 左舷・右舷） ──
+        var portSide = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        portSide.name = "PortGunwale";
+        portSide.transform.SetParent(boatRoot.transform, false);
+        portSide.transform.localPosition = new Vector3(-0.72f, 0.38f, 0f);
+        portSide.transform.localRotation = Quaternion.Euler(0f, 0f, -14f);
+        portSide.transform.localScale = new Vector3(0.12f, 0.65f, 3.85f);
+        portSide.GetComponent<Renderer>().sharedMaterial = woodMat;
+
+        var stbdSide = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        stbdSide.name = "StarboardGunwale";
+        stbdSide.transform.SetParent(boatRoot.transform, false);
+        stbdSide.transform.localPosition = new Vector3(0.72f, 0.38f, 0f);
+        stbdSide.transform.localRotation = Quaternion.Euler(0f, 0f, 14f);
+        stbdSide.transform.localScale = new Vector3(0.12f, 0.65f, 3.85f);
+        stbdSide.GetComponent<Renderer>().sharedMaterial = woodMat;
+
+        var portBowSide = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        portBowSide.name = "PortBowSide";
+        portBowSide.transform.SetParent(boatRoot.transform, false);
+        portBowSide.transform.localPosition = new Vector3(-0.42f, 0.42f, 1.88f);
+        portBowSide.transform.localRotation = Quaternion.Euler(8f, 22f, -12f);
+        portBowSide.transform.localScale = new Vector3(0.12f, 0.60f, 0.95f);
+        portBowSide.GetComponent<Renderer>().sharedMaterial = woodMat;
+
+        var stbdBowSide = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        stbdBowSide.name = "StarboardBowSide";
+        stbdBowSide.transform.SetParent(boatRoot.transform, false);
+        stbdBowSide.transform.localPosition = new Vector3(0.42f, 0.42f, 1.88f);
+        stbdBowSide.transform.localRotation = Quaternion.Euler(8f, -22f, 12f);
+        stbdBowSide.transform.localScale = new Vector3(0.12f, 0.60f, 0.95f);
+        stbdBowSide.GetComponent<Renderer>().sharedMaterial = woodMat;
+
+        // ── D. 船尾（Transom - 後部隔壁板） ──
+        var transom = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        transom.name = "Transom";
+        transom.transform.SetParent(boatRoot.transform, false);
+        transom.transform.localPosition = new Vector3(0f, 0.36f, -1.90f);
+        transom.transform.localRotation = Quaternion.Euler(-15f, 0f, 0f);
+        transom.transform.localScale = new Vector3(1.30f, 0.62f, 0.12f);
+        transom.GetComponent<Renderer>().sharedMaterial = woodMat;
+
+        // ── E. 座席ベンチ（Thwarts） ──
+        var centerSeat = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        centerSeat.name = "CenterSeat";
+        centerSeat.transform.SetParent(boatRoot.transform, false);
+        centerSeat.transform.localPosition = new Vector3(0f, 0.32f, 0.15f);
+        centerSeat.transform.localScale = new Vector3(1.32f, 0.08f, 0.45f);
+        centerSeat.GetComponent<Renderer>().sharedMaterial = innerWoodMat;
+
+        var sternSeat = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        sternSeat.name = "SternSeat";
+        sternSeat.transform.SetParent(boatRoot.transform, false);
+        sternSeat.transform.localPosition = new Vector3(0f, 0.30f, -1.40f);
+        sternSeat.transform.localScale = new Vector3(1.22f, 0.08f, 0.42f);
+        sternSeat.GetComponent<Renderer>().sharedMaterial = innerWoodMat;
+
+        // ── F. 手漕ぎオール2本（Wooden Oars） ──
+        CreateOar(boatRoot.transform, new Vector3(-0.78f, 0.42f, 0.25f), Quaternion.Euler(22f, 65f, -32f), woodMat, innerWoodMat);
+        CreateOar(boatRoot.transform, new Vector3(0.35f, 0.28f, -0.45f), Quaternion.Euler(-12f, 15f, 8f), woodMat, innerWoodMat);
+
+        // ── G. 航海用真鍮ランタン（温かい琥珀色の明かり） ──
+        var lanternGo = new GameObject("NavLantern");
+        lanternGo.transform.SetParent(boatRoot.transform, false);
+        lanternGo.transform.localPosition = new Vector3(0f, 0.62f, 1.60f);
+
+        var lanternFrame = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        lanternFrame.name = "LanternFrame";
+        lanternFrame.transform.SetParent(lanternGo.transform, false);
+        lanternFrame.transform.localScale = new Vector3(0.20f, 0.22f, 0.20f);
+        lanternFrame.GetComponent<Renderer>().sharedMaterial = brassMat;
+        Destroy(lanternFrame.GetComponent<Collider>());
+
+        var lanternGlass = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        lanternGlass.name = "LanternGlass";
+        lanternGlass.transform.SetParent(lanternGo.transform, false);
+        lanternGlass.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+        lanternGlass.transform.localScale = new Vector3(0.16f, 0.24f, 0.16f);
+        lanternGlass.GetComponent<Renderer>().sharedMaterial = lanternGlowMat;
+        Destroy(lanternGlass.GetComponent<Collider>());
+
+        var light = lanternGo.AddComponent<Light>();
         light.type = LightType.Point;
-        light.color = new Color(0.2f, 0.85f, 1.0f);
-        light.range = 6.5f;
-        light.intensity = 2.2f;
+        light.color = glowCol;
+        light.range = 5.5f;
+        light.intensity = 1.85f;
+
+        // ── H. たたんだ帆布ロール（旅の荷物） ──
+        var canvasRoll = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        canvasRoll.name = "FadedCanvasRoll";
+        canvasRoll.transform.SetParent(boatRoot.transform, false);
+        canvasRoll.transform.localPosition = new Vector3(-0.25f, 0.22f, -1.05f);
+        canvasRoll.transform.localRotation = Quaternion.Euler(0f, 35f, 90f);
+        canvasRoll.transform.localScale = new Vector3(0.26f, 0.55f, 0.26f);
+        canvasRoll.GetComponent<Renderer>().sharedMaterial = canvasMat;
+        Destroy(canvasRoll.GetComponent<Collider>());
+
+        // 個別パーツのコライダーを掃除し、船体全体を包む滑らかなBoxColliderを配置
+        foreach (var col in boatRoot.GetComponentsInChildren<Collider>())
+        {
+            Destroy(col);
+        }
+        var mainCol = boatGo.AddComponent<BoxCollider>();
+        mainCol.center = new Vector3(0f, 0.35f, 0f);
+        mainCol.size = new Vector3(1.85f, 0.85f, 4.3f);
 
         // インタラクション判定トリガー
-        var trigger = podGo.AddComponent<AdventureBeachNarrativeSpot>();
-        trigger.spotId = "escape_pod";
-        trigger.title = "✦ 二人の漂着艇（エスケープ・カプセル） ✦";
-        trigger.subTitle = "外の管理都市コード704からの脱出艇";
+        var trigger = boatGo.AddComponent<AdventureBeachNarrativeSpot>();
+        trigger.spotId = "escape_boat";
+        trigger.title = "✦ 二人の漂着艇（木造手漕ぎボート） ✦";
+        trigger.subTitle = "外の管理都市コード704から海を渡ってきた小さな木の小舟";
         trigger.bodyText =
-            "砂浜に深く突き刺さった、煤と傷だらけの脱出ポッド。\n\n" +
-            "【Nikoの脱出航海ログ】\n" +
+            "潮風と荒波に耐え抜いた、小さな木造の手漕ぎボート。\n\n" +
+            "【Nikoの航海日誌】\n" +
             "「2050年7月14日 深夜。\n" +
-            "『効率性欠如』としてスクラップ処分が決まったRustを整備ドックから連れ出し、夜の海へ飛び出した。\n" +
-            "追手のアラートが鳴り響く中、真っ暗な外洋の荒波は冷たくて、死ぬほど怖かった。\n" +
-            "でも、暗闇の中でRustがピピッて小さく鳴いてくれたから、前を向けた。\n\n" +
-            "燃料が尽き、波に揺られてどれくらい経っただろう。\n" +
-            "気がつくとこの波の静かな砂浜に打ち上げられていた。\n" +
+            "『効率性欠如』としてスクラップ処分が決まったRustを整備ドックから連れ出し、夜の海へ漕ぎ出した。\n" +
+            "小さな木造ボートで真っ暗な外洋に出たときは、冷たい荒波が打ち寄せて死ぬほど怖かった。\n" +
+            "でも、暗闇の中でRustが小さな体で船首に座って、ランタンの灯りで前を照らし続けてくれたから、迷わずに漕ぎ続けられた。\n\n" +
+            "オールを握る手の豆がつぶれ、波に揺られてどれくらい経っただろう。\n" +
+            "気がつくとこの波の静かな美しい白砂ビーチに打ち上げられていた。\n" +
             "見上げた空は眩しいほど青く、風に乗って蝉の声が聞こえて……\n" +
             "二人で抱き合って、声を出して泣いた」";
-        trigger.rustDialogue = "「あの航海、怖かったね Niko……でも、Nikoが僕の手をずっと離さないでいてくれたから、僕の回路はショートしなかったんだよ」";
+        trigger.rustDialogue = "「あの航海、怖かったね Niko……でも、Nikoが一生懸命オールを漕いで僕を守ってくれたから、僕の回路はショートしなかったんだよ」";
 
         // 漂着艇のそばに回収可能な特殊サプライ（潤滑油缶）を配置
         var oilGo = new GameObject("PodSupplyOil");
-        oilGo.transform.SetParent(podGo.transform, false);
-        oilGo.transform.localPosition = new Vector3(1.2f, -0.4f, 0.8f);
+        oilGo.transform.SetParent(boatGo.transform, false);
+        oilGo.transform.localPosition = new Vector3(1.3f, 0.1f, 0.6f);
         var oilDrop = oilGo.AddComponent<AdventureRustOilDrop>();
         oilDrop.amount = 3; // たっぷり3個分の潤滑油
+    }
+
+    /// <summary>木製手漕ぎオールの生成ヘルパー</summary>
+    void CreateOar(Transform parent, Vector3 localPos, Quaternion localRot, Material shaftMat, Material bladeMat)
+    {
+        var oarGo = new GameObject("WoodenOar");
+        oarGo.transform.SetParent(parent, false);
+        oarGo.transform.localPosition = localPos;
+        oarGo.transform.localRotation = localRot;
+
+        // 長い木製シャフト（柄）
+        var shaft = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        shaft.name = "OarShaft";
+        shaft.transform.SetParent(oarGo.transform, false);
+        shaft.transform.localScale = new Vector3(0.06f, 1.25f, 0.06f);
+        shaft.GetComponent<Renderer>().sharedMaterial = shaftMat;
+        Destroy(shaft.GetComponent<Collider>());
+
+        // 水かきブレード（櫂の平らな先端）
+        var blade = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        blade.name = "OarBlade";
+        blade.transform.SetParent(oarGo.transform, false);
+        blade.transform.localPosition = new Vector3(0f, -1.25f, 0f);
+        blade.transform.localScale = new Vector3(0.24f, 0.65f, 0.04f);
+        blade.GetComponent<Renderer>().sharedMaterial = bladeMat;
+        Destroy(blade.GetComponent<Collider>());
     }
 
     /// <summary>初日のビーチキャンプ（焚き火と流木シェルター）</summary>
