@@ -1169,4 +1169,5 @@ public class AdventureScrapManager : MonoBehaviour
         ApplyAllUpgradesForCount(targetCount);
         AdventureScrapHUD.Instance?.OnCollect("", targetCount, TotalScrapCount);
     }
+    #endregion
 }
