@@ -663,6 +663,7 @@ public class AdventureRustDrone : MonoBehaviour
 
             if (distToTower <= 14f)
             {
+                _isGuidingToTower = false; // タワー到着後はNikoの肩へ寄り添う（オベリスクへ突っ込まない）
                 if (!_nearTowerNotified)
                 {
                     _nearTowerNotified = true;
@@ -844,7 +845,27 @@ public class AdventureRustDrone : MonoBehaviour
         float followBob = Mathf.Sin(Time.time * bobSpeed) * bobAmount;
         float y = chest.y + 0.05f + followBob; // 常にNikoの胸・肩の高さに追従！
 
-        return new Vector3(targetPos.x, y, targetPos.z);
+        Vector3 finalGoal = new Vector3(targetPos.x, y, targetPos.z);
+
+        // タワー中央（オベリスク）へのRust突入・埋まり込み防止ガード
+        // 天蓋開放前の通常探索中、タワー中心（512, 512）の半径5.2m以内に入り込まないよう外周へクランプ
+        if (!AdventureSanctuaryTowerManager.IsCanopyBroken)
+        {
+            Vector2 goalXZ = new Vector2(finalGoal.x, finalGoal.z);
+            Vector2 towerXZ = new Vector2(SanctuaryTowerCenter.x, SanctuaryTowerCenter.z);
+            float distToTowerCenter = Vector2.Distance(goalXZ, towerXZ);
+            const float towerObeliskRadius = 5.2f;
+            if (distToTowerCenter < towerObeliskRadius)
+            {
+                Vector2 pushDir = (goalXZ - towerXZ).normalized;
+                if (pushDir == Vector2.zero) pushDir = new Vector2(0f, -1f); // 南側（テラス側）へ退避
+                Vector2 pushedXZ = towerXZ + pushDir * towerObeliskRadius;
+                finalGoal.x = pushedXZ.x;
+                finalGoal.z = pushedXZ.y;
+            }
+        }
+
+        return finalGoal;
     }
 
     float SurfaceY(Vector3 pos)

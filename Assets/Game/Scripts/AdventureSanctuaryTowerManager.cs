@@ -405,6 +405,25 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             foreach (var c in grid.GetComponents<Collider>())
                 Destroy(c);
         }
+
+        // CentralMonolith（中央オベリスク・タワー本体）のコライダー保証（すり抜け・埋まり防止）
+        // ※天蓋開放前（IsCanopyBroken == false）はNikoやRustがタワー内部に潜り込まないよう頑丈なコライダーを配置
+        var monolith = tower.transform.Find("CentralMonolith")?.gameObject;
+        if (monolith != null)
+        {
+            var col = monolith.GetComponent<Collider>();
+            if (col == null && !IsCanopyBroken)
+            {
+                var capsule = monolith.AddComponent<CapsuleCollider>();
+                capsule.radius = 0.5f;
+                capsule.height = 2.0f;
+                capsule.direction = 1; // Y軸
+            }
+            else if (col != null)
+            {
+                col.enabled = !IsCanopyBroken;
+            }
+        }
     }
 
     /// <summary>タワー白亜テラス上（またはレバー基壇上）なら歩行面Y、それ以外は負の無限大</summary>
@@ -881,7 +900,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             int pts = AdventureScrapManager.Instance != null ? AdventureScrapManager.Instance.TotalProgressPoints : 0;
             _leverUiLabel.text = ready
-                ? "【ここを押す / E / Space】巨大真鍮レバーを引く"
+                ? "【ここを押す / E】巨大真鍮レバーを引く"
                 : $"レバーはロック中（20ポイントが必要 / 現在: {pts} pt）";
             _leverUiLabel.color = ready
                 ? new Color(0.35f, 0.98f, 0.88f, 1f)
@@ -983,7 +1002,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     bool IsLeverHoldInput()
     {
         var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && (kb.eKey.isPressed || kb.spaceKey.isPressed || kb.enterKey.isPressed))
+        if (kb != null && (kb.eKey.isPressed || kb.enterKey.isPressed))
             return true;
         var mouse = UnityEngine.InputSystem.Mouse.current;
         if (mouse != null && mouse.leftButton.isPressed) return true;
@@ -991,7 +1010,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (pad != null && (pad.buttonSouth.isPressed || pad.buttonWest.isPressed)) return true;
         try
         {
-            if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.Return)) return true;
+            if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Return)) return true;
             if (Input.GetMouseButton(0)) return true;
         }
         catch { }
@@ -1024,7 +1043,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (kb != null)
         {
             if (kb.eKey.wasPressedThisFrame) return true;
-            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)
+            if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)
                 return true;
         }
 
@@ -1037,7 +1056,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         try
         {
-            if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space))
+            if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Return))
                 return true;
             if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)) return true;
         }
@@ -1550,14 +1569,15 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             player.ForceGroundReset();
 
         AdventureMusicDirector.Ensure();
-        // 天蓋崩壊に入ったら元のアンビエントBGMと風の音を維持し、エンディングBGMには切り替えない
-        AdventureMusicDirector.Instance?.RestoreExplorationTheme();
+        // 天蓋崩壊に入ったら壮大な天空突破テーマBGMを開始
+        AdventureMusicDirector.Instance?.KeepEndingThemeActive();
         StartSkybreakWindAmbience(); // 風の音は追加で流す
 
-        // ピアノが鳴っていたら2秒かけてフェードアウト
-        var piano = AdventureAncientPianoRelic.Instance
-                    ?? Object.FindFirstObjectByType<AdventureAncientPianoRelic>();
-        piano?.FadeOutPiano(2.0f);
+        // ピアノが鳴っていたら2秒かけてフェードアウト＆ダッキング解除
+        foreach (var p in Object.FindObjectsByType<AdventureAncientPianoRelic>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (p != null) p.FadeOutPiano(2.0f);
+        }
 
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
@@ -2478,12 +2498,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             var mono = tower.transform.Find("CentralMonolith");
             if (mono != null)
             {
-                // 見た目は残し、物理だけ完全削除（enabled=false だと再有効化で戻る）
                 var cols = mono.GetComponentsInChildren<Collider>(true);
                 for (int i = 0; i < cols.Length; i++)
                 {
                     if (cols[i] != null)
-                        Object.Destroy(cols[i]);
+                        cols[i].enabled = false;
                 }
             }
 

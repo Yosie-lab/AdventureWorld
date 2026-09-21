@@ -387,13 +387,18 @@ public class AdventureScrapHUD : MonoBehaviour
 
         var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
         int count = scrapMgr != null ? scrapMgr.CollectedCount : _lastKnownCount;
-        if (count > _lastKnownCount)
+        if (scrapMgr != null && scrapMgr.CollectedCount == 0)
+        {
+            _lastKnownCount = 0;
+            count = 0;
+        }
+        else if (count > _lastKnownCount)
         {
             _lastKnownCount = count;
         }
         else if (count == 0 && _lastKnownCount > 0)
         {
-            // ドメインリロード等で一時的に0が返った場合の防壁
+            // ドメインリロード等で一時的にscrapMgrがnullまたは未初期化の場合の防壁
             count = _lastKnownCount;
         }
 

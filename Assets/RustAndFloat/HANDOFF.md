@@ -351,6 +351,32 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
   - StepOffsetGroundを1.35mから0.45mへ適正化。
   - カメラのSphereCastによるテラス床面誤検知防止および歩行時ピボット垂直スムージング時間を0.085fに最適化し、画面・地面の激震を完全に解消。
 
+### 8. ゲームクリア後【N】はじめから再スタート時の全ポイント0化＆HUD・ビーコン完全初期化復元
+- **対象ファイル**: `Assets/Game/Scripts/AdventureSaveManager.cs`, `Assets/Game/Scripts/AdventureScrapManager.cs`, `Assets/Game/Scripts/AdventureScrapHUD.cs`, `Assets/Game/Scripts/AdventureBeachDriftBox.cs`
+- **内容**:
+  - ゲームクリア後モーダルで【N】はじめからを選択した際、漂着パーツ・ドリフトボックス・古代遺物を含めた全探索ポイントを0pt（0/12、0/5、0/20pt）へ完全初期化。
+  - セーブファイル（`.bak`含む）の完全削除、PlayerPrefsキーの完全消去、漂着ボックスの未開封化とビーコン復元、ScrapHUDの初期状態（0/3個・計0/20pt目標表示）への完全同期を実施。
+  - `AdventureScrapHUD.RefreshQuestDisplay()` において、リセット時にキャッシュガードが旧カウントを維持しないよう0への完全同期に対応。
+
+### 9. レバー操作キーのEキー／クリック専用化（ジャンプSpace誤爆の防止）
+- **対象ファイル**: `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`
+- **内容**:
+  - レバーの前でジャンプしようとしてSpaceキーを押した際に意図せず天蓋開放シークエンスが発動・即座にダイブ完了して空中浮遊になってしまう事故を防止。
+  - レバー操作判定（タップおよび長押し判定）からSpaceキーを除外し、【Eキー】・画面プロンプトクリック・Enterキー・ゲームパッド専用に変更。プロンプトUIも「【ここを押す / E】巨大真鍮レバーを引く」に更新。
+
+### 10. タワー（中央オベリスク）へのNiko・Rustの埋まり込み＆すり抜け防止
+- **対象ファイル**: `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`, `Assets/Game/Scripts/AdventureRustDrone.cs`
+- **内容**:
+  - 中央タワー本体（`CentralMonolith`）のコライダーが光の柱演出や初期化の影響で消失・無効化され、Nikoが内部をすり抜けて埋まってしまう不具合を修正。天蓋開放前は強固なコライダーを常時維持するよう保証。
+  - Rustがタワー先導時や追従時にタワー中心へ直進してオベリスク内部にめり込まないよう、タワー接近時（14m以内）に先導からNiko肩追従へ自動切り替えし、かつタワー中心（半径5.2m以内）への進入防止クランプ処理を追加。
+
+### 11. 崩壊シーケンスBGM再生と古代ピアノ演奏・ダッキングの完全フェードアウト停止
+- **対象ファイル**: `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`, `Assets/Game/Scripts/AdventureAncientPianoRelic.cs`
+- **内容**:
+  - **天蓋崩壊シーケンスBGM再生**: レバーを引いた直後の `BeginCanopyScriptBeats()` で誤って探索用アンビエントBGM復帰（`RestoreExplorationTheme()`）が呼ばれていたため、天空突破テーマBGMが流れない状態だった問題を解消。`KeepEndingThemeActive()` を呼び出し、壮大な天空テーマ（`_skybreakThemeClip`）を確実に開始・維持するように修正。
+  - **ピアノ演奏・ダッキングの確実な停止**: シーケンス開始時に `AdventureAncientPianoRelic` へ `_isSilencedForEnding` フラグをセットし、Updateでの毎フレームダッキング再計算および接近演奏判定を完全にブロック。同時にスポットダッキングを即座に0解除し、2秒間のオーディオフェードアウト＆`src.Stop()` を実行。シーン内に存在する全ピアノインスタンスを確実にサイレント化。ニューゲーム時には適切にフラグをリセット。
+
+
 ## 開発上の注意（Cursorエージェントへ）
 
 - **絶対厳守ルール**:

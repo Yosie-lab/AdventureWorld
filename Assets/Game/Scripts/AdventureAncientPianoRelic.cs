@@ -68,6 +68,7 @@ public class AdventureAncientPianoRelic : MonoBehaviour
     [Header("State")]
     public string selectedLocationName;
     public bool isDiscovered = false;
+    private bool _isSilencedForEnding = false;
 
     private Transform _relicTransform;
     private Renderer _relicRenderer;
@@ -115,6 +116,12 @@ public class AdventureAncientPianoRelic : MonoBehaviour
 
     void Update()
     {
+        // 天蓋崩壊シーケンス開始後またはエンディング中はピアノ演奏・ダッキング・演出更新を停止
+        if (_isSilencedForEnding)
+        {
+            return;
+        }
+
         if (_relicTransform != null)
         {
             // 光る遺物のゆったりとした浮遊と回転（ボビング＆ローテーション）
@@ -205,13 +212,31 @@ public class AdventureAncientPianoRelic : MonoBehaviour
             _relicParticles.Emit(45);
         }
 
-        // 遺物を非表示化
+        // 遺物オブジェクトを非表示にして回収音
         _relicTransform.gameObject.SetActive(false);
 
-        // カピタの喜び反応
-        TriggerCapytaHappy();
+        AudioSource _audioSource = GetComponent<AudioSource>();
+        AudioClip _collectRelicClip = null; // 必要に応じた参照
+        if (_audioSource != null && _collectRelicClip != null)
+        {
+            _audioSource.PlayOneShot(_collectRelicClip, 1.0f);
+        }
 
-        // ScrapManagerへ3pt加算通知
+        // カピタが喜んで手を振るアニメーション
+        if (_capytaAnimator != null)
+        {
+            _capytaAnimator.CrossFade("CapytaHappyWave", 0.2f);
+            _capytaHappyTimer = 3.5f;
+        }
+        if (_capytaMusicNotes != null)
+        {
+            _capytaMusicNotes.Emit(25);
+        }
+
+        // 保存とScrapManagerへの加算（3pt）
+        PlayerPrefs.SetInt("AncientPiano_Relic_Collected", 1);
+        PlayerPrefs.Save();
+
         if (AdventureScrapManager.Instance != null)
         {
             AdventureScrapManager.Instance.CollectPianoRelic();
@@ -220,11 +245,12 @@ public class AdventureAncientPianoRelic : MonoBehaviour
 
     /// <summary>
     /// 天蓋崩壊シーケンス開始時に呼ぶ：ピアノ演奏を指定秒でフェードアウトして停止し、
-    /// BGMダッキングも通常に戻す。
+    /// BGMダッキングも通常に戻す。以降のUpdateでの演奏・ダッキング判定も停止する。
     /// </summary>
     public void FadeOutPiano(float duration = 2.0f)
     {
-        // BGMダッキング解除
+        _isSilencedForEnding = true;
+
         if (AdventureMusicDirector.Instance != null)
             AdventureMusicDirector.Instance.SetSpotDucking(0f);
 
@@ -253,6 +279,7 @@ public class AdventureAncientPianoRelic : MonoBehaviour
     /// <summary>新規冒険（ニューゲーム）用：遺物を再表示し発見フラグを初期化</summary>
     public void ResetForNewGame()
     {
+        _isSilencedForEnding = false;
         isDiscovered = false;
         _hasPlayedIntroDialogue = false;
         PlayerPrefs.DeleteKey("AncientPiano_Relic_Collected");
@@ -262,6 +289,15 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         if (_relicTransform != null)
         {
             _relicTransform.gameObject.SetActive(true);
+        }
+
+        if (_pianoAudioSource != null && _pianoPerformanceClip != null)
+        {
+            _pianoAudioSource.volume = 0.92f;
+            if (!_pianoAudioSource.isPlaying)
+            {
+                _pianoAudioSource.Play();
+            }
         }
         Debug.Log("[AdventureAncientPianoRelic] 🎹 古代ピアノ遺物を未回収状態にリセットしました。");
     }

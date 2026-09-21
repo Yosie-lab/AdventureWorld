@@ -663,6 +663,10 @@ public class AdventureSaveManager : MonoBehaviour
             {
                 File.Delete(SaveFilePath);
             }
+            if (File.Exists(SaveFilePath + ".bak"))
+            {
+                File.Delete(SaveFilePath + ".bak");
+            }
         }
         catch (Exception ex)
         {
@@ -687,7 +691,7 @@ public class AdventureSaveManager : MonoBehaviour
         }
         else
         {
-            AdventureBeachDriftBox.ResetAllBoxesStatic();
+            AdventureBeachDriftBox.ResetAllBoxesStatic(showBanner: false);
             AdventureAncientPianoRelic.ResetAllPianoRelicsStatic();
         }
 
@@ -711,8 +715,15 @@ public class AdventureSaveManager : MonoBehaviour
             drone.ClearSpeech();
         }
 
+        // 4. 漂着ボックスをPlayerPrefsリセット後に完全再構築（ビーコン光柱の確実な復元）
+        AdventureBeachDriftBoxManager.Ensure();
+
+        // 5. ScrapHUD（習得パーツボード）をゲーム開始時と同じ状態に完全再構築
+        AdventureScrapHUD.Ensure();
+        AdventureScrapHUD.Instance?.ResetForNewGame();
+
         ShowSaveNotification("新規冒険を開始しました", "時代背景ボードからスタート");
-        Debug.Log("[AdventureSaveManager] ニューゲーム開始：パーツ配置を前回と異なる場所に再抽選しました。");
+        Debug.Log("[AdventureSaveManager] ニューゲーム開始：全ポイント0・パーツ配置を再抽選しました。");
 
         // 時代背景オープニングから再開（Play後にプロローグ）
         var opening = FindAnyObjectByType<AdventureRustFloatOpening>();

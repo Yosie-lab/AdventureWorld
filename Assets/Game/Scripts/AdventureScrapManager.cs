@@ -931,7 +931,7 @@ public class AdventureScrapManager : MonoBehaviour
         ResetToCount(0);
 
         // 2. 全ドリフトボックス（5個/各2pt）を未開封状態へ完全リセット
-        AdventureBeachDriftBox.ResetAllBoxesStatic();
+        AdventureBeachDriftBox.ResetAllBoxesStatic(showBanner: false);
 
         // 3. ピアノ上の光る古代遺物（3pt）を未回収状態へ完全リセット
         IsPianoRelicCollected = false;

@@ -627,7 +627,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
     /// <summary>
     /// 全ドリフトボックス（#1〜#5）を未開封状態へ完全リセットし、ポイントとHUDを再同期
     /// </summary>
-    public static void ResetAllBoxesStatic()
+    public static void ResetAllBoxesStatic(bool showBanner = true)
     {
         for (int i = 1; i <= 5; i++)
         {
@@ -651,11 +651,14 @@ public class AdventureBeachDriftBox : MonoBehaviour
             scrapMgr.CheckPointsAndNotifyLeverUnlock();
         }
 
-        var hud = AdventureScrapHUD.Instance ?? Object.FindFirstObjectByType<AdventureScrapHUD>();
-        if (hud != null)
+        if (showBanner)
         {
-            int pts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
-            hud.ShowUpgradeBanner($"📦 全ドリフトボックスを未開封にリセット！\n✦ 現在の探索ポイント: {pts} / {AdventureScrapManager.RequiredPointsForCanopy} pt");
+            var hud = AdventureScrapHUD.Instance ?? Object.FindFirstObjectByType<AdventureScrapHUD>();
+            if (hud != null)
+            {
+                int pts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
+                hud.ShowUpgradeBanner($"📦 全ドリフトボックスを未開封にリセット！\n✦ 現在の探索ポイント: {pts} / {AdventureScrapManager.RequiredPointsForCanopy} pt");
+            }
         }
 
         Debug.Log("📦 【DriftBox】全5個のドリフトボックスを未開封状態にリセットしました！");
