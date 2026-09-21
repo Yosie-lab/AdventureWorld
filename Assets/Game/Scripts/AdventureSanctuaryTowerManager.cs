@@ -445,9 +445,72 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
                 col.enabled = !IsCanopyBroken;
             }
         }
+
+        // ── テラス外周 4方向スロープ（地面62m → テラス63m）──
+        // 台地の平坦な芝生面（標高62m）からテラス（標高63m）へ歩いて乗れるよう
+        // 北・東・西・南（階段入口手前まで）にそれぞれ滑らかな斜面Boxコライダーを配置
+        BuildPodiumEntryRamps(tower.transform);
     }
 
-    /// <summary>タワー白亜テラス上（またはレバー基壇上）なら歩行面Y、それ以外は負の無限大</summary>
+    /// <summary>テラス（63m）と周囲の台地（62m）をつなぐ進入スロープコライダーを4方向に生成</summary>
+    void BuildPodiumEntryRamps(Transform towerRoot)
+    {
+        // 既存スロープを削除して多重生成を防止
+        var oldRamps = towerRoot.Find("PodiumEntryRamps");
+        if (oldRamps != null) Destroy(oldRamps.gameObject);
+
+        var rampsRoot = new GameObject("PodiumEntryRamps");
+        rampsRoot.transform.SetParent(towerRoot, false);
+        rampsRoot.transform.position = Vector3.zero;
+
+        // テラス中心: (512, 63.0, 512)、半径34.5m
+        // スロープ仕様: 幅 8m、地面側始点 Y=62.0m（テラス外縁+2m手前）、テラス側終点 Y=63.0m
+        const float terraceTopY  = 63.0f;   // テラス上面
+        const float groundY      = 62.0f;   // 周囲台地面
+        const float rampLength   = 5.0f;    // スロープの斜面長（XZ投影）
+        const float rampWidth    = 8.0f;    // スロープ幅
+        const float rampThickness = 0.8f;   // コライダーの物理厚み（段差スタック防止）
+
+        // (方位角, 注記) — 南側は古代階段が通るので除外
+        float[] rampAngles = { 0f, 90f, 180f }; // 北(0°=z+)、東(90°=x+)、西(180°=x-)
+        // Note: 角度は「テラス中心から外側に向かう」方向(deg)。
+        // z+ = 北(0°), x+ = 東(90°), x- = 西(270°)
+        float[] outDirs = { 0f, 90f, 270f };
+
+        Vector3 terraceCenter = new Vector3(512f, terraceTopY, 512f);
+        float terraceRadius   = 34.5f;
+
+        foreach (float outDeg in outDirs)
+        {
+            float rad = outDeg * Mathf.Deg2Rad;
+            // 外向き単位ベクトル
+            Vector3 outDir = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad));
+
+            // スロープの中心位置：テラス縁 + rampLength/2 分だけ外側
+            Vector3 slopeMid = new Vector3(512f, 0f, 512f)
+                               + outDir * (terraceRadius + rampLength * 0.5f);
+            // Y: 地面〜テラスの中間点
+            slopeMid.y = (groundY + terraceTopY) * 0.5f;
+
+            // 回転：外向き方向（Z+ 前）を法線方向へ
+            Quaternion rot = Quaternion.LookRotation(outDir, Vector3.up);
+
+            // 傾き角度 θ = atan((63-62) / rampLength)
+            float slopeAngle = Mathf.Atan2(terraceTopY - groundY, rampLength) * Mathf.Rad2Deg;
+
+            var rampGo = new GameObject($"PodiumRamp_{outDeg:F0}deg");
+            rampGo.transform.SetParent(rampsRoot.transform, false);
+            rampGo.transform.position = slopeMid;
+            // OutDir 方向へ pitch（X軸回転）で傾ける
+            rampGo.transform.rotation = rot * Quaternion.Euler(-slopeAngle, 0f, 0f);
+
+            var box = rampGo.AddComponent<BoxCollider>();
+            box.center = Vector3.zero;
+            box.size   = new Vector3(rampWidth, rampThickness, rampLength);
+        }
+    }
+
+    /// <summary>タワー白亜テラス上（またはレバー基壇上、スロープ上）なら歩行面Y、それ以外は負の無限大</summary>
     public static float GetTerraceSurfaceY(Vector3 worldPos)
     {
         Vector2 posXZ = new Vector2(worldPos.x, worldPos.z);
@@ -459,11 +522,65 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             return 64.02f; // レバー台座の上面
         }
 
+        // 1b. レバー台座アプローチスロープ（台座南側、テラス上面63m → 台座上64.02m）
+        // XZ: x∈[508,516], z∈[476,501.5], 線形補間でY算出
+        if (posXZ.x >= 508f && posXZ.x <= 516f && posXZ.y >= 476f && posXZ.y <= 501.5f)
+        {
+            float t = Mathf.InverseLerp(501.5f, 476f, posXZ.y); // 台座に近い=0、遠い=1
+            // 台座前（z=490付近）まではテラスと同高度、それより台座に向かってステップ
+            // ステップ範囲 z=490〜501.5 のみ高さ変化
+            if (posXZ.y >= 490f)
+            {
+                float stepT = Mathf.InverseLerp(490f, 501.5f, posXZ.y);
+                return Mathf.Lerp(63.00f, 64.02f, stepT);
+            }
+            return 63.00f;
+        }
+
         // 2. 白大理石円盤テラスの範囲（中心 512, 512、半径 34.5m、上面 63.00m）
         Vector2 towerCenter = new Vector2(512f, 512f);
         if (Vector2.SqrMagnitude(posXZ - towerCenter) <= 34.5f * 34.5f)
         {
             return 63.00f; // テラス上面
+        }
+
+        // 3. テラス外周スロープ（台地62m → テラス63m）の補間歩行面
+        // 北(z+)・東(x+)・西(x-) の3方向スロープ、各幅8m、奥行5m
+        const float terraceTopY = 63.0f;
+        const float groundTopY  = 62.0f;
+        const float rampLen     = 5.0f;
+        const float rampHalf    = 4.0f; // 幅/2
+        const float terraceR    = 34.5f;
+        // 北スロープ: z∈[512+34.5, 512+34.5+5], x∈[512-4, 512+4]
+        // 東スロープ: x∈[512+34.5, 512+34.5+5], z∈[512-4, 512+4]
+        // 西スロープ: x∈[512-34.5-5, 512-34.5], z∈[512-4, 512+4]
+        float cx = 512f, cz = 512f;
+        // 北スロープ
+        float northInner = cz + terraceR;
+        float northOuter = northInner + rampLen;
+        if (posXZ.x >= cx - rampHalf && posXZ.x <= cx + rampHalf
+            && posXZ.y >= northInner   && posXZ.y <= northOuter)
+        {
+            float t = Mathf.InverseLerp(northInner, northOuter, posXZ.y);
+            return Mathf.Lerp(terraceTopY, groundTopY, t);
+        }
+        // 東スロープ
+        float eastInner = cx + terraceR;
+        float eastOuter = eastInner + rampLen;
+        if (posXZ.x >= eastInner   && posXZ.x <= eastOuter
+            && posXZ.y >= cz - rampHalf && posXZ.y <= cz + rampHalf)
+        {
+            float t = Mathf.InverseLerp(eastInner, eastOuter, posXZ.x);
+            return Mathf.Lerp(terraceTopY, groundTopY, t);
+        }
+        // 西スロープ
+        float westInner = cx - terraceR;
+        float westOuter = westInner - rampLen;
+        if (posXZ.x >= westOuter   && posXZ.x <= westInner
+            && posXZ.y >= cz - rampHalf && posXZ.y <= cz + rampHalf)
+        {
+            float t = Mathf.InverseLerp(westInner, westOuter, posXZ.x);
+            return Mathf.Lerp(terraceTopY, groundTopY, t);
         }
 
         // それ以外の台地全域（芝生・木立・森林）はTerrain（自然な地面・標高62.0m）を歩行
@@ -688,6 +805,83 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var col = root.AddComponent<SphereCollider>();
         col.isTrigger = true;
         col.radius = 12.0f;
+
+        // ── レバー台座アプローチステップ（南側 3段）──
+        // テラス上面 63.0m → 台座上面 64.02m を3段（各約0.34m）で登れるよう
+        // 大理石ステップビジュアル＋コライダーを台座南側に設置
+        if (isMain)
+            BuildLeverApproachSteps(root.transform, worldPos);
+    }
+
+    /// <summary>レバー台座（LeverPedestal）南側に Niko が歩いて登れる3段ステップを生成</summary>
+    void BuildLeverApproachSteps(Transform leverRoot, Vector3 leverWorldPos)
+    {
+        // 既存ステップを削除して多重生成を防止
+        var old = leverRoot.Find("LeverApproachSteps");
+        if (old != null) Destroy(old.gameObject);
+
+        var stepsRoot = new GameObject("LeverApproachSteps");
+        stepsRoot.transform.SetParent(leverRoot, false);
+        stepsRoot.transform.position = Vector3.zero;
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        var marbleMat = new Material(shader);
+        marbleMat.SetColor("_BaseColor", new Color(0.92f, 0.94f, 0.96f)); // 純白大理石
+        marbleMat.SetFloat("_Smoothness", 0.85f);
+
+        // ステップ仕様:
+        //   テラス上面 Y = 63.00m、台座上面 Y = 64.02m（差 1.02m）
+        //   3段 → 1段あたり 0.34m
+        //   台座半径 3.1m（XZ）、ステップは z- 方向（南側 = テラス外縁方向）から台座へ
+        //   各ステップ: 幅 4.2m、奥行 1.2m、高さ（厚み）0.8m
+        const float terraceY   = 63.00f;
+        const float pedestalY  = 64.02f; // 台座上面
+        int   numSteps   = 3;
+        float stepHeight = (pedestalY - terraceY) / numSteps; // ≈ 0.34m
+        float stepDepth  = 1.2f;   // 奥行き（z 方向）
+        float stepWidth  = 4.2f;   // 幅
+        float stepThick  = 0.8f;   // コライダー物理厚み
+
+        // 台座南縁 Z = leverWorldPos.z - 3.1f あたりから始める
+        // レバー位置: (512, 63.2, 501.5)  台座南縁 z ≈ 501.5 - 3.1 = 498.4
+        float pedestalSouthEdgeZ = leverWorldPos.z - 3.1f;
+
+        for (int i = 0; i < numSteps; i++)
+        {
+            // 南から台座へ向かって配置（i=0 が最も南＝テラス側）
+            float stepTopY  = terraceY + stepHeight * (i + 1); // この段の上面 Y
+            float stepMidZ  = pedestalSouthEdgeZ - stepDepth * (numSteps - 1 - i) - stepDepth * 0.5f;
+
+            var stepGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            stepGo.name = $"LeverStep_{i}";
+            stepGo.transform.SetParent(stepsRoot.transform, false);
+            stepGo.transform.position = new Vector3(leverWorldPos.x, stepTopY - stepThick * 0.5f, stepMidZ);
+            stepGo.transform.rotation = Quaternion.identity;
+            stepGo.transform.localScale = new Vector3(stepWidth, stepThick, stepDepth);
+
+            var mr = stepGo.GetComponent<MeshRenderer>();
+            if (mr != null) mr.material = marbleMat;
+        }
+
+        // スロープコライダー（ビジュアル不要・コライダーのみ）
+        // 階段全体を覆う傾斜板: ステップスタック完全防止（stepOffset超え対策）
+        float totalRampLen  = stepDepth * numSteps;
+        float rampStartZ    = pedestalSouthEdgeZ - totalRampLen;
+        float rampEndZ      = pedestalSouthEdgeZ;
+        float rampMidZ      = (rampStartZ + rampEndZ) * 0.5f;
+        float rampMidY      = (terraceY + pedestalY) * 0.5f;
+
+        var rampGo = new GameObject("LeverStepRampCollider");
+        rampGo.transform.SetParent(stepsRoot.transform, false);
+        rampGo.transform.position = new Vector3(leverWorldPos.x, rampMidY, rampMidZ);
+
+        float slopeAngle = Mathf.Atan2(pedestalY - terraceY, totalRampLen) * Mathf.Rad2Deg;
+        // Z- 方向（南→台座 = z+ 方向）へ傾けるため pitch = -slopeAngle
+        rampGo.transform.rotation = Quaternion.Euler(-slopeAngle, 0f, 0f);
+
+        var rampBox = rampGo.AddComponent<BoxCollider>();
+        rampBox.center = Vector3.zero;
+        rampBox.size   = new Vector3(stepWidth, 0.8f, totalRampLen);
     }
 
     public bool IsPlayerNearLever =>
@@ -3665,6 +3859,62 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
                     if (pcol != null) pcol.isTrigger = true;
                 }
             }
+        }
+
+        // ── 木道スロープ式・連続傾斜コライダー（段差スタック完全解消） ──
+        // 大理石ステップのビジュアルはそのままに、BoardwalkRamp と同様の
+        // 「厚み 0.8m の傾斜 Box コライダー」を全体に重ねて配置する。
+        // stepOffset(0.45m) を超える段差の引っ掛かりをゼロにして
+        // オアシス池〜テラスへノンストップで駆け上がれるようにする。
+        AddStairsRampColliders(stairsRoot.transform, startP, endP, width);
+    }
+
+    /// <summary>
+    /// 古代階段全体をカバーする「滑らかな傾斜コライダー帯」を分割配置する。
+    /// 1本の板で全長をカバーすると傾き誤差が出るため、4段ずつ区切って短い板を並べる。
+    /// </summary>
+    void AddStairsRampColliders(Transform parent, Vector3 startP, Vector3 endP, float width)
+    {
+        const int   segments   = 5;   // 階段 22 段を 5 区間に分割（区間ごとに傾きが自然に合う）
+        const float thickness  = 0.8f; // 物理厚み（段差スタック防止）
+
+        var terrain = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
+
+        for (int s = 0; s < segments; s++)
+        {
+            float t0 = (float)s       / segments;
+            float t1 = (float)(s + 1) / segments;
+
+            Vector3 p0 = Vector3.Lerp(startP, endP, t0);
+            Vector3 p1 = Vector3.Lerp(startP, endP, t1);
+
+            // 実際の地形高度に合わせて Y を補正（階段ビジュアルと一致）
+            if (terrain != null)
+            {
+                p0.y = Mathf.Max(p0.y, terrain.SampleHeight(p0) + terrain.transform.position.y + 0.15f);
+                p1.y = Mathf.Max(p1.y, terrain.SampleHeight(p1) + terrain.transform.position.y + 0.15f);
+            }
+
+            Vector3 segCenter  = (p0 + p1) * 0.5f;
+            Vector3 segForward = p1 - p0;
+            float   segLen     = segForward.magnitude;
+            if (segLen < 0.01f) continue;
+
+            var rampGo = new GameObject($"StairRamp_{s}");
+            rampGo.transform.SetParent(parent, false);
+            rampGo.transform.position = segCenter;
+            rampGo.transform.rotation = Quaternion.LookRotation(segForward.normalized, Vector3.up);
+            rampGo.transform.localScale = Vector3.one; // スケールは BoxCollider.size で制御
+
+            // 前進方向に沿って傾くように pitch を付ける
+            float slopeAngle = Mathf.Atan2(p1.y - p0.y, new Vector2(p1.x - p0.x, p1.z - p0.z).magnitude)
+                               * Mathf.Rad2Deg;
+            rampGo.transform.rotation = Quaternion.LookRotation(segForward.normalized, Vector3.up)
+                                        * Quaternion.Euler(-slopeAngle, 0f, 0f);
+
+            var box = rampGo.AddComponent<BoxCollider>();
+            box.center = Vector3.zero;
+            box.size   = new Vector3(width, thickness, segLen * 1.05f);
         }
     }
 
