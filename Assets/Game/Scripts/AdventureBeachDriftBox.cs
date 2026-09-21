@@ -12,6 +12,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
 {
     public int boxId = 1;
     public string boxTitle = "漂着防水ケース";
+    public string BoxDisplayName => string.IsNullOrEmpty(boxTitle) ? "漂着防水ケース" : boxTitle;
     public string author = "記録メモ";
     [TextArea(3, 8)]
     public string message = "ここにメッセージが入ります。";
