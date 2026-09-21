@@ -18,6 +18,8 @@ public class AdventureCompassHUD : MonoBehaviour
     RectTransform _ribbonContainer;
     RectTransform _scrapMarkerRt;
     Text _scrapMarkerText;
+    RectTransform _boxMarkerRt;
+    Text _boxMarkerText;
 
     const float PixelsPerDegree = 2.4f; // 1度あたりのピクセル幅（表示視野角 約±68度）
     const float RibbonHalfWidth = 160f; // コンパス枠の表示半幅
@@ -28,6 +30,8 @@ public class AdventureCompassHUD : MonoBehaviour
     float _displayYawVel;
     float _scrapMarkerX;
     float _scrapMarkerXVel;
+    float _boxMarkerX;
+    float _boxMarkerXVel;
     bool _yawInitialized;
 
     struct CompassElement
@@ -225,6 +229,24 @@ public class AdventureCompassHUD : MonoBehaviour
         smOutline.effectDistance = new Vector2(1.2f, -1.2f);
         smGo.SetActive(false);
 
+        // 2-B. コンパスリボン上に表示されるリアルタイム「漂着ボックス探知マーカー（📦）」
+        var bmGo = new GameObject("CompassDriftBoxMarker", typeof(RectTransform));
+        bmGo.transform.SetParent(_ribbonContainer, false);
+        _boxMarkerRt = bmGo.GetComponent<RectTransform>();
+        _boxMarkerRt.sizeDelta = new Vector2(36f, 26f);
+        _boxMarkerText = bmGo.AddComponent<Text>();
+        _boxMarkerText.font = font;
+        _boxMarkerText.fontSize = 14;
+        _boxMarkerText.fontStyle = FontStyle.Bold;
+        _boxMarkerText.alignment = TextAnchor.MiddleCenter;
+        _boxMarkerText.text = "📦";
+        _boxMarkerText.color = new Color(0.35f, 1.0f, 0.65f, 1f); // 鮮やかなエメラルドグリーン
+        _boxMarkerText.raycastTarget = false;
+        var bmOutline = bmGo.AddComponent<Outline>();
+        bmOutline.effectColor = new Color(0f, 0f, 0f, 0.98f);
+        bmOutline.effectDistance = new Vector2(1.2f, -1.2f);
+        bmGo.SetActive(false);
+
         // 3. 中央インジケーター（▼ マーカー）
         var needleGo = new GameObject("CompassNeedle", typeof(RectTransform));
         needleGo.transform.SetParent(transform, false);
@@ -268,7 +290,7 @@ public class AdventureCompassHUD : MonoBehaviour
         badgeOutline.effectColor = new Color(0f, 0f, 0f, 0.90f);
         badgeOutline.effectDistance = new Vector2(1f, -1f);
 
-        // 5. 最寄り漂着パーツの方向・距離ナビゲーションバッジ（デジタルバッジの下に配置）
+        // 5. 最寄り漂着パーツ・ボックスの方向・距離ナビゲーションバッジ（デジタルバッジの下に配置）
         var navGo = new GameObject("ScrapNavBadge", typeof(RectTransform));
         navGo.transform.SetParent(transform, false);
         var navRt = navGo.GetComponent<RectTransform>();
@@ -276,7 +298,7 @@ public class AdventureCompassHUD : MonoBehaviour
         navRt.anchorMax = new Vector2(0.5f, 0f);
         navRt.pivot = new Vector2(0.5f, 1f);
         navRt.anchoredPosition = new Vector2(0f, -24f);
-        navRt.sizeDelta = new Vector2(460f, 22f);
+        navRt.sizeDelta = new Vector2(600f, 22f);
 
         _scrapNavText = navGo.AddComponent<Text>();
         _scrapNavText.font = font;
@@ -418,6 +440,7 @@ public class AdventureCompassHUD : MonoBehaviour
                 }
             }
 
+            // ── 漂着パーツ / タワーレバーのマーカー更新 ──
             if (hasTarget)
             {
                 Vector3 toTarget = targetPos - playerPos;
@@ -427,9 +450,8 @@ public class AdventureCompassHUD : MonoBehaviour
                 {
                     float targetYaw = YawFromForward(toTarget);
                     float angle = Mathf.DeltaAngle(yaw, targetYaw);
-                    string targetCardinal = GetCardinal(targetYaw);
 
-                    // コンパスリボン上にマーカー（X位置をスムーズ追従）
+                    // コンパスリボン上にパーツマーカー（X位置をスムーズ追従）
                     if (_scrapMarkerRt != null)
                     {
                         _scrapMarkerRt.gameObject.SetActive(true);
@@ -471,54 +493,160 @@ public class AdventureCompassHUD : MonoBehaviour
                             Mathf.Infinity, Time.unscaledDeltaTime);
                         _scrapMarkerRt.anchoredPosition = new Vector2(_scrapMarkerX, 0f);
                     }
-
-                    // テキストによる誘導表示（方角・距離・相対方向を明確に伝達）
-                    if (_scrapNavText != null)
-                    {
-                        string arrow;
-                        if (Mathf.Abs(angle) < 18f) arrow = "▲ 正面";
-                        else if (angle >= 18f && angle < 155f) arrow = "▶ 右方向";
-                        else if (angle <= -18f && angle > -155f) arrow = "◀ 左方向";
-                        else arrow = "▼ 背後";
-
-                        string extra = isGuidingToTower ? " 【天蓋開放】" : "";
-                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m（{targetCardinal}方角） [{arrow}]{extra}";
-                        _scrapNavText.color = targetColor;
-                    }
                 }
                 else
                 {
                     if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(false);
-                    if (_scrapNavText != null)
-                    {
-                        if (isGuidingToTower)
-                        {
-                            _scrapNavText.text = "✦ 中央タワー白亜テラス 【Eキーで巨大レバーを引く！】";
-                            _scrapNavText.color = new Color(1.0f, 0.90f, 0.35f, 1.0f);
-                        }
-                        else
-                        {
-                            _scrapNavText.text = $"✦ {targetName} [★ 足元]";
-                            _scrapNavText.color = targetColor;
-                        }
-                    }
                 }
             }
             else
             {
                 if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(false);
-                if (_scrapNavText != null)
+            }
+
+            // ── 漂着ボックス（Drift Box）の探知＆マーカー（📦）更新 ──
+            var nearestBox = AdventureBeachDriftBox.GetNearestUnopenedBox(playerPos, out float boxDist);
+            bool hasBoxTarget = nearestBox != null;
+            float boxAngle = 0f;
+            string boxCardinal = "";
+            string boxArrow = "";
+
+            if (hasBoxTarget)
+            {
+                Vector3 toBox = nearestBox.transform.position - playerPos;
+                toBox.y = 0f;
+                if (toBox.sqrMagnitude > 4.0f)
                 {
-                    if (mgr.CollectedCount >= AdventureScrapManager.TotalScrapCount)
+                    float boxTargetYaw = YawFromForward(toBox);
+                    boxAngle = Mathf.DeltaAngle(yaw, boxTargetYaw);
+                    boxCardinal = GetCardinal(boxTargetYaw);
+
+                    if (Mathf.Abs(boxAngle) < 18f) boxArrow = "▲正面";
+                    else if (boxAngle >= 18f && boxAngle < 155f) boxArrow = "▶右";
+                    else if (boxAngle <= -18f && boxAngle > -155f) boxArrow = "◀左";
+                    else boxArrow = "▼背後";
+
+                    // コンパスリボン上にボックスマーカー（📦）を滑らかに追従描画
+                    if (_boxMarkerRt != null)
                     {
-                        _scrapNavText.text = "✦ 全ての漂着パーツ回収完了！";
-                        _scrapNavText.color = new Color(0.35f, 1.0f, 0.85f, 0.95f);
+                        _boxMarkerRt.gameObject.SetActive(true);
+                        float targetBoxX;
+                        Color emeraldColor = new Color(0.35f, 1.0f, 0.65f, 1f);
+
+                        if (Mathf.Abs(boxAngle) <= 65f)
+                        {
+                            targetBoxX = boxAngle * PixelsPerDegree;
+                            if (_boxMarkerText != null)
+                            {
+                                _boxMarkerText.text = Mathf.Abs(boxAngle) < 6f ? "🎁" : "📦";
+                                _boxMarkerText.color = emeraldColor;
+                            }
+                        }
+                        else if (boxAngle > 65f)
+                        {
+                            targetBoxX = RibbonHalfWidth - 10f;
+                            if (_boxMarkerText != null)
+                            {
+                                _boxMarkerText.text = "📦▶";
+                                Color c = emeraldColor;
+                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 6f);
+                                _boxMarkerText.color = c;
+                            }
+                        }
+                        else
+                        {
+                            targetBoxX = -RibbonHalfWidth + 10f;
+                            if (_boxMarkerText != null)
+                            {
+                                _boxMarkerText.text = "◀📦";
+                                Color c = emeraldColor;
+                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 6f);
+                                _boxMarkerText.color = c;
+                            }
+                        }
+
+                        _boxMarkerX = Mathf.SmoothDamp(
+                            _boxMarkerX, targetBoxX, ref _boxMarkerXVel, MarkerSmoothTime,
+                            Mathf.Infinity, Time.unscaledDeltaTime);
+                        _boxMarkerRt.anchoredPosition = new Vector2(_boxMarkerX, 0f);
+                    }
+                }
+                else
+                {
+                    if (_boxMarkerRt != null) _boxMarkerRt.gameObject.SetActive(false);
+                }
+            }
+            else
+            {
+                if (_boxMarkerRt != null) _boxMarkerRt.gameObject.SetActive(false);
+            }
+
+            // ── ナビゲーションテキストの総合案内 ──
+            if (_scrapNavText != null)
+            {
+                if (isGuidingToTower)
+                {
+                    Vector3 toTower = targetPos - playerPos;
+                    toTower.y = 0f;
+                    float towerDist = toTower.magnitude;
+                    if (towerDist <= 3.5f)
+                    {
+                        _scrapNavText.text = "✦ 中央タワー白亜テラス 【Eキーで巨大レバーを引く！】";
+                        _scrapNavText.color = new Color(1.0f, 0.90f, 0.35f, 1.0f);
                     }
                     else
                     {
-                        _scrapNavText.text = "✦ 最寄りの漂着パーツを探知中…";
-                        _scrapNavText.color = new Color(1.0f, 0.85f, 0.35f, 0.85f);
+                        float towerYaw = YawFromForward(toTower);
+                        string towerCard = GetCardinal(towerYaw);
+                        _scrapNavText.text = $"✦ 白亜タワー（巨大レバー） 約{Mathf.RoundToInt(towerDist)}m（{towerCard}方角） 【天蓋開放へ】";
+                        _scrapNavText.color = new Color(0.25f, 0.95f, 1.0f, 1.0f);
                     }
+                }
+                else if (hasTarget && dist > 3.5f)
+                {
+                    Vector3 toTarget = targetPos - playerPos;
+                    toTarget.y = 0f;
+                    float targetYaw = YawFromForward(toTarget);
+                    float angle = Mathf.DeltaAngle(yaw, targetYaw);
+                    string targetCardinal = GetCardinal(targetYaw);
+                    string arrow;
+                    if (Mathf.Abs(angle) < 18f) arrow = "▲正面";
+                    else if (angle >= 18f && angle < 155f) arrow = "▶右";
+                    else if (angle <= -18f && angle > -155f) arrow = "◀左";
+                    else arrow = "▼背後";
+
+                    // パーツとボックスの両方を1行でわかりやすく表示
+                    if (hasBoxTarget && boxDist > 3.5f)
+                    {
+                        string boxShortName = nearestBox.boxTitle.Replace("漂着", "");
+                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m({targetCardinal}) [{arrow}]   |   📦 {boxShortName} 約{Mathf.RoundToInt(boxDist)}m({boxCardinal}) [{boxArrow}]";
+                    }
+                    else
+                    {
+                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m（{targetCardinal}方角） [{arrow}]";
+                    }
+                    _scrapNavText.color = targetColor;
+                }
+                else if (hasTarget && dist <= 3.5f)
+                {
+                    _scrapNavText.text = $"✦ {targetName} [★ 足元]";
+                    _scrapNavText.color = targetColor;
+                }
+                else if (hasBoxTarget && boxDist > 3.5f)
+                {
+                    // パーツ全回収済み、またはボックス優先表示
+                    _scrapNavText.text = $"📦 {nearestBox.boxTitle} 約{Mathf.RoundToInt(boxDist)}m（{boxCardinal}方角） [{boxArrow}]";
+                    _scrapNavText.color = new Color(0.35f, 1.0f, 0.65f, 1.0f);
+                }
+                else if (hasBoxTarget && boxDist <= 3.5f)
+                {
+                    _scrapNavText.text = $"📦 {nearestBox.boxTitle} [★ 足元・Eキーで読む]";
+                    _scrapNavText.color = new Color(0.35f, 1.0f, 0.65f, 1.0f);
+                }
+                else
+                {
+                    _scrapNavText.text = "✦ 全ての漂着パーツ＆ボックス回収完了！";
+                    _scrapNavText.color = new Color(0.35f, 1.0f, 0.85f, 0.95f);
                 }
             }
         }

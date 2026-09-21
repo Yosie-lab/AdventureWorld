@@ -79,6 +79,40 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     public static bool IsModalOpen => _isModalOpen;
 
+    // ── アクティブインスタンス管理（コンパスHUD・Rustドローン連携用） ──
+    private static readonly List<AdventureBeachDriftBox> _activeBoxes = new List<AdventureBeachDriftBox>();
+    public static IReadOnlyList<AdventureBeachDriftBox> ActiveBoxes => _activeBoxes;
+
+    /// <summary>指定地点から最も近い未開封の漂着ボックスを取得する</summary>
+    public static AdventureBeachDriftBox GetNearestUnopenedBox(Vector3 playerPos, out float minDistance)
+    {
+        minDistance = float.MaxValue;
+        AdventureBeachDriftBox nearest = null;
+        for (int i = 0; i < _activeBoxes.Count; i++)
+        {
+            var box = _activeBoxes[i];
+            if (box == null || box.isOpened) continue;
+            float d = Vector3.Distance(playerPos, box.transform.position);
+            if (d < minDistance)
+            {
+                minDistance = d;
+                nearest = box;
+            }
+        }
+        return nearest;
+    }
+
+    void OnEnable()
+    {
+        if (!_activeBoxes.Contains(this))
+            _activeBoxes.Add(this);
+    }
+
+    void OnDisable()
+    {
+        _activeBoxes.Remove(this);
+    }
+
     void Awake()
     {
         _mpb = new MaterialPropertyBlock();
@@ -197,11 +231,11 @@ public class AdventureBeachDriftBox : MonoBehaviour
             }
         }
 
-        // 漂着パーツ同等の光の柱（ビーコン）の神秘的な脈動
+        // 漂着パーツ同等の光の柱（ビーコン）の神秘的な脈動（高さ約70m・遠景視認性向上）
         if (_beaconPillar != null)
         {
             float bPulse = 1.0f + Mathf.Sin(t * 2.8f) * 0.18f;
-            _beaconPillar.localScale = new Vector3(0.24f * bPulse, 22.5f, 0.24f * bPulse);
+            _beaconPillar.localScale = new Vector3(0.38f * bPulse, 35f, 0.38f * bPulse);
         }
     }
 
@@ -424,18 +458,18 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var rendStar = starGo.GetComponent<ParticleSystemRenderer>();
         if (rendStar != null) rendStar.material = _twinkleMat;
 
-        // 7. 漂着パーツ同等の遠景ビーコン（高さ約45m、細身で美しい天空への光柱）
+        // 7. 漂着パーツ同等の遠景ビーコン（高さ約70m、天空へ真っ直ぐ昇る光柱）
         var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         beacon.name = "BeaconPillar";
         beacon.transform.SetParent(transform, false);
-        beacon.transform.localPosition = new Vector3(0f, 22.5f, 0f);
-        beacon.transform.localScale = new Vector3(0.24f, 22.5f, 0.24f);
+        beacon.transform.localPosition = new Vector3(0f, 35f, 0f);
+        beacon.transform.localScale = new Vector3(0.38f, 35f, 0.38f);
         Destroy(beacon.GetComponent<Collider>());
 
         var beaconRend = beacon.GetComponent<Renderer>();
         if (beaconRend != null)
         {
-            _beaconMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f, 0.78f, 0.28f, 0.65f), 3145);
+            _beaconMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f, 0.82f, 0.32f, 0.75f), 3145);
             beaconRend.material = _beaconMat;
         }
         _beaconPillar = beacon.transform;
@@ -448,10 +482,10 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
         var mainBeam = _verticalBeam.main;
         mainBeam.loop = true;
-        mainBeam.startLifetime = 2.6f;
-        mainBeam.startSpeed = 12.0f;
-        mainBeam.startSize = 0.35f;
-        mainBeam.startColor = new Color(1.0f, 0.85f, 0.35f, 0.95f);
+        mainBeam.startLifetime = 3.6f;
+        mainBeam.startSpeed = 18.0f;
+        mainBeam.startSize = 0.40f;
+        mainBeam.startColor = new Color(1.0f, 0.88f, 0.35f, 0.98f);
         mainBeam.simulationSpace = ParticleSystemSimulationSpace.World;
 
         var emissionBeam = _verticalBeam.emission;

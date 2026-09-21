@@ -286,6 +286,35 @@ public class AdventureRustDrone : MonoBehaviour
 
     float _nextIdleTalk;
     string _lastIdleLine = "";
+    float _nextDriftBoxCheckTime = 5.0f;
+    int _lastNotifiedBoxId = -1;
+
+    void TickDriftBoxDetection()
+    {
+        if (Time.time < _nextDriftBoxCheckTime) return;
+        _nextDriftBoxCheckTime = Time.time + 22f; // 22秒間隔でチェック
+
+        if (IsClimaxCrisis || _skybreakNestle || _prologueDistress || CurrentState != RustState.Follow)
+            return;
+
+        var box = AdventureBeachDriftBox.GetNearestUnopenedBox(transform.position, out float dist);
+        if (box != null && dist <= 75f && box.boxId != _lastNotifiedBoxId)
+        {
+            _lastNotifiedBoxId = box.boxId;
+            Vector3 diff = box.transform.position - transform.position;
+            string dirName;
+            if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
+                dirName = diff.x > 0 ? "東側" : "西側";
+            else
+                dirName = diff.z > 0 ? "北側" : "南側";
+
+            if (_audio != null && _sonarBeepClip != null)
+                _audio.PlayOneShot(_sonarBeepClip, 0.65f);
+
+            string shortName = box.boxTitle.Replace("漂着", "");
+            SpeakCustom($"ピピッ！{dirName}の白砂ビーチに「{shortName}」の電波反応だよ！", 5.2f);
+        }
+    }
 
     void Update()
     {
@@ -295,6 +324,7 @@ public class AdventureRustDrone : MonoBehaviour
         if (_lookAt == null)
             return;
 
+        TickDriftBoxDetection();
         UpdateCommandInput();
 
         Vector3 goal;
@@ -2356,6 +2386,26 @@ public class AdventureRustDrone : MonoBehaviour
                 _audio.PlayOneShot(_sonarBeepClip, 0.7f);
 
             SpeakCustom($"ピピッ！{dirName}の方角から、古代パーツの共鳴を感じるよ！", 5.0f);
+        }
+        else
+        {
+            // 最寄りの未開封漂着ボックスを探知
+            var box = AdventureBeachDriftBox.GetNearestUnopenedBox(transform.position, out float boxDist);
+            if (box != null && boxDist < 120f)
+            {
+                Vector3 diff = box.transform.position - transform.position;
+                string dirName;
+                if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
+                    dirName = diff.x > 0 ? "東（右奥）" : "西（海側）";
+                else
+                    dirName = diff.z > 0 ? "北（奥の高台）" : "南（浜辺側）";
+
+                if (_audio != null && _sonarBeepClip != null)
+                    _audio.PlayOneShot(_sonarBeepClip, 0.7f);
+
+                string boxLabel = string.IsNullOrEmpty(box.BoxDisplayName) ? "漂着ボックス" : box.BoxDisplayName;
+                SpeakCustom($"ピピッ！{dirName}の砂浜に『{boxLabel}』が漂着しているよ！", 5.0f);
+            }
         }
     }
 
