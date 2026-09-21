@@ -43,13 +43,19 @@ public class AdventureSaveManager : MonoBehaviour
         public bool isCanopyBroken;
         public string saveTime;
 
-        public Vector3 GetPosition() => new Vector3(posX, posY, posZ);
-        public void SetPosition(Vector3 pos)
+        public Vector3 Position
         {
-            posX = pos.x;
-            posY = pos.y;
-            posZ = pos.z;
+            get => new Vector3(posX, posY, posZ);
+            set
+            {
+                posX = value.x;
+                posY = value.y;
+                posZ = value.z;
+            }
         }
+
+        public Vector3 GetPosition() => Position;
+        public void SetPosition(Vector3 pos) => Position = pos;
     }
 
     static string SaveFilePath => Path.Combine(Application.persistentDataPath, "rust_and_float_save.json");

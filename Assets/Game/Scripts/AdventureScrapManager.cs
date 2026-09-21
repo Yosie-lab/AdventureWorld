@@ -6,24 +6,22 @@ using System.Collections.Generic;
 /// </summary>
 public class AdventureScrapManager : MonoBehaviour
 {
+    #region Singleton & Public Access
     static AdventureScrapManager _instance;
     public static AdventureScrapManager Instance
     {
         get
         {
             if (_instance != null) return _instance;
-            _instance = FindAnyObjectByType<AdventureScrapManager>();
+            _instance = Object.FindFirstObjectByType<AdventureScrapManager>();
             if (_instance == null) Ensure();
             return _instance;
         }
     }
+    #endregion
 
+    #region Progress Constants
     public const int TotalScrapCount = 12;
-    [SerializeField] int _collectedCount = 0;
-    public int CollectedCount => Mathf.Max(_collectedCount, Mathf.Max(_collectedIds != null ? _collectedIds.Count : 0, _collectedList != null ? _collectedList.Count : 0));
-    public int collectedCount => CollectedCount;
-    public bool hasPetRadar => CollectedCount >= 9;
-
     // ── 総合ポイント制（20ポイント以上でタワーレバー解除） ──
     public const int RequiredPointsForCanopy = 20;
     public const int PointsPerScrap = 1;
@@ -32,20 +30,40 @@ public class AdventureScrapManager : MonoBehaviour
 
     private const string PrefKeyPianoRelic = "AncientPiano_Relic_Collected";
     private const string PrefKeyLeverUnlockedNotified = "RustAndFloat_LeverUnlockedNotified";
+    const string PrefKeyScrapLayout = "RustAndFloat_ScrapLayoutXZ_v6";
+    const float MinDistFromPrevious = 28f;
+    const float MinDistBetweenScraps = 22f;
+    #endregion
 
-    /// <summary>ドリフトボックス（漂着サバイバルケース）の開封数</summary>
+    #region Internal State & Caches
+    [SerializeField] int _collectedCount = 0;
+    public int CollectedCount => _collectedCount;
+    public int collectedCount => CollectedCount;
+    public bool hasPetRadar => CollectedCount >= 9;
+
+    int _cachedOpenedDriftBoxCount = -1;
+
+    /// <summary>ドリフトボックス（漂着サバイバルケース）の開封数（キャッシュ付き）</summary>
     public int OpenedDriftBoxCount
     {
         get
         {
+            if (_cachedOpenedDriftBoxCount >= 0) return _cachedOpenedDriftBoxCount;
             int count = 0;
             for (int i = 1; i <= 5; i++)
             {
                 if (PlayerPrefs.GetInt("DriftBox_Opened_" + i, 0) == 1)
                     count++;
             }
-            return count;
+            _cachedOpenedDriftBoxCount = count;
+            return _cachedOpenedDriftBoxCount;
         }
+    }
+
+    /// <summary>ドリフトボックス開封数キャッシュを破棄し再読み込みを促す</summary>
+    public void InvalidateDriftBoxCache()
+    {
+        _cachedOpenedDriftBoxCount = -1;
     }
 
     /// <summary>ピアノの上の光る古代遺物を回収済みか</summary>
@@ -73,11 +91,9 @@ public class AdventureScrapManager : MonoBehaviour
 
     /// <summary>20ポイント以上集まり、中央タワーのレバーロックが解除された状態か</summary>
     public bool IsLeverUnlocked => TotalProgressPoints >= RequiredPointsForCanopy;
+    #endregion
 
-    const string PrefKeyScrapLayout = "RustAndFloat_ScrapLayoutXZ_v6";
-    const float MinDistFromPrevious = 28f;
-    const float MinDistBetweenScraps = 22f;
-
+    #region Candidate Coordinates Pool
     /// <summary>現行プレイで使うXZ配置（Yはスポーン時に地面合わせ）</summary>
     readonly List<Vector3> _scrapSpawnPositions = new List<Vector3>(12);
 
@@ -185,7 +201,9 @@ public class AdventureScrapManager : MonoBehaviour
             new Vector3(505f, 0f, 472f),
         },
     };
+    #endregion
 
+    #region Collection Tracking State
     readonly List<AdventureScrapItem> _activeItems = new List<AdventureScrapItem>();
     [SerializeField] List<int> _collectedList = new List<int>();
     readonly HashSet<int> _collectedIds = new HashSet<int>();
@@ -208,7 +226,7 @@ public class AdventureScrapManager : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = FindAnyObjectByType<AdventureScrapManager>();
+        var existing = Object.FindFirstObjectByType<AdventureScrapManager>();
         if (existing != null)
         {
             _instance = existing;
@@ -219,6 +237,9 @@ public class AdventureScrapManager : MonoBehaviour
         DontDestroyOnLoad(go);
         _instance = go.AddComponent<AdventureScrapManager>();
     }
+    #endregion
+
+    #region Unity Lifecycle & Audio Setup
 
     void Awake()
     {
@@ -553,7 +574,7 @@ public class AdventureScrapManager : MonoBehaviour
         }
 
         // 相棒Rustにリアクションさせる
-        var drone = FindAnyObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
             drone.OnNikoFoundScrap(CollectedCount);
@@ -654,6 +675,7 @@ public class AdventureScrapManager : MonoBehaviour
     /// <summary>ドリフトボックス開封時のポイント加算通知と祝福チャイム再生</summary>
     public void OnDriftBoxOpened(int boxId, string boxTitle)
     {
+        InvalidateDriftBoxCache();
         PlayCelebrationChime(0.40f);
         CheckPointsAndNotifyLeverUnlock();
     }
@@ -931,6 +953,7 @@ public class AdventureScrapManager : MonoBehaviour
         ResetToCount(0);
 
         // 2. 全ドリフトボックス（5個/各2pt）を未開封状態へ完全リセット
+        _cachedOpenedDriftBoxCount = 0;
         AdventureBeachDriftBox.ResetAllBoxesStatic(showBanner: false);
 
         // 3. ピアノ上の光る古代遺物（3pt）を未回収状態へ完全リセット

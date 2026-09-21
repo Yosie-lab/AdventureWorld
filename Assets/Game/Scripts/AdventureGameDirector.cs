@@ -21,14 +21,15 @@ public class AdventureGameDirector : MonoBehaviour
     AdventureNpc _leadFollowPet;
     bool _complete;
     bool _openingActive;
-    int _capytaTalks;
-    int _catTalks;
-    int _dogTalks;
-    int _sparrowTalks;
-    int _muskratTalks;
-    int _puduTalks;
-    int _colobusTalks;
-    int _geckoTalks;
+    readonly System.Collections.Generic.Dictionary<string, int> _talkCounts = new System.Collections.Generic.Dictionary<string, int>();
+
+    int NextTalkStep(string npcKey, int modulo = 3)
+    {
+        if (!_talkCounts.TryGetValue(npcKey, out int count))
+            count = 0;
+        _talkCounts[npcKey] = count + 1;
+        return modulo > 0 ? (count % modulo) : count;
+    }
     string _dialogue;
     float _dialogueUntil;
     string _prompt = "";
@@ -410,7 +411,7 @@ public class AdventureGameDirector : MonoBehaviour
                 "カピタ「ブヒヒ！よくやったね。Rustにもたっぷり油をわけてあげる。」",
                 "カピタ「プヒ…。平和だね。潤滑油、遠慮なく持っていって。」",
             };
-            ShowDialogue(done[_capytaTalks++ % done.Length], 5.5f);
+            ShowDialogue(done[NextTalkStep("capyta", done.Length)], 5.5f);
             Play(npc, "CapytaDance");
             AdventureCapytaBlessing.GrantSuperJumpFromTalk(showFx: true);
             return;
@@ -426,7 +427,7 @@ public class AdventureGameDirector : MonoBehaviour
 
         Play(npc, "CapytaSittingIdleLooksRight");
         AdventureCapytaBlessing.GrantSuperJumpFromTalk(showFx: true);
-        int step = _capytaTalks++ % 6;
+        int step = NextTalkStep("capyta", 6);
         if (!_foundCat && !_foundDog)
         {
             if (step == 0)
@@ -453,7 +454,7 @@ public class AdventureGameDirector : MonoBehaviour
     {
         bool firstFind = !_foundCat;
         _foundCat = true;
-        int step = _catTalks++ % 3;
+        int step = NextTalkStep("cat", 3);
         if (firstFind)
             BeginPetFollow(cat);
         if (_foundDog)
@@ -473,7 +474,7 @@ public class AdventureGameDirector : MonoBehaviour
     {
         bool firstFind = !_foundDog;
         _foundDog = true;
-        int step = _dogTalks++ % 3;
+        int step = NextTalkStep("dog", 3);
         if (firstFind)
             BeginPetFollow(dog);
         if (_foundCat)
@@ -492,7 +493,7 @@ public class AdventureGameDirector : MonoBehaviour
     void TalkSparrow()
     {
         Play(sparrow, "Idle_A");
-        int step = _sparrowTalks++ % 3;
+        int step = NextTalkStep("sparrow", 3);
         if (step == 0)
             ShowDialogue("スズメ「上から見た。猫は北東の草地、犬は北西の草地。教えてあげる。」", 6f);
         else if (step == 1)
@@ -506,7 +507,7 @@ public class AdventureGameDirector : MonoBehaviour
     void TalkMuskrat()
     {
         Play(muskrat, "Idle_A");
-        int step = _muskratTalks++ % 3;
+        int step = NextTalkStep("muskrat", 3);
         if (step == 0)
             ShowDialogue("マスクラット「匂いを嗅いだよ。犬は西の草地、猫は東の丘。池の中にはいない。教えてあげる。」", 6.2f);
         else if (step == 1)
@@ -520,7 +521,7 @@ public class AdventureGameDirector : MonoBehaviour
     void TalkPudu()
     {
         Play(pudu, "Fear");
-        int step = _puduTalks++ % 3;
+        int step = NextTalkStep("pudu", 3);
         if (step == 0)
             ShowDialogue("プドゥ「…こ、こわい。でも教える。猫は北東の草地。犬は北西の緑。」", 6f);
         else if (step == 1)
@@ -532,7 +533,7 @@ public class AdventureGameDirector : MonoBehaviour
     void TalkColobus()
     {
         Play(colobus, "Clicked");
-        int step = _colobusTalks++ % 3;
+        int step = NextTalkStep("colobus", 3);
         if (step == 0)
             ShowDialogue("コロブス「へっ。猫？ 北の崖の端だよ。まっすぐ行けばいい。」", 5.8f);
         else if (step == 1)
@@ -544,7 +545,7 @@ public class AdventureGameDirector : MonoBehaviour
     void TalkGecko()
     {
         Play(gecko, "Attack");
-        int step = _geckoTalks++ % 3;
+        int step = NextTalkStep("gecko", 3);
         if (step == 0)
             ShowDialogue("ヤモリ「邪魔だ。犬は西の真っ暗なほう。あっち行け。」", 5.5f);
         else if (step == 1)

@@ -78,6 +78,27 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     bool _showGameClearModal = false;
     Font _epilogueFont;
 
+    // ── キャッシュ参照（毎フレームFind廃止） ──
+    AdventurePlayerController _cachedPlayer;
+    AdventureRustDrone _cachedDrone;
+    UnityEngine.UI.Text _cachedGuideText; // SetExplorationHudVisible 用
+
+    AdventurePlayerController GetPlayer()
+    {
+        if (_cachedPlayer == null)
+            _cachedPlayer = AdventurePlayerController.Instance
+                            ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+        return _cachedPlayer;
+    }
+
+    AdventureRustDrone GetDrone()
+    {
+        if (_cachedDrone == null)
+            _cachedDrone = AdventureRustDrone.Instance
+                           ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        return _cachedDrone;
+    }
+
     // ── 台本ボード（1枚ずつ確実に表示）※uGUI：OnGUIだと日本語が空になるため ──
     bool _scriptBoardVisible = false;
     bool _scriptBoardAdvance = false;
@@ -756,8 +777,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             }
         }
 
-        var player = AdventurePlayerController.Instance
-                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+        // キャッシュ参照を使用（毎フレームFind廃止）
+        var player = GetPlayer();
 
         // プレイヤー未検出でも保留クライマックスは進める
         TryStartPendingClimax(player);
@@ -1027,12 +1048,13 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (AdventureScrapHUD.Instance != null)
             AdventureScrapHUD.Instance.HideBannerImmediately();
 
-        var beach = AdventureBeachNarrativeManager.Instance
-                    ?? Object.FindFirstObjectByType<AdventureBeachNarrativeManager>();
+        var beach = AdventureBeachNarrativeManager.Instance;
         if (beach != null && beach.IsShowingModal)
             beach.CloseModal();
 
-        var opening = Object.FindFirstObjectByType<AdventureRustFloatOpening>();
+        // AdventureRustFloatOpening はシーン開始後は変わらないのでキャッシュで十分
+        var opening = AdventureRustFloatOpening.Instance
+                      ?? Object.FindFirstObjectByType<AdventureRustFloatOpening>();
         if (opening != null && opening.IsModalBoardOpen())
             opening.ForceDismissForGameplay();
     }
@@ -1454,7 +1476,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void TryPullLever(bool allCollected)
     {
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        var drone = GetDrone();
 
         if (!allCollected)
         {
@@ -1574,12 +1596,16 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         StartSkybreakWindAmbience(); // 風の音は追加で流す
 
         // ピアノが鳴っていたら2秒かけてフェードアウト＆ダッキング解除
-        foreach (var p in Object.FindObjectsByType<AdventureAncientPianoRelic>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        var piano = AdventureAncientPianoRelic.Instance;
+        if (piano != null)
+            piano.FadeOutPiano(2.0f);
+        else
         {
-            if (p != null) p.FadeOutPiano(2.0f);
+            foreach (var p in Object.FindObjectsByType<AdventureAncientPianoRelic>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                if (p != null) p.FadeOutPiano(2.0f);
         }
 
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        var drone = GetDrone();
         if (drone != null)
         {
             drone.ClearSpeech();
@@ -1709,14 +1735,13 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         AdventureSaveManager.Instance?.SaveGame("天蓋開放・到達記録を保存しました");
 
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        var drone = GetDrone();
         if (drone != null)
             drone.StartSkybreakNestle();
 
         BuildSkybreakHyperUpdraft(new Vector3(512f, 62f, 512f));
 
-        var player = AdventurePlayerController.Instance
-                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+        var player = GetPlayer();
         if (player != null)
         {
             player.PrepareSkybreakPillarAscend();
@@ -1740,8 +1765,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (!_isCanopyBroken)
             IsCanopyBroken = true;
 
-        var player = AdventurePlayerController.Instance
-                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+        var player = GetPlayer();
         TryStartPendingClimax(player);
     }
 
@@ -1796,7 +1820,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void SuppressAllSpeechAndBanners()
     {
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        var drone = GetDrone();
         if (drone != null)
             drone.ClearSpeech();
         if (AdventureScrapHUD.Instance != null)
@@ -2336,50 +2360,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         font.RequestCharactersInTexture(text, fontSize, FontStyle.Bold);
     }
 
-    static GUIStyle MakeCleanLabelStyle(Font font, int fontSize, FontStyle fontStyle, TextAnchor align, bool wordWrap)
-    {
-        // GUI.skin.label をコピーするとEditorのGizmosフォントが混入する
-        var style = new GUIStyle
-        {
-            font = font,
-            fontSize = fontSize,
-            fontStyle = fontStyle,
-            alignment = align,
-            wordWrap = wordWrap,
-            richText = false,
-            clipping = TextClipping.Overflow
-        };
-        style.normal.textColor = Color.white;
-        style.hover.textColor = Color.white;
-        style.active.textColor = Color.white;
-        return style;
-    }
-
-    bool CheckScriptBoardAdvanceInput()
-    {
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame ||
-                           kb.numpadEnterKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame))
-            return true;
-
-        var mouse = UnityEngine.InputSystem.Mouse.current;
-        if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
-            return true;
-
-        var pad = UnityEngine.InputSystem.Gamepad.current;
-        if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame))
-            return true;
-
-        try
-        {
-            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.E))
-                return true;
-            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
-                return true;
-        }
-        catch { }
-        return false;
-    }
+    // PollScriptBoardAdvance と同一内容のため CheckScriptBoardAdvanceInput は削除
+    // （PollScriptBoardAdvance を直接使用する）
 
     #endregion
 
@@ -2672,9 +2654,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _suppressClimax = false;
         _ignoreSavedCanopyState = false;
 
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
-        var player = AdventurePlayerController.Instance
-                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+        var drone = GetDrone();
+        var player = GetPlayer();
 
         SetCinematicCamera(true);
         SetExplorationHudVisible(false);
@@ -2735,7 +2716,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // 台本2（気流が冷たい）：力なく落ちていく
         if (index == 1)
         {
-            var droneFall = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+            var droneFall = GetDrone();
             if (droneFall != null)
                 droneFall.BeginClimaxColdFallAway();
         }
@@ -2743,7 +2724,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // 台本12：全出力セリフと同時にオーバードライブ演出
         if (index == ClimaxOilSlot + 1)
         {
-            var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+            var drone = GetDrone();
             if (drone != null)
                 drone.TriggerClimaxOverdrive();
         }
@@ -2907,7 +2888,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _oilHoldTimer = OilHoldRequired;
         HideOilPromptUI();
 
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        var drone = GetDrone();
         if (drone != null)
             drone.StartClimaxPetAndOil();
 
@@ -3066,7 +3047,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         HideOilPromptUI();
 
         Time.timeScale = 1f;
-        var player = AdventurePlayerController.Instance;
+        var player = GetPlayer();
         if (player != null)
         {
             player.SetAutoGlideMode(false);
@@ -3080,32 +3061,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         StartCoroutine(EpilogueSequenceRoutine());
     }
 
-    /// <summary>旧コルーチン版（互換・未使用）</summary>
-    IEnumerator ClimaxCrisisSequenceRoutine()
-    {
-        BeginClimaxSequence();
-        while (_climaxCrisisStarted && !_epilogueTriggered)
-            yield return null;
-    }
-
     #endregion
 
     #region 10. エピローグ演出 & オートグライド
-
-    void DrawScriptBoardGUI()
-    {
-        // IMGUI日本語描画は停止（Gizmos文字化け防止）。入力は DrawScriptBoardInputFallback。
-    }
-
-    static void DrawShadowedText(Rect rect, string text, GUIStyle style, Color textColor, Color shadowColor, float offset = 1.5f)
-    {
-        // IMGUI日本語は使わない（呼び出されても何もしない）
-    }
-
-    void DrawEpilogueGUI()
-    {
-        // エピローグ字幕も台本ボード(uGUI)へ統一済みのため IMGUI は描画しない
-    }
 
     static readonly string[] EpilogueActs =
     {
@@ -3120,11 +3078,6 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             return _epilogueFont;
         _epilogueFont = CreateJapaneseFont(32);
         return _epilogueFont;
-    }
-
-    void DrawGameClearModalGUI()
-    {
-        // IMGUI クリア画面は廃止（空ボード＋Gizmos化の原因）。uGUI の TickGameClearModal を使う。
     }
 
     #endregion
@@ -3275,12 +3228,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         HideGameClearModalUI();
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.RestoreExplorationTheme();
-        var player = AdventurePlayerController.Instance;
+        var player = GetPlayer();
         if (player != null)
             player.SetAutoGlideMode(false);
         SetCinematicCamera(false);
         SetExplorationHudVisible(true);
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        var drone = GetDrone();
         if (drone != null)
         {
             drone.StopSkybreakNestle();
@@ -3301,7 +3254,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         HideGameClearModalUI();
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.RestoreExplorationTheme();
-        var player = AdventurePlayerController.Instance;
+        var player = GetPlayer();
         if (player != null)
         {
             // タワー上空の光柱へワープし、大空へ打ち上げ＆スーパー滑空
@@ -3312,7 +3265,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             player.SetAutoGlideMode(true, 120f);
         }
         SetCinematicCamera(true);
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        var drone = GetDrone();
         if (drone != null)
         {
             drone.SpeakCustom("いっくよー！大空へダイブ！！", 5.0f);
@@ -3321,7 +3274,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     IEnumerator EpilogueSequenceRoutine()
     {
-        var player = AdventurePlayerController.Instance;
+        var player = GetPlayer();
         if (player != null)
         {
             if (player.transform.position.y < 110f)
@@ -3382,7 +3335,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             player.SetAutoGlideMode(true, 120f);
     }
 
-    static void SetExplorationHudVisible(bool visible)
+    void SetExplorationHudVisible(bool visible)
     {
         if (visible)
             AdventureCompassHUD.Ensure();
@@ -3397,11 +3350,20 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (scrap != null)
             scrap.gameObject.SetActive(visible);
 
-        foreach (var t in Object.FindObjectsByType<UnityEngine.UI.Text>(FindObjectsInactive.Include))
+        // 「Guide」テキストをキャッシュして毎回の全Text検索を廃止
+        if (_cachedGuideText == null)
         {
-            if (t != null && t.name == "Guide")
-                t.gameObject.SetActive(visible);
+            foreach (var t in Object.FindObjectsByType<UnityEngine.UI.Text>(FindObjectsInactive.Include))
+            {
+                if (t != null && t.name == "Guide")
+                {
+                    _cachedGuideText = t;
+                    break;
+                }
+            }
         }
+        if (_cachedGuideText != null)
+            _cachedGuideText.gameObject.SetActive(visible);
     }
 
     static void SetCinematicCamera(bool enabled)

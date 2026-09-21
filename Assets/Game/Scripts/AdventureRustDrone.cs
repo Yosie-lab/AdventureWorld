@@ -99,44 +99,6 @@ public class AdventureRustDrone : MonoBehaviour
         }
     }
 
-    static Font _jpFont;
-
-    static Font ResolveJapaneseFont(int size = 28)
-    {
-        if (_jpFont != null) return _jpFont;
-        try
-        {
-            _jpFont = Font.CreateDynamicFontFromOSFont(
-                new[]
-                {
-                    "Hiragino Sans", "HiraginoSans-W3", "Hiragino Kaku Gothic ProN",
-                    "YuGothic", "Yu Gothic", "Arial Unicode MS"
-                },
-                size);
-        }
-        catch { }
-        if (_jpFont == null)
-            _jpFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
-                      ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
-        return _jpFont;
-    }
-
-    static GUIStyle MakeJpLabel(int fontSize, FontStyle style, TextAnchor align, bool wordWrap = false)
-    {
-        var font = ResolveJapaneseFont(fontSize);
-        var s = new GUIStyle
-        {
-            font = font,
-            fontSize = fontSize,
-            fontStyle = style,
-            alignment = align,
-            wordWrap = wordWrap,
-            richText = false,
-            clipping = TextClipping.Overflow
-        };
-        s.normal.textColor = Color.white;
-        return s;
-    }
 
     public static AdventureRustDrone Instance { get; private set; }
 
@@ -640,7 +602,8 @@ public class AdventureRustDrone : MonoBehaviour
 
     void UpdateGuide()
     {
-        var mgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
+        // ScrapManager.Instanceはシングルトン。見つからない場合はガイドを無効化
+        var mgr = AdventureScrapManager.Instance;
         if (mgr == null || _lookAt == null)
         {
             _guidedScrap = null;
@@ -1065,7 +1028,8 @@ public class AdventureRustDrone : MonoBehaviour
 
     void UpdatePlayerInteraction()
     {
-        var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
+        // キャッシュ済みのInstanceを使用（毎フレームFind廃止）
+        var player = AdventurePlayerController.Instance;
         if (player == null) return;
 
         // Rustの浮遊高さを考慮し、水平5.5m・高低差5.0mまで広角に接近検知
@@ -1200,8 +1164,7 @@ public class AdventureRustDrone : MonoBehaviour
 
         if (_lookAt == null)
         {
-            var niko = AdventurePlayerController.Instance
-                       ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+            var niko = AdventurePlayerController.Instance;
             if (niko != null) _lookAt = niko.transform;
         }
 
@@ -1239,8 +1202,8 @@ public class AdventureRustDrone : MonoBehaviour
     {
         if (_lookAt == null)
         {
-            var niko = AdventurePlayerController.Instance
-                       ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+            // AdventurePlayerController.Instance を最優先（毎回Findしない）
+            var niko = AdventurePlayerController.Instance;
             if (niko != null) _lookAt = niko.transform;
         }
         if (_lookAt != null && !_bonesCached)
@@ -2288,7 +2251,8 @@ public class AdventureRustDrone : MonoBehaviour
 
     void UpdateSonar()
     {
-        var mgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
+        // ScrapManager.Instanceはシングルトン。見つからない場合はソナー無効
+        var mgr = AdventureScrapManager.Instance;
         if (mgr == null) return;
 
         // レーダー未解放（パーツ9個未満）でも近距離（25m）で探知反応し、解放後は60mの超広域に強化
@@ -2315,233 +2279,7 @@ public class AdventureRustDrone : MonoBehaviour
 
     void OnGUI()
     {
-        // Editor Play中の IMGUI 日本語描画は Gizmos フォント汚染を起こすため完全停止。
-        // インタラクトは UpdatePlayerInteraction / Input System 側で行う。
-        return;
-    }
-
-    void OnGUI_DisabledLegacy()
-    {
-        // 重複インスタンスは一切描画しない（プロンプト多重表示の主因）
-        if (Instance != null && Instance != this) return;
-
-        var towerHud = AdventureSanctuaryTowerManager.Instance;
-        bool cinematicHide = ShouldHideInteractionPrompt(towerHud)
-            || IsClimaxCrisis || IsClimaxOverdrive || _climaxHealing || _skybreakNestle || _prologueDistress;
-
-        // 照準中のスクラップに対するRust遠隔回収プロンプト
-        if (!cinematicHide && _aimedScrap != null && CurrentState == RustState.Follow && Camera.main != null)
-        {
-            Vector3 screenPos = Camera.main.WorldToScreenPoint(_aimedScrap.transform.position + Vector3.up * 0.4f);
-            if (screenPos.z > 0.5f)
-            {
-                float aimW = 260f;
-                float aimH = 34f;
-                float aimX = screenPos.x - aimW * 0.5f;
-                float aimY = Screen.height - screenPos.y - 45f;
-
-                var promptStyle = new GUIStyle(GUI.skin.box);
-                promptStyle.fontSize = 15;
-                promptStyle.fontStyle = FontStyle.Bold;
-                promptStyle.alignment = TextAnchor.MiddleCenter;
-                promptStyle.normal.textColor = new Color(0.35f, 0.95f, 1.0f);
-
-                GUI.Box(new Rect(aimX, aimY, aimW, aimH), "【F】Rustに回収を指示", promptStyle);
-            }
-        }
-
-        bool nearCapyta = AdventureCapytaBlessing.IsTalkPromptActive ||
-            AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(
-                AdventurePlayerController.Instance != null
-                    ? AdventurePlayerController.Instance.transform.position
-                    : transform.position);
-
-        // 0. Eキー検知のフォールバック（押しっぱなし連打防止）
-        // カピタ会話中は触れない（Update側と同じ優先順位）
-        if (!cinematicHide && _isPlayerNear && !nearCapyta
-            && Event.current != null
-            && Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.E
-            && Time.time - _lastInteractTime > 0.35f)
-        {
-            _lastInteractTime = Time.time;
-            InteractWithNiko();
-        }
-
-        // 1. Niko接近時の頭上インタラクションプロンプト（シネマ中／カピタ会話中は非表示）
-        if (!cinematicHide && _isPlayerNear && !nearCapyta && Camera.main != null)
-        {
-            Vector3 headPos = transform.position + Vector3.up * 0.85f;
-            Vector3 screenPos = Camera.main.WorldToScreenPoint(headPos);
-            if (screenPos.z > 0.2f)
-            {
-                bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
-                oilCount = Mathf.Max(oilCount, 1);
-
-                string prompt = needsOil
-                    ? $"【E】油をさして手当て＆セーブ（常備油: {oilCount}）"
-                    : $"【E】Rustを撫でてセーブ（常備油: {oilCount}）";
-                Color textColor = needsOil
-                    ? new Color(1.0f, 0.90f, 0.25f)
-                    : new Color(0.40f, 0.96f, 1.0f);
-
-                int promptFontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.026f, 20f, 30f));
-                GUIStyle pStyle = MakeJpLabel(promptFontSize, FontStyle.Bold, TextAnchor.MiddleCenter);
-                if (pStyle.font != null)
-                    pStyle.font.RequestCharactersInTexture(prompt, promptFontSize, FontStyle.Bold);
-
-                Vector2 pSize = pStyle.CalcSize(new GUIContent(prompt));
-                float padX = 28f;
-                float padY = 12f;
-                float boxW = Mathf.Max(pSize.x + padX, 320f);
-                float boxH = Mathf.Max(pSize.y + padY, promptFontSize + 18f);
-                // 頭上ワールド座標は揺れやすいので、画面下部中央に固定して多重に見せない
-                float boxX = (Screen.width - boxW) * 0.5f;
-                float boxY = Screen.height - boxH - Mathf.Clamp(Screen.height * 0.12f, 90f, 140f);
-                Rect promptBoxRect = new Rect(boxX, boxY, boxW, boxH);
-
-                if (_speechBg == null)
-                {
-                    _speechBg = new Texture2D(1, 1);
-                    _speechBg.SetPixel(0, 0, new Color(0.04f, 0.07f, 0.12f, 0.92f));
-                    _speechBg.Apply();
-                }
-                GUI.DrawTexture(promptBoxRect, _speechBg);
-
-                Rect lineRect = new Rect(boxX, boxY, boxW, 3f);
-                GUI.DrawTexture(lineRect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, textColor, 0, 0);
-
-                DrawOutlinedText(promptBoxRect, prompt, pStyle, textColor, new Color(0f, 0f, 0f, 0.95f));
-            }
-        }
-
-        // 2. 画面右上のオイル所持数＆RustコンディションHUD
-        bool isOiled = Time.time < wellOiledUntil;
-        bool isDistressed = (_heat > 0.15f || Time.time < _hitchUntil || !isOiled);
-        bool hideStatusHud = cinematicHide
-            || (towerHud != null && (towerHud.IsEpiloguePlaying || towerHud.IsClimaxOilPromptActive || towerHud.ShowGameClearModal || towerHud.IsSkybreakModalActive));
-        if (!hideStatusHud && (oilCount > 0 || isOiled || isDistressed))
-        {
-            int badgeSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.022f, 18f, 24f));
-            GUIStyle badgeStyle = MakeJpLabel(badgeSize, FontStyle.Bold, TextAnchor.MiddleCenter);
-
-            string status;
-            Color bColor;
-            if (isOiled)
-            {
-                status = "✦ Rust好調（整備済）";
-                bColor = new Color(0.45f, 0.95f, 0.65f);
-            }
-            else
-            {
-                status = $"⚠ 要整備（【E】手当て＆セーブ / 油: {oilCount}）";
-                bColor = new Color(1.0f, 0.88f, 0.35f);
-            }
-            if (badgeStyle.font != null)
-                badgeStyle.font.RequestCharactersInTexture(status, badgeSize, FontStyle.Bold);
-
-            GUIContent bContent = new GUIContent(status);
-            Vector2 bSize = badgeStyle.CalcSize(bContent);
-            float bw = Mathf.Max(200f, bSize.x + 54f);
-            float bh = Mathf.Max(36f, badgeSize + 18f);
-
-            float rightMargin = Mathf.Clamp(Screen.width * 0.055f, 65f, 110f);
-            float topMargin = Mathf.Clamp(Screen.height * 0.045f, 45f, 75f);
-            Rect bRect = new Rect(Screen.width - bw - rightMargin, topMargin, bw, bh);
-
-            if (_speechBg == null)
-            {
-                _speechBg = new Texture2D(1, 1);
-                _speechBg.SetPixel(0, 0, new Color(0.04f, 0.07f, 0.12f, 0.92f));
-                _speechBg.Apply();
-            }
-            GUI.DrawTexture(bRect, _speechBg);
-            Rect bLine = new Rect(bRect.x, bRect.y, bw, 2.5f);
-            GUI.DrawTexture(bLine, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, bColor, 0, 0);
-
-            DrawOutlinedText(bRect, status, badgeStyle, bColor, new Color(0f, 0f, 0f, 0.95f));
-        }
-
-        // 3. セリフダイアログ表示
-        if (_speechTimer <= 0f || string.IsNullOrEmpty(_speechText))
-            return;
-
-        if (towerHud != null && (towerHud.IsSkybreakModalActive || towerHud.IsEpiloguePlaying || towerHud.IsClimaxOilPromptActive || towerHud.ShowGameClearModal))
-            return;
-
-        // しっかり大きく読みやすいシネマフォント設計（1080pで約34pt）
-        int bodyFontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.034f, 28f, 40f));
-        int nameFontSize = Mathf.RoundToInt(bodyFontSize * 0.72f);
-
-        // スタイル生成・キャッシュ
-        if (_speechStyle == null)
-        {
-            _speechStyle = new GUIStyle();
-            _speechBg = new Texture2D(1, 1);
-            _speechBg.SetPixel(0, 0, new Color(0.04f, 0.07f, 0.12f, 0.90f));
-            _speechBg.Apply();
-        }
-
-        // ウィンドウサイズの計算（拡大した文字が欠けずゆったり収まるサイズ）
-        float boxWidth = Mathf.Clamp(Screen.width * 0.68f, 520f, 960f);
-        float boxHeight = bodyFontSize * 2.8f + nameFontSize + 32f;
-        float x = (Screen.width - boxWidth) * 0.5f;
-        float y = Screen.height - boxHeight - Mathf.Clamp(Screen.height * 0.05f, 35f, 65f);
-
-        float alpha = Mathf.Clamp01(_speechTimer);
-        Color prevColor = GUI.color;
-        GUI.color = new Color(1f, 1f, 1f, alpha);
-
-        Rect boxRect = new Rect(x, y, boxWidth, boxHeight);
-
-        // 1. 半透明ダーク背景（映画字幕風ウィンドウ）
-        GUI.DrawTexture(boxRect, _speechBg);
-
-        // 上部アクセントバー（エメラルドシアンの風の光彩ライン）
-        Rect barRect = new Rect(x, y, boxWidth, 2.5f);
-        GUI.DrawTexture(barRect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, new Color(0.2f, 0.95f, 0.85f, 0.9f * alpha), 0, 0);
-
-        // 2. ネームタグ [ 相棒 Rust ]
-        GUIStyle nameStyle = MakeJpLabel(nameFontSize, FontStyle.Bold, TextAnchor.MiddleLeft);
-
-        Rect nameRect = new Rect(x + 28f, y + 10f, boxWidth - 56f, nameFontSize + 4f);
-        Color nameCol = _speechSpeakerColor;
-        nameCol.a = alpha;
-        DrawOutlinedText(nameRect, _speechSpeaker, nameStyle, nameCol, new Color(0f, 0f, 0f, 0.9f * alpha));
-
-        // 行動待ちヒント（右上に上品に表示）
-        if (_waitingForPlayerAction)
-        {
-            GUIStyle hintStyle = MakeJpLabel(Mathf.Max(12, Mathf.RoundToInt(nameFontSize * 0.82f)), FontStyle.Normal, TextAnchor.MiddleRight);
-            Rect hintRect = new Rect(x + 28f, y + 10f, boxWidth - 56f, nameFontSize + 4f);
-            DrawOutlinedText(hintRect, "（行動・移動で閉じます）", hintStyle, new Color(0.65f, 0.85f, 0.95f, alpha * 0.85f), new Color(0f, 0f, 0f, 0.85f * alpha));
-        }
-
-        // 3. セリフ本文（大きくてはっきり読める・クリッピング防止）
-        GUIStyle bodyStyle = MakeJpLabel(bodyFontSize, FontStyle.Normal, TextAnchor.UpperLeft, wordWrap: true);
-        if (bodyStyle.font != null)
-            bodyStyle.font.RequestCharactersInTexture("「" + _speechText + "」", bodyFontSize, FontStyle.Normal);
-
-        Rect bodyRect = new Rect(x + 28f, y + nameFontSize + 14f, boxWidth - 56f, bodyFontSize * 2.6f);
-        DrawOutlinedText(bodyRect, "「" + _speechText + "」", bodyStyle, new Color(1.0f, 1.0f, 1.0f, alpha), new Color(0f, 0f, 0f, 0.95f * alpha));
-
-        GUI.color = prevColor;
-    }
-
-    /// <summary>4方向の黒フチ取り（アウトライン）で背景色問わず100%くっきり描画</summary>
-    static void DrawOutlinedText(Rect rect, string text, GUIStyle style, Color textColor, Color outlineColor)
-    {
-        int spread = Mathf.Max(1, style.fontSize / 16);
-        Color origColor = style.normal.textColor;
-
-        style.normal.textColor = outlineColor;
-        GUI.Label(new Rect(rect.x - spread, rect.y, rect.width, rect.height), text, style);
-        GUI.Label(new Rect(rect.x + spread, rect.y, rect.width, rect.height), text, style);
-        GUI.Label(new Rect(rect.x, rect.y - spread, rect.width, rect.height), text, style);
-        GUI.Label(new Rect(rect.x, rect.y + spread, rect.width, rect.height), text, style);
-
-        style.normal.textColor = textColor;
-        GUI.Label(rect, text, style);
-        style.normal.textColor = origColor;
+        // セリフ表示は AdventureRustSpeechUI (uGUI) が担当。IMGUI は無効化済み。
     }
 
     static AudioClip MakeSynthBeep(float startFreq, float endFreq, float duration)

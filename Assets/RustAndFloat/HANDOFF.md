@@ -376,6 +376,29 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
   - **天蓋崩壊シーケンスBGM再生**: レバーを引いた直後の `BeginCanopyScriptBeats()` で誤って探索用アンビエントBGM復帰（`RestoreExplorationTheme()`）が呼ばれていたため、天空突破テーマBGMが流れない状態だった問題を解消。`KeepEndingThemeActive()` を呼び出し、壮大な天空テーマ（`_skybreakThemeClip`）を確実に開始・維持するように修正。
   - **ピアノ演奏・ダッキングの確実な停止**: シーケンス開始時に `AdventureAncientPianoRelic` へ `_isSilencedForEnding` フラグをセットし、Updateでの毎フレームダッキング再計算および接近演奏判定を完全にブロック。同時にスポットダッキングを即座に0解除し、2秒間のオーディオフェードアウト＆`src.Stop()` を実行。シーン内に存在する全ピアノインスタンスを確実にサイレント化。ニューゲーム時には適切にフラグをリセット。
 
+### 12. 砂浜のウミネコ（カモメ）モデル・羽ばたき滑空モーションの鳥らしい造形への刷新
+- **対象ファイル**: `Assets/Game/Scripts/AdventureBeachSeagull.cs`
+- **内容**:
+  - 砂浜から空へ飛び立つオブジェクトが四角いブロック（Cube）のままに見えていた問題を解消。
+  - プロシージャルメッシュ（先端の尖った円錐クチバシメッシュ `ProcBeakCone`、厚みから先端へ細く伸びる流線型翼メッシュ `ProcBirdWing`、尾羽 `Tail`）を動的に自動生成・換装。
+  - 胴体・頭部のスケールバランスをリアルな海鳥の紡錘形プロポーションに最適化。
+  - 飛翔モーションを刷新し、離陸直後の力強い羽ばたきから、上昇後の自然な滑空（グライディング）と微細な風揺れ、旋回飛行を実装。
+
+### 13. スタートからエンドまでの包括的リファクタリング（全フェーズ完了）
+- **対象ファイル**:
+  - `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs` (Phase 1)
+  - `Assets/Game/Scripts/AdventureRustDrone.cs` (Phase 2)
+  - `Assets/Game/Scripts/AdventurePlayerController.cs` (Phase 3)
+  - `Assets/Game/Scripts/AdventureScrapManager.cs` (Phase 4)
+  - `Assets/Game/Scripts/AdventureGameDirector.cs` (Phase 5)
+  - `Assets/Game/Scripts/AdventureMusicDirector.cs`, `AdventureSaveManager.cs`, `AdventureScrapHUD.cs` (Phase 6)
+- **内容**:
+  - **毎フレーム検索の徹底排除**: `Update` 内で毎フレーム実行されていた `FindAnyObjectByType`（オープニング、PlayerController、RustDrone等）および 5 回連続の `PlayerPrefs` クエリをすべてキャッシュ参照へ移行。
+  - **コード構造と#region整理**: クラス内の役割（定数、内部状態、物理、入力、UI、演出）ごとに一貫した `#region` を配置。
+  - **冗長コード・GC負荷の解消**: レガシー未使​​用コード（旧IMGUI描画など）の完全削除、8体分の個別トークカウンタを辞書＋共通メソッドへ集約、HUDの無駄なDestroy/再生成を排除して安定したシングルトン保持型へ改善。
+
+
+
 
 ## 開発上の注意（Cursorエージェントへ）
 

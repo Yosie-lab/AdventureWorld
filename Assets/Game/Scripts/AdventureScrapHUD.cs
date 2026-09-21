@@ -45,13 +45,13 @@ public class AdventureScrapHUD : MonoBehaviour
 
     public static void Ensure()
     {
-        var existingList = FindObjectsByType<AdventureScrapHUD>(FindObjectsInactive.Include);
-        foreach (var ex in existingList)
+        if (_instance != null) return;
+        var existing = Object.FindFirstObjectByType<AdventureScrapHUD>();
+        if (existing != null)
         {
-            if (ex != null && ex.gameObject != null)
-                Destroy(ex.gameObject);
+            _instance = existing;
+            return;
         }
-        _instance = null;
 
         var go = new GameObject("AdventureScrapHUD");
         DontDestroyOnLoad(go);
@@ -68,6 +68,11 @@ public class AdventureScrapHUD : MonoBehaviour
 
     void Awake()
     {
+        if (_instance != null && _instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
         _instance = this;
         CreateUI();
     }

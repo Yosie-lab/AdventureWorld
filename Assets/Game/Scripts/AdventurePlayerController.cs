@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(CharacterController))]
 public class AdventurePlayerController : MonoBehaviour
 {
-    // ─── Inspector ────────────────────────────────────────────────────
+    #region Inspector Fields
     [Header("Walk / Run")]
     public float walkSpeed         = 4.2f;
     public float runSpeed          = 7.8f;
@@ -31,8 +31,9 @@ public class AdventurePlayerController : MonoBehaviour
     public Vector3   spawnPosition;
     public float     moveSpeedMultiplier = 1.0f;
     public bool      hasPetRadar        = false;
+    #endregion
 
-    // ─── 内部状態 ──────────────────────────────────────────────────────
+    #region Internal State
     bool    _doubleJumpUsed;
     bool    _gliding;
     float   _airborneTime;
@@ -59,7 +60,25 @@ public class AdventurePlayerController : MonoBehaviour
     float               _spawnTime = 0f;
     string              _clip;
 
-    // ─── 定数 ─────────────────────────────────────────────────────────
+    // 滑空スムージング内部状態
+    Vector2 _glideInputSmooth;
+    Vector2 _glideInputVel;
+    float   _glideYawRateCurrent;
+    float   _glidePitchCurrent;
+    float   _glidePitchVel;
+    float   _glideRollCurrent;
+    float   _glideRollVel;
+    float   _glideSpeedCurrent;
+    float   _glideSpeedVel;
+    float   _glideFallCurrent;
+    float   _glideFallVel;
+    Vector3 _airMomVel;
+
+    bool    _autoGlide;
+    float   _autoGlideAltitude = 120f;
+    #endregion
+
+    #region Constants & Geographic Data
     const float Skin                 = 0.05f;
     const float StepOffsetGround     = 0.45f;
     const float SteepNormalThreshold = 0.20f;
@@ -89,29 +108,18 @@ public class AdventurePlayerController : MonoBehaviour
     const float AirSteerAccel    = 14f;  // 空中方向転換の加速度（元:10 → 微増で着地操作性アップ）
     const float AirSteerMaxSpeed = 5.2f;  // 空中水平最大速度（元:4.2 → 少し遠くへ動かせる）
     const float AirMomentumBrake = 28f;   // 操作なし時の空中水平ブレーキ（浮遊感に直結、変更なし）
+    const float AutoGlideYawRate = 16f;
+    const float AutoGlideCruiseSpeed = 7.2f;
+    #endregion
 
-    // 滑空スムージング内部状態
-    Vector2 _glideInputSmooth;
-    Vector2 _glideInputVel;
-    float   _glideYawRateCurrent;
-    float   _glidePitchCurrent;
-    float   _glidePitchVel;
-    float   _glideRollCurrent;
-    float   _glideRollVel;
-    float   _glideSpeedCurrent;
-    float   _glideSpeedVel;
-    float   _glideFallCurrent;
-    float   _glideFallVel;
-    Vector3 _airMomVel;
-
-    // ─── 公開プロパティ ────────────────────────────────────────────────
+    #region Public Properties & Singleton
     public static AdventurePlayerController Instance { get; private set; }
 
     /// <summary>ホットリロード等で static が消えてもプレイヤーを取り戻す</summary>
     public static AdventurePlayerController Resolve()
     {
         if (Instance != null) return Instance;
-        Instance = FindAnyObjectByType<AdventurePlayerController>();
+        Instance = Object.FindFirstObjectByType<AdventurePlayerController>();
         return Instance;
     }
 
@@ -121,16 +129,9 @@ public class AdventurePlayerController : MonoBehaviour
     public bool IsInAir      => !_grounded;
     public bool IsBoostActive => _glideBoostTimer > 0f;
     public bool IsAutoGliding => _autoGlide;
+    #endregion
 
-    bool  _autoGlide;
-    float _autoGlideAltitude = 120f;
-    const float AutoGlideYawRate = 16f;
-    const float AutoGlideCruiseSpeed = 7.2f;
-
-    // ═══════════════════════════════════════════════════════════════════
-    // Unity ライフサイクル
-    // ═══════════════════════════════════════════════════════════════════
-
+    #region Unity Lifecycle
     void Awake()
     {
         Instance = this;
@@ -162,7 +163,7 @@ public class AdventurePlayerController : MonoBehaviour
         var kb = GetKeyboard();
 
         // オープニングボード表示中、または決定直後の入力ガード中（クリック・Space誤爆防止）は操作不可
-        var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
+        var opening = AdventureRustFloatOpening.Instance;
         if (opening != null && (opening.IsModalBoardOpen() || AdventureRustFloatOpening.IsInputGuarded))
         {
             var tower = AdventureSanctuaryTowerManager.Instance;
@@ -230,10 +231,9 @@ public class AdventurePlayerController : MonoBehaviour
         KeepWalkable();
         PlayLocomotion(_grounded ? horizontal.magnitude : 0f, running && _grounded);
     }
+    #endregion
 
-    // ═══════════════════════════════════════════════════════════════════
-    // 初期化ヘルパー
-    // ═══════════════════════════════════════════════════════════════════
+    #region Initialization Helpers
 
     void InitInputSystem()
     {
@@ -335,11 +335,9 @@ public class AdventurePlayerController : MonoBehaviour
         if (isRustFloat)
             transform.rotation = Quaternion.Euler(0f, 75f, 0f);
     }
+    #endregion
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Update 分割メソッド
-    // ═══════════════════════════════════════════════════════════════════
-
+    #region Input Handling
     /// <summary>インタラクトボタンの押下フラグを更新する</summary>
     void ReadInputFlags(Keyboard kb)
     {
@@ -381,7 +379,9 @@ public class AdventurePlayerController : MonoBehaviour
         try { if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) return true; } catch { }
         return false;
     }
+    #endregion
 
+    #region Grounding & Foot Checks
     /// <summary>接地状態を更新する（ブーストタイマー考慮）</summary>
     void UpdateGroundedState()
     {
@@ -449,7 +449,9 @@ public class AdventurePlayerController : MonoBehaviour
             _airborneTime += Time.deltaTime;
         }
     }
+    #endregion
 
+    #region Jump & Boost Mechanics
     /// <summary>ジャンプ処理（湖脱出・砂浜サーマル・崖カタパルト・通常・二段ジャンプ）</summary>
     void HandleJump(Keyboard kb)
     {
@@ -493,8 +495,9 @@ public class AdventurePlayerController : MonoBehaviour
         if (!jumpPressed) return;
 
         float effectiveJumpHeight = jumpHeight * jumpMultiplier;
+        bool openingGuarded = AdventureRustFloatOpening.IsInputGuarded;
 
-        if (IsInLakeOrStreamBasin(transform.position) && (Time.time - _spawnTime > 3.0f) && !AdventureRustFloatOpening.IsInputGuarded)
+        if (!openingGuarded && IsInLakeOrStreamBasin(transform.position) && (Time.time - _spawnTime > 3.0f))
         {
             LaunchBoostJump(
                 hop:       LakeHop,
@@ -503,10 +506,9 @@ public class AdventurePlayerController : MonoBehaviour
                 escapeSpd: 7.5f, fwdSpd: 4.5f, totalSpd: 9.5f,
                 voice:     "ナイスジャンプ！風に乗って岸へ戻ろう、Niko！", voiceDur: 4.0f);
         }
-        else if (IsInBeachOrCoastZone(transform.position)
+        else if (!openingGuarded && IsInBeachOrCoastZone(transform.position)
                  && (Time.time - _spawnTime > 5.0f)
-                 && (AdventureScrapManager.Instance != null && AdventureScrapManager.Instance.CollectedCount > 0)
-                 && !AdventureRustFloatOpening.IsInputGuarded)
+                 && (AdventureScrapManager.Instance != null && AdventureScrapManager.Instance.CollectedCount > 0))
         {
             Vector3 inwardDir = GetIslandCenterXZ() - transform.position.SetY(0f);
             LaunchBoostJump(
@@ -568,7 +570,9 @@ public class AdventurePlayerController : MonoBehaviour
 
         GetDrone()?.SpeakCustom(voice, voiceDur);
     }
+    #endregion
 
+    #region Gliding & Air Physics
     /// <summary>滑空状態フラグを更新する</summary>
     void UpdateGlidingState(bool holdGlide)
     {
@@ -819,7 +823,9 @@ public class AdventurePlayerController : MonoBehaviour
         _hop += gravity * Time.deltaTime;
         return _airMomentum;
     }
+    #endregion
 
+    #region Motion Application & Water Physics
     void ApplyMotion(Vector3 horizontal)
     {
         Vector3 motion = ClipMotion(horizontal * Time.deltaTime);
@@ -953,7 +959,9 @@ public class AdventurePlayerController : MonoBehaviour
         _gliding      = false;
         _airborneTime = 0f;
     }
+    #endregion
 
+    #region Terrain Height & Burial Prevention
     float GroundY(Vector3 pos)
         => _land != null ? _land.SampleHeight(pos) + _land.transform.position.y : pos.y;
 
@@ -1094,11 +1102,9 @@ public class AdventurePlayerController : MonoBehaviour
         _glideFallVel = 0f;
         _airMomVel = Vector3.zero;
     }
+    #endregion
 
-    // ═══════════════════════════════════════════════════════════════════
-    // 外部から呼ばれる効果付与
-    // ═══════════════════════════════════════════════════════════════════
-
+    #region External Boost & Auto Glide
     /// <summary>気流リングや風のレーンに乗った時の浮揚・推進</summary>
     public void ApplyGlideBoost(float boostMultiplier, float duration, Vector3 boostDirection = default)
     {
@@ -1220,7 +1226,9 @@ public class AdventurePlayerController : MonoBehaviour
         _skybreakStuckTimer = 0f;
         _autoGlide = false;
     }
+    #endregion
 
+    #region Skybreak Pillar Ascension
     /// <summary>光の柱上昇を開始（クライマックス開始まで維持。解放時は高度確保＋物語継続）</summary>
     public void BeginSkybreakPillarAscend(Vector3 pillarCenter, float liftSpeed, float releaseY = 150f)
     {
@@ -1454,11 +1462,9 @@ public class AdventurePlayerController : MonoBehaviour
 
         return true;
     }
+    #endregion
 
-    // ═══════════════════════════════════════════════════════════════════
-    // アニメーション
-    // ═══════════════════════════════════════════════════════════════════
-
+    #region Animation & Helpers
     void PlayLocomotion(float speed, bool running)
     {
         if (_anim == null) return;
@@ -1544,7 +1550,8 @@ public class AdventurePlayerController : MonoBehaviour
 
     /// <summary>AdventureRustDrone のシングルトンを取得（キャッシュなし）</summary>
     static AdventureRustDrone GetDrone()
-        => AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        => AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+    #endregion
 }
 
 // ─── Vector3 拡張：Y 成分セット（コードを簡潔にするためファイル末尾に定義）──
