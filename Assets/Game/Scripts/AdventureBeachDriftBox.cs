@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using System.Collections;
+using System.Collections.Generic;
 
 /// <summary>
 /// 砂浜に漂着した情報ボックス（Drift Box）
