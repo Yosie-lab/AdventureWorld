@@ -405,8 +405,26 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
   - **コード構造と#region整理**: クラス内の役割（定数、内部状態、物理、入力、UI、演出）ごとに一貫した `#region` を配置。
   - **冗長コード・GC負荷の解消**: レガシー未使​​用コード（旧IMGUI描画など）の完全削除、8体分の個別トークカウンタを辞書＋共通メソッドへ集約、HUDの無駄なDestroy/再生成を排除して安定したシングルトン保持型へ改善。
 
-
-
+### 14. Nikoが歩いてタワーの台座に乗れるようにする改修（完了・コミット `8585448`）
+- **対象ファイル**: `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`
+- **背景**:
+  - 中央タワー周辺（アプローチ階段、テラス外周、レバー台座）に急な段差や引っ掛かりがあり、ジャンプなしでスムーズに歩行・登頂できない問題があった。
+  - `CharacterController.stepOffset` は `0.45m`（StepOffsetGround）のため、0.45mを超える垂直段差は乗り越えられない。
+- **実装内容**:
+  1. **テラス外周エントリー斜面（`BuildPodiumEntryRamps`）**:
+     - `FixPodiumColliders()` 末尾から呼び出し。
+     - 地面（標高62m）から白大理石テラス（標高63m）の1m段差を解消するため、北・東・西の3方向に幅8m・長さ5m・厚み0.8mの傾斜BoxColliderを自動配置。
+  2. **レバー台座アプローチステップ（`BuildLeverApproachSteps`）**:
+     - `CreateLeverStation()` 末尾から呼び出し（`isMain == true` 時）。
+     - テラス（63m）からレバー台座上面（64.02m）へ南側から登れるよう、白大理石ステップ3段（段差約0.34m）＋傾斜BoxCollider（`LeverStepRampCollider`）を生成。
+  3. **古代アプローチ階段のスムーズスロープコライダー（`AddStairsRampColliders`）**:
+     - `BuildTowerStairs()` 末尾から呼び出し。
+     - オアシス湧水池から台地への階段全5区間を、厚み0.8mの傾斜BoxColliderでカバー。BoardwalkRamp方式で1段0.7mの引っ掛かりを完全解消。
+  4. **`GetTerraceSurfaceY()` の補間範囲拡張**:
+     - 北・東・西スロープおよびレバーステップの座標範囲（Z: 490〜501.5等）で正確な補間Y値を返却するよう拡張。
+     - `AdventurePlayerController.SurfaceY()` がこの値を参照することで、足元の吸着・接地判定（`isGrounded`）を強固に維持。
+- **既知の軽微な注意点**:
+  - オアシス湧水池付近（階段最下部 `StairRamp_0〜1`）に `SanctuarySpringPond_Rocks` の岩（`Rock_Medium_01` 等）が一部コライダーと重なっており、完全な歩行には岩を飛び越えるか、岩コライダーの `isTrigger = true` 化が推奨される。
 
 ## 開発上の注意（Cursorエージェントへ）
 
@@ -420,6 +438,22 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
   - Play中に **F9** → タワー台地へワープし、天蓋開放シークエンスを最初から再生。
   - またはメニュー **Adventure → ▶ Jump to Canopy Opening (天蓋開放から確認)**（未Playなら自動でPlayして起動）。
   - 流れ: 天蓋破壊ボード → Spaceでダイブ → 光柱で上昇 → 高度105mでRust危機・注油 → オーバードライブ → 3幕テロップ → GAME CLEAR。
+- **セーブデータリセット**:
+  - 探索リセットは **F8** または メニュー **Adventure → 🗑️ Delete Save Data**。
+
+## 次の推奨タスク（Cursorで着手する項目）
+
+1. **背景ビジュアル・光芒・天蓋突破フラッシュ**（最優先）
+   - 対象: `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs` (`SpawnWildernessPanorama`)
+   - 改善内容:
+     - 天蓋の割れ目の外側に朝焼け〜黄金の地平線・雄大な山脈グラデーション・雲海を配置。
+     - 天蓋から差し込む光芒（God Rays）を半透明・加算ブレンド風の柔らかい光柱にし、周囲に金色の光粒子を漂わせる。
+     - 天蓋突破の瞬間に画面全体を金色の全画面グローフラッシュ（ホワイトアウト）させ、解放感を最大化。
+2. **映画字幕3幕構成 & HUDクリーンアップ**
+   - 対象: `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`
+   - クライマックス〜エピローグ中の字幕演出整理、コンパス・HUD完全非表示化。
+3. **【任意】階段下部の岩コライダー干渉解消**
+   - `SanctuaryApproachStairs` 下部と干渉する池の岩コライダーを `isTrigger = true` に設定。
 
 ## ブランチ
 
