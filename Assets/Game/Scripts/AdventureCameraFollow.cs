@@ -122,8 +122,9 @@ public class AdventureCameraFollow : MonoBehaviour
         bool isLeverNear = towerMgr != null && towerMgr.IsPlayerNearLever;
         bool isScriptBoard = towerMgr != null && towerMgr.IsSkybreakModalActive;
         bool isOilPrompt = towerMgr != null && towerMgr.IsClimaxOilPromptActive;
+        bool isGameClear = towerMgr != null && towerMgr.ShowGameClearModal;
         bool isPrologueOil = AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsWaitingForOil;
-        if (isModalBoardOpen || isLeverNear || isScriptBoard || isOilPrompt || isPrologueOil)
+        if (isModalBoardOpen || isLeverNear || isScriptBoard || isOilPrompt || isGameClear || isPrologueOil)
         {
             if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
             {

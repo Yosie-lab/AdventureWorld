@@ -21,7 +21,9 @@ public class AdventureMusicDirector : MonoBehaviour
     /// <summary>エンディング後に探索曲へ戻したら、天蓋開放済みでも天空曲へ再切替しない</summary>
     bool _preferAmbientAfterEnding = false;
     bool _isFadingA = false;
-    const float EndingThemeVolume = 0.78f;
+    const float EndingThemeVolume = 1.00f;
+    // AudioSource.volume は 1 で頭打ちになる。1 を超える分は生成波形で足す。
+    float SkybreakSourceVolume => Mathf.Min(1f, EndingThemeVolume);
     const float AmbientThemeVolume = 0.30f;
 
     /// <summary>外部（古代ピアノ等の環境スポット）からのダッキング要求度 (0.0 = 通常音量, 1.0 = 最大ダッキング)</summary>
@@ -172,9 +174,9 @@ public class AdventureMusicDirector : MonoBehaviour
 
         if (!needsRestart)
         {
-            if (_bgmSourceB.volume >= EndingThemeVolume * 0.5f
-                && _bgmSourceB.volume < EndingThemeVolume * 0.95f)
-                _bgmSourceB.volume = EndingThemeVolume;
+            if (_bgmSourceB.volume >= SkybreakSourceVolume * 0.5f
+                && _bgmSourceB.volume < SkybreakSourceVolume * 0.95f)
+                _bgmSourceB.volume = SkybreakSourceVolume;
             return;
         }
 
@@ -186,7 +188,7 @@ public class AdventureMusicDirector : MonoBehaviour
         }
         _bgmSourceB.clip = _skybreakThemeClip;
         _bgmSourceB.loop = true;
-        _bgmSourceB.volume = EndingThemeVolume;
+        _bgmSourceB.volume = SkybreakSourceVolume;
         if (!_bgmSourceB.isPlaying)
             _bgmSourceB.Play();
     }
@@ -258,7 +260,7 @@ public class AdventureMusicDirector : MonoBehaviour
         _bgmSourceB.time = 0f;
         _bgmSourceB.volume = 0f;
         _bgmSourceB.Play();
-        StartCoroutine(FadeVolume(_bgmSourceB, EndingThemeVolume, 1.0f));
+        StartCoroutine(FadeVolume(_bgmSourceB, SkybreakSourceVolume, 1.0f));
     }
 
     IEnumerator FadeVolume(AudioSource src, float targetVol, float duration)
@@ -434,7 +436,8 @@ public class AdventureMusicDirector : MonoBehaviour
             if (t < 0.2f) loopFade = t / 0.2f;
             else if (t > duration - 0.2f) loopFade = (duration - t) / 0.2f;
 
-            float mono = (brass + arpWave) * loopFade;
+            float outputGain = EndingThemeVolume / Mathf.Max(0.01f, SkybreakSourceVolume);
+            float mono = (brass + arpWave) * loopFade * outputGain;
             samples[i * 2] = mono;
             samples[i * 2 + 1] = mono;
         }

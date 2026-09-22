@@ -21,18 +21,25 @@ public class AdventureCompassHUD : MonoBehaviour
     RectTransform _boxMarkerRt;
     Text _boxMarkerText;
 
-    const float PixelsPerDegree = 2.4f; // 1度あたりのピクセル幅（表示視野角 約±68度）
-    const float RibbonHalfWidth = 160f; // コンパス枠の表示半幅
-    const float YawSmoothTime = 0.07f;
-    const float MarkerSmoothTime = 0.09f;
+    const float PixelsPerDegree = 2.05f; // 1度あたりのピクセル幅（表示視野角 約±88度）
+    const float RibbonHalfWidth = 180f;
+    const float YawSmoothTime = 0.2f;
+    const float YawMaxSpeed = 280f;
+    const float BearingSmoothTime = 0.16f;
+    const float OnRibbonLimit = 78f;
 
     float _displayYaw;
     float _displayYawVel;
-    float _scrapMarkerX;
-    float _scrapMarkerXVel;
-    float _boxMarkerX;
-    float _boxMarkerXVel;
+    float _scrapBearing;
+    float _scrapBearingVel;
+    float _boxBearing;
+    float _boxBearingVel;
     bool _yawInitialized;
+    bool _scrapBearingInit;
+    bool _boxBearingInit;
+    int _scrapHint;
+    int _boxHint;
+    int _shownDeg = int.MinValue;
 
     struct CompassElement
     {
@@ -148,7 +155,7 @@ public class AdventureCompassHUD : MonoBehaviour
         var bImg = borderBottom.AddComponent<Image>();
         bImg.color = new Color(0.35f, 0.90f, 1.0f, 0.75f);
 
-        // コンパステープコンテナ（RectMask2Dを使わず、コード側の表示判定で安全にクリッピング）
+        // コンパステープ。端はマスクで切り、目盛りはポップせず流れる
         var ribbonGo = new GameObject("CompassRibbon", typeof(RectTransform));
         ribbonGo.transform.SetParent(transform, false);
         _ribbonContainer = ribbonGo.GetComponent<RectTransform>();
@@ -157,6 +164,7 @@ public class AdventureCompassHUD : MonoBehaviour
         _ribbonContainer.pivot = new Vector2(0.5f, 0.5f);
         _ribbonContainer.anchoredPosition = Vector2.zero;
         _ribbonContainer.sizeDelta = new Vector2(360f, 28f);
+        ribbonGo.AddComponent<RectMask2D>();
 
         // 方角マーカー（8方位：0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°）
         string[] cardinals = { "北", "北東", "東", "南東", "南", "南西", "西", "北西" };
@@ -358,8 +366,9 @@ public class AdventureCompassHUD : MonoBehaviour
         if (cam == null)
             return;
 
-        // カメラ正面XZから方位を取る（表示側は短いスムージングでリボンのカクつきを消す）
-        float rawYaw = YawFromForward(cam.transform.forward);
+        // ピッチに揺れないヨーだけを遅れて追従（マウスの細かいブレをリボンに出さない）
+        float rawYaw = cam.transform.eulerAngles.y;
+        float dt = Time.unscaledDeltaTime;
         if (!_yawInitialized)
         {
             _displayYaw = rawYaw;
@@ -368,34 +377,31 @@ public class AdventureCompassHUD : MonoBehaviour
         else
         {
             _displayYaw = Mathf.SmoothDampAngle(
-                _displayYaw, rawYaw, ref _displayYawVel, YawSmoothTime, Mathf.Infinity, Time.unscaledDeltaTime);
+                _displayYaw, rawYaw, ref _displayYawVel, YawSmoothTime, YawMaxSpeed, dt);
         }
         _displayYaw = Mathf.Repeat(_displayYaw, 360f);
         float yaw = _displayYaw;
 
-        // 1. 各方角要素のシームレス配置（DeltaAngle方式：境界でのワープが物理的にゼロ）
+        // 1. 各方角は常に流し、枠外はマスクで切る
         for (int i = 0; i < _elements.Count; i++)
         {
             var elem = _elements[i];
             float delta = Mathf.DeltaAngle(yaw, elem.TargetAngle);
-
-            if (Mathf.Abs(delta) <= 68f)
-            {
+            if (!elem.Rt.gameObject.activeSelf)
                 elem.Rt.gameObject.SetActive(true);
-                float x = delta * PixelsPerDegree;
-                elem.Rt.anchoredPosition = new Vector2(x, 0f);
-            }
-            else
-            {
-                elem.Rt.gameObject.SetActive(false);
-            }
+            elem.Rt.anchoredPosition = new Vector2(delta * PixelsPerDegree, 0f);
         }
 
-        // 2. デジタル方角表示の更新
+        // 2. デジタル方角は1度単位でのみ書き換える
         if (_headingBadgeText != null)
         {
-            string cardinal = GetCardinal(yaw);
-            _headingBadgeText.text = $"{cardinal}  {Mathf.RoundToInt(yaw)}°";
+            int deg = Mathf.RoundToInt(yaw) % 360;
+            if (deg < 0) deg += 360;
+            if (deg != _shownDeg)
+            {
+                _shownDeg = deg;
+                _headingBadgeText.text = $"{GetCardinal(yaw)}  {deg}°";
+            }
         }
 
         // 3. ナビゲーションターゲットの決定（20pt達成〜天蓋開放前は中央タワー、それ以外は最寄りパーツ）
@@ -450,58 +456,39 @@ public class AdventureCompassHUD : MonoBehaviour
                 {
                     float targetYaw = YawFromForward(toTarget);
                     float angle = Mathf.DeltaAngle(yaw, targetYaw);
+                    if (!_scrapBearingInit)
+                    {
+                        _scrapBearing = angle;
+                        _scrapBearingVel = 0f;
+                        _scrapBearingInit = true;
+                    }
+                    else
+                    {
+                        _scrapBearing = Mathf.SmoothDampAngle(
+                            _scrapBearing, angle, ref _scrapBearingVel, BearingSmoothTime, YawMaxSpeed, dt);
+                    }
 
-                    // コンパスリボン上にパーツマーカー（X位置をスムーズ追従）
                     if (_scrapMarkerRt != null)
                     {
                         _scrapMarkerRt.gameObject.SetActive(true);
-                        float targetX;
-                        if (Mathf.Abs(angle) <= 65f)
-                        {
-                            targetX = angle * PixelsPerDegree;
-                            if (_scrapMarkerText != null)
-                            {
-                                _scrapMarkerText.text = isGuidingToTower ? "🏛️" : (Mathf.Abs(angle) < 6f ? "★" : "✦");
-                                _scrapMarkerText.color = targetColor;
-                            }
-                        }
-                        else if (angle > 65f)
-                        {
-                            targetX = RibbonHalfWidth - 10f;
-                            if (_scrapMarkerText != null)
-                            {
-                                _scrapMarkerText.text = isGuidingToTower ? "🏛️▶" : "✦▶";
-                                Color c = targetColor;
-                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 7f);
-                                _scrapMarkerText.color = c;
-                            }
-                        }
-                        else
-                        {
-                            targetX = -RibbonHalfWidth + 10f;
-                            if (_scrapMarkerText != null)
-                            {
-                                _scrapMarkerText.text = isGuidingToTower ? "◀🏛️" : "◀✦";
-                                Color c = targetColor;
-                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 7f);
-                                _scrapMarkerText.color = c;
-                            }
-                        }
-
-                        _scrapMarkerX = Mathf.SmoothDamp(
-                            _scrapMarkerX, targetX, ref _scrapMarkerXVel, MarkerSmoothTime,
-                            Mathf.Infinity, Time.unscaledDeltaTime);
-                        _scrapMarkerRt.anchoredPosition = new Vector2(_scrapMarkerX, 0f);
+                        PlaceEdgeMarker(
+                            _scrapMarkerRt, _scrapMarkerText, _scrapBearing, targetColor,
+                            isGuidingToTower ? "🏛️" : "★",
+                            isGuidingToTower ? "🏛️" : "✦",
+                            isGuidingToTower ? "🏛️▶" : "✦▶",
+                            isGuidingToTower ? "◀🏛️" : "◀✦");
                     }
                 }
                 else
                 {
                     if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(false);
+                    _scrapBearingInit = false;
                 }
             }
             else
             {
                 if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(false);
+                _scrapBearingInit = false;
             }
 
             // ── 漂着ボックス（Drift Box）の探知＆マーカー（📦）更新 ──
@@ -521,64 +508,39 @@ public class AdventureCompassHUD : MonoBehaviour
                     boxAngle = Mathf.DeltaAngle(yaw, boxTargetYaw);
                     boxCardinal = GetCardinal(boxTargetYaw);
 
-                    if (Mathf.Abs(boxAngle) < 18f) boxArrow = "▲正面";
-                    else if (boxAngle >= 18f && boxAngle < 155f) boxArrow = "▶右";
-                    else if (boxAngle <= -18f && boxAngle > -155f) boxArrow = "◀左";
-                    else boxArrow = "▼背後";
+                    boxArrow = BearingHint(boxAngle, ref _boxHint);
 
-                    // コンパスリボン上にボックスマーカー（📦）を滑らかに追従描画
+                    if (!_boxBearingInit)
+                    {
+                        _boxBearing = boxAngle;
+                        _boxBearingVel = 0f;
+                        _boxBearingInit = true;
+                    }
+                    else
+                    {
+                        _boxBearing = Mathf.SmoothDampAngle(
+                            _boxBearing, boxAngle, ref _boxBearingVel, BearingSmoothTime, YawMaxSpeed, dt);
+                    }
+
                     if (_boxMarkerRt != null)
                     {
                         _boxMarkerRt.gameObject.SetActive(true);
-                        float targetBoxX;
-                        Color emeraldColor = new Color(0.35f, 1.0f, 0.65f, 1f);
-
-                        if (Mathf.Abs(boxAngle) <= 65f)
-                        {
-                            targetBoxX = boxAngle * PixelsPerDegree;
-                            if (_boxMarkerText != null)
-                            {
-                                _boxMarkerText.text = Mathf.Abs(boxAngle) < 6f ? "🎁" : "📦";
-                                _boxMarkerText.color = emeraldColor;
-                            }
-                        }
-                        else if (boxAngle > 65f)
-                        {
-                            targetBoxX = RibbonHalfWidth - 10f;
-                            if (_boxMarkerText != null)
-                            {
-                                _boxMarkerText.text = "📦▶";
-                                Color c = emeraldColor;
-                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 6f);
-                                _boxMarkerText.color = c;
-                            }
-                        }
-                        else
-                        {
-                            targetBoxX = -RibbonHalfWidth + 10f;
-                            if (_boxMarkerText != null)
-                            {
-                                _boxMarkerText.text = "◀📦";
-                                Color c = emeraldColor;
-                                c.a = 0.70f + 0.30f * Mathf.Sin(Time.time * 6f);
-                                _boxMarkerText.color = c;
-                            }
-                        }
-
-                        _boxMarkerX = Mathf.SmoothDamp(
-                            _boxMarkerX, targetBoxX, ref _boxMarkerXVel, MarkerSmoothTime,
-                            Mathf.Infinity, Time.unscaledDeltaTime);
-                        _boxMarkerRt.anchoredPosition = new Vector2(_boxMarkerX, 0f);
+                        PlaceEdgeMarker(
+                            _boxMarkerRt, _boxMarkerText, _boxBearing,
+                            new Color(0.35f, 1.0f, 0.65f, 1f),
+                            "🎁", "📦", "📦▶", "◀📦");
                     }
                 }
                 else
                 {
                     if (_boxMarkerRt != null) _boxMarkerRt.gameObject.SetActive(false);
+                    _boxBearingInit = false;
                 }
             }
             else
             {
                 if (_boxMarkerRt != null) _boxMarkerRt.gameObject.SetActive(false);
+                _boxBearingInit = false;
             }
 
             // ── ナビゲーションテキストの総合案内 ──
@@ -609,11 +571,7 @@ public class AdventureCompassHUD : MonoBehaviour
                     float targetYaw = YawFromForward(toTarget);
                     float angle = Mathf.DeltaAngle(yaw, targetYaw);
                     string targetCardinal = GetCardinal(targetYaw);
-                    string arrow;
-                    if (Mathf.Abs(angle) < 18f) arrow = "▲正面";
-                    else if (angle >= 18f && angle < 155f) arrow = "▶右";
-                    else if (angle <= -18f && angle > -155f) arrow = "◀左";
-                    else arrow = "▼背後";
+                    string arrow = BearingHint(angle, ref _scrapHint);
 
                     // パーツとボックスの両方を1行でわかりやすく表示
                     if (hasBoxTarget && boxDist > 3.5f)
@@ -650,6 +608,68 @@ public class AdventureCompassHUD : MonoBehaviour
                 }
             }
         }
+    }
+
+    void PlaceEdgeMarker(RectTransform rt, Text txt, float bearing, Color color, string ahead, string onRibbon, string rightLabel, string leftLabel)
+    {
+        float x;
+        if (Mathf.Abs(bearing) <= OnRibbonLimit)
+        {
+            x = bearing * PixelsPerDegree;
+            if (txt != null)
+            {
+                txt.text = Mathf.Abs(bearing) < 8f ? ahead : onRibbon;
+                txt.color = color;
+            }
+        }
+        else if (bearing > 0f)
+        {
+            x = RibbonHalfWidth - 16f;
+            if (txt != null)
+            {
+                txt.text = rightLabel;
+                Color c = color;
+                c.a = 0.82f;
+                txt.color = c;
+            }
+        }
+        else
+        {
+            x = -RibbonHalfWidth + 16f;
+            if (txt != null)
+            {
+                txt.text = leftLabel;
+                Color c = color;
+                c.a = 0.82f;
+                txt.color = c;
+            }
+        }
+        rt.anchoredPosition = new Vector2(Mathf.Clamp(x, -RibbonHalfWidth + 16f, RibbonHalfWidth - 16f), 0f);
+    }
+
+    /// <summary>正面・左右・背後。境界付近では直前の表示を維持してちらつかない。</summary>
+    static string BearingHint(float angle, ref int held)
+    {
+        float abs = Mathf.Abs(angle);
+        if (held == 2)
+        {
+            if (abs < 138f) held = angle >= 0f ? 1 : -1;
+        }
+        else if (abs > 150f)
+            held = 2;
+        else if (held == 0)
+        {
+            if (abs > 22f) held = angle >= 0f ? 1 : -1;
+        }
+        else if (abs < 12f)
+            held = 0;
+        else
+            held = angle >= 0f ? 1 : -1;
+
+        if (held == 0) return "▲正面";
+        if (held == 1) return "▶右";
+        if (held == -1) return "◀左";
+        return "▼背後";
     }
 
     /// <summary>ワールドXZ前方ベクトル → コンパス方位角（北=0 / 東=90 / 南=180 / 西=270）</summary>

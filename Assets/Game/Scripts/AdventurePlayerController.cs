@@ -285,6 +285,7 @@ public class AdventurePlayerController : MonoBehaviour
         AdventureIslandBoundary.Ensure();
         AdventureBeachWavesManager.Ensure();
         AdventureCicadaAmbienceManager.Ensure();
+        AdventureTreeFrogAmbience.Ensure();
         AdventureScrapManager.Ensure();
         AdventureScrapHUD.Ensure();
         AdventureFlightManager.Ensure();

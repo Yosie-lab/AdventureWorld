@@ -325,7 +325,14 @@ public class AdventureCapytaBlessing : MonoBehaviour
             $"カピタ「{CapytaByMood[mi]}」\n" +
             $"Rust「{RustByMood[mi]}（油 +{amount}／所持: {drone.oilCount}）」";
         drone.SpeakAs($"🐾 カピタ（{MoodLabel(mood)}）", new Color(0.40f, 1f, 0.70f), combined, 5.0f);
+        PlayGiftChime();
         _talkIndex++;
+    }
+
+    static void PlayGiftChime()
+    {
+        AdventureScrapManager.Ensure();
+        AdventureScrapManager.Instance?.PlayCelebrationChime(0.22f);
     }
 
     private float _nextColliderCheckTime = 0f;
@@ -427,6 +434,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
             drone?.SpeakAs($"🐾 カピタ（{MoodLabel(mood)}）", new Color(0.40f, 1f, 0.70f), combined, 5.0f);
         }
 
+        PlayGiftChime();
         _talkIndex++;
     }
 
