@@ -131,11 +131,7 @@ public class AdventureRustSpeechUI : MonoBehaviour
     {
         if (_cg == null || _body == null) return;
 
-        var tower = AdventureSanctuaryTowerManager.Instance;
-        bool hide = tower != null && (
-            tower.IsSkybreakModalActive
-            || tower.IsEpiloguePlaying
-            || tower.ShowGameClearModal);
+        bool hide = AdventureStoryFlow.HidesRustSpeech;
 
         var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
         bool show = !hide && drone != null && drone.HasActiveSpeech;

@@ -109,18 +109,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         Debug.Log("[RustAndFloat] 時代背景オープニングボードを再表示しました");
     }
 
-    static bool ShouldSkipOpeningBoard()
-    {
-        if (AdventureSanctuaryTowerManager.IsCanopyBroken || AdventureSanctuaryTowerManager.IsGameCleared)
-            return true;
-        var tower = AdventureSanctuaryTowerManager.Instance;
-        if (tower != null && (tower.IsEpiloguePlaying || tower.ClimaxCrisisStarted || tower.ShowGameClearModal))
-            return true;
-        var player = AdventurePlayerController.Instance;
-        if (player != null && (player.IsSkybreakPillarAscending || player.IsAutoGliding))
-            return true;
-        return false;
-    }
+    static bool ShouldSkipOpeningBoard() => AdventureStoryFlow.ShouldSkipOpening;
 
     void Awake()
     {

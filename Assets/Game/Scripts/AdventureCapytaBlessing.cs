@@ -353,9 +353,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
             return;
         }
 
-        var tower = AdventureSanctuaryTowerManager.Instance;
-        if (tower != null && (tower.IsSkybreakModalActive || tower.IsClimaxOilPromptActive
-            || (tower.IsPlayerNearLever && tower.IsLeverReadyToOpen)))
+        if (AdventureStoryFlow.HidesCapytaPrompt)
         {
             _promptVisible = false;
             return;

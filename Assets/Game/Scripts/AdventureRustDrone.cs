@@ -1133,13 +1133,7 @@ public class AdventureRustDrone : MonoBehaviour
 
     static bool ShouldHideInteractionPrompt(AdventureSanctuaryTowerManager tower)
     {
-        if (tower == null) return false;
-        return tower.IsSkybreakModalActive
-            || tower.IsClimaxOilPromptActive
-            || tower.IsEpiloguePlaying
-            || tower.ShowGameClearModal
-            || tower.ClimaxCrisisStarted
-            || tower.EpilogueTriggered;
+        return tower != null && AdventureStoryFlow.HidesRustInteraction;
     }
 
     /// <summary>Nikoとの直接対話または手当て（常備油により絶対に0にならず、いつでも手当て・全回復可能）</summary>
@@ -2145,9 +2139,7 @@ public class AdventureRustDrone : MonoBehaviour
             }
             else
             {
-                var tower = AdventureSanctuaryTowerManager.Instance;
-                if (tower != null && (tower.IsSkybreakModalActive || tower.IsEpiloguePlaying
-                    || tower.ShowGameClearModal || tower.IsClimaxOilPromptActive || tower.ClimaxCrisisStarted))
+                if (AdventureStoryFlow.IsPerformance)
                 {
                     _nextIdleTalk = Time.unscaledTime + 2f;
                 }

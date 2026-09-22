@@ -129,17 +129,7 @@ public class AdventureMusicDirector : MonoBehaviour
             return;
     }
 
-    static bool ShouldUseExplorationThemeOnBoot()
-    {
-        if (!AdventureSanctuaryTowerManager.IsGameCleared)
-            return false;
-        var tower = AdventureSanctuaryTowerManager.Instance;
-        if (tower == null) return true;
-        return !tower.ShowGameClearModal
-               && !tower.IsEpiloguePlaying
-               && !tower.IsSkybreakModalActive
-               && !tower.ClimaxCrisisStarted;
-    }
+    static bool ShouldUseExplorationThemeOnBoot() => AdventureStoryFlow.ShouldUseExplorationTheme;
 
     /// <summary>エンディング進行中：天空BGMを維持</summary>
     public void KeepEndingThemeActive()

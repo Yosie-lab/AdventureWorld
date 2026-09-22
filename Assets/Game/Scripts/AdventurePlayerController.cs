@@ -166,13 +166,7 @@ public class AdventurePlayerController : MonoBehaviour
         var opening = AdventureRustFloatOpening.Instance;
         if (opening != null && (opening.IsModalBoardOpen() || AdventureRustFloatOpening.IsInputGuarded))
         {
-            var tower = AdventureSanctuaryTowerManager.Instance;
-            bool inEnding = AdventureSanctuaryTowerManager.IsCanopyBroken
-                            || AdventureSanctuaryTowerManager.IsGameCleared
-                            || _skybreakPillarLock
-                            || _autoGlide
-                            || (tower != null && (tower.IsEpiloguePlaying || tower.ClimaxCrisisStarted || tower.ShowGameClearModal));
-            if (inEnding)
+            if (AdventureStoryFlow.ShouldSkipOpening)
                 opening.ForceDismissForGameplay();
             else
                 return;
@@ -1007,10 +1001,7 @@ public class AdventurePlayerController : MonoBehaviour
     public void Teleport(Vector3 pos)
     {
         // 空中エンディング中のみ地上Stickで高度を潰さない（天蓋開放後の地上探索は通常Stick）
-        var tower = AdventureSanctuaryTowerManager.Instance;
-        bool airborneEnding = _skybreakPillarLock || _autoGlide
-                              || (tower != null && (tower.ClimaxCrisisStarted || tower.EpilogueTriggered
-                                                   || tower.IsEpiloguePlaying));
+        bool airborneEnding = AdventureStoryFlow.KeepsAirborne(this);
         if (!airborneEnding)
             pos = Stick(pos);
         if (_cc != null) _cc.enabled = false;
@@ -1244,8 +1235,7 @@ public class AdventurePlayerController : MonoBehaviour
     {
         // クライマックス開始後のみ再ロックしない（台本ボード表示中の IsEpiloguePlaying では弾かない）
         if (_autoGlide) return;
-        var tower = AdventureSanctuaryTowerManager.Instance;
-        if (tower != null && (tower.ClimaxCrisisStarted || tower.ShowGameClearModal || tower.EpilogueTriggered))
+        if (AdventureStoryFlow.BlocksPillarRelock)
             return;
 
         _skybreakPillarDone = false;
@@ -1344,8 +1334,7 @@ public class AdventurePlayerController : MonoBehaviour
     public void ForceSkybreakPillarAscend(Vector3 pillarBase, float liftSpeed, bool pullToCenter)
     {
         if (_autoGlide || _skybreakPillarDone) return;
-        var tower = AdventureSanctuaryTowerManager.Instance;
-        if (tower != null && (tower.ClimaxCrisisStarted || tower.ShowGameClearModal || tower.EpilogueTriggered))
+        if (AdventureStoryFlow.BlocksPillarRelock)
             return;
 
         if (!_skybreakPillarLock)
