@@ -2,8 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 池・小川の岸でニホンアマガエルが「ゲコゲコ」と鳴く。
-/// 大合唱・カジカガエルとは別の個体声で、水辺に近づいたときだけ聞こえる。
+/// 池と小川でニホンアマガエルの合唱。
+/// 1声は短い「ゲッ」で、何匹かがずれて重なる。大合唱・カジカガエルとは別。
 /// </summary>
 public class AdventureTreeFrogAmbience : MonoBehaviour
 {
@@ -11,23 +11,19 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
     public static AdventureTreeFrogAmbience Instance => _instance;
 
     const int Rate = 22050;
+    const float ChorusSeconds = 8f;
 
-    AudioClip[] _bouts;
-    readonly List<Caller> _callers = new List<Caller>();
-    readonly Queue<GameObject> _pool = new Queue<GameObject>();
+    AudioClip _chorus;
+    readonly List<Bed> _beds = new List<Bed>();
     Transform _player;
     bool _muted;
 
-    sealed class Caller
+    sealed class Bed
     {
         public Vector3 pos;
         public float waterY;
         public float hear;
-        public float pitch;
-        public int clip;
-        public float timer;
-        public float minGap;
-        public float maxGap;
+        public AudioSource src;
         public bool placed;
     }
 
@@ -54,13 +50,8 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
             return;
         }
         _instance = this;
-        _bouts = new[]
-        {
-            MakeBout(2480f, 10, 0.128f, 3),
-            MakeBout(2050f, 8, 0.155f, 9),
-            MakeBout(2920f, 12, 0.108f, 21),
-        };
-        BuildCallers();
+        _chorus = MakeChorus(11);
+        BuildBeds();
     }
 
     void Update()
@@ -74,18 +65,33 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
         }
 
         Vector3 p = _player.position;
-        float dt = Time.deltaTime;
-        for (int i = 0; i < _callers.Count; i++)
+        for (int i = 0; i < _beds.Count; i++)
         {
-            var c = _callers[i];
-            float dx = p.x - c.pos.x;
-            float dz = p.z - c.pos.z;
-            if (dx * dx + dz * dz > c.hear * c.hear) continue;
+            var bed = _beds[i];
+            float dx = p.x - bed.pos.x;
+            float dz = p.z - bed.pos.z;
+            float dist = Mathf.Sqrt(dx * dx + dz * dz);
+            bool near = dist < bed.hear;
+            if (bed.src == null) continue;
+            if (!near)
+            {
+                if (bed.src.isPlaying) bed.src.Pause();
+                continue;
+            }
 
-            c.timer -= dt;
-            if (c.timer > 0f) continue;
-            c.timer = Random.Range(c.minGap, c.maxGap);
-            PlayCall(c);
+            if (!bed.placed)
+            {
+                var terrain = Terrain.activeTerrain;
+                if (terrain != null)
+                {
+                    float y = terrain.SampleHeight(bed.pos) + terrain.transform.position.y;
+                    bed.pos.y = Mathf.Max(y, bed.waterY) + 0.4f;
+                    bed.src.transform.position = bed.pos;
+                }
+                bed.placed = true;
+            }
+
+            if (!bed.src.isPlaying) bed.src.Play();
         }
     }
 
@@ -93,214 +99,140 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
     {
         if (_muted) return;
         _muted = true;
-        _pool.Clear();
-        for (int i = 0; i < transform.childCount; i++)
+        for (int i = 0; i < _beds.Count; i++)
         {
-            var child = transform.GetChild(i);
-            if (child == null) continue;
-            var src = child.GetComponent<AudioSource>();
-            if (src != null) src.Stop();
-            child.gameObject.SetActive(false);
-            _pool.Enqueue(child.gameObject);
+            var src = _beds[i].src;
+            if (src == null) continue;
+            src.Stop();
+            src.mute = true;
         }
     }
 
-    void PlayCall(Caller c)
+    void BuildBeds()
     {
-        if (_bouts == null || c.clip < 0 || c.clip >= _bouts.Length) return;
-        var clip = _bouts[c.clip];
-        if (clip == null) return;
-
-        if (!c.placed)
-        {
-            var terrain = Terrain.activeTerrain;
-            if (terrain != null)
-            {
-                float y = terrain.SampleHeight(c.pos) + terrain.transform.position.y;
-                c.pos.y = Mathf.Max(y, c.waterY) + 0.35f;
-            }
-            c.placed = true;
-        }
-
-        var go = GetPooled();
-        if (go == null) 
-        {
-            c.timer = 0.35f;
-            return;
-        }
-
-        go.transform.position = c.pos;
-        var audio = go.GetComponent<AudioSource>();
-        audio.clip = clip;
-        audio.pitch = c.pitch * Random.Range(0.985f, 1.015f);
-        audio.volume = 0.62f * Random.Range(0.88f, 1.05f);
-        audio.Play();
-        StartCoroutine(RecycleAfter(go, clip.length / Mathf.Max(0.5f, audio.pitch) + 0.15f));
-    }
-
-    GameObject GetPooled()
-    {
-        while (_pool.Count > 0)
-        {
-            var candidate = _pool.Dequeue();
-            if (candidate != null)
-            {
-                candidate.SetActive(true);
-                return candidate;
-            }
-        }
-
-        if (transform.childCount >= 8) return null;
-
-        var go = new GameObject("TreeFrogCall3D");
-        go.transform.SetParent(transform, false);
-        var src = go.AddComponent<AudioSource>();
-        src.spatialBlend = 1f;
-        src.rolloffMode = AudioRolloffMode.Linear;
-        src.minDistance = 4.5f;
-        src.maxDistance = 36f;
-        src.dopplerLevel = 0f;
-        src.playOnAwake = false;
-        src.loop = false;
-        return go;
-    }
-
-    System.Collections.IEnumerator RecycleAfter(GameObject go, float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        if (go == null) yield break;
-        go.SetActive(false);
-        if (!_muted) _pool.Enqueue(go);
-    }
-
-    void BuildCallers()
-    {
-        // オアシス湧水池、カルデラ湖、草原せせらぎ池、スタート地点の池
-        AddRing(new Vector3(480f, 48.2f, 455f), 48.2f, 14.5f, 44f, 4, 0.4f);
-        AddRing(new Vector3(420f, 25.5f, 440f), 25.5f, 36f, 48f, 7, 0.2f);
-        AddRing(new Vector3(290f, 14.5f, 320f), 14.5f, 15f, 44f, 4, 1.1f);
-        AddRing(new Vector3(135f, 18.15f, 166f), 18.15f, 18f, 42f, 4, 0.6f);
+        AddBed(new Vector3(480f, 48.2f, 455f), 48.2f, 46f, 1.0f);
+        AddBed(new Vector3(420f, 25.5f, 440f), 25.5f, 58f, 0.94f);
+        AddBed(new Vector3(290f, 14.5f, 320f), 14.5f, 46f, 1.06f);
+        AddBed(new Vector3(135f, 18.15f, 166f), 18.15f, 44f, 0.97f);
 
         Vector3[] stream =
         {
-            new Vector3(465f, 40f, 450f),
             new Vector3(400f, 28f, 420f),
-            new Vector3(340f, 19.5f, 365f),
             new Vector3(250f, 11.5f, 270f),
-            new Vector3(180f, 6.5f, 200f),
         };
+        float[] streamPitch = { 1.03f, 0.91f };
         for (int i = 0; i < stream.Length; i++)
-        {
-            Vector3 p = stream[i];
-            float side = (i % 2 == 0) ? 6.5f : -6.5f;
-            Vector3 tangent = Vector3.forward;
-            if (i + 1 < stream.Length)
-                tangent = (stream[i + 1] - stream[i]);
-            tangent.y = 0f;
-            if (tangent.sqrMagnitude < 0.01f) tangent = Vector3.right;
-            tangent.Normalize();
-            Vector3 lateral = new Vector3(-tangent.z, 0f, tangent.x) * side;
-            AddCaller(p + lateral, p.y, 34f);
-        }
+            AddBed(stream[i], stream[i].y, 36f, streamPitch[i]);
     }
 
-    void AddRing(Vector3 center, float waterY, float radius, float hear, int count, float angle0)
+    void AddBed(Vector3 pos, float waterY, float hear, float pitch)
     {
-        for (int i = 0; i < count; i++)
-        {
-            float ang = angle0 + i * Mathf.PI * 2f / count;
-            var p = center + new Vector3(Mathf.Cos(ang) * radius, 0f, Mathf.Sin(ang) * radius);
-            p.y = waterY + 0.4f;
-            AddCaller(p, waterY, hear);
-        }
+        pos.y = waterY + 0.4f;
+        var go = new GameObject("TreeFrogChorus3D");
+        go.transform.SetParent(transform, false);
+        go.transform.position = pos;
+        var src = go.AddComponent<AudioSource>();
+        src.clip = _chorus;
+        src.loop = true;
+        src.spatialBlend = 1f;
+        src.rolloffMode = AudioRolloffMode.Linear;
+        src.minDistance = 12f;
+        src.maxDistance = hear;
+        src.dopplerLevel = 0f;
+        src.playOnAwake = false;
+        src.volume = 0.72f;
+        src.pitch = pitch;
+        src.spread = 70f;
+        _beds.Add(new Bed { pos = pos, waterY = waterY, hear = hear, src = src });
     }
 
-    void AddCaller(Vector3 pos, float waterY, float hear)
+    static AudioClip MakeChorus(int seed)
     {
-        int n = _callers.Count;
-        float[] pitches = { 0.94f, 1.0f, 1.07f, 0.97f, 1.03f, 0.91f, 1.1f };
-        var c = new Caller
-        {
-            pos = pos,
-            waterY = waterY,
-            hear = hear,
-            pitch = pitches[n % pitches.Length],
-            clip = n % 3,
-            minGap = 2.4f + (n % 3) * 0.45f,
-            maxGap = 5.6f + (n % 4) * 0.4f,
-            timer = 0.35f + (n % 6) * 0.42f,
-        };
-        _callers.Add(c);
-    }
+        int extra = (int)(Rate * 0.06f);
+        int count = (int)(Rate * ChorusSeconds);
+        var data = new float[count + extra];
+        float[] voices = { 2380f, 2620f, 2140f, 2860f, 2480f, 3080f, 2260f };
+        for (int v = 0; v < voices.Length; v++)
+            AddVoice(data, voices[v], seed + v * 17);
 
-    static AudioClip MakeBout(float f0, int notes, float gap, int seed)
-    {
-        float dur = 0.05f + notes * gap + 0.25f;
-        int count = (int)(Rate * dur);
-        var data = new float[count];
-        var rng = new System.Random(seed);
-        for (int k = 0; k < notes; k++)
+        int fade = extra;
+        for (int i = 0; i < fade; i++)
         {
-            float jitter = ((float)rng.NextDouble() - 0.5f) * 0.012f;
-            int start = (int)(Rate * (0.04f + k * gap + jitter));
-            float nf = f0 * (1f - 0.03f * k / Mathf.Max(1, notes - 1)) * (0.985f + (float)rng.NextDouble() * 0.03f);
-            WriteNote(data, start, nf);
+            float w = (float)i / fade;
+            data[i] = data[i] * w + data[count + i] * (1f - w);
         }
 
         float peak = 0.0001f;
         for (int i = 0; i < count; i++)
             peak = Mathf.Max(peak, Mathf.Abs(data[i]));
-        float gain = 0.8f / peak;
+        float gain = 0.72f / peak;
+        var clipData = new float[count];
         for (int i = 0; i < count; i++)
-            data[i] = Mathf.Clamp(data[i] * gain, -1f, 1f);
+            clipData[i] = Mathf.Clamp(data[i] * gain, -1f, 1f);
 
-        var clip = AudioClip.Create("TreeFrogBout", count, 1, Rate, false);
-        clip.SetData(data, 0);
+        var clip = AudioClip.Create("TreeFrogChorus", count, 1, Rate, false);
+        clip.SetData(clipData, 0);
         return clip;
     }
 
-    static void WriteNote(float[] data, int start, float freq)
+    static void AddVoice(float[] data, float freq, int seed)
     {
-        int n = (int)(Rate * 0.078f);
-        float phase = 0f;
-        float x1a = 0f, x2a = 0f, y1a = 0f, y2a = 0f;
-        float x1b = 0f, x2b = 0f, y1b = 0f, y2b = 0f;
-        int pulseEvery = Mathf.Max(1, Rate / 145);
-        for (int i = 0; i < n; i++)
+        var rng = new System.Random(seed);
+        float t = (float)rng.NextDouble() * 0.8f;
+        while (t < ChorusSeconds)
         {
-            int idx = start + i;
-            if (idx < 0 || idx >= data.Length) continue;
-            float t = (float)i / Rate;
-            float u = (float)i / Mathf.Max(1, n - 1);
-            float f = freq * (1f - 0.16f * u);
-            phase += 2f * Mathf.PI * f / Rate;
-            float gp = (i % pulseEvery) / (float)pulseEvery;
-            float glottal = Mathf.Sin(Mathf.PI * gp);
-            glottal *= glottal;
-            float excite = (Mathf.Sin(phase) + Mathf.Sin(phase * 2f) * 0.18f) * glottal;
-            float y = Biquad(ref x1a, ref x2a, ref y1a, ref y2a, excite, f, 6.5f);
-            float f2 = Mathf.Min(f * 1.7f, Rate * 0.45f);
-            y += 0.22f * Biquad(ref x1b, ref x2b, ref y1b, ref y2b, excite, f2, 9f);
-            float att = Mathf.Clamp01(t / 0.004f);
-            float env = att * Mathf.Exp(-t * 16.5f);
-            data[idx] += y * env * 1.6f;
+            int notes = 7 + rng.Next(6);
+            for (int k = 0; k < notes && t < ChorusSeconds; k++)
+            {
+                float f = freq * (0.97f + (float)rng.NextDouble() * 0.06f);
+                float amp = 0.62f + (float)rng.NextDouble() * 0.38f;
+                AddGek(data, (int)(Rate * t), f, amp, rng);
+                t += 0.125f + (float)rng.NextDouble() * 0.045f;
+            }
+            t += 0.22f + (float)rng.NextDouble() * 0.38f;
         }
     }
 
-    static float Biquad(ref float x1, ref float x2, ref float y1, ref float y2, float x, float freq, float q)
+    static void AddGek(float[] data, int start, float freq, float amp, System.Random rng)
     {
-        float w0 = 2f * Mathf.PI * freq / Rate;
-        float alpha = Mathf.Sin(w0) / (2f * q);
-        float a0 = 1f + alpha;
-        float b0 = alpha / a0;
-        float b2 = -alpha / a0;
-        float a1 = -2f * Mathf.Cos(w0) / a0;
-        float a2 = (1f - alpha) / a0;
-        float y = b0 * x + b2 * x2 - a1 * y1 - a2 * y2;
-        x2 = x1;
-        x1 = x;
-        y2 = y1;
-        y1 = y;
-        return y;
+        int pulses = 4 + rng.Next(3);
+        var times = new int[pulses];
+        float cursor = 0.003f;
+        float gap = 0.0072f + (float)rng.NextDouble() * 0.0028f;
+        for (int p = 0; p < pulses; p++)
+        {
+            times[p] = (int)(Rate * cursor);
+            cursor += gap * (0.84f + (float)rng.NextDouble() * 0.32f);
+        }
+        int len = (int)(Rate * (cursor + 0.028f));
+        Ring(data, start, len, times, freq, 16f, amp);
+        Ring(data, start, len, times, freq * 1.28f, 10f, amp * 0.18f);
+    }
+
+    static void Ring(float[] data, int start, int len, int[] times, float freq, float q, float amp)
+    {
+        float w = 2f * Mathf.PI * freq / Rate;
+        float decay = Mathf.Exp(-Mathf.PI * (freq / q) / Rate);
+        float a1 = 2f * decay * Mathf.Cos(w);
+        float a2 = -(decay * decay);
+        float y1 = 0f;
+        float y2 = 0f;
+        int pulse = 0;
+        for (int i = 0; i < len; i++)
+        {
+            int idx = start + i;
+            float x = 0f;
+            if (pulse < times.Length && i >= times[pulse])
+            {
+                float env = 1f - 0.45f * pulse / times.Length;
+                x = amp * env;
+                pulse++;
+            }
+            float y = x + a1 * y1 + a2 * y2;
+            y2 = y1;
+            y1 = y;
+            if ((uint)idx < (uint)data.Length)
+                data[idx] += y;
+        }
     }
 }
