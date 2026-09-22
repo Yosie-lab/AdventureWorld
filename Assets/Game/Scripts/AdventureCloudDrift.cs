@@ -33,10 +33,22 @@ public class AdventureCloudDrift : MonoBehaviour
 
     public static void EnsureCloudSystem()
     {
-        var existing = GameObject.Find("RustFloat_Clouds");
-        if (existing != null && existing.transform.childCount >= 10)
-            return;
+        const int cloudCount = 15;
+        TrimCloudClusters("ParadiseClouds", "CloudCluster_", 12);
 
+        var existing = GameObject.Find("RustFloat_Clouds");
+        int have = CountNamedChildren(existing != null ? existing.transform : null, "FluffyCloudCluster_");
+        if (have > cloudCount)
+            TrimCloudClusters("RustFloat_Clouds", "FluffyCloudCluster_", cloudCount);
+        if (have < cloudCount)
+            SpawnFluffyClusters(existing, have, cloudCount);
+
+        TrimLargestClusters("RustFloat_Clouds", "FluffyCloudCluster_", 3);
+        TrimLargestClusters("ParadiseClouds", "CloudCluster_", 2);
+    }
+
+    static void SpawnFluffyClusters(GameObject existing, int have, int cloudCount)
+    {
         var root = existing ?? new GameObject("RustFloat_Clouds");
 
         // 雲マテリアル取得
@@ -52,11 +64,10 @@ public class AdventureCloudDrift : MonoBehaviour
             cloudMat.color = new Color(0.98f, 0.99f, 1.0f, 0.93f);
         }
 
-        // 島の広がり（1000m四方）の上空に22個の重厚でぽっかりとしたモコモコ雲クラスターを配置
+        // 島の上空に、少し間を空けたモコモコ雲を配置
         var rng = new System.Random(42);
-        const int cloudCount = 22;
 
-        for (int i = 0; i < cloudCount; i++)
+        for (int i = have; i < cloudCount; i++)
         {
             var clusterGo = new GameObject("FluffyCloudCluster_" + i);
             clusterGo.transform.SetParent(root.transform, false);
@@ -68,7 +79,7 @@ public class AdventureCloudDrift : MonoBehaviour
 
             // 各雲クラスターは7〜11個の重なり合う球体で綿菓子のような立体積雲を形成
             int puffCount = 7 + rng.Next(5);
-            float clusterScale = 28f + (float)rng.NextDouble() * 32f; // 直径28m〜60mの壮大な雲
+            float clusterScale = 24f + (float)rng.NextDouble() * 20f; // 直径24m〜44m。巨大な塊は出さない
 
             for (int p = 0; p < puffCount; p++)
             {
@@ -104,6 +115,70 @@ public class AdventureCloudDrift : MonoBehaviour
 
             clusterGo.AddComponent<AdventureCloudDrift>();
         }
+    }
+
+    static float ClusterSize(Transform cluster)
+    {
+        float max = 0.01f;
+        for (int i = 0; i < cluster.childCount; i++)
+        {
+            Vector3 s = cluster.GetChild(i).localScale;
+            max = Mathf.Max(max, s.x, s.y, s.z);
+        }
+        Vector3 root = cluster.localScale;
+        return max * Mathf.Max(root.x, root.y, root.z);
+    }
+
+    static List<Transform> FindClusters(string rootName, string prefix)
+    {
+        var found = new List<Transform>();
+        var root = GameObject.Find(rootName);
+        if (root == null) return found;
+        for (int i = 0; i < root.transform.childCount; i++)
+        {
+            var child = root.transform.GetChild(i);
+            if (child.name.StartsWith(prefix))
+                found.Add(child);
+        }
+        return found;
+    }
+
+    static void DestroyGo(Object target)
+    {
+        if (target == null) return;
+        if (Application.isPlaying)
+            Object.Destroy(target);
+        else
+            Object.DestroyImmediate(target);
+    }
+
+    static void TrimLargestClusters(string rootName, string prefix, int removeCount)
+    {
+        if (removeCount <= 0) return;
+        var clusters = FindClusters(rootName, prefix);
+        clusters.Sort((a, b) => ClusterSize(b).CompareTo(ClusterSize(a)));
+        int n = Mathf.Min(removeCount, Mathf.Max(0, clusters.Count - 6));
+        for (int i = 0; i < n; i++)
+            DestroyGo(clusters[i].gameObject);
+    }
+
+    static int CountNamedChildren(Transform root, string prefix)
+    {
+        if (root == null) return 0;
+        int n = 0;
+        for (int i = 0; i < root.childCount; i++)
+        {
+            if (root.GetChild(i).name.StartsWith(prefix))
+                n++;
+        }
+        return n;
+    }
+
+    static void TrimCloudClusters(string rootName, string prefix, int keep)
+    {
+        var clusters = FindClusters(rootName, prefix);
+        for (int i = clusters.Count - 1; i >= keep; i--)
+            DestroyGo(clusters[i].gameObject);
     }
 
     void Start()

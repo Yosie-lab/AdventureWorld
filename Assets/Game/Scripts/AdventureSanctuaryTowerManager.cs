@@ -158,6 +158,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     // クリアモーダルも uGUI 専用（IMGUIだと空ボード＋「Gizmos」ボタンになる）
     GameObject _clearUiRoot;
+    RectTransform _clearDiveBtn;
+    RectTransform _clearNewBtn;
+    RectTransform _clearCloseBtn;
+    int _clearModalActionFrame = -1;
 
     public bool IsSkybreakModalActive => _scriptBoardVisible;
     public bool IsDiveBoardActive => _scriptBoardVisible && _scriptBoardIsDive;
@@ -199,11 +203,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _climaxOilWaiting && !_climaxOilInjected && !_suppressClimax;
 
     // 注油前台本(0-2) → 注油 → 注油後台本(3-4)
+    const string SkyLimitWarning = "上空で、Rustが限界";
     const int ClimaxOilSlot = 3; // next==3 のとき注油フェーズへ入る
     static readonly CanopyBeat[] ClimaxBeats =
     {
-        new CanopyBeat("警告", "", "Rustが極寒で機能停止寸前", new Color(1f, 0.55f, 0.45f, 1f)),
-        new CanopyBeat("", "✦ 相棒 Rust", "キキキッ……！ Niko……外の気流が冷たすぎる……僕の古いギアが……凍りついて……", new Color(0.35f, 0.92f, 0.98f, 1f)),
+        new CanopyBeat("警告", "", SkyLimitWarning, new Color(1f, 0.55f, 0.45f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "キキキッ……！ Niko……もうダメかも……この上空、冷たすぎて限界……ギアが凍りつきそう……！", new Color(0.35f, 0.92f, 0.98f, 1f)),
         new CanopyBeat("", "✦ Niko", "Rust…待ってて！　今、油を目一杯さすからね！", new Color(1f, 0.88f, 0.45f, 1f)),
         // ← ここで注油フェーズ
         new CanopyBeat("", "✦ 相棒 Rust", "……あ……温かい油が……心臓に……！", new Color(0.35f, 0.92f, 0.98f, 1f)),
@@ -352,6 +357,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             {
                 Destroy(_clearUiRoot);
                 _clearUiRoot = null;
+                _clearDiveBtn = null;
+                _clearNewBtn = null;
+                _clearCloseBtn = null;
             }
             if (_oilUiRoot != null)
             {
@@ -1703,6 +1711,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         AdventureCicadaAmbienceManager.Ensure();
         AdventureCicadaAmbienceManager.Instance?.MuteForEndingSequence();
+        AdventureTreeFrogAmbience.Ensure();
+        AdventureTreeFrogAmbience.Instance?.MuteForEndingSequence();
 
         var player = AdventurePlayerController.Instance
                      ?? Object.FindFirstObjectByType<AdventurePlayerController>();
@@ -3139,7 +3149,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         _oilTitleUi = MakeScriptText(panelGo.transform, "OilTitle", new Vector2(0f, -24f), new Vector2(0.5f, 1f), new Vector2(800f, 40f), 30, TextAnchor.MiddleCenter, font);
         _oilTitleUi.color = new Color(1f, 0.55f, 0.45f, 1f);
-        _oilTitleUi.text = "警告　Rustが極寒で機能停止寸前";
+        _oilTitleUi.text = SkyLimitWarning;
         PrepareFontForText(font, _oilTitleUi.text, 30, FontStyle.Bold);
 
         _oilPromptUi = MakeScriptText(panelGo.transform, "OilPrompt", new Vector2(0f, 10f), new Vector2(0.5f, 0.5f), new Vector2(780f, 140f), 26, TextAnchor.MiddleCenter, font);
@@ -3290,6 +3300,11 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         TeardownScriptBoardUi();
         HideOilPromptUI();
         EnsureGameClearModalUI();
+        if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
 
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null)
@@ -3301,6 +3316,44 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             else if (kb.eKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
                 CloseGameClearModalForFreeExplore();
         }
+
+        if (WasPointerPressedThisFrame(out Vector2 pointer))
+        {
+            if (PointerHits(_clearDiveBtn, pointer))
+                RelaunchIntoSky();
+            else if (PointerHits(_clearNewBtn, pointer))
+                StartNewGameFromClearModal();
+            else if (PointerHits(_clearCloseBtn, pointer))
+                CloseGameClearModalForFreeExplore();
+        }
+    }
+
+    static bool WasPointerPressedThisFrame(out Vector2 pointer)
+    {
+        pointer = Vector2.zero;
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null)
+        {
+            pointer = mouse.position.ReadValue();
+            if (mouse.leftButton.wasPressedThisFrame)
+                return true;
+        }
+        try
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                pointer = Input.mousePosition;
+                return true;
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    static bool PointerHits(RectTransform rt, Vector2 screenPos)
+    {
+        if (rt == null || !rt.gameObject.activeInHierarchy) return false;
+        return RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);
     }
 
     void SetGameClearModalVisible(bool visible)
@@ -3318,6 +3371,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (_clearUiRoot != null)
         {
             _clearUiRoot.SetActive(true);
+            if (_clearDiveBtn == null)
+                _clearDiveBtn = _clearUiRoot.transform.Find("Panel/DiveBtn") as RectTransform;
+            if (_clearNewBtn == null)
+                _clearNewBtn = _clearUiRoot.transform.Find("Panel/NewBtn") as RectTransform;
+            if (_clearCloseBtn == null)
+                _clearCloseBtn = _clearUiRoot.transform.Find("Panel/CloseBtn") as RectTransform;
             return;
         }
 
@@ -3366,17 +3425,17 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             "【Space】大空へ　【N】はじめから　【E / Esc】閉じる";
         PrepareFontForText(font, body.text, 24);
 
-        MakeClearModalButton(panelGo.transform, "DiveBtn", new Vector2(-300f, 36f), new Color(0.20f, 0.75f, 0.95f, 0.95f),
+        _clearDiveBtn = MakeClearModalButton(panelGo.transform, "DiveBtn", new Vector2(-300f, 36f), new Color(0.20f, 0.75f, 0.95f, 0.95f),
             "【Space】大空へダイブ", font, RelaunchIntoSky);
-        MakeClearModalButton(panelGo.transform, "NewBtn", new Vector2(0f, 36f), new Color(0.35f, 0.82f, 0.55f, 0.95f),
+        _clearNewBtn = MakeClearModalButton(panelGo.transform, "NewBtn", new Vector2(0f, 36f), new Color(0.35f, 0.82f, 0.55f, 0.95f),
             "【N】はじめから", font, StartNewGameFromClearModal);
-        MakeClearModalButton(panelGo.transform, "CloseBtn", new Vector2(300f, 36f), new Color(0.25f, 0.35f, 0.45f, 0.95f),
+        _clearCloseBtn = MakeClearModalButton(panelGo.transform, "CloseBtn", new Vector2(300f, 36f), new Color(0.25f, 0.35f, 0.45f, 0.95f),
             "【E】閉じる", font, CloseGameClearModalForFreeExplore);
 
         _clearUiRoot = canvasGo;
     }
 
-    void MakeClearModalButton(Transform parent, string name, Vector2 anchoredPos, Color color, string label, Font font, UnityEngine.Events.UnityAction onClick)
+    RectTransform MakeClearModalButton(Transform parent, string name, Vector2 anchoredPos, Color color, string label, Font font, UnityEngine.Events.UnityAction onClick)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
@@ -3397,6 +3456,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         text.text = label;
         text.raycastTarget = false;
         PrepareFontForText(font, label, 20, FontStyle.Bold);
+        return rt;
     }
 
     void HideGameClearModalUI()
@@ -3408,8 +3468,16 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             orphan.SetActive(false);
     }
 
+    bool ConsumeClearModalAction()
+    {
+        if (_clearModalActionFrame == Time.frameCount) return false;
+        _clearModalActionFrame = Time.frameCount;
+        return true;
+    }
+
     void StartNewGameFromClearModal()
     {
+        if (!ConsumeClearModalAction()) return;
         _showGameClearModal = false;
         HideGameClearModalUI();
         AdventureSaveManager.Ensure();
@@ -3418,6 +3486,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void CloseGameClearModalForFreeExplore()
     {
+        if (!ConsumeClearModalAction()) return;
         _showGameClearModal = false;
         HideGameClearModalUI();
         AdventureMusicDirector.Ensure();
@@ -3444,6 +3513,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     /// <summary>クリア後に何度でも大空へ飛び立てるリダイブ処理</summary>
     public void RelaunchIntoSky()
     {
+        if (!ConsumeClearModalAction()) return;
         _showGameClearModal = false;
         HideGameClearModalUI();
         AdventureMusicDirector.Ensure();

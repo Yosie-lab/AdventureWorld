@@ -118,12 +118,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
         var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
         bool isModalBoardOpen = opening != null && opening.IsModalBoardOpen();
-        var towerMgr = AdventureSanctuaryTowerManager.Instance;
-        bool isLeverNear = towerMgr != null && towerMgr.IsPlayerNearLever;
-        bool isScriptBoard = towerMgr != null && towerMgr.IsSkybreakModalActive;
-        bool isOilPrompt = towerMgr != null && towerMgr.IsClimaxOilPromptActive;
-        bool isPrologueOil = AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsWaitingForOil;
-        if (isModalBoardOpen || isLeverNear || isScriptBoard || isOilPrompt || isPrologueOil)
+        if (AdventureStoryFlow.WantsFreeCursor)
         {
             if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
             {
@@ -226,8 +221,7 @@ public class AdventureCameraFollow : MonoBehaviour
         bool playerGrounded = player != null && player.IsGrounded;
 
         // 地上に戻ったらシネマ残りを切る（エンディング後にNikoが見えない主因）
-        if (playerGrounded && !isAutoGlide && _cinematic && towerMgr != null
-            && !towerMgr.IsEpiloguePlaying && !towerMgr.ClimaxCrisisStarted && !towerMgr.ShowGameClearModal)
+        if (playerGrounded && !isAutoGlide && _cinematic && !AdventureStoryFlow.HoldCinematicCamera)
         {
             SetCinematicMode(false);
         }

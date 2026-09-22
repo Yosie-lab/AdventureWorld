@@ -286,16 +286,7 @@ public class AdventureScrapHUD : MonoBehaviour
     void TickBannerOnly()
     {
         // 天蓋破壊シネマティックストーリーボード表示中はバナーを即座に非表示
-        if (AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.IsSkybreakModalActive)
-        {
-            _bannerTimer = 0f;
-            if (_bannerCg != null) _bannerCg.alpha = 0f;
-            return;
-        }
-
-        // レバー操作中は下部バナーを出さない（最後のパーツ取得ロアがレバーボタンを塞ぐのを防ぐ）
-        var towerNear = AdventureSanctuaryTowerManager.Instance;
-        if (towerNear != null && towerNear.IsPlayerNearLever)
+        if (AdventureStoryFlow.HidesBottomBanner)
         {
             _bannerTimer = 0f;
             if (_bannerCg != null) _bannerCg.alpha = 0f;
@@ -320,12 +311,7 @@ public class AdventureScrapHUD : MonoBehaviour
     {
         if (_oilText == null || _oilCg == null) return;
 
-        var tower = AdventureSanctuaryTowerManager.Instance;
-        bool cinematicHide = tower != null && (
-            tower.IsSkybreakModalActive
-            || tower.IsEpiloguePlaying
-            || tower.ShowGameClearModal
-            || tower.IsClimaxOilPromptActive);
+        bool cinematicHide = AdventureStoryFlow.HidesOilHud;
 
         _oilCg.alpha = cinematicHide ? 0f : 1f;
         if (cinematicHide) return;
