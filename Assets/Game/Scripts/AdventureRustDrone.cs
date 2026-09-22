@@ -570,6 +570,10 @@ public class AdventureRustDrone : MonoBehaviour
             var scraps = FindObjectsByType<AdventureScrapItem>(FindObjectsInactive.Exclude);
             float bestDot = 0.88f; // 視野角約30度以内
             float maxDist = 38f;
+            float fallbackRange = 0f;
+            AdventureFieldLesson.GetRustAimAssist(_lookAt.position, ref maxDist, ref bestDot, ref fallbackRange);
+            AdventureScrapItem fallback = null;
+            float fallbackBest = fallbackRange;
 
             foreach (var s in scraps)
             {
@@ -585,7 +589,20 @@ public class AdventureRustDrone : MonoBehaviour
                         _aimedScrap = s;
                     }
                 }
+
+                if (fallbackRange > 0f)
+                {
+                    float fromNiko = Vector3.Distance(s.transform.position, _lookAt.position);
+                    if (fromNiko > 3f && fromNiko < fallbackBest)
+                    {
+                        fallbackBest = fromNiko;
+                        fallback = s;
+                    }
+                }
             }
+
+            if (_aimedScrap == null)
+                _aimedScrap = fallback;
         }
 
         // Fキー（New Input Systemによる安全な検知）

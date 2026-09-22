@@ -302,6 +302,7 @@ public class AdventurePlayerController : MonoBehaviour
         AdventurePrologueDrama.Ensure();
         AdventureCapytaBlessing.Ensure();
         AdventureCapytaBodyCollider.EnsureAllCapytasInScene();
+        AdventureFieldLesson.Ensure();
 
         if (GetComponent<AdventureNikoFootsteps>() == null)
             gameObject.AddComponent<AdventureNikoFootsteps>();
@@ -664,6 +665,12 @@ public class AdventurePlayerController : MonoBehaviour
                 if (Vector3.Dot(wishWalk.normalized, inward) > 0.1f)
                     horizontal += inward * (running ? 3.5f : 2.0f);
             }
+            if (AdventureFieldLesson.HasTideStep)
+                horizontal *= 1.16f;
+        }
+        else if (AdventureFieldLesson.HasCanopyRead && AdventureFieldLesson.IsInDeepForest(transform.position))
+        {
+            horizontal *= 1.12f;
         }
         transform.rotation = Quaternion.Slerp(
             transform.rotation,
@@ -742,6 +749,8 @@ public class AdventurePlayerController : MonoBehaviour
         float targetFall = cruiseFall;
         targetFall = Mathf.Lerp(targetFall, diveFall, diveT);
         targetFall = Mathf.Lerp(targetFall, flareFall, flareT);
+        if (AdventureFieldLesson.HasCanopyRead && AdventureFieldLesson.IsInDeepForest(transform.position))
+            targetFall = Mathf.Lerp(targetFall, Mathf.Max(targetFall, -0.35f), 0.65f);
 
         float targetPitch = Mathf.Lerp(0f, 8f, diveT) + Mathf.Lerp(0f, -6f, flareT);
         _glidePitchCurrent = Mathf.SmoothDamp(

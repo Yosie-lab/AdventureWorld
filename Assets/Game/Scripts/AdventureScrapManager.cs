@@ -966,6 +966,7 @@ public class AdventureScrapManager : MonoBehaviour
         PlayerPrefs.DeleteKey(PrefKeyLeverUnlockedNotified);
         PlayerPrefs.DeleteKey("Adventure_LeverUnlockedNotified");
         PlayerPrefs.Save();
+        AdventureFieldLesson.ClearForNewGame();
 
         // 5. タワーレバーの状態をロック中へ再同期
         var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
