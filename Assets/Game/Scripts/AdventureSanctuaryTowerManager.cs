@@ -203,11 +203,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _climaxOilWaiting && !_climaxOilInjected && !_suppressClimax;
 
     // 注油前台本(0-2) → 注油 → 注油後台本(3-4)
+    const string SkyLimitWarning = "上空で、Rustが限界";
     const int ClimaxOilSlot = 3; // next==3 のとき注油フェーズへ入る
     static readonly CanopyBeat[] ClimaxBeats =
     {
-        new CanopyBeat("警告", "", "Rustが極寒で機能停止寸前", new Color(1f, 0.55f, 0.45f, 1f)),
-        new CanopyBeat("", "✦ 相棒 Rust", "キキキッ……！ Niko……外の気流が冷たすぎる……僕の古いギアが……凍りついて……", new Color(0.35f, 0.92f, 0.98f, 1f)),
+        new CanopyBeat("警告", "", SkyLimitWarning, new Color(1f, 0.55f, 0.45f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "キキキッ……！ Niko……もうダメかも……この上空、冷たすぎて限界……ギアが凍りつきそう……！", new Color(0.35f, 0.92f, 0.98f, 1f)),
         new CanopyBeat("", "✦ Niko", "Rust…待ってて！　今、油を目一杯さすからね！", new Color(1f, 0.88f, 0.45f, 1f)),
         // ← ここで注油フェーズ
         new CanopyBeat("", "✦ 相棒 Rust", "……あ……温かい油が……心臓に……！", new Color(0.35f, 0.92f, 0.98f, 1f)),
@@ -3148,7 +3149,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         _oilTitleUi = MakeScriptText(panelGo.transform, "OilTitle", new Vector2(0f, -24f), new Vector2(0.5f, 1f), new Vector2(800f, 40f), 30, TextAnchor.MiddleCenter, font);
         _oilTitleUi.color = new Color(1f, 0.55f, 0.45f, 1f);
-        _oilTitleUi.text = "警告　Rustが極寒で機能停止寸前";
+        _oilTitleUi.text = SkyLimitWarning;
         PrepareFontForText(font, _oilTitleUi.text, 30, FontStyle.Bold);
 
         _oilPromptUi = MakeScriptText(panelGo.transform, "OilPrompt", new Vector2(0f, 10f), new Vector2(0.5f, 0.5f), new Vector2(780f, 140f), 26, TextAnchor.MiddleCenter, font);

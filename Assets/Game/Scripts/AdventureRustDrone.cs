@@ -559,59 +559,83 @@ public class AdventureRustDrone : MonoBehaviour
         UpdateSonar();
     }
 
+    static Camera ResolveCommandCamera()
+    {
+        var follow = FindAnyObjectByType<AdventureCameraFollow>();
+        if (follow != null)
+        {
+            var c = follow.GetComponent<Camera>() ?? follow.GetComponentInChildren<Camera>();
+            if (c != null && c.isActiveAndEnabled) return c;
+        }
+        if (Camera.main != null && Camera.main.isActiveAndEnabled)
+            return Camera.main;
+        return null;
+    }
+
+    /// <summary>視線レイと光の柱（垂直な線分）の最接近。</summary>
+    static void ClosestOnRayToSegment(Ray ray, Vector3 a, Vector3 b, out float along, out float separation)
+    {
+        Vector3 u = ray.direction.normalized;
+        Vector3 v = b - a;
+        Vector3 w = ray.origin - a;
+        float uu = Vector3.Dot(u, u);
+        float uv = Vector3.Dot(u, v);
+        float vv = Vector3.Dot(v, v);
+        float wu = Vector3.Dot(w, u);
+        float wv = Vector3.Dot(w, v);
+        float denom = uu * vv - uv * uv;
+        float s = 0f;
+        float t = 0f;
+        if (denom > 1e-6f)
+        {
+            s = (uv * wv - vv * wu) / denom;
+            t = (uu * wv - uv * wu) / denom;
+        }
+        s = Mathf.Max(0f, s);
+        t = Mathf.Clamp01(t);
+        Vector3 q = a + v * t;
+        s = Mathf.Max(0f, Vector3.Dot(q - ray.origin, u));
+        Vector3 p = ray.origin + u * s;
+        along = s;
+        separation = Vector3.Distance(p, q);
+    }
+
     void UpdateCommandInput()
     {
-        // 照準先のスクラップを探す
+        // 照準先のスクラップを探す（光の柱を見ていても根元のパーツを狙う）
         _aimedScrap = null;
-        var cam = Camera.main;
+        var cam = ResolveCommandCamera();
         if (cam != null)
         {
             Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             var scraps = FindObjectsByType<AdventureScrapItem>(FindObjectsInactive.Exclude);
-            float bestDot = 0.88f; // 視野角約30度以内
-            float maxDist = 38f;
-            float fallbackRange = 0f;
-            AdventureFieldLesson.GetRustAimAssist(_lookAt.position, ref maxDist, ref bestDot, ref fallbackRange);
-            AdventureScrapItem fallback = null;
-            float fallbackBest = fallbackRange;
+            float bestSep = 14f;
+            float bestAlong = 180f;
+            AdventureScrapItem aimed = null;
 
             foreach (var s in scraps)
             {
                 if (s == null || s.IsCollected) continue;
-                Vector3 toScrap = s.transform.position - cam.transform.position;
-                float d = toScrap.magnitude;
-                if (d < maxDist)
+                Vector3 foot = s.transform.position;
+                ClosestOnRayToSegment(ray, foot, foot + Vector3.up * 60f, out float along, out float sep);
+                if (along < 2f || along > 180f || sep > 14f) continue;
+                if (sep < bestSep - 0.35f || (sep <= bestSep + 0.35f && along < bestAlong))
                 {
-                    float dot = Vector3.Dot(ray.direction, toScrap.normalized);
-                    if (dot > bestDot)
-                    {
-                        bestDot = dot;
-                        _aimedScrap = s;
-                    }
-                }
-
-                if (fallbackRange > 0f)
-                {
-                    float fromNiko = Vector3.Distance(s.transform.position, _lookAt.position);
-                    if (fromNiko > 3f && fromNiko < fallbackBest)
-                    {
-                        fallbackBest = fromNiko;
-                        fallback = s;
-                    }
+                    bestSep = sep;
+                    bestAlong = along;
+                    aimed = s;
                 }
             }
 
-            if (_aimedScrap == null)
-                _aimedScrap = fallback;
+            _aimedScrap = aimed;
         }
 
         // Fキー（New Input Systemによる安全な検知）
         bool fPressed = false;
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null)
-        {
             fPressed = kb.fKey.wasPressedThisFrame;
-        }
+        try { if (Input.GetKeyDown(KeyCode.F)) fPressed = true; } catch { }
 
         if (fPressed && CurrentState == RustState.Follow)
         {

@@ -23,9 +23,8 @@ public class AdventureCompassHUD : MonoBehaviour
 
     const float PixelsPerDegree = 2.05f; // 1度あたりのピクセル幅（表示視野角 約±88度）
     const float RibbonHalfWidth = 180f;
-    const float YawSmoothTime = 0.2f;
-    const float YawMaxSpeed = 280f;
-    const float BearingSmoothTime = 0.16f;
+    const float YawSmoothTime = 0.045f;
+    const float BearingSmoothTime = 0.05f;
     const float OnRibbonLimit = 78f;
 
     float _displayYaw;
@@ -377,7 +376,7 @@ public class AdventureCompassHUD : MonoBehaviour
         else
         {
             _displayYaw = Mathf.SmoothDampAngle(
-                _displayYaw, rawYaw, ref _displayYawVel, YawSmoothTime, YawMaxSpeed, dt);
+                _displayYaw, rawYaw, ref _displayYawVel, YawSmoothTime, Mathf.Infinity, dt);
         }
         _displayYaw = Mathf.Repeat(_displayYaw, 360f);
         float yaw = _displayYaw;
@@ -465,7 +464,7 @@ public class AdventureCompassHUD : MonoBehaviour
                     else
                     {
                         _scrapBearing = Mathf.SmoothDampAngle(
-                            _scrapBearing, angle, ref _scrapBearingVel, BearingSmoothTime, YawMaxSpeed, dt);
+                            _scrapBearing, angle, ref _scrapBearingVel, BearingSmoothTime, Mathf.Infinity, dt);
                     }
 
                     if (_scrapMarkerRt != null)
@@ -519,7 +518,7 @@ public class AdventureCompassHUD : MonoBehaviour
                     else
                     {
                         _boxBearing = Mathf.SmoothDampAngle(
-                            _boxBearing, boxAngle, ref _boxBearingVel, BearingSmoothTime, YawMaxSpeed, dt);
+                            _boxBearing, boxAngle, ref _boxBearingVel, BearingSmoothTime, Mathf.Infinity, dt);
                     }
 
                     if (_boxMarkerRt != null)
