@@ -675,4 +675,473 @@ public static class AdventureSkybreakVisuals
             DynamicGI.UpdateEnvironment();
         }
     }
+
+    /// <summary>
+    /// 「空が……割れるよ」：リアル寄りの稲妻＋フラッシュ＋破片＋地面揺れ。
+    /// （中心交差の放射帯は使わない）
+    /// </summary>
+    public static IEnumerator PlaySkyTearOpenRoutine()
+    {
+        DestroyNamed("SkyTearOpening");
+        DestroyNamed("SkyTearFlashCanvas");
+
+        var cam = AdventureCameraFollow.InstanceOrFind();
+        if (cam != null)
+            cam.Shake(0.55f, 5.8f);
+
+        var root = new GameObject("SkyTearOpening");
+        root.transform.position = new Vector3(512f, 145f, 512f);
+
+        var particleSh = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                         ?? Shader.Find("Sprites/Default");
+        var lineSh = Shader.Find("Universal Render Pipeline/Unlit")
+                     ?? Shader.Find("Sprites/Default")
+                     ?? Shader.Find("Unlit/Color");
+
+        // 稲妻（ジグザグ本幹＋分岐）。複数本を時間差で撃つ
+        var bolts = new LightningBolt[6];
+        for (int i = 0; i < bolts.Length; i++)
+        {
+            float yaw = -55f + i * 22f + Random.Range(-8f, 8f);
+            Vector3 origin = root.transform.position
+                            + Quaternion.Euler(0f, yaw, 0f) * new Vector3(0f, 55f + Random.Range(-10f, 20f), 35f + i * 8f);
+            Vector3 tip = root.transform.position
+                          + Quaternion.Euler(0f, yaw + Random.Range(-12f, 12f), 0f)
+                          * new Vector3(Random.Range(-18f, 18f), -70f - Random.Range(0f, 40f), Random.Range(-10f, 30f));
+            bolts[i] = CreateLightningBolt(root.transform, lineSh, "Bolt_" + i, origin, tip,
+                segments: 18 + Random.Range(0, 8),
+                jag: 4.5f + Random.Range(0f, 3.5f),
+                coreWidth: 0.85f + Random.Range(0f, 0.6f),
+                glowWidth: 3.2f + Random.Range(0f, 2f),
+                branchChance: 0.45f);
+            SetLightningVisible(bolts[i], false);
+        }
+
+        // 外光（控えめなコアライトのみ。巨大球体は出さない）
+        var lightGo = new GameObject("TearSkyLight");
+        lightGo.transform.SetParent(root.transform, false);
+        lightGo.transform.localPosition = new Vector3(0f, 20f, 0f);
+        var coreLight = lightGo.AddComponent<Light>();
+        coreLight.type = LightType.Point;
+        coreLight.color = new Color(0.78f, 0.92f, 1f);
+        coreLight.intensity = 0f;
+        coreLight.range = 160f;
+
+        SpawnSkyTearBurst(root.transform, particleSh, "SkyTearShards",
+            new Color(0.75f, 0.95f, 1f, 0.9f), new Color(1f, 0.95f, 0.85f, 0.75f),
+            speedMin: 18f, speedMax: 55f, sizeMin: 0.4f, sizeMax: 2.0f,
+            gravity: 0.35f, radius: 10f,
+            bursts: new[] { 90, 70, 50, 35 }, burstTimes: new[] { 0.02f, 0.28f, 0.7f, 1.35f });
+
+        SpawnSkyTearBurst(root.transform, particleSh, "SkyTearDebris",
+            new Color(0.55f, 0.85f, 1f, 0.8f), new Color(0.9f, 0.9f, 0.85f, 0.7f),
+            speedMin: 6f, speedMax: 22f, sizeMin: 1.0f, sizeMax: 3.8f,
+            gravity: 1.1f, radius: 18f,
+            bursts: new[] { 28, 22 }, burstTimes: new[] { 0.15f, 0.9f });
+
+        var dustGo = new GameObject("SkyTearGroundDust");
+        dustGo.transform.SetParent(root.transform, false);
+        dustGo.transform.localPosition = new Vector3(0f, -80f, 0f);
+        var dustPs = dustGo.AddComponent<ParticleSystem>();
+        {
+            var main = dustPs.main;
+            main.loop = false;
+            main.duration = 3.5f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(1.5f, 3.2f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(4f, 16f);
+            main.startSize = new ParticleSystem.MinMaxCurve(1.5f, 5f);
+            main.startColor = new ParticleSystem.MinMaxGradient(
+                new Color(0.55f, 0.48f, 0.35f, 0.45f),
+                new Color(0.7f, 0.65f, 0.5f, 0.2f));
+            main.gravityModifier = -0.05f;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = 180;
+            var emission = dustPs.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[]
+            {
+                new ParticleSystem.Burst(0.08f, 50),
+                new ParticleSystem.Burst(0.45f, 40),
+                new ParticleSystem.Burst(1.1f, 30)
+            });
+            var shape = dustPs.shape;
+            shape.shapeType = ParticleSystemShapeType.Circle;
+            shape.radius = 55f;
+            shape.rotation = new Vector3(90f, 0f, 0f);
+            var rend = dustGo.GetComponent<ParticleSystemRenderer>();
+            if (rend != null && particleSh != null)
+            {
+                var mat = new Material(particleSh);
+                mat.SetColor("_BaseColor", new Color(0.6f, 0.55f, 0.4f, 0.4f));
+                rend.material = mat;
+            }
+            dustPs.Play();
+        }
+
+        // 画面フラッシュのみ（放射割れラインなし）
+        var flashGo = new GameObject("SkyTearFlashCanvas");
+        var canvas = flashGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 8850;
+        var scaler = flashGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280f, 720f);
+        var flashImg = CreateFullScreenImage(flashGo.transform, "Flash", new Color(0.88f, 0.95f, 1f, 0f));
+        var flashWhite = CreateFullScreenImage(flashGo.transform, "FlashWhite", new Color(1f, 1f, 1f, 0f));
+
+        // 各稲妻の撃つタイミング（リアルな連続落雷）＋後半の余韻2秒
+        float[] strikeAt = { 0.08f, 0.32f, 0.55f, 0.95f, 1.45f, 2.15f, 3.2f, 4.35f };
+        float[] strikeDur = { 0.12f, 0.09f, 0.18f, 0.11f, 0.14f, 0.1f, 0.13f, 0.11f };
+        var boltsExtra = new LightningBolt[2];
+        for (int i = 0; i < boltsExtra.Length; i++)
+        {
+            float yaw = -30f + i * 50f + Random.Range(-10f, 10f);
+            Vector3 origin = root.transform.position
+                            + Quaternion.Euler(0f, yaw, 0f) * new Vector3(0f, 50f + Random.Range(-8f, 16f), 40f);
+            Vector3 tip = root.transform.position
+                          + Quaternion.Euler(0f, yaw + Random.Range(-14f, 14f), 0f)
+                          * new Vector3(Random.Range(-20f, 20f), -75f - Random.Range(0f, 35f), Random.Range(-12f, 28f));
+            boltsExtra[i] = CreateLightningBolt(root.transform, lineSh, "BoltExtra_" + i, origin, tip,
+                segments: 16 + Random.Range(0, 6),
+                jag: 4.2f + Random.Range(0f, 3f),
+                coreWidth: 0.7f + Random.Range(0f, 0.5f),
+                glowWidth: 2.8f + Random.Range(0f, 1.8f),
+                branchChance: 0.4f);
+            SetLightningVisible(boltsExtra[i], false);
+        }
+        // 後半2本を配列に結合
+        var allBolts = new LightningBolt[bolts.Length + boltsExtra.Length];
+        for (int i = 0; i < bolts.Length; i++) allBolts[i] = bolts[i];
+        for (int i = 0; i < boltsExtra.Length; i++) allBolts[bolts.Length + i] = boltsExtra[i];
+        bolts = allBolts;
+        bool[] struck = new bool[bolts.Length];
+        bool[] reshaped = new bool[bolts.Length];
+
+        float duration = 6.0f;
+        float t = 0f;
+        bool shookHard = false;
+        bool shookMid = false;
+        bool shookLate1 = false;
+        bool shookLate2 = false;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+
+            for (int i = 0; i < bolts.Length; i++)
+            {
+                float start = strikeAt[i];
+                float end = start + strikeDur[i];
+                // 落雷直前に経路を再生成（毎回違うジグザグ）
+                if (!reshaped[i] && t >= start - 0.02f)
+                {
+                    reshaped[i] = true;
+                    ReshapeLightningBolt(bolts[i]);
+                }
+
+                bool on = t >= start && t <= end;
+                // リアル稲妻：一瞬消え・再点灯（ステイマー）
+                if (on)
+                {
+                    float local = t - start;
+                    bool flickerOff = (local > 0.04f && local < 0.055f)
+                                      || (local > 0.08f && local < 0.09f && strikeDur[i] > 0.12f);
+                    on = !flickerOff;
+                }
+                SetLightningVisible(bolts[i], on);
+
+                if (!struck[i] && t >= start)
+                {
+                    struck[i] = true;
+                    if (cam != null)
+                        cam.Shake(i == 0 || i == 2 ? 0.7f : 0.35f, 0.55f);
+                }
+            }
+
+            // 稲妻に連動した空の閃光
+            float flashA = 0f;
+            float whiteA = 0f;
+            for (int i = 0; i < strikeAt.Length; i++)
+            {
+                flashA += SkyTearFlashEnvelope(t, strikeAt[i], strikeDur[i] * 1.8f, i % 2 == 0 ? 0.72f : 0.45f);
+                whiteA += SkyTearFlashEnvelope(t, strikeAt[i], Mathf.Min(0.08f, strikeDur[i]), 0.55f);
+            }
+            // 余韻の薄明かり（＋2秒）
+            flashA += SkyTearFlashEnvelope(t, 2.6f, 1.2f, 0.14f);
+            flashA += SkyTearFlashEnvelope(t, 4.0f, 1.4f, 0.18f);
+            flashA += SkyTearFlashEnvelope(t, 5.2f, 0.9f, 0.1f);
+            flashImg.color = new Color(0.78f, 0.92f, 1f, Mathf.Clamp01(flashA));
+            flashWhite.color = new Color(1f, 1f, 1f, Mathf.Clamp01(whiteA));
+
+            if (coreLight != null)
+            {
+                float lightPulse = Mathf.Clamp01(flashA) * 18f + Mathf.Clamp01(whiteA) * 8f;
+                coreLight.intensity = lightPulse;
+                coreLight.color = Color.Lerp(
+                    new Color(0.7f, 0.88f, 1f),
+                    new Color(0.95f, 0.97f, 1f),
+                    Mathf.Clamp01(whiteA * 2f));
+            }
+
+            if (!shookHard && t >= 0.3f)
+            {
+                shookHard = true;
+                if (cam != null) cam.Shake(0.85f, 2.8f);
+            }
+            if (!shookMid && t >= 1.0f)
+            {
+                shookMid = true;
+                if (cam != null) cam.Shake(0.4f, 2.4f);
+            }
+            if (!shookLate1 && t >= 3.2f)
+            {
+                shookLate1 = true;
+                if (cam != null) cam.Shake(0.5f, 1.8f);
+            }
+            if (!shookLate2 && t >= 4.35f)
+            {
+                shookLate2 = true;
+                if (cam != null) cam.Shake(0.35f, 1.4f);
+            }
+
+            yield return null;
+        }
+
+        for (int i = 0; i < bolts.Length; i++)
+            SetLightningVisible(bolts[i], false);
+
+        float fadeT = 0f;
+        while (fadeT < 1.2f)
+        {
+            fadeT += Time.unscaledDeltaTime;
+            float a = 1f - Mathf.Clamp01(fadeT / 1.2f);
+            flashImg.color = new Color(0.78f, 0.92f, 1f, a * 0.06f);
+            flashWhite.color = new Color(1f, 1f, 1f, 0f);
+            if (coreLight != null)
+                coreLight.intensity = a * 4f;
+            yield return null;
+        }
+
+        if (flashGo != null)
+            Object.Destroy(flashGo);
+        if (coreLight != null)
+            coreLight.intensity = 2.5f;
+    }
+
+    struct LightningBolt
+    {
+        public LineRenderer Core;
+        public LineRenderer Glow;
+        public LineRenderer[] Branches;
+        public Vector3 Origin;
+        public Vector3 Tip;
+        public int Segments;
+        public float Jag;
+    }
+
+    static LightningBolt CreateLightningBolt(
+        Transform parent, Shader lineSh, string name,
+        Vector3 origin, Vector3 tip,
+        int segments, float jag, float coreWidth, float glowWidth, float branchChance)
+    {
+        var holder = new GameObject(name);
+        holder.transform.SetParent(parent, false);
+
+        var bolt = new LightningBolt
+        {
+            Origin = origin,
+            Tip = tip,
+            Segments = segments,
+            Jag = jag,
+            Core = MakeLine(holder.transform, "Core", lineSh, new Color(0.92f, 0.97f, 1f, 1f), coreWidth),
+            Glow = MakeLine(holder.transform, "Glow", lineSh, new Color(0.45f, 0.75f, 1f, 0.28f), glowWidth),
+            Branches = new LineRenderer[4]
+        };
+
+        for (int b = 0; b < bolt.Branches.Length; b++)
+        {
+            bolt.Branches[b] = MakeLine(holder.transform, "Branch_" + b, lineSh,
+                new Color(0.85f, 0.93f, 1f, 0.85f), coreWidth * 0.45f);
+            bolt.Branches[b].enabled = false;
+        }
+
+        BuildLightningPath(bolt, branchChance);
+        return bolt;
+    }
+
+    static LineRenderer MakeLine(Transform parent, string name, Shader sh, Color color, float width)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var lr = go.AddComponent<LineRenderer>();
+        lr.useWorldSpace = true;
+        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        lr.receiveShadows = false;
+        lr.textureMode = LineTextureMode.Stretch;
+        lr.numCapVertices = 2;
+        lr.numCornerVertices = 2;
+        lr.widthMultiplier = 1f;
+        lr.startWidth = width;
+        lr.endWidth = width * 0.35f;
+        lr.positionCount = 2;
+        var mat = new Material(sh);
+        mat.SetColor("_BaseColor", color);
+        mat.color = color;
+        lr.material = mat;
+        lr.startColor = color;
+        lr.endColor = new Color(color.r, color.g, color.b, color.a * 0.55f);
+        return lr;
+    }
+
+    static void BuildLightningPath(LightningBolt bolt, float branchChance)
+    {
+        int n = Mathf.Max(6, bolt.Segments);
+        var pts = new Vector3[n];
+        Vector3 dir = bolt.Tip - bolt.Origin;
+        Vector3 right = Vector3.Cross(dir.normalized, Vector3.up);
+        if (right.sqrMagnitude < 0.001f)
+            right = Vector3.Cross(dir.normalized, Vector3.right);
+        right.Normalize();
+        Vector3 up = Vector3.Cross(right, dir.normalized).normalized;
+
+        pts[0] = bolt.Origin;
+        pts[n - 1] = bolt.Tip;
+        for (int i = 1; i < n - 1; i++)
+        {
+            float u = i / (float)(n - 1);
+            // 中間ほど強くジグザグ（落雷らしい不規則さ）
+            float amp = bolt.Jag * Mathf.Sin(u * Mathf.PI);
+            Vector3 baseP = Vector3.Lerp(bolt.Origin, bolt.Tip, u);
+            pts[i] = baseP
+                     + right * Random.Range(-amp, amp)
+                     + up * Random.Range(-amp * 0.55f, amp * 0.55f);
+            // 急な折れ
+            if (Random.value < 0.35f)
+                pts[i] += right * Random.Range(-amp * 1.4f, amp * 1.4f);
+        }
+
+        bolt.Core.positionCount = n;
+        bolt.Glow.positionCount = n;
+        bolt.Core.SetPositions(pts);
+        bolt.Glow.SetPositions(pts);
+
+        for (int b = 0; b < bolt.Branches.Length; b++)
+        {
+            bool spawn = Random.value < branchChance;
+            bolt.Branches[b].enabled = spawn;
+            if (!spawn) continue;
+
+            int forkAt = Random.Range(n / 4, (n * 3) / 4);
+            int branchSegs = Random.Range(5, 10);
+            var bPts = new Vector3[branchSegs];
+            bPts[0] = pts[forkAt];
+            Vector3 bDir = (right * Random.Range(-1f, 1f) + up * Random.Range(-0.4f, 0.4f)
+                            + dir.normalized * Random.Range(0.2f, 0.7f)).normalized;
+            float bLen = dir.magnitude * Random.Range(0.18f, 0.4f);
+            for (int i = 1; i < branchSegs; i++)
+            {
+                float u = i / (float)(branchSegs - 1);
+                Vector3 p = bPts[0] + bDir * (bLen * u);
+                float amp = bolt.Jag * 0.45f * (1f - u);
+                p += right * Random.Range(-amp, amp) + up * Random.Range(-amp, amp);
+                bPts[i] = p;
+            }
+            bolt.Branches[b].positionCount = branchSegs;
+            bolt.Branches[b].SetPositions(bPts);
+            bolt.Branches[b].startWidth = bolt.Core.startWidth * 0.4f;
+            bolt.Branches[b].endWidth = bolt.Core.startWidth * 0.08f;
+        }
+    }
+
+    static void ReshapeLightningBolt(LightningBolt bolt)
+    {
+        // 着地点を少しずらして再生成
+        Vector3 tipJitter = new Vector3(Random.Range(-12f, 12f), Random.Range(-8f, 8f), Random.Range(-12f, 12f));
+        bolt.Tip += tipJitter;
+        BuildLightningPath(bolt, 0.5f);
+    }
+
+    static void SetLightningVisible(LightningBolt bolt, bool visible)
+    {
+        if (bolt.Core != null) bolt.Core.enabled = visible;
+        if (bolt.Glow != null) bolt.Glow.enabled = visible;
+        if (bolt.Branches == null) return;
+        for (int i = 0; i < bolt.Branches.Length; i++)
+        {
+            if (bolt.Branches[i] == null) continue;
+            // 分岐は生成時に enabled が立っているものだけ点灯
+            if (visible)
+            {
+                // positionCount>2 なら分岐として有効
+                if (bolt.Branches[i].positionCount > 2)
+                    bolt.Branches[i].enabled = true;
+            }
+            else
+            {
+                bolt.Branches[i].enabled = false;
+            }
+        }
+    }
+
+    static float SkyTearFlashEnvelope(float t, float start, float width, float peak)
+    {
+        if (t < start || t > start + width) return 0f;
+        float u = (t - start) / width;
+        return Mathf.Sin(u * Mathf.PI) * peak;
+    }
+
+    static Image CreateFullScreenImage(Transform parent, string name, Color color)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        var img = go.AddComponent<Image>();
+        img.raycastTarget = false;
+        img.color = color;
+        return img;
+    }
+
+    static void SpawnSkyTearBurst(
+        Transform parent, Shader particleSh, string name,
+        Color c0, Color c1,
+        float speedMin, float speedMax, float sizeMin, float sizeMax,
+        float gravity, float radius,
+        int[] bursts, float[] burstTimes)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var ps = go.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.loop = false;
+        main.duration = 3.8f;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(1.4f, 4.2f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(speedMin, speedMax);
+        main.startSize = new ParticleSystem.MinMaxCurve(sizeMin, sizeMax);
+        main.startColor = new ParticleSystem.MinMaxGradient(c0, c1);
+        main.gravityModifier = gravity;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.maxParticles = 500;
+        var emission = ps.emission;
+        emission.rateOverTime = 0f;
+        int n = Mathf.Min(bursts.Length, burstTimes.Length);
+        var burstArr = new ParticleSystem.Burst[n];
+        for (int i = 0; i < n; i++)
+            burstArr[i] = new ParticleSystem.Burst(burstTimes[i], bursts[i]);
+        emission.SetBursts(burstArr);
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = radius;
+        var rend = go.GetComponent<ParticleSystemRenderer>();
+        if (rend != null && particleSh != null)
+        {
+            var mat = new Material(particleSh);
+            mat.SetColor("_BaseColor", c0);
+            rend.material = mat;
+            rend.renderMode = ParticleSystemRenderMode.Billboard;
+        }
+        ps.Play();
+    }
 }
