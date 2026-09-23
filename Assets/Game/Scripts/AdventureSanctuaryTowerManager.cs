@@ -3,8 +3,10 @@ using UnityEngine.UI;
 using System.Collections;
 
 /// <summary>
-/// 『Rust & Float』クライマックス：島中央の白亜タワー頂上
-/// 「アナログ真鍮レバー」と天蓋破壊シークエンスを統括するマネージャー
+/// 『Rust & Float』中央タワー統括。
+/// 進行パイプライン（判定窓口は <see cref="AdventureStoryFlow"/>）:
+/// Opening → Prologue → Explore → レバー →
+/// Canopy.cs（天蓋台本）→ Climax.cs（注油危機）→ Epilogue.cs（映画〜クリア）→ FreeFlight
 /// </summary>
 public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 {
