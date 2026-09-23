@@ -681,12 +681,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void BuildTowerLever()
     {
-        // 既に正常なメインレバーが存在している場合は再生成せず多重生成を防止
-        var existingStructure = transform.Find("SanctuaryLeverStructure");
-        if (existingStructure != null && _leverHandle != null)
-        {
-            return;
-        }
+        // 既に正常なメインレバーが存在している場合でも、見た目強化のため再生成する
+        // （古いしょぼいマテリアル／簡素ジオメトリを残さない）
 
         // 1. 自階層配下にある古いレバーオブジェクトを即座に完全一掃
         for (int i = transform.childCount - 1; i >= 0; i--)
@@ -721,22 +717,34 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         var pedMat = new Material(shader);
         pedMat.SetColor("_BaseColor", new Color(0.94f, 0.96f, 0.98f));
         pedMat.SetFloat("_Smoothness", 0.92f);
+        if (pedMat.HasProperty("_Metallic")) pedMat.SetFloat("_Metallic", 0.08f);
 
         // 黄金真鍮ハウジングマテリアル
         var hMat = new Material(shader);
-        hMat.SetColor("_BaseColor", new Color(0.82f, 0.62f, 0.24f));
-        hMat.SetFloat("_Metallic", 0.95f);
-        hMat.SetFloat("_Smoothness", 0.78f);
+        hMat.SetColor("_BaseColor", new Color(0.92f, 0.72f, 0.28f));
+        hMat.SetFloat("_Metallic", 0.98f);
+        hMat.SetFloat("_Smoothness", 0.88f);
+        if (hMat.HasProperty("_EmissionColor"))
+        {
+            hMat.EnableKeyword("_EMISSION");
+            hMat.SetColor("_EmissionColor", new Color(0.55f, 0.35f, 0.08f) * 1.4f);
+        }
 
         // シャフトマテリアル
         var sMat = new Material(shader);
-        sMat.SetColor("_BaseColor", new Color(0.88f, 0.72f, 0.30f));
-        sMat.SetFloat("_Metallic", 0.92f);
+        sMat.SetColor("_BaseColor", new Color(0.95f, 0.78f, 0.32f));
+        sMat.SetFloat("_Metallic", 0.96f);
+        sMat.SetFloat("_Smoothness", 0.86f);
 
-        // グリップ球マテリアル（真紅）
+        // グリップ球マテリアル（真紅＋発光）
         var gMat = new Material(shader);
-        gMat.SetColor("_BaseColor", new Color(0.80f, 0.18f, 0.15f));
-        gMat.SetFloat("_Smoothness", 0.65f);
+        gMat.SetColor("_BaseColor", new Color(0.88f, 0.12f, 0.10f));
+        gMat.SetFloat("_Smoothness", 0.78f);
+        if (gMat.HasProperty("_EmissionColor"))
+        {
+            gMat.EnableKeyword("_EMISSION");
+            gMat.SetColor("_EmissionColor", new Color(0.85f, 0.08f, 0.05f) * 2.2f);
+        }
 
         // 天を衝く光の柱マテリアル（シアン発光、半透明加算ブレンドで遠景から美しく輝く）
         var bShader = Shader.Find("Universal Render Pipeline/Unlit")
@@ -744,7 +752,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             ?? Shader.Find("Sprites/Default");
         var bMat = new Material(bShader);
         bMat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
-        bMat.SetColor("_BaseColor", new Color(0.35f, 0.95f, 1.0f, 0.75f));
+        bMat.SetColor("_BaseColor", new Color(0.45f, 0.98f, 1.0f, 0.82f));
         if (bMat.HasProperty("_Surface")) bMat.SetFloat("_Surface", 1f);
         if (bMat.HasProperty("_Blend")) bMat.SetFloat("_Blend", 1f);
         if (bMat.HasProperty("_Cull")) bMat.SetFloat("_Cull", 0f);
@@ -756,7 +764,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         bMat.renderQueue = 3150;
 
         // ── 南側正面メインレバー1基のみを堂々と配備（白亜テラスの特等席） ──
-        // 南側正面レバー (512, 63.2, 501.5)
         CreateLeverStation("SanctuaryLeverStructure", _mainLeverPos, Quaternion.identity, pedMat, hMat, sMat, gMat, bMat, true);
     }
 
@@ -822,33 +829,83 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         grip.name = "GripBall";
         grip.transform.SetParent(pivot.transform, false);
         grip.transform.localPosition = new Vector3(0f, 1.95f, 0f);
-        grip.transform.localScale = Vector3.one * 0.85f;
+        grip.transform.localScale = Vector3.one * 0.95f;
         Destroy(grip.GetComponent<Collider>());
         var gMr = grip.GetComponent<MeshRenderer>();
         if (gMr != null) gMr.material = gMat;
 
-        // 天を衝く巨大光柱ビーコン
+        // 真鍮フランジ／ギア装飾（貧相な棒＋球だけに見せない）
+        var flange = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        flange.name = "BrassFlange";
+        flange.transform.SetParent(root.transform, false);
+        flange.transform.localPosition = new Vector3(0f, 1.12f, 0f);
+        flange.transform.localScale = new Vector3(3.4f, 0.12f, 3.4f);
+        Destroy(flange.GetComponent<Collider>());
+        var fMr = flange.GetComponent<MeshRenderer>();
+        if (fMr != null) fMr.material = hMat;
+
+        var gear = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        gear.name = "BrassGearDisc";
+        gear.transform.SetParent(root.transform, false);
+        gear.transform.localPosition = new Vector3(0f, 1.72f, -0.55f);
+        gear.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        gear.transform.localScale = new Vector3(1.6f, 0.18f, 1.6f);
+        Destroy(gear.GetComponent<Collider>());
+        var gearMr = gear.GetComponent<MeshRenderer>();
+        if (gearMr != null) gearMr.material = sMat;
+
+        var rim = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        rim.name = "MarbleRim";
+        rim.transform.SetParent(root.transform, false);
+        rim.transform.localPosition = new Vector3(0f, 0.12f, 0f);
+        rim.transform.localScale = new Vector3(7.0f, 0.12f, 7.0f);
+        Destroy(rim.GetComponent<Collider>());
+        var rimMr = rim.GetComponent<MeshRenderer>();
+        if (rimMr != null) rimMr.material = pedMat;
+
+        // 天を衝く巨大光柱ビーコン＋外周オーラ
         var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         beacon.name = "LeverSkyBeacon";
         beacon.transform.SetParent(root.transform, false);
-        beacon.transform.localPosition = new Vector3(0f, 45f, 0f);
-        beacon.transform.localScale = new Vector3(1.6f, 45f, 1.6f);
+        beacon.transform.localPosition = new Vector3(0f, 48f, 0f);
+        beacon.transform.localScale = new Vector3(1.85f, 48f, 1.85f);
         Destroy(beacon.GetComponent<Collider>());
         var bRend = beacon.GetComponent<Renderer>();
         if (bRend != null) bRend.material = bMat;
 
-        // 発光インジケーターライト
+        var aura = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        aura.name = "LeverSkyBeaconAura";
+        aura.transform.SetParent(root.transform, false);
+        aura.transform.localPosition = new Vector3(0f, 42f, 0f);
+        aura.transform.localScale = new Vector3(4.2f, 42f, 4.2f);
+        Destroy(aura.GetComponent<Collider>());
+        var auraMat = new Material(bMat);
+        auraMat.SetColor("_BaseColor", new Color(0.55f, 0.92f, 1f, 0.28f));
+        var aRend = aura.GetComponent<Renderer>();
+        if (aRend != null) aRend.material = auraMat;
+
+        // 発光インジケーターライト（コア＋広いリム）
         var lightGo = new GameObject("LeverIndicatorLight");
         lightGo.transform.SetParent(root.transform, false);
-        lightGo.transform.localPosition = new Vector3(0f, 3.6f, 0f);
+        lightGo.transform.localPosition = new Vector3(0f, 3.8f, 0f);
         var light = lightGo.AddComponent<Light>();
         light.type = LightType.Point;
-        light.color = new Color(0.35f, 0.95f, 1.0f);
-        light.intensity = 7.5f;
-        light.range = 42f;
+        light.color = new Color(0.45f, 0.98f, 1.0f);
+        light.intensity = 11.5f;
+        light.range = 55f;
+
+        var rimLightGo = new GameObject("LeverRimLight");
+        rimLightGo.transform.SetParent(root.transform, false);
+        rimLightGo.transform.localPosition = new Vector3(0f, 2.2f, 1.2f);
+        var rimLight = rimLightGo.AddComponent<Light>();
+        rimLight.type = LightType.Point;
+        rimLight.color = new Color(1f, 0.78f, 0.35f);
+        rimLight.intensity = 4.5f;
+        rimLight.range = 18f;
 
         if (isMain) _leverLight = light;
         _allLeverLights.Add(light);
+        _allLeverLights.Add(rimLight);
 
         // 接近判定トリガー（大型レバーに合わせて広め）
         var col = root.AddComponent<SphereCollider>();
@@ -1803,22 +1860,24 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         float elapsed = 0f;
-        float duration = 0.65f;
+        float duration = 0.85f;
         Quaternion startRot = _leverHandle != null ? _leverHandle.localRotation : Quaternion.identity;
-        Quaternion endRot = Quaternion.Euler(38f, 0f, 0f);
+        Quaternion endRot = Quaternion.Euler(52f, 0f, 0f); // 深く倒して「引いた」感をはっきり
 
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
+            // 序盤ゆっくり→終盤で重く倒れる
+            float ease = t * t * (3f - 2f * t);
             if (_leverHandle != null)
-            {
-                _leverHandle.localRotation = Quaternion.Slerp(startRot, endRot, t * t);
-            }
+                _leverHandle.localRotation = Quaternion.Slerp(startRot, endRot, ease);
             foreach (var h in _allLeverHandles)
             {
-                if (h != null) h.localRotation = Quaternion.Slerp(startRot, endRot, t * t);
+                if (h != null) h.localRotation = Quaternion.Slerp(startRot, endRot, ease);
             }
+            if (_leverLight != null)
+                _leverLight.intensity = Mathf.Lerp(11.5f, 18f, ease);
             yield return null;
         }
     }
@@ -2887,10 +2946,13 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         Vector3 oasis = new Vector3(480f, 48.2f, 455f);
         SoftenOrThinRocksAlongPath(startP, endP, corridorHalfWidth: 7.0f, thinHalfWidth: 3.4f, alongTMax: 0.62f);
-        SoftenRockRootNearPoint("SanctuarySpringPond_Rocks", oasis, softRadius: 24f, thinRadius: 11f);
-        SoftenRockRootNearPoint("MountainGorgeProps", oasis, softRadius: 36f, thinRadius: 14f);
-        SoftenRockRootNearPoint("UpperParadiseStream", oasis, softRadius: 40f, thinRadius: 0f);
-        SoftenRockRootNearPoint("BeachStepPonds_Rocks", oasis, softRadius: 28f, thinRadius: 0f);
+        SoftenRockRootNearPoint("SanctuarySpringPond_Rocks", oasis, softRadius: 32f, thinRadius: 16f);
+        SoftenRockRootNearPoint("MountainGorgeProps", oasis, softRadius: 40f, thinRadius: 18f);
+        SoftenRockRootNearPoint("UpperParadiseStream", oasis, softRadius: 44f, thinRadius: 0f);
+        SoftenRockRootNearPoint("BeachStepPonds_Rocks", oasis, softRadius: 32f, thinRadius: 0f);
+
+        // 階段最下部（StairRamp_0〜1付近）の岩は強制トリガー化
+        SoftenRocksNearStairFoot(startP);
 
         // 名称に Rock/Stone を含むオブジェクトも、階段〜池の回廊だけ追加で緩和
         SoftenLooseRocksNearCorridor(startP, endP, oasis);
@@ -2908,6 +2970,32 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         var root = GameObject.Find(rootName);
         if (root == null) return;
         SoftenCollidersOnRoot(root.transform, default, default, 0f, 0f, 0f, forceAllInRadius: true, center: center, softRadius: softRadius, thinRadius: thinRadius);
+    }
+
+    /// <summary>
+    /// アプローチ階段最下部（StairRamp_0〜1）付近の岩コライダーを歩行阻害しないよう強制緩和。
+    /// </summary>
+    static void SoftenRocksNearStairFoot(Vector3 stairStart)
+    {
+        var all = Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            var col = all[i];
+            if (col == null || col.isTrigger) continue;
+            string n = col.gameObject.name;
+            if (n.IndexOf("Rock", System.StringComparison.OrdinalIgnoreCase) < 0
+                && n.IndexOf("Stone", System.StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+
+            Vector3 c = col.bounds.center;
+            float dx = c.x - stairStart.x;
+            float dz = c.z - stairStart.z;
+            float dist = Mathf.Sqrt(dx * dx + dz * dz);
+            if (dist > 14f) continue;
+
+            // 見た目は残し、足元の物理だけ外す
+            col.isTrigger = true;
+        }
     }
 
     static void SoftenLooseRocksNearCorridor(Vector3 startP, Vector3 endP, Vector3 oasis)

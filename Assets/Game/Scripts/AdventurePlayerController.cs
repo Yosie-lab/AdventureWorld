@@ -11,11 +11,22 @@ public class AdventurePlayerController : MonoBehaviour
     public float runSpeed          = 9.5f;
     public float turnSpeed         = 18f;
 
+    // AdventureWorld 既定（変更しない）
     public const float BaseWalkSpeed = 5.6f;
     public const float BaseRunSpeed  = 9.5f;   // Shiftダッシュ
     public const float DashRunSpeed  = 11.5f;  // パーツ3個後のShift
     public const float BaseTurnSpeed = 18f;
     public const float DashTurnSpeed = 22f;
+
+    // RustAndFloat 専用：広大島向けに地上を明確に軽く（滑空・空中は据え置き）
+    // ※7.6/11.8 でも「驚くほど重い」報告あり → 体感で分かる水準まで引き上げ
+    const float RfWalkSpeed      = 11.0f;
+    const float RfRunSpeed       = 16.0f;
+    const float RfDashRunSpeed   = 18.5f;
+    const float RfTurnSpeed      = 40f;
+    const float RfDashTurnSpeed  = 48f;
+    const float RfStartupBoostMul = 1.25f;
+    const float RfStartupBoostDur = 0.12f;
 
     [Header("Jump")]
     public float jumpHeight        = 2.2f;
@@ -84,6 +95,7 @@ public class AdventurePlayerController : MonoBehaviour
     bool    _autoGlide;
     float   _autoGlideAltitude = 120f;
     bool    _wasMoveInput;
+    float   _startupBoostTimer;
     #endregion
 
     #region Constants & Geographic Data
@@ -147,13 +159,40 @@ public class AdventurePlayerController : MonoBehaviour
     {
         Instance = this;
         // シーン上の古いシリアライズ値より、コードの手応え設定を優先
-        walkSpeed = BaseWalkSpeed;
-        runSpeed  = BaseRunSpeed;
-        turnSpeed = BaseTurnSpeed;
+        ApplyBaseLocomotionSpeeds();
         InitInputSystem();
         InitCharacterController();
         InitAnimator();
         CacheTerrains();
+    }
+
+    /// <summary>シーン別の基本歩行速度を適用（パーツアップグレード前の土台）</summary>
+    public void ApplyBaseLocomotionSpeeds()
+    {
+        if (IsRustFloatScene())
+        {
+            walkSpeed = RfWalkSpeed;
+            runSpeed  = RfRunSpeed;
+            turnSpeed = RfTurnSpeed;
+        }
+        else
+        {
+            walkSpeed = BaseWalkSpeed;
+            runSpeed  = BaseRunSpeed;
+            turnSpeed = BaseTurnSpeed;
+        }
+    }
+
+    public static float ActiveWalkSpeed => IsRustFloatScene() ? RfWalkSpeed : BaseWalkSpeed;
+    public static float ActiveRunSpeed  => IsRustFloatScene() ? RfRunSpeed  : BaseRunSpeed;
+    public static float ActiveDashRunSpeed => IsRustFloatScene() ? RfDashRunSpeed : DashRunSpeed;
+    public static float ActiveTurnSpeed => IsRustFloatScene() ? RfTurnSpeed : BaseTurnSpeed;
+    public static float ActiveDashTurnSpeed => IsRustFloatScene() ? RfDashTurnSpeed : DashTurnSpeed;
+
+    public static bool IsRustFloatScene()
+    {
+        string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        return scene == "RustAndFloat" || scene == "RustAndFlat";
     }
 
     void OnEnable()
@@ -218,6 +257,19 @@ public class AdventurePlayerController : MonoBehaviour
         bool    hasMove   = input.sqrMagnitude > 0.01f;
         HasMoveInput = hasMove;
         bool    justStarted = hasMove && !_wasMoveInput;
+        // RustAndFloat：立ち止まり→移動の出だしだけ一瞬速めて「重い助走」を消す
+        if (IsRustFloatScene())
+        {
+            if (justStarted)
+                _startupBoostTimer = RfStartupBoostDur;
+            if (_startupBoostTimer > 0f && hasMove)
+            {
+                _startupBoostTimer -= Time.deltaTime;
+                speed *= RfStartupBoostMul;
+            }
+            else
+                _startupBoostTimer = 0f;
+        }
         _wasMoveInput = hasMove;
 
         bool    spaceHeld = kb != null && kb.spaceKey.isPressed;
@@ -404,8 +456,8 @@ public class AdventurePlayerController : MonoBehaviour
     bool IsNearWalkableSurface()
     {
         // 足裏すぐ下のみ（遠距離レイキャストだと空中歩行になる）
-        if (_hop > 0.2f) return false;
-        return Physics.Raycast(transform.position + Vector3.up * 0.12f, Vector3.down, 0.32f, ~0, QueryTriggerInteraction.Ignore);
+        if (_hop > 0.15f) return false;
+        return Physics.Raycast(transform.position + Vector3.up * 0.08f, Vector3.down, 0.22f, ~0, QueryTriggerInteraction.Ignore);
     }
     #endregion
 
@@ -435,7 +487,7 @@ public class AdventurePlayerController : MonoBehaviour
         bool rayGrounded = false;
         if (_hop <= 0.05f)
         {
-            if (Physics.Raycast(transform.position + Vector3.up * 0.15f, Vector3.down, out _, 0.38f, ~0, QueryTriggerInteraction.Ignore))
+            if (Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, out _, 0.28f, ~0, QueryTriggerInteraction.Ignore))
                 rayGrounded = true;
         }
 
@@ -671,8 +723,10 @@ public class AdventurePlayerController : MonoBehaviour
             : Vector3.zero;
 
         // 本当に接地（または足裏すぐ下）のときだけ地上移動。空中は重力付き空中操舵へ
+        // ※以前 RF で airborneTime<0.18 を許していたため、離地直後に空中歩行になっていた
+        bool nearFoot = IsNearWalkableSurface();
         bool forceGroundMove = !_gliding && !_autoGlide && !_skybreakPillarLock
-                               && (_grounded || (_hop <= 0.05f && _airborneTime < 0.08f && IsNearWalkableSurface()));
+                               && (_grounded || (_hop <= 0.05f && nearFoot && _airborneTime < 0.06f));
 
         if (forceGroundMove) return ComputeGroundHorizontal(wishWalk, running);
         if (_gliding)        return ComputeGlideHorizontal(input);
@@ -688,8 +742,10 @@ public class AdventurePlayerController : MonoBehaviour
             ClearLocomotionInertia();
 
             Vector3 euler = transform.eulerAngles;
-            if (Mathf.Abs(Mathf.DeltaAngle(euler.x, 0f)) > 0.1f ||
-                Mathf.Abs(Mathf.DeltaAngle(euler.z, 0f)) > 0.1f)
+            if (IsRustFloatScene())
+                FaceCameraForward();
+            else if (Mathf.Abs(Mathf.DeltaAngle(euler.x, 0f)) > 0.1f ||
+                     Mathf.Abs(Mathf.DeltaAngle(euler.z, 0f)) > 0.1f)
                 transform.rotation = Quaternion.Euler(0f, euler.y, 0f);
             return Vector3.zero;
         }
@@ -715,12 +771,59 @@ public class AdventurePlayerController : MonoBehaviour
         {
             horizontal *= 1.12f;
         }
-        // 歩行中は向きを即時合わせる（Slerpが「重い」主因）
-        Vector3 face = wishWalk;
-        face.y = 0f;
-        if (face.sqrMagnitude > 0.0001f)
-            transform.rotation = Quaternion.LookRotation(face.normalized);
+
+        // 斜面に沿って投影：CCが地面に食い込んで水平速度を削るのを防ぐ
+        horizontal = ProjectHorizontalOntoGround(horizontal);
+
+        // 向き：
+        // AW は従来どおり移動方向を向く。
+        // RF はカメラ前方を向く（WASDはストレイフ）→「方向転換＝マウス」が即反応。
+        //   体が移動方向へ振り回されると、視点据え置きのままスピンして鈍く感じる。
+        if (IsRustFloatScene())
+        {
+            FaceCameraForward();
+        }
+        else
+        {
+            Vector3 face = horizontal.sqrMagnitude > 0.0001f ? horizontal : wishWalk;
+            face.y = 0f;
+            if (face.sqrMagnitude > 0.0001f)
+                transform.rotation = Quaternion.LookRotation(face.normalized);
+        }
         return horizontal;
+    }
+
+    /// <summary>RF地上：カメラ前方を向く（方向転換はマウス／右スティック＝視点＝即応）</summary>
+    void FaceCameraForward()
+    {
+        Vector3 camFace = Vector3.zero;
+        var follow = cameraPivot != null
+            ? cameraPivot.GetComponent<AdventureCameraFollow>()
+            : AdventureCameraFollow.InstanceOrFind();
+        if (follow != null)
+            follow.GetPlanarMoveBasis(out camFace, out _);
+        else if (cameraPivot != null)
+            camFace = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
+        if (camFace.sqrMagnitude > 0.0001f)
+            transform.rotation = Quaternion.LookRotation(camFace.normalized);
+    }
+
+    /// <summary>
+    /// 水平速度を足元法線へ投影し、大きさは維持する。
+    /// 坂・微小凹凸で CharacterController が速度を殺すのを抑える。
+    /// </summary>
+    Vector3 ProjectHorizontalOntoGround(Vector3 horizontal)
+    {
+        if (horizontal.sqrMagnitude < 0.0001f) return horizontal;
+        Vector3 origin = transform.position + Vector3.up * 0.4f;
+        if (!Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 1.4f, ~0, QueryTriggerInteraction.Ignore))
+            return horizontal;
+        // 壁面には投影しない（張り付き防止）
+        if (hit.normal.y < 0.4f) return horizontal;
+
+        Vector3 projected = Vector3.ProjectOnPlane(horizontal, hit.normal);
+        if (projected.sqrMagnitude < 0.0001f) return horizontal;
+        return projected.normalized * horizontal.magnitude;
     }
 
     /// <summary>滑空中の移動量計算（ヨー・バンク・ピッチ・サーマル）</summary>
@@ -867,7 +970,7 @@ public class AdventurePlayerController : MonoBehaviour
             }
 
             float airSpeed = nearGround
-                ? (BaseRunSpeed * moveSpeedMultiplier)
+                ? (ActiveRunSpeed * moveSpeedMultiplier)
                 : AirSteerMaxSpeed;
             Vector3 wish = Vector3.ClampMagnitude(camR * input.x + camF * input.y, 1f) * airSpeed;
 
@@ -899,9 +1002,18 @@ public class AdventurePlayerController : MonoBehaviour
     {
         Vector3 motion = ClipMotion(horizontal * Time.deltaTime);
 
-        // 接地中のみ足元吸着。近傍レイだけでは空中歩行になるので使わない
+        // 接地吸着：RFは以前 0.35 まで落としすぎて宙に浮きやすかった。
+        // 歩行の軽さは速度・斜面投影で確保し、足は地面に落とす。
         if (_grounded && _hop <= 0.05f && !_gliding && !_autoGlide)
-            motion.y = -Mathf.Max(2.4f * Time.deltaTime, horizontal.magnitude > 0.01f ? 0.08f : 0.02f);
+        {
+            bool moving = horizontal.magnitude > 0.01f;
+            float stickSpeed;
+            if (IsRustFloatScene())
+                stickSpeed = moving ? 2.4f : 2.0f;
+            else
+                stickSpeed = moving ? 3.2f : 2.0f;
+            motion.y = -stickSpeed * Time.deltaTime;
+        }
         else
             motion.y = _hop * Time.deltaTime;
 
@@ -1517,14 +1629,22 @@ public class AdventurePlayerController : MonoBehaviour
         if (next != _clip)
         {
             _clip = next;
-            float startNorm = (fromIdleStartup && next != "NikoIdle") ? 0.12f : 0f;
+            // RFは出だし助走フレームを多めに飛ばして見た目の鈍さを減らす
+            float startNorm = 0f;
+            if (fromIdleStartup && next != "NikoIdle")
+                startNorm = IsRustFloatScene() ? 0.32f : 0.12f;
             _anim.Play(next, 0, startNorm);
             if (fromIdleStartup)
                 _anim.Update(0f);
         }
+        // クリップは Base* 想定で作られている。Active* を分母にすると
+        // RFで世界速度を上げても anim.speed が常に1.0のまま＝足が鈍く見える。
+        float animRef = running ? BaseRunSpeed : BaseWalkSpeed;
+        float animMul = IsRustFloatScene() ? 1.2f : 1f;
+        float animMax = IsRustFloatScene() ? 2.15f : 1.55f;
         _anim.speed = next == "NikoIdle"
             ? 1f
-            : Mathf.Clamp(speed / (running ? BaseRunSpeed : BaseWalkSpeed), 1.0f, 1.4f);
+            : Mathf.Clamp((speed / Mathf.Max(0.01f, animRef)) * animMul, 1.0f, animMax);
     }
 
     // ═══════════════════════════════════════════════════════════════════

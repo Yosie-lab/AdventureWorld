@@ -733,9 +733,7 @@ public class AdventureScrapManager : MonoBehaviour
         if (player == null) return;
 
         // 基本能力へ一度戻してから段階解放（ニューゲーム時の巻き戻し用）
-        player.walkSpeed = AdventurePlayerController.BaseWalkSpeed;
-        player.runSpeed = AdventurePlayerController.BaseRunSpeed;
-        player.turnSpeed = AdventurePlayerController.BaseTurnSpeed;
+        player.ApplyBaseLocomotionSpeeds();
         player.canDoubleJump = false;
         player.hasPetRadar = false;
         player.glideForwardSpeed = 7.2f;
@@ -746,8 +744,8 @@ public class AdventureScrapManager : MonoBehaviour
 
         if (count >= 3)
         {
-            player.runSpeed = AdventurePlayerController.DashRunSpeed;
-            player.turnSpeed = AdventurePlayerController.DashTurnSpeed;
+            player.runSpeed = AdventurePlayerController.ActiveDashRunSpeed;
+            player.turnSpeed = AdventurePlayerController.ActiveDashTurnSpeed;
         }
         if (count >= 6)
         {
@@ -771,9 +769,9 @@ public class AdventureScrapManager : MonoBehaviour
 
         if (CollectedCount == 3)
         {
-            // 3個: 黄金ギア完成（Shiftダッシュ 9.5 -> 11.5m/s & 旋回強化）
-            player.runSpeed = AdventurePlayerController.DashRunSpeed;
-            player.turnSpeed = AdventurePlayerController.DashTurnSpeed;
+            // 3個: 黄金ギア完成（Shiftダッシュ強化 & 旋回強化）
+            player.runSpeed = AdventurePlayerController.ActiveDashRunSpeed;
+            player.turnSpeed = AdventurePlayerController.ActiveDashTurnSpeed;
             NotifyLore(
                 "キーストーン I：手動の自由と手応え",
                 "AIに管理されていた頃、僕らはただ最短ルートを滑らされていた。\nでも今、指先が油で汚れ、歯車が噛み合うたびに、生きている実感が胸を打つ。",
