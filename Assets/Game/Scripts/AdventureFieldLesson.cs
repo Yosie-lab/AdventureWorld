@@ -220,8 +220,8 @@ public class AdventureFieldLesson : MonoBehaviour
         if (_prompt != null)
         {
             _prompt.text = _promptKnown
-                ? "[E] 次に必要なことを聞く"
-                : (kind == Kind.BeachTide ? "[E] 潮目の標に触れる" : "[E] 木漏れ日の標に触れる");
+                ? "【E】次に必要なことを聞く"
+                : (kind == Kind.BeachTide ? "【E】潮目の標に触れる" : "【E】木漏れ日の標に触れる");
         }
     }
 

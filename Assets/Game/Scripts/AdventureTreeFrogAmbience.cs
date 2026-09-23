@@ -2,18 +2,16 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 池と小川でニホンアマガエルの合唱。
-/// 1声は短い「ゲッ」で、何匹かがずれて重なる。大合唱・カジカガエルとは別。
+/// 池と小川でニホンアマガエル／カエルの合唱。
+/// 録音（大合唱・カジカ）のみ使い、合成音は使わない。
 /// </summary>
 public class AdventureTreeFrogAmbience : MonoBehaviour
 {
     static AdventureTreeFrogAmbience _instance;
     public static AdventureTreeFrogAmbience Instance => _instance;
 
-    const int Rate = 22050;
-    const float ChorusSeconds = 8f;
-
-    AudioClip _chorus;
+    AudioClip _chorusClip;
+    AudioClip _kajikaClip;
     readonly List<Bed> _beds = new List<Bed>();
     Transform _player;
     bool _muted;
@@ -50,13 +48,38 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
             return;
         }
         _instance = this;
-        _chorus = MakeChorus(11);
+        LoadClips();
+        if (_chorusClip == null && _kajikaClip == null) return;
         BuildBeds();
+    }
+
+    void LoadClips()
+    {
+#if UNITY_EDITOR
+        _chorusClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/虫の声/カエルの大合唱.mp3");
+        _kajikaClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/虫の声/01カジカガエル.3.aif");
+#endif
+        if (_chorusClip == null)
+            _chorusClip = FindClipByNameHint("カエルの大合唱");
+        if (_kajikaClip == null)
+            _kajikaClip = FindClipByNameHint("カジカ");
+    }
+
+    static AudioClip FindClipByNameHint(string hint)
+    {
+        var sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < sources.Length; i++)
+        {
+            var c = sources[i] != null ? sources[i].clip : null;
+            if (c != null && c.name.Contains(hint))
+                return c;
+        }
+        return null;
     }
 
     void Update()
     {
-        if (_muted) return;
+        if (_muted || _beds.Count == 0) return;
         if (_player == null)
         {
             var player = FindFirstObjectByType<AdventurePlayerController>();
@@ -68,11 +91,11 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
         for (int i = 0; i < _beds.Count; i++)
         {
             var bed = _beds[i];
+            if (bed.src == null) continue;
             float dx = p.x - bed.pos.x;
             float dz = p.z - bed.pos.z;
             float dist = Mathf.Sqrt(dx * dx + dz * dz);
             bool near = dist < bed.hear;
-            if (bed.src == null) continue;
             if (!near)
             {
                 if (bed.src.isPlaying) bed.src.Pause();
@@ -110,129 +133,40 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
 
     void BuildBeds()
     {
-        AddBed(new Vector3(480f, 48.2f, 455f), 48.2f, 46f, 1.0f);
-        AddBed(new Vector3(420f, 25.5f, 440f), 25.5f, 58f, 0.94f);
-        AddBed(new Vector3(290f, 14.5f, 320f), 14.5f, 46f, 1.06f);
-        AddBed(new Vector3(135f, 18.15f, 166f), 18.15f, 44f, 0.97f);
-
-        Vector3[] stream =
+        // 大合唱：広い池。カジカ：湧水・小川
+        if (_chorusClip != null)
         {
-            new Vector3(400f, 28f, 420f),
-            new Vector3(250f, 11.5f, 270f),
-        };
-        float[] streamPitch = { 1.03f, 0.91f };
-        for (int i = 0; i < stream.Length; i++)
-            AddBed(stream[i], stream[i].y, 36f, streamPitch[i]);
+            AddBed(new Vector3(420f, 25.5f, 440f), 25.5f, 58f, 0.55f, _chorusClip, 1.0f);
+            AddBed(new Vector3(290f, 14.5f, 320f), 14.5f, 44f, 0.42f, _chorusClip, 0.96f);
+        }
+        if (_kajikaClip != null)
+        {
+            AddBed(new Vector3(480f, 48.2f, 455f), 48.2f, 40f, 0.48f, _kajikaClip, 1.0f);
+            AddBed(new Vector3(400f, 28f, 420f), 28f, 34f, 0.38f, _kajikaClip, 1.04f);
+            AddBed(new Vector3(250f, 11.5f, 270f), 11.5f, 32f, 0.34f, _kajikaClip, 0.92f);
+            AddBed(new Vector3(135f, 18.15f, 166f), 18.15f, 36f, 0.36f, _kajikaClip, 0.98f);
+        }
     }
 
-    void AddBed(Vector3 pos, float waterY, float hear, float pitch)
+    void AddBed(Vector3 pos, float waterY, float hear, float volume, AudioClip clip, float pitch)
     {
+        if (clip == null) return;
         pos.y = waterY + 0.4f;
-        var go = new GameObject("TreeFrogChorus3D");
+        var go = new GameObject(clip == _chorusClip ? "FrogChorusBed3D" : "KajikaFrogBed3D");
         go.transform.SetParent(transform, false);
         go.transform.position = pos;
         var src = go.AddComponent<AudioSource>();
-        src.clip = _chorus;
+        src.clip = clip;
         src.loop = true;
         src.spatialBlend = 1f;
         src.rolloffMode = AudioRolloffMode.Linear;
-        src.minDistance = 12f;
+        src.minDistance = 10f;
         src.maxDistance = hear;
         src.dopplerLevel = 0f;
         src.playOnAwake = false;
-        src.volume = 0.72f;
+        src.volume = volume;
         src.pitch = pitch;
-        src.spread = 70f;
+        src.spread = 80f;
         _beds.Add(new Bed { pos = pos, waterY = waterY, hear = hear, src = src });
-    }
-
-    static AudioClip MakeChorus(int seed)
-    {
-        int extra = (int)(Rate * 0.06f);
-        int count = (int)(Rate * ChorusSeconds);
-        var data = new float[count + extra];
-        float[] voices = { 2380f, 2620f, 2140f, 2860f, 2480f, 3080f, 2260f };
-        for (int v = 0; v < voices.Length; v++)
-            AddVoice(data, voices[v], seed + v * 17);
-
-        int fade = extra;
-        for (int i = 0; i < fade; i++)
-        {
-            float w = (float)i / fade;
-            data[i] = data[i] * w + data[count + i] * (1f - w);
-        }
-
-        float peak = 0.0001f;
-        for (int i = 0; i < count; i++)
-            peak = Mathf.Max(peak, Mathf.Abs(data[i]));
-        float gain = 0.72f / peak;
-        var clipData = new float[count];
-        for (int i = 0; i < count; i++)
-            clipData[i] = Mathf.Clamp(data[i] * gain, -1f, 1f);
-
-        var clip = AudioClip.Create("TreeFrogChorus", count, 1, Rate, false);
-        clip.SetData(clipData, 0);
-        return clip;
-    }
-
-    static void AddVoice(float[] data, float freq, int seed)
-    {
-        var rng = new System.Random(seed);
-        float t = (float)rng.NextDouble() * 0.8f;
-        while (t < ChorusSeconds)
-        {
-            int notes = 7 + rng.Next(6);
-            for (int k = 0; k < notes && t < ChorusSeconds; k++)
-            {
-                float f = freq * (0.97f + (float)rng.NextDouble() * 0.06f);
-                float amp = 0.62f + (float)rng.NextDouble() * 0.38f;
-                AddGek(data, (int)(Rate * t), f, amp, rng);
-                t += 0.125f + (float)rng.NextDouble() * 0.045f;
-            }
-            t += 0.22f + (float)rng.NextDouble() * 0.38f;
-        }
-    }
-
-    static void AddGek(float[] data, int start, float freq, float amp, System.Random rng)
-    {
-        int pulses = 4 + rng.Next(3);
-        var times = new int[pulses];
-        float cursor = 0.003f;
-        float gap = 0.0072f + (float)rng.NextDouble() * 0.0028f;
-        for (int p = 0; p < pulses; p++)
-        {
-            times[p] = (int)(Rate * cursor);
-            cursor += gap * (0.84f + (float)rng.NextDouble() * 0.32f);
-        }
-        int len = (int)(Rate * (cursor + 0.028f));
-        Ring(data, start, len, times, freq, 16f, amp);
-        Ring(data, start, len, times, freq * 1.28f, 10f, amp * 0.18f);
-    }
-
-    static void Ring(float[] data, int start, int len, int[] times, float freq, float q, float amp)
-    {
-        float w = 2f * Mathf.PI * freq / Rate;
-        float decay = Mathf.Exp(-Mathf.PI * (freq / q) / Rate);
-        float a1 = 2f * decay * Mathf.Cos(w);
-        float a2 = -(decay * decay);
-        float y1 = 0f;
-        float y2 = 0f;
-        int pulse = 0;
-        for (int i = 0; i < len; i++)
-        {
-            int idx = start + i;
-            float x = 0f;
-            if (pulse < times.Length && i >= times[pulse])
-            {
-                float env = 1f - 0.45f * pulse / times.Length;
-                x = amp * env;
-                pulse++;
-            }
-            float y = x + a1 * y1 + a2 * y2;
-            y2 = y1;
-            y1 = y;
-            if ((uint)idx < (uint)data.Length)
-                data[idx] += y;
-        }
     }
 }

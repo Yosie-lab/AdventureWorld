@@ -28,6 +28,7 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
 
     // ── 読み物UI制御 ──
     bool _isShowingModal = false;
+    float _ignoreCloseUntil;
     public bool IsShowingModal => _isShowingModal;
     string _modalTitle = "";
     string _modalSubTitle = "";
@@ -548,6 +549,7 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         _modalRustComment = rustComment;
         _isShowingModal = true;
         _readLogIds.Add(id);
+        _ignoreCloseUntil = Time.unscaledTime + 0.28f;
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -643,15 +645,20 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         btnLbl.fontSize = 22;
         btnLbl.fontStyle = FontStyle.Bold;
         btnLbl.alignment = TextAnchor.MiddleCenter;
-        DrawShadowed(new Rect(btnX, btnY, btnW, btnH), "【E / Space】閉じる", btnLbl, new Color(1.0f, 0.95f, 0.8f), 1.5f);
+        DrawShadowed(new Rect(btnX, btnY, btnW, btnH), "【E / Space / クリック】閉じる", btnLbl, new Color(1.0f, 0.95f, 0.8f), 1.5f);
 
-        // キー入力検知
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        bool closeKey = (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame));
-        if (clicked || closeKey)
+        if (Time.unscaledTime < _ignoreCloseUntil)
         {
-            CloseModal();
+            GUI.color = Color.white;
+            return;
         }
+
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        bool closeKey = kb != null && (kb.spaceKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame);
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        bool pointer = mouse != null && mouse.leftButton.wasPressedThisFrame;
+        if (clicked || closeKey || pointer)
+            CloseModal();
 
         GUI.color = Color.white;
     }

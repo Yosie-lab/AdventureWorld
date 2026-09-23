@@ -176,16 +176,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
         // 砂浜に少し斜めに埋まる自然なチルト
         boxGo.transform.rotation = Quaternion.Euler(3.5f, data.rotationY, -2.5f);
 
-        // コンポーネントの設定
-        var boxComp = boxGo.AddComponent<AdventureBeachDriftBox>();
-        boxComp.boxId = data.id;
-        boxComp.boxTitle = data.title;
-        boxComp.author = data.author;
-        boxComp.message = data.message;
-        boxComp.rustDialogue = data.rustDialogue;
-        boxComp.nextObjective = data.nextObjective;
-
-        // 1. ボックス本体（木製チェスト）
+        // 1. ボックス本体（木製チェスト）— コンポーネントは階層完成後に付与する
         var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
         body.name = "BoxBody";
         body.transform.SetParent(boxGo.transform, false);
@@ -282,6 +273,16 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
         var pMat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit"));
         pMat.SetColor("_BaseColor", new Color(1.0f, 0.92f, 0.45f));
         pRend.sharedMaterial = pMat;
+
+        // 階層完成後にコンポーネント付与 → 開封状態を正しく復元
+        var boxComp = boxGo.AddComponent<AdventureBeachDriftBox>();
+        boxComp.boxId = data.id;
+        boxComp.boxTitle = data.title;
+        boxComp.author = data.author;
+        boxComp.message = data.message;
+        boxComp.rustDialogue = data.rustDialogue;
+        boxComp.nextObjective = data.nextObjective;
+        boxComp.ConfigureAfterBuild();
     }
 
 #if UNITY_EDITOR

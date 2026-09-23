@@ -159,7 +159,7 @@ public class AdventurePrologueDrama : MonoBehaviour
             "……お願い……【E】で油をさして……Nikoの手、必要……", 5.2f);
 
         _phase = Phase.WaitOil;
-        _showOilPrompt = true;
+        _showOilPrompt = false;
 
         float timeout = 90f;
         float nextRemind = 22f;
@@ -335,35 +335,14 @@ public class AdventurePrologueDrama : MonoBehaviour
 
     void OnGUI()
     {
-        if (_showOilPrompt && _phase == Phase.WaitOil)
-            DrawOilPrompt();
+        // 油プロンプトボードは出さない（セリフ案内のみ）
         if (_showDashBoard && _phase == Phase.DashCelebrate)
             DrawDashBoard();
     }
 
     void DrawOilPrompt()
     {
-        float w = Mathf.Min(720f, Screen.width * 0.88f);
-        float h = 96f;
-        float x = (Screen.width - w) * 0.5f;
-        float y = Screen.height - 160f;
-
-        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.82f);
-        GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
-        GUI.color = new Color(1f, 0.75f, 0.35f, 0.95f);
-        GUI.DrawTexture(new Rect(x, y, w, 3f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(x, y + h - 3f, w, 3f), Texture2D.whiteTexture);
-
-        var style = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 28,
-            fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter,
-            wordWrap = true
-        };
-        style.normal.textColor = new Color(1f, 0.92f, 0.55f, 1f);
-        GUI.Label(new Rect(x, y, w, h), "【E】Rustに油をさして、やさしく手当てする", style);
-        GUI.color = Color.white;
+        // 削除済み：【E】Rustに油を… の画面ボードは出さない
     }
 
     void DrawDashBoard()

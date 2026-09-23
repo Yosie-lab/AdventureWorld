@@ -2,13 +2,20 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(CharacterController))]
+[DefaultExecutionOrder(-50)] // 入力処理直後に移動（反応遅延を最小化）
 public class AdventurePlayerController : MonoBehaviour
 {
     #region Inspector Fields
     [Header("Walk / Run")]
-    public float walkSpeed         = 4.2f;
-    public float runSpeed          = 7.8f;
-    public float turnSpeed         = 14f;
+    public float walkSpeed         = 5.6f;
+    public float runSpeed          = 9.5f;
+    public float turnSpeed         = 18f;
+
+    public const float BaseWalkSpeed = 5.6f;
+    public const float BaseRunSpeed  = 9.5f;   // Shiftダッシュ
+    public const float DashRunSpeed  = 11.5f;  // パーツ3個後のShift
+    public const float BaseTurnSpeed = 18f;
+    public const float DashTurnSpeed = 22f;
 
     [Header("Jump")]
     public float jumpHeight        = 2.2f;
@@ -76,6 +83,7 @@ public class AdventurePlayerController : MonoBehaviour
 
     bool    _autoGlide;
     float   _autoGlideAltitude = 120f;
+    bool    _wasMoveInput;
     #endregion
 
     #region Constants & Geographic Data
@@ -101,13 +109,13 @@ public class AdventurePlayerController : MonoBehaviour
     const float GlideYawRateBoosted = 100f;
     const float GlideBankAngle   = 22f;
     const float GlidePitchRateDive = 5.5f;
-    const float GlideInputSmooth = 0.05f;
-    const float GlideYawAccel    = 320f;
-    const float GlideAttitudeSmooth = 0.08f;
-    const float GlideSpeedSmooth = 0.12f;
-    const float AirSteerAccel    = 14f;  // 空中方向転換の加速度（元:10 → 微増で着地操作性アップ）
-    const float AirSteerMaxSpeed = 5.2f;  // 空中水平最大速度（元:4.2 → 少し遠くへ動かせる）
-    const float AirMomentumBrake = 28f;   // 操作なし時の空中水平ブレーキ（浮遊感に直結、変更なし）
+    const float GlideInputSmooth = 0.032f;
+    const float GlideYawAccel    = 420f;
+    const float GlideAttitudeSmooth = 0.05f;
+    const float GlideSpeedSmooth = 0.08f;
+    const float AirSteerAccel    = 18f;   // 空中方向転換（鈍さを減らす）
+    const float AirSteerMaxSpeed = 6.0f;
+    const float AirMomentumBrake = 34f;   // 操作なし時の空中ブレーキ（ズルズル軽減）
     const float AutoGlideYawRate = 16f;
     const float AutoGlideCruiseSpeed = 7.2f;
     #endregion
@@ -125,16 +133,23 @@ public class AdventurePlayerController : MonoBehaviour
 
     public bool InteractPressed { get; private set; }
     public bool IsGliding    => _gliding;
+    public bool HasEverGlided { get; private set; }
     public bool IsGrounded   => _grounded;
     public bool IsInAir      => !_grounded;
     public bool IsBoostActive => _glideBoostTimer > 0f;
     public bool IsAutoGliding => _autoGlide;
+    /// <summary>このフレーム移動入力あり（カメラの歩行スナップ用）</summary>
+    public bool HasMoveInput { get; private set; }
     #endregion
 
     #region Unity Lifecycle
     void Awake()
     {
         Instance = this;
+        // シーン上の古いシリアライズ値より、コードの手応え設定を優先
+        walkSpeed = BaseWalkSpeed;
+        runSpeed  = BaseRunSpeed;
+        turnSpeed = BaseTurnSpeed;
         InitInputSystem();
         InitCharacterController();
         InitAnimator();
@@ -196,15 +211,20 @@ public class AdventurePlayerController : MonoBehaviour
         }
 
         Vector2 input   = ReadMove(kb);
-        bool    running = IsRunning(kb);
-        float   speed   = (running ? runSpeed : walkSpeed) * moveSpeedMultiplier;
+        bool    sprinting = IsRunning(kb);
+        // WASD＝歩き、Shift＝ダッシュ（アニメも連動）
+        float   speed     = (sprinting ? runSpeed : walkSpeed) * moveSpeedMultiplier;
+        bool    running   = sprinting;
+        bool    hasMove   = input.sqrMagnitude > 0.01f;
+        HasMoveInput = hasMove;
+        bool    justStarted = hasMove && !_wasMoveInput;
+        _wasMoveInput = hasMove;
+
         bool    spaceHeld = kb != null && kb.spaceKey.isPressed;
         try { if (Input.GetKey(KeyCode.Space)) spaceHeld = true; } catch { }
         bool    holdGlide = canGlide && spaceHeld;
 
-        // 光の柱：落下防止を入力処理より先に毎フレーム確定
         TickSkybreakPillarLock();
-
         UpdateGroundedState();
         _cc.stepOffset = _grounded ? StepOffsetGround : 0f;
 
@@ -215,7 +235,6 @@ public class AdventurePlayerController : MonoBehaviour
         Vector3 horizontal = ComputeHorizontal(input, speed, running);
 
         ApplyMotion(horizontal);
-        // 上昇ロック中は ApplyMotion 後にもう一度高度を保証（衝突で押し戻されても落ちない）
         if (_skybreakPillarLock)
             EnforceSkybreakPillarHeight();
         else
@@ -223,7 +242,7 @@ public class AdventurePlayerController : MonoBehaviour
 
         FloatOnWater();
         KeepWalkable();
-        PlayLocomotion(_grounded ? horizontal.magnitude : 0f, running && _grounded);
+        PlayLocomotion(hasMove ? speed : 0f, running, fromIdleStartup: justStarted);
     }
     #endregion
 
@@ -231,6 +250,8 @@ public class AdventurePlayerController : MonoBehaviour
 
     void InitInputSystem()
     {
+        // FixedUpdate待ちだと「キー→反応」が1〜数フレーム遅れる
+        InputSystem.settings.updateMode = InputSettings.UpdateMode.ProcessEventsInDynamicUpdate;
 #if UNITY_EDITOR
         InputSystem.settings.editorInputBehaviorInPlayMode =
             InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
@@ -249,9 +270,11 @@ public class AdventurePlayerController : MonoBehaviour
         _cc.slopeLimit      = 78f;
         _cc.stepOffset      = StepOffsetGround;
         _cc.minMoveDistance = 0f;
-        _cc.skinWidth       = 0.035f;
-        _cc.center          = new Vector3(0f, 0.72f, 0f);
-        _cc.height          = 1.50f;
+        _cc.skinWidth       = 0.02f;
+        _cc.radius          = 0.28f;
+        _cc.center          = new Vector3(0f, 0.78f, 0f);
+        _cc.height          = 1.55f;
+        _cc.enableOverlapRecovery = true;
     }
 
     void InitAnimator()
@@ -261,6 +284,7 @@ public class AdventurePlayerController : MonoBehaviour
         {
             _anim.applyRootMotion = false;
             _anim.cullingMode     = AnimatorCullingMode.AlwaysAnimate;
+            _anim.updateMode      = AnimatorUpdateMode.Normal;
         }
         // SkinnedMeshRenderer のバウンズが極小の場合を補正
         foreach (var smr in GetComponentsInChildren<SkinnedMeshRenderer>(true))
@@ -340,7 +364,8 @@ public class AdventurePlayerController : MonoBehaviour
         InteractPressed = kb != null && kb.eKey.wasPressedThisFrame;
         try { if (Input.GetKeyDown(KeyCode.E)) InteractPressed = true; } catch { }
         var pad = Gamepad.current;
-        if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame))
+        // buttonSouth はジャンプ。調べる／話すは E / West のみ。
+        if (pad != null && pad.buttonWest.wasPressedThisFrame)
             InteractPressed = true;
     }
 
@@ -371,9 +396,16 @@ public class AdventurePlayerController : MonoBehaviour
 
     static bool IsRunning(Keyboard kb)
     {
-        if (kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed)) return true;
         try { if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) return true; } catch { }
+        if (kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed)) return true;
         return false;
+    }
+
+    bool IsNearWalkableSurface()
+    {
+        // 足裏すぐ下のみ（遠距離レイキャストだと空中歩行になる）
+        if (_hop > 0.2f) return false;
+        return Physics.Raycast(transform.position + Vector3.up * 0.12f, Vector3.down, 0.32f, ~0, QueryTriggerInteraction.Ignore);
     }
     #endregion
 
@@ -397,15 +429,14 @@ public class AdventurePlayerController : MonoBehaviour
             return;
         }
 
+        bool wasGrounded = _grounded;
         bool ccGrounded = _cc.isGrounded;
-        // 下り坂や水際・小石を踏んだ時の微小浮遊（Jitter）を吸収するRaycast接地補助
+        // 微小浮遊のみ吸収（長く取ると空中を歩ける）
         bool rayGrounded = false;
-        if (!ccGrounded && _hop <= 0.05f && _grounded)
+        if (_hop <= 0.05f)
         {
-            if (Physics.Raycast(transform.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit gHit, 0.45f, ~0, QueryTriggerInteraction.Ignore))
-            {
+            if (Physics.Raycast(transform.position + Vector3.up * 0.15f, Vector3.down, out _, 0.38f, ~0, QueryTriggerInteraction.Ignore))
                 rayGrounded = true;
-            }
         }
 
         bool isGroundedEffective = (ccGrounded || rayGrounded) && _hop <= 0.05f && !TooSteep();
@@ -421,7 +452,8 @@ public class AdventurePlayerController : MonoBehaviour
                 _doubleJumpUsed   = false;
                 _airborneTime     = 0f;
                 if (_hop < 0f) _hop = -0.85f;
-                ClearLocomotionInertia();
+                if (!wasGrounded)
+                    ClearLocomotionInertia();
             }
             else
             {
@@ -437,7 +469,9 @@ public class AdventurePlayerController : MonoBehaviour
             _doubleJumpUsed = false;
             _gliding        = false;
             _airborneTime   = 0f;
-            ClearLocomotionInertia();
+            // 毎フレーム慣性クリアしない（出だしで速度を殺さない）。着地瞬間のみ。
+            if (!wasGrounded)
+                ClearLocomotionInertia();
         }
         else
         {
@@ -597,7 +631,10 @@ public class AdventurePlayerController : MonoBehaviour
         if (_wasGliding != _gliding)
         {
             if (!_wasGliding && _gliding)
+            {
+                HasEverGlided = true;
                 GetDrone()?.OnGlideStarted();
+            }
             AdventureRustFloatOpening.Instance?.SetGlideGuideActive(_gliding);
         }
         _wasGliding = _gliding;
@@ -606,10 +643,17 @@ public class AdventurePlayerController : MonoBehaviour
     /// <summary>入力ベクトルからフレームの水平移動量を算出する</summary>
     Vector3 ComputeHorizontal(Vector2 input, float speed, bool running)
     {
-        // カメラ相対の入力方向を算出
+        // カメラ相対：意図ヨー（スムーズなし）で即応。遅延カメラ transform は使わない
         Vector3 camForward = transform.forward;
         Vector3 camRight   = transform.right;
-        if (cameraPivot != null)
+        var follow = cameraPivot != null
+            ? cameraPivot.GetComponent<AdventureCameraFollow>()
+            : AdventureCameraFollow.InstanceOrFind();
+        if (follow != null)
+        {
+            follow.GetPlanarMoveBasis(out camForward, out camRight);
+        }
+        else if (cameraPivot != null)
         {
             camForward = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
             camRight   = Vector3.ProjectOnPlane(cameraPivot.right,   Vector3.up);
@@ -626,8 +670,12 @@ public class AdventurePlayerController : MonoBehaviour
             ? Vector3.ClampMagnitude(camRight * input.x + camForward * input.y, 1f) * speed
             : Vector3.zero;
 
-        if (_grounded)     return ComputeGroundHorizontal(wishWalk, running);
-        if (_gliding)      return ComputeGlideHorizontal(input);
+        // 本当に接地（または足裏すぐ下）のときだけ地上移動。空中は重力付き空中操舵へ
+        bool forceGroundMove = !_gliding && !_autoGlide && !_skybreakPillarLock
+                               && (_grounded || (_hop <= 0.05f && _airborneTime < 0.08f && IsNearWalkableSurface()));
+
+        if (forceGroundMove) return ComputeGroundHorizontal(wishWalk, running);
+        if (_gliding)        return ComputeGlideHorizontal(input);
         return ComputeAirHorizontal(input);
     }
 
@@ -667,10 +715,11 @@ public class AdventurePlayerController : MonoBehaviour
         {
             horizontal *= 1.12f;
         }
-        transform.rotation = Quaternion.Slerp(
-            transform.rotation,
-            Quaternion.LookRotation(wishWalk),
-            turnSpeed * Time.deltaTime);
+        // 歩行中は向きを即時合わせる（Slerpが「重い」主因）
+        Vector3 face = wishWalk;
+        face.y = 0f;
+        if (face.sqrMagnitude > 0.0001f)
+            transform.rotation = Quaternion.LookRotation(face.normalized);
         return horizontal;
     }
 
@@ -794,31 +843,47 @@ public class AdventurePlayerController : MonoBehaviour
         return _airMomentum;
     }
 
-    /// <summary>空中（非滑空）の移動量計算（慣性減衰＋軽い空中操舵）</summary>
+    /// <summary>空中（非滑空）の移動量計算。接地寸前は歩き速度を即適用（出だしの鈍さ防止）</summary>
     Vector3 ComputeAirHorizontal(Vector2 input)
     {
+        // 接地寸前＋入力あり：空中加速ではなく地上同等の即時速度
+        bool nearGround = _grounded
+            || (_hop <= 0.05f && _airborneTime < 0.1f && IsNearWalkableSurface());
+
         if (input.sqrMagnitude > 0.01f && cameraPivot != null)
         {
-            Vector3 camF = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
-            Vector3 camR = Vector3.ProjectOnPlane(cameraPivot.right, Vector3.up);
-            if (camF.sqrMagnitude > 0.001f) camF.Normalize();
-            else camF = transform.forward.SetY(0f).normalized;
-            camR.Normalize();
+            Vector3 camF, camR;
+            var follow = cameraPivot.GetComponent<AdventureCameraFollow>()
+                         ?? AdventureCameraFollow.InstanceOrFind();
+            if (follow != null)
+                follow.GetPlanarMoveBasis(out camF, out camR);
+            else
+            {
+                camF = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
+                camR = Vector3.ProjectOnPlane(cameraPivot.right, Vector3.up);
+                if (camF.sqrMagnitude > 0.001f) camF.Normalize();
+                else camF = transform.forward.SetY(0f).normalized;
+                camR.Normalize();
+            }
 
-            Vector3 wish = Vector3.ClampMagnitude(camR * input.x + camF * input.y, 1f) * AirSteerMaxSpeed;
-            _airMomentum = Vector3.MoveTowards(_airMomentum, wish, AirSteerAccel * Time.deltaTime);
+            float airSpeed = nearGround
+                ? (BaseRunSpeed * moveSpeedMultiplier)
+                : AirSteerMaxSpeed;
+            Vector3 wish = Vector3.ClampMagnitude(camR * input.x + camF * input.y, 1f) * airSpeed;
+
+            if (nearGround)
+                _airMomentum = wish; // 即最大速度
+            else
+                _airMomentum = Vector3.MoveTowards(_airMomentum, wish, AirSteerAccel * Time.deltaTime);
 
             Vector3 flat = _airMomentum.SetY(0f);
             if (flat.sqrMagnitude > 0.2f)
-            {
-                Quaternion want = Quaternion.LookRotation(flat.normalized);
-                transform.rotation = Quaternion.Slerp(transform.rotation, want, 7f * Time.deltaTime); // 体の向き追従（元:6 → 微増）
-            }
+                transform.rotation = Quaternion.LookRotation(flat.normalized);
         }
         else
         {
-            // 操作なし：水平慣性を素早く止める（1〜2秒ズルズル滑るのを防ぐ）
-            _airMomentum = Vector3.MoveTowards(_airMomentum, Vector3.zero, AirMomentumBrake * Time.deltaTime);
+            float brake = nearGround ? AirMomentumBrake * 1.6f : AirMomentumBrake;
+            _airMomentum = Vector3.MoveTowards(_airMomentum, Vector3.zero, brake * Time.deltaTime);
             _airMomVel = Vector3.zero;
             if (_airMomentum.sqrMagnitude < 0.05f)
                 _airMomentum = Vector3.zero;
@@ -834,30 +899,11 @@ public class AdventurePlayerController : MonoBehaviour
     {
         Vector3 motion = ClipMotion(horizontal * Time.deltaTime);
 
-        // 地上歩行時の斜面スナップ（池のフチ・下り坂でのCharacterController微小浮遊＆ガタつきを完全解消）
-        if (_grounded && _hop <= 0.05f && !_gliding && !_autoGlide && horizontal.sqrMagnitude > 0.001f)
-        {
-            if (Physics.Raycast(transform.position + Vector3.up * 0.20f, Vector3.down, out RaycastHit slopeHit, 0.65f, ~0, QueryTriggerInteraction.Ignore))
-            {
-                float downDist = slopeHit.distance - 0.20f;
-                if (downDist > 0.02f)
-                {
-                    motion.y = -Mathf.Min(downDist, 0.25f);
-                }
-                else
-                {
-                    motion.y = _hop * Time.deltaTime;
-                }
-            }
-            else
-            {
-                motion.y = _hop * Time.deltaTime;
-            }
-        }
+        // 接地中のみ足元吸着。近傍レイだけでは空中歩行になるので使わない
+        if (_grounded && _hop <= 0.05f && !_gliding && !_autoGlide)
+            motion.y = -Mathf.Max(2.4f * Time.deltaTime, horizontal.magnitude > 0.01f ? 0.08f : 0.02f);
         else
-        {
             motion.y = _hop * Time.deltaTime;
-        }
 
         _cc.Move(motion);
     }
@@ -1464,18 +1510,21 @@ public class AdventurePlayerController : MonoBehaviour
     #endregion
 
     #region Animation & Helpers
-    void PlayLocomotion(float speed, bool running)
+    void PlayLocomotion(float speed, bool running, bool fromIdleStartup = false)
     {
         if (_anim == null) return;
-        string next = speed < 0.2f ? "NikoIdle" : (running ? "NikoRuns" : "NikoWalks");
+        string next = speed < 0.35f ? "NikoIdle" : (running ? "NikoRuns" : "NikoWalks");
         if (next != _clip)
         {
             _clip = next;
-            _anim.CrossFadeInFixedTime(next, 0.15f);
+            float startNorm = (fromIdleStartup && next != "NikoIdle") ? 0.12f : 0f;
+            _anim.Play(next, 0, startNorm);
+            if (fromIdleStartup)
+                _anim.Update(0f);
         }
         _anim.speed = next == "NikoIdle"
             ? 1f
-            : Mathf.Clamp(speed / (running ? 5.4f : 2.4f), 0.9f, 1.7f);
+            : Mathf.Clamp(speed / (running ? BaseRunSpeed : BaseWalkSpeed), 1.0f, 1.4f);
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -1513,38 +1562,48 @@ public class AdventurePlayerController : MonoBehaviour
 
     static Vector2 ReadMove(Keyboard kb)
     {
-        Vector2 input = Vector2.zero;
+        // 全経路を OR 合成（どちらかが同フレームで立てば即反応）
+        float x = 0f, y = 0f;
+        try
+        {
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) y = 1f;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) y = -1f;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) x = -1f;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) x = 1f;
+        }
+        catch { }
+
         if (kb != null)
         {
-            if (kb.wKey.isPressed || kb.upArrowKey.isPressed)    input.y += 1f;
-            if (kb.sKey.isPressed || kb.downArrowKey.isPressed)  input.y -= 1f;
-            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed)  input.x -= 1f;
-            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) input.x += 1f;
+            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) y = 1f;
+            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) y = -1f;
+            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) x = -1f;
+            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) x = 1f;
         }
-        // レガシーInputのフォールバック（エディタフォーカス外れ等のフェイルセーフ）
+
         try
         {
             float h = Input.GetAxisRaw("Horizontal");
             float v = Input.GetAxisRaw("Vertical");
-            if (Mathf.Abs(h) > 0.1f) input.x += h;
-            if (Mathf.Abs(v) > 0.1f) input.y += v;
+            if (v > 0.01f) y = 1f;
+            if (v < -0.01f) y = -1f;
+            if (h > 0.01f) x = 1f;
+            if (h < -0.01f) x = -1f;
         }
         catch { }
 
-        if (input.sqrMagnitude < 0.001f)
+        var gp = Gamepad.current;
+        if (gp != null)
         {
-            var gp = Gamepad.current;
-            if (gp != null)
-            {
-                Vector2 stick = gp.leftStick.ReadValue();
-                if (stick.sqrMagnitude > 0.04f) input = stick;
-                if (gp.dpad.up.isPressed)    input.y += 1f;
-                if (gp.dpad.down.isPressed)  input.y -= 1f;
-                if (gp.dpad.left.isPressed)  input.x -= 1f;
-                if (gp.dpad.right.isPressed) input.x += 1f;
-            }
+            Vector2 stick = gp.leftStick.ReadValue();
+            if (stick.sqrMagnitude > 0.04f)
+                return Vector2.ClampMagnitude(stick, 1f);
+            if (gp.dpad.up.isPressed) y = 1f;
+            if (gp.dpad.down.isPressed) y = -1f;
+            if (gp.dpad.left.isPressed) x = -1f;
+            if (gp.dpad.right.isPressed) x = 1f;
         }
-        return Vector2.ClampMagnitude(input, 1f);
+        return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
     }
 
     /// <summary>AdventureRustDrone のシングルトンを取得（キャッシュなし）</summary>

@@ -21,6 +21,9 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
     float _soloTimer = 2.0f;
     readonly Queue<GameObject> _pool = new Queue<GameObject>();
     bool _mutedForEndingSequence;
+    float _targetBgA;
+    float _targetBgB;
+    float _worldCicadaDampTimer;
 
     [Header("Volume & Frequency")]
     [Range(0f, 1f)] public float bgVolume = 0.24f;
@@ -122,13 +125,78 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
                 return;
         }
 
-        // プレイヤー周囲の木立や梢から時折鳴り響く3D単独蝉（ヒグラシ、ミンミンゼミ、ツクツクボウシなど）
-        _soloTimer -= Time.deltaTime;
+        var pc = AdventurePlayerController.Instance;
+        Vector3 p = _playerTransform.position;
+        bool onBeach = pc != null && pc.IsInBeachOrCoastZone(p);
+        bool inForest = !onBeach && IsForestZone(p);
+        bool inMeadow = !onBeach && !inForest;
+
+        // 砂浜は波・ウミネコのみ。草原は田舎道／虫、森は蝉時雨。
+        if (onBeach)
+        {
+            _targetBgA = 0f;
+            _targetBgB = 0f;
+        }
+        else if (inForest)
+        {
+            _targetBgA = bgVolume;
+            _targetBgB = bgVolume * 0.22f;
+        }
+        else if (inMeadow)
+        {
+            _targetBgA = bgVolume * 0.08f;
+            _targetBgB = bgVolume * 0.7f;
+        }
+        else
+        {
+            _targetBgA = bgVolume * 0.35f;
+            _targetBgB = bgVolume * 0.4f;
+        }
+
+        float dt = Time.deltaTime;
+        if (_bgAmbienceSourceA != null)
+            _bgAmbienceSourceA.volume = Mathf.MoveTowards(_bgAmbienceSourceA.volume, _targetBgA, dt * 0.35f);
+        if (_bgAmbienceSourceB != null)
+            _bgAmbienceSourceB.volume = Mathf.MoveTowards(_bgAmbienceSourceB.volume, _targetBgB, dt * 0.35f);
+
+        if (onBeach)
+        {
+            _worldCicadaDampTimer -= dt;
+            if (_worldCicadaDampTimer <= 0f)
+            {
+                _worldCicadaDampTimer = 0.6f;
+                SoftenWorldCicadasNearPlayer(p, 0.04f);
+            }
+            return;
+        }
+
+        _soloTimer -= dt;
         if (_soloTimer <= 0f)
         {
             _soloTimer = Random.Range(minSoloInterval, maxSoloInterval);
-            SpawnRandomCicadaSound();
+            SpawnRandomCicadaSound(preferCricket: inMeadow);
         }
+    }
+
+    static void SoftenWorldCicadasNearPlayer(Vector3 playerPos, float volume)
+    {
+        var sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < sources.Length; i++)
+        {
+            var src = sources[i];
+            if (src == null || !src.isPlaying) continue;
+            if (!IsCicadaOrInsectSource(src)) continue;
+            if ((src.transform.position - playerPos).sqrMagnitude > 90f * 90f) continue;
+            src.volume = Mathf.Min(src.volume, volume);
+        }
+    }
+
+    static bool IsForestZone(Vector3 pos)
+    {
+        // 東部〜北部の大樹海帯（Dress配置と概ね一致）
+        if (pos.x >= 460f && pos.z >= 180f && pos.z <= 780f) return true;
+        if (pos.x >= 420f && pos.z >= 500f) return true;
+        return false;
     }
 
     /// <summary>天蓋開放〜エンディング中は蝉・虫の声を完全に止める</summary>
@@ -203,24 +271,38 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
             || c.IndexOf("Cicada", System.StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
-    void SpawnRandomCicadaSound()
+    void SpawnRandomCicadaSound(bool preferCricket)
     {
         if (_soloCicadaClips == null || _soloCicadaClips.Length == 0) return;
-        var clip = _soloCicadaClips[Random.Range(0, _soloCicadaClips.Length)];
+        AudioClip clip = null;
+        if (preferCricket)
+        {
+            for (int i = 0; i < _soloCicadaClips.Length; i++)
+            {
+                var c = _soloCicadaClips[i];
+                if (c != null && c.name.Contains("コオロギ"))
+                {
+                    clip = c;
+                    break;
+                }
+            }
+        }
+        if (clip == null)
+            clip = _soloCicadaClips[Random.Range(0, _soloCicadaClips.Length)];
         if (clip == null) return;
 
-        // プレイヤーの周囲14m〜32m、高さ3m〜10mのランダムな梢・草むら
         Vector3 p = _playerTransform.position;
         float angle = Random.Range(0f, Mathf.PI * 2f);
         float dist = Random.Range(14f, 32f);
-        Vector3 spawnPos = p + new Vector3(Mathf.Cos(angle) * dist, Random.Range(3f, 10f), Mathf.Sin(angle) * dist);
+        float height = preferCricket ? Random.Range(0.4f, 2.2f) : Random.Range(3f, 10f);
+        Vector3 spawnPos = p + new Vector3(Mathf.Cos(angle) * dist, height, Mathf.Sin(angle) * dist);
 
         GameObject sndGo = GetPooledObject();
         sndGo.transform.position = spawnPos;
 
         var audio = sndGo.GetComponent<AudioSource>();
         audio.clip = clip;
-        audio.volume = soloVolume * Random.Range(0.85f, 1.15f);
+        audio.volume = soloVolume * Random.Range(0.85f, 1.15f) * (preferCricket ? 0.75f : 1f);
         audio.pitch = Random.Range(0.95f, 1.05f);
         audio.Play();
 

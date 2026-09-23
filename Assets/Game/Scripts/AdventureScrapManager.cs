@@ -30,7 +30,7 @@ public class AdventureScrapManager : MonoBehaviour
 
     private const string PrefKeyPianoRelic = "AncientPiano_Relic_Collected";
     private const string PrefKeyLeverUnlockedNotified = "RustAndFloat_LeverUnlockedNotified";
-    const string PrefKeyScrapLayout = "RustAndFloat_ScrapLayoutXZ_v6";
+    const string PrefKeyScrapLayout = "RustAndFloat_ScrapLayoutXZ_v7";
     const float MinDistFromPrevious = 28f;
     const float MinDistBetweenScraps = 22f;
     #endregion
@@ -104,21 +104,21 @@ public class AdventureScrapManager : MonoBehaviour
     /// </summary>
     static readonly Vector3[][] ScrapCandidatePools =
     {
-        // 1. 南西岬〜南砂浜（海岸の南端付近）
+        // 1. スタート座礁艇まわり（最初のギア・目の前で必ず見つかる）
+        new[]
+        {
+            new Vector3(167f, 0f, 277f),
+            new Vector3(162f, 0f, 268f),
+            new Vector3(172f, 0f, 285f),
+            new Vector3(155f, 0f, 282f),
+        },
+        // 2. 南西岬〜南砂浜
         new[]
         {
             new Vector3(200f, 0f, 185f),
             new Vector3(175f, 0f, 200f),
             new Vector3(215f, 0f, 205f),
             new Vector3(160f, 0f, 195f),
-        },
-        // 2. スタート座礁艇まわり（南寄り中央）
-        new[]
-        {
-            new Vector3(167f, 0f, 277f),
-            new Vector3(145f, 0f, 260f),
-            new Vector3(185f, 0f, 250f),
-            new Vector3(155f, 0f, 290f),
         },
         // 3. 西砂浜中央〜焚き火キャンプ帯
         new[]
@@ -493,8 +493,8 @@ public class AdventureScrapManager : MonoBehaviour
         // 砂浜4＋内陸8のストーリープログレッション配置
         string[] itemNames = new string[]
         {
-            "古代の推進黄金ギア",       // 1. 南西岬〜南砂浜
-            "耐熱スタビライザー",         // 2. スタート座礁艇まわり
+            "古代の推進黄金ギア",       // 1. スタート座礁艇まわり
+            "耐熱スタビライザー",         // 2. 南西岬〜南砂浜
             "海風のエネルギーコア",       // 3. 西砂浜中央〜焚き火 (★3個: ダッシュ)
             "潮騒のバランスリング",       // 4. 北西砂浜テラス
             "反重力サスペンション",       // 5. 大草原入り口
@@ -733,8 +733,9 @@ public class AdventureScrapManager : MonoBehaviour
         if (player == null) return;
 
         // 基本能力へ一度戻してから段階解放（ニューゲーム時の巻き戻し用）
-        player.runSpeed = 7.8f;
-        player.turnSpeed = 14f;
+        player.walkSpeed = AdventurePlayerController.BaseWalkSpeed;
+        player.runSpeed = AdventurePlayerController.BaseRunSpeed;
+        player.turnSpeed = AdventurePlayerController.BaseTurnSpeed;
         player.canDoubleJump = false;
         player.hasPetRadar = false;
         player.glideForwardSpeed = 7.2f;
@@ -745,8 +746,8 @@ public class AdventureScrapManager : MonoBehaviour
 
         if (count >= 3)
         {
-            player.runSpeed = 9.4f;
-            player.turnSpeed = 16.0f;
+            player.runSpeed = AdventurePlayerController.DashRunSpeed;
+            player.turnSpeed = AdventurePlayerController.DashTurnSpeed;
         }
         if (count >= 6)
         {
@@ -770,9 +771,9 @@ public class AdventureScrapManager : MonoBehaviour
 
         if (CollectedCount == 3)
         {
-            // 3個: 黄金ギア完成（ダッシュ速度 7.8 -> 9.4m/s & 旋回強化）
-            player.runSpeed = 9.4f;
-            player.turnSpeed = 16.0f;
+            // 3個: 黄金ギア完成（Shiftダッシュ 9.5 -> 11.5m/s & 旋回強化）
+            player.runSpeed = AdventurePlayerController.DashRunSpeed;
+            player.turnSpeed = AdventurePlayerController.DashTurnSpeed;
             NotifyLore(
                 "キーストーン I：手動の自由と手応え",
                 "AIに管理されていた頃、僕らはただ最短ルートを滑らされていた。\nでも今、指先が油で汚れ、歯車が噛み合うたびに、生きている実感が胸を打つ。",
@@ -1046,6 +1047,10 @@ public class AdventureScrapManager : MonoBehaviour
 
     Vector3 PickDifferentCandidate(int index, Vector3 previous, List<Vector3> alreadyPicked)
     {
+        // 最初のギアは座礁艇のそばに固定（関門2：説明なしで見つかる）
+        if (index == 0)
+            return ScrapCandidatePools[0][0];
+
         var pool = ScrapCandidatePools[index];
         int n = pool.Length;
         // Fisher–Yates（配列上でシャッフル、アロケーション削減）

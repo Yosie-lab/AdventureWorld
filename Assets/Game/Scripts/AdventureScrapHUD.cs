@@ -255,6 +255,14 @@ public class AdventureScrapHUD : MonoBehaviour
 
     void Update()
     {
+        if (AdventureStoryFlow.HidesExplorationHud)
+        {
+            if (_questCg != null) _questCg.alpha = 0f;
+            if (_oilCg != null) _oilCg.alpha = 0f;
+            if (_bannerCg != null) _bannerCg.alpha = 0f;
+            return;
+        }
+
         // 【Tab】キーでクエスト表示 ⇄ 非表示（油カウンターは常時表示のまま）
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null && kb.tabKey.wasPressedThisFrame)

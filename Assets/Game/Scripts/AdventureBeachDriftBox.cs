@@ -84,6 +84,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
     private static float _modalOpenTimestamp = 0f;
 
     public static bool IsModalOpen => _isModalOpen;
+    public static bool CanCloseModal =>
+        _isModalOpen && Time.unscaledTime - _modalOpenTimestamp >= 0.28f;
 
     // ── アクティブインスタンス管理（コンパスHUD・Rustドローン連携用） ──
     private static readonly List<AdventureBeachDriftBox> _activeBoxes = new List<AdventureBeachDriftBox>();
@@ -119,18 +121,13 @@ public class AdventureBeachDriftBox : MonoBehaviour
         _activeBoxes.Remove(this);
     }
 
+    bool _setupComplete;
+
     void Awake()
     {
         _mpb = new MaterialPropertyBlock();
-        _lid = transform.Find("BoxLid");
-        Transform lamp = transform.Find("SignalLamp");
-        if (lamp != null) _lampRenderer = lamp.GetComponent<Renderer>();
-        _particles = GetComponentInChildren<ParticleSystem>();
 
-        // 保存された開封状態の復元
-        isOpened = PlayerPrefs.GetInt("DriftBox_Opened_" + boxId, 0) == 1;
-
-        // オーディオソースの準備（耳元でクリアに響くよう低減衰ステレオブレンド0.15fに設定）
+        // オーディオのみ Awake で用意（蓋・boxId は Spawn 後に Configure される）
         _audioSource = gameObject.AddComponent<AudioSource>();
         _audioSource.spatialBlend = 0.15f;
         _audioSource.playOnAwake = false;
@@ -140,8 +137,48 @@ public class AdventureBeachDriftBox : MonoBehaviour
         _audioSource.volume = 1.0f;
         _openClip = CreateChimeSound();
 
-        SetupGlowEffects(lamp);
         EnsureModalUI();
+    }
+
+    /// <summary>
+    /// 階層・boxId 確定後に呼ぶ。開封済みは蓋を開けたまま復元する。
+    /// </summary>
+    public void ConfigureAfterBuild()
+    {
+        CacheHierarchyRefs();
+        isOpened = PlayerPrefs.GetInt("DriftBox_Opened_" + boxId, 0) == 1;
+        if (!_setupComplete)
+        {
+            Transform lamp = transform.Find("SignalLamp");
+            SetupGlowEffects(lamp);
+            _setupComplete = true;
+        }
+        ApplyVisualState(isOpened, immediate: true);
+    }
+
+    void CacheHierarchyRefs()
+    {
+        _lid = transform.Find("BoxLid");
+        Transform lamp = transform.Find("SignalLamp");
+        if (lamp != null) _lampRenderer = lamp.GetComponent<Renderer>();
+        _particles = GetComponentInChildren<ParticleSystem>();
+    }
+
+    /// <summary>セーブ復元後など、PlayerPrefs の開封状態を見た目へ再同期</summary>
+    public static void SyncAllOpenedVisualsFromPrefs()
+    {
+        var boxes = Object.FindObjectsByType<AdventureBeachDriftBox>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < boxes.Length; i++)
+        {
+            var b = boxes[i];
+            if (b == null) continue;
+            if (b.boxId <= 0) continue;
+            bool opened = PlayerPrefs.GetInt("DriftBox_Opened_" + b.boxId, 0) == 1;
+            b.isOpened = opened;
+            if (b._lid == null) b.CacheHierarchyRefs();
+            b.ApplyVisualState(opened, immediate: true);
+        }
+        AdventureScrapManager.Instance?.InvalidateDriftBoxCache();
     }
 
     void OnDestroy()
@@ -160,7 +197,11 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     void Start()
     {
-        ApplyVisualState(isOpened, immediate: true);
+        // シーン配置／Configure 漏れ時のフォールバック
+        if (!_setupComplete)
+            ConfigureAfterBuild();
+        else
+            ApplyVisualState(isOpened, immediate: true);
     }
 
     void Update()
@@ -795,6 +836,9 @@ public class AdventureBeachDriftBox : MonoBehaviour
         PlayerPrefs.SetInt("DriftBox_Opened_" + boxId, 1);
         PlayerPrefs.Save();
 
+        // 蓋参照が未キャッシュなら拾い直す（開きっぱなしを保証）
+        if (_lid == null) CacheHierarchyRefs();
+
         // 開封アニメーション開始
         StartCoroutine(AnimateOpen());
 
@@ -894,6 +938,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
     private void SetLampColor(Color c, float intensity)
     {
         if (_lampRenderer == null) return;
+        if (_mpb == null)
+            _mpb = new MaterialPropertyBlock();
         _lampRenderer.GetPropertyBlock(_mpb);
         _mpb.SetColor("_BaseColor", c);
         _mpb.SetColor("_EmissionColor", c * intensity);
@@ -1068,6 +1114,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     public static void CloseModal()
     {
+        if (!CanCloseModal && _isModalOpen) return;
+
         if (_modalCanvas != null && _modalPanel != null)
         {
             _modalPanel.transform.parent.gameObject.SetActive(false);
@@ -1143,10 +1191,8 @@ public class DriftBoxModalInputHandler : MonoBehaviour
 {
     void Update()
     {
-        if (!AdventureBeachDriftBox.IsModalOpen) return;
+        if (!AdventureBeachDriftBox.CanCloseModal) return;
 
-        // 開いた直後の誤爆防止（0.12秒）
-        // （Time.unscaledTime を使用してポーズ中や低フレームレートでも安全）
         bool closeTriggered = false;
 
         // 1. 新Input System

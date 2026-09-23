@@ -85,6 +85,10 @@ public class AdventureBeachEscapeManager : MonoBehaviour
 
         var player = AdventurePlayerController.Instance;
         if (player == null) return;
+        // プロローグ中・最初の滑空前は喋らない（関門2：冒頭の独り言を減らす）
+        if (!player.HasEverGlided) return;
+        var prologue = AdventurePrologueDrama.Instance;
+        if (prologue != null && prologue.IsPrologueActive) return;
 
         if (player.IsInBeachOrCoastZone(player.transform.position))
         {

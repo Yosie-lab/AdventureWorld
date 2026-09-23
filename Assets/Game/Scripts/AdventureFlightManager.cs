@@ -43,17 +43,23 @@ public class AdventureFlightManager : MonoBehaviour
         BuildCanyonCourse(root.transform, land);
     }
 
-    /// <summary>砂浜コース: 西海岸に少しだけ低い光るリング（序盤でもくぐりやすい）</summary>
+    /// <summary>砂浜コース: スタート正面に最初の風の輪、岸沿いに続き</summary>
     void BuildBeachCourse(Transform parent, Terrain land)
     {
         var course = new GameObject("Course_Beach");
         course.transform.SetParent(parent, false);
 
-        // スタート座礁艇やや北・岸沿い（ジャンプ〜短い滑空で届く高さ）
+        // スポーン正面（内陸・方位75°）・ジャンプ〜短い滑空で届く高さ
+        Vector3 spawn = new Vector3(158f, 0f, 275f);
+        float yawRad = 75f * Mathf.Deg2Rad;
+        Vector3 inland = new Vector3(Mathf.Sin(yawRad), 0f, Mathf.Cos(yawRad));
+        CreateRingAt(course.transform, spawn + inland * 18f, 2.0f, Quaternion.LookRotation(inland), land);
+
+        // スタート座礁艇やや北・岸沿い
         CreateRingAt(course.transform, new Vector3(168f, 0f, 295f), 2.4f, Quaternion.Euler(0f, 10f, 0f), land);
         // 西砂浜中央〜焚き火帯
         CreateRingAt(course.transform, new Vector3(148f, 0f, 330f), 2.6f, Quaternion.Euler(0f, -5f, 0f), land);
-        // 南西砂浜寄り（南へ散策したとき用）
+        // 南西砂浜寄り
         CreateRingAt(course.transform, new Vector3(188f, 0f, 215f), 2.5f, Quaternion.Euler(0f, 25f, 0f), land);
     }
 

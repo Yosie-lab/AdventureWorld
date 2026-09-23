@@ -63,11 +63,6 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     AudioSource _audio;
     AudioSource _skybreakWindSource;
     AudioClip _skybreakWindClip;
-    bool _coldAtmosphereActive;
-    bool _savedFogEnabled;
-    Color _savedFogColor;
-    float _savedFogDensity;
-    Color _savedAmbient;
 
     bool _leverPulled = false;
     bool _endingSequenceActive = false;
@@ -76,12 +71,30 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     float _epilogueAlpha = 0f;
     int _epilogueAct = 0; // 0=帯のみ / 1〜3=字幕幕
     bool _showGameClearModal = false;
+    Coroutine _epilogueRoutine;
     Font _epilogueFont;
+
+    // Update駆動のシネマ字幕（コルーチン停止に依存しない）
+    int _filmIndex = -1;
+    int _filmPhase; // 0=なし / 1=fadeIn / 2=hold / 3=fadeOut / 4=幕あい
+    float _filmPhaseAt;
+    float _filmHoldSec;
+    float _filmFadeInSec = 0.35f;
+    float _filmFadeOutSec = 0.4f;
+    Color _filmColor;
+    int _filmLastAct = -1;
+    float _epilogueStartedAt;
 
     // ── キャッシュ参照（毎フレームFind廃止） ──
     AdventurePlayerController _cachedPlayer;
     AdventureRustDrone _cachedDrone;
     UnityEngine.UI.Text _cachedGuideText; // SetExplorationHudVisible 用
+    GameObject _letterboxRoot;
+    Image _letterboxTop;
+    Image _letterboxBottom;
+    CanvasGroup _letterboxCg;
+    Text _filmSubtitleUi;
+    float _letterboxTargetAlpha;
 
     AdventurePlayerController GetPlayer()
     {
@@ -132,7 +145,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         new CanopyBeat("天蓋崩壊　未知の荒野への跳躍", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f)),
         new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f)),
         new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Niko！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
-        new CanopyBeat("", "✦ Niko", "ありがとうRust…！あなたがいたからここまで辿り着けた。", new Color(1f, 0.88f, 0.45f, 1f)),
+        new CanopyBeat("", "✦ Niko", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f)),
         new CanopyBeat("", "✦ 相棒 Rust", "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Niko！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
         new CanopyBeat("", "", "タワー中央の光の柱へ飛び込み、\n空の裂け目へ突き抜ける。", new Color(0.85f, 0.95f, 1f, 1f)),
         new CanopyBeat("空の裂け目へ", "", "【Space長押し / クリック】でダイブする", new Color(1f, 0.88f, 0.4f, 1f), true),
@@ -197,7 +210,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     public float EpilogueAlpha => _epilogueAlpha;
     public bool ShowGameClearModal => _showGameClearModal;
     /// <summary>エピローグ字幕／台本ボード表示中（他HUD・セリフを抑止するため）</summary>
-    public bool IsEpiloguePlaying => _scriptBoardVisible || (_epilogueTriggered && !_showGameClearModal && (_epilogueAct > 0 || _epilogueAlpha > 0.01f));
+    public bool IsEpiloguePlaying =>
+        _epilogueTriggered && !_showGameClearModal;
     /// <summary>クライマックス注油待ち中</summary>
     public bool IsClimaxOilPromptActive =>
         _climaxOilWaiting && !_climaxOilInjected && !_suppressClimax;
@@ -209,10 +223,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         new CanopyBeat("警告", "", SkyLimitWarning, new Color(1f, 0.55f, 0.45f, 1f)),
         new CanopyBeat("", "✦ 相棒 Rust", "キキキッ……！ Niko……もうダメかも……この上空、冷たすぎて限界……ギアが凍りつきそう……！", new Color(0.35f, 0.92f, 0.98f, 1f)),
-        new CanopyBeat("", "✦ Niko", "Rust…待ってて！　今、油を目一杯さすからね！", new Color(1f, 0.88f, 0.45f, 1f)),
+        new CanopyBeat("", "✦ Niko", "Rust…待ってて！　今、油を目一杯さすから！", new Color(1f, 0.88f, 0.45f, 1f)),
         // ← ここで注油フェーズ
         new CanopyBeat("", "✦ 相棒 Rust", "……あ……温かい油が……心臓に……！", new Color(0.35f, 0.92f, 0.98f, 1f)),
-        new CanopyBeat("", "✦ 相棒 Rust", "ピピッ！……ありがとうNiko！僕たちの翼はこれで絶対に折れない！全出力で行くよ！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "ピピッ！……ありがとうNiko！僕たちの翼はこれで完全に折れない！全力で行くよ！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
     };
 
     public static void Ensure()
@@ -312,6 +326,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     void ResetEndingSequenceFlags(bool clearWorldProgress, bool teardownUiFully)
     {
         StopAllCoroutines();
+        _epilogueRoutine = null;
         Time.timeScale = 1f;
 
         _endingSequenceActive = false;
@@ -328,6 +343,15 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         _epilogueTriggered = false;
         _epilogueAlpha = 0f;
         _epilogueAct = 0;
+        _filmIndex = -1;
+        _filmPhase = 0;
+        _filmLastAct = -1;
+        _letterboxTargetAlpha = 0f;
+        ClearFilmSubtitle();
+        if (_letterboxCg != null)
+            _letterboxCg.alpha = 0f;
+        if (_letterboxRoot != null)
+            _letterboxRoot.SetActive(false);
         _scriptBoardVisible = false;
         _scriptBoardAdvance = false;
         _scriptBoardTitle = "";
@@ -394,12 +418,27 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         BuildTowerLever();
         var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
         BuildTowerStairs(transform, land);
+        // シーン岩の遅延生成にも対応してもう一度歩行阻害を緩和
+        Invoke(nameof(ReapplyTowerStreamWalkClear), 0.4f);
 
         // 天蓋破壊済みなら、ハイパー上昇気流光柱を即座に再配置
         if (IsCanopyBroken)
         {
             BuildSkybreakHyperUpdraft(new Vector3(512f, 62f, 512f));
         }
+    }
+
+    void ReapplyTowerStreamWalkClear()
+    {
+        Vector3 startP = new Vector3(472f, 48.5f, 455f);
+        Vector3 endP = new Vector3(512f, TerraceTopY, 478f);
+        var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
+        if (land != null)
+        {
+            startP.y = land.SampleHeight(startP) + land.transform.position.y + 0.2f;
+            endP.y = Mathf.Max(TerraceTopY, land.SampleHeight(endP) + land.transform.position.y + 0.2f);
+        }
+        ClearTowerStreamWalkBlockers(startP, endP);
     }
 
     void FixPodiumColliders()
@@ -921,8 +960,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var debugKb = UnityEngine.InputSystem.Keyboard.current;
         if (debugKb != null)
         {
-            // F8 / 数字8: 20pt達成・現在地からタワー誘導を体験
-            if (debugKb.f8Key.wasPressedThisFrame || debugKb.digit8Key.wasPressedThisFrame || debugKb.numpad8Key.wasPressedThisFrame)
+            // 数字8: 20pt達成・現在地からタワー誘導（F8はセーブ初期化＝ニューゲーム専用）
+            if (debugKb.digit8Key.wasPressedThisFrame || debugKb.numpad8Key.wasPressedThisFrame)
             {
                 DebugSetup20PointsState(warpToLever: false);
                 return;
@@ -942,7 +981,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
         try
         {
-            if (Input.GetKeyDown(KeyCode.F8) || Input.GetKeyDown(KeyCode.Alpha8) || Input.GetKeyDown(KeyCode.Keypad8))
+            if (Input.GetKeyDown(KeyCode.Alpha8) || Input.GetKeyDown(KeyCode.Keypad8))
             {
                 DebugSetup20PointsState(warpToLever: false);
                 return;
@@ -963,7 +1002,9 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // 天蓋台本は Update で必ず進める（コルーチン停止に依存しない）
         TickCanopyScriptBeats();
         TickClimaxSequence();
+        TickEpilogueFilm();
         TickGameClearModal();
+        TickCinematicLetterbox();
 
         // 台本ボード：Updateでも進む入力を拾う（注油直後の押しっぱなしは除外）
         if (_scriptBoardVisible && !_scriptBoardAdvance && !_climaxOilWaiting)
@@ -1219,7 +1260,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (kb != null && kb.eKey.wasPressedThisFrame) return true;
         try { if (Input.GetKeyDown(KeyCode.E)) return true; } catch { }
         var pad = UnityEngine.InputSystem.Gamepad.current;
-        return pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame);
+        return pad != null && pad.buttonWest.wasPressedThisFrame;
     }
 
     bool IsLeverHoldInput()
@@ -1230,7 +1271,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         var mouse = UnityEngine.InputSystem.Mouse.current;
         if (mouse != null && mouse.leftButton.isPressed) return true;
         var pad = UnityEngine.InputSystem.Gamepad.current;
-        if (pad != null && (pad.buttonSouth.isPressed || pad.buttonWest.isPressed)) return true;
+        if (pad != null && pad.buttonWest.isPressed) return true;
         try
         {
             if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Return)) return true;
@@ -1276,7 +1317,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             return true;
 
         var pad = UnityEngine.InputSystem.Gamepad.current;
-        if (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame)) return true;
+        if (pad != null && pad.buttonWest.wasPressedThisFrame) return true;
 
         try
         {
@@ -1344,7 +1385,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     public void DebugContextMenuJumpToCanopyOpening() => DebugJumpToCanopyOpening();
 
     /// <summary>
-    /// デバッグ検証用（F8/8キー: その場から誘導、F7/7キー: レバー前ワープ）：
+    /// デバッグ検証用（数字8: その場から誘導、F7/7: レバー前ワープ。F8はニューゲーム専用）：
     /// 総合20ポイント達成・レバーロック解除状態に即時セットアップし、その後の展開を自由に試せる。
     /// </summary>
     public void DebugSetup20PointsState(bool warpToLever)
@@ -1378,6 +1419,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             PlayerPrefs.SetInt("DriftBox_Opened_5", 0);
             PlayerPrefs.DeleteKey("Adventure_LeverUnlockedNotified"); // 通知フラグをクリアしてチャイム＆誘導を確実に発火
             PlayerPrefs.Save();
+            AdventureBeachDriftBox.SyncAllOpenedVisualsFromPrefs();
+            sm.InvalidateDriftBoxCache();
         }
 
         AdventureMusicDirector.Ensure();
@@ -1799,6 +1842,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         AdventureMusicDirector.Instance?.KeepEndingThemeActive();
         StartSkybreakWindAmbience(); // 風の音は追加で流す
 
+        // 「空が割れた」直後から割れ目の向こうの空を見せる
+        SpawnWildernessPanorama(coldCrisis: true);
+        ApplySkybreakColdAtmosphere();
+
         // ピアノが鳴っていたら2秒かけてフェードアウト＆ダッキング解除
         var piano = AdventureAncientPianoRelic.Instance;
         if (piano != null)
@@ -1847,8 +1894,8 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (_scriptHintUi != null)
         {
             _scriptHintUi.text = beat.IsDive
-                ? "【Space長押し / 下のボタン】ダイブ！"
-                : "【Space長押し / 下のボタン】つづき";
+                ? "【Space長押し / クリック】ダイブ！"
+                : "【Space長押し / クリック】つづき";
         }
 
         Debug.Log($"[RustAndFloat] 台本 {index + 1}/{CanopyBeats.Length}: {beat.Title} {beat.Speaker}");
@@ -1887,10 +1934,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             }
 
             // 入力が一切取れなくても必ず進む
-            // 1枚目7秒／2〜6枚目3.5秒／ダイブ5秒
+            // 1枚目7秒／Niko感謝4秒／その他3.5秒／ダイブ5秒
             float autoSec = _scriptBoardIsDive ? 5f : 3.0f;
             if (_canopyBeatIndex == 0)
                 autoSec = 7.0f;
+            else if (_canopyBeatIndex == 3)
+                autoSec = 4.0f; // ありがとうRust…たどり着くことができた
             else if (!_scriptBoardIsDive && _canopyBeatIndex >= 1 && _canopyBeatIndex <= 5)
                 autoSec = 3.5f;
             if (openFor >= autoSec)
@@ -2124,7 +2173,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         if (!_scriptBoardVisible) return;
         if (_scriptRequireInputRelease) return;
-        float minShow = _climaxCrisisStarted && _climaxBeatIndex >= ClimaxOilSlot ? 2.2f : 0.45f;
+        // 注油直後の最初のセリフだけ長めに守る。最終「全力で行くよ」はすぐ送れるようにする
+        float minShow = 0.45f;
+        if (_climaxCrisisStarted && _climaxBeatIndex == ClimaxOilSlot)
+            minShow = 2.2f;
+        else if (_climaxCrisisStarted && _climaxBeatIndex > ClimaxOilSlot)
+            minShow = 0.85f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
         _scriptBoardAdvance = true;
         Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");
@@ -2162,8 +2216,12 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (!_scriptBoardVisible || _scriptBoardAdvance) return;
         if (_scriptRequireInputRelease) return;
 
-        // 注油後セリフは短すぎるスキップを防ぐ
-        float minShow = _climaxCrisisStarted && _climaxBeatIndex >= ClimaxOilSlot ? 2.2f : 0.35f;
+        // 注油直後の最初のセリフだけ長めに守る
+        float minShow = 0.35f;
+        if (_climaxCrisisStarted && _climaxBeatIndex == ClimaxOilSlot)
+            minShow = 2.2f;
+        else if (_climaxCrisisStarted && _climaxBeatIndex > ClimaxOilSlot)
+            minShow = 0.85f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
 
         var kb = UnityEngine.InputSystem.Keyboard.current;
@@ -2914,7 +2972,7 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         EnsureScriptBoardUI();
         ApplyScriptBoardUI();
         if (_scriptHintUi != null)
-            _scriptHintUi.text = "【Space長押し / 下のボタン】つづき";
+            _scriptHintUi.text = "【Space長押し / クリック】つづき";
 
         // 台本1（警告）：そばで震え始める
         // 台本2（気流が冷たい）：力なく落ちていく
@@ -2931,6 +2989,14 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             var drone = GetDrone();
             if (drone != null)
                 drone.TriggerClimaxOverdrive();
+            SpawnWildernessPanorama(coldCrisis: false);
+            SoftenSkybreakColdAtmosphere();
+            StartCoroutine(AdventureSkybreakVisuals.BreakthroughFlashRoutine());
+            // 押しっぱなしで即スキップされないよう、一瞬だけ離し待ち
+            _scriptRequireInputRelease = true;
+            _scriptHoldTimer = 0f;
+            if (_scriptHintUi != null)
+                _scriptHintUi.text = "【Space / クリック】大空へ";
         }
     }
 
@@ -2967,6 +3033,20 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             return;
         }
 
+        // 最終セリフ後に台本が消えた／進まない場合でもエピローグへ強制遷移
+        if (_climaxOilInjected
+            && _climaxBeatIndex >= ClimaxBeats.Length - 1
+            && !_epilogueTriggered)
+        {
+            float finalOpen = Time.unscaledTime - _scriptBoardOpenedAt;
+            if (finalOpen >= 4.5f || (!_scriptBoardVisible && finalOpen >= 0.35f))
+            {
+                Debug.LogWarning("[RustAndFloat] 最終セリフ詰まり検知 → エピローグ強制開始");
+                FinishClimaxSequence();
+                return;
+            }
+        }
+
         if (_climaxBeatIndex < 0 || !_scriptBoardVisible)
             return;
 
@@ -2974,20 +3054,38 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
         // 注油完了直後：Space/E が押されたままだと「温かい油」が即スキップされる
+        // ※押しっぱなし中は手動送りだけ抑止。自動送り／最終保険は必ず通す（エピローグ詰まり防止）
         if (_scriptRequireInputRelease)
         {
-            if (IsDiveConfirmHeld())
+            if (!IsDiveConfirmHeld())
+            {
+                _scriptRequireInputRelease = false;
+                _scriptHoldTimer = 0f;
+            }
+            else
             {
                 _scriptHoldTimer = 0f;
-                _scriptBoardAdvance = false;
-                return;
+                bool finalWhileHeld = _climaxBeatIndex >= ClimaxBeats.Length - 1;
+                float heldOpen = openFor;
+                float heldAuto = finalWhileHeld
+                    ? 4.2f
+                    : GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
+                if (heldOpen >= heldAuto || (finalWhileHeld && heldOpen >= 5.5f))
+                {
+                    _scriptRequireInputRelease = false;
+                    _scriptBoardAdvance = true;
+                }
+                else
+                    return;
             }
-            _scriptRequireInputRelease = false;
-            _scriptHoldTimer = 0f;
         }
 
-        // 注油後の最初のセリフは最低2.2秒見せる
-        float minHoldOpen = postOilBeat && _climaxBeatIndex == ClimaxOilSlot ? 2.2f : 0.35f;
+        // 注油後の最初のセリフは最低2.2秒見せる。最終「全力」は0.85秒で送り可
+        float minHoldOpen = 0.35f;
+        if (postOilBeat && _climaxBeatIndex == ClimaxOilSlot)
+            minHoldOpen = 2.2f;
+        else if (postOilBeat && _climaxBeatIndex > ClimaxOilSlot)
+            minHoldOpen = 0.85f;
         if (openFor >= minHoldOpen)
         {
             PollScriptBoardAdvance();
@@ -2999,8 +3097,15 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
             }
             else _scriptHoldTimer = 0f;
 
-            float autoSec = GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
+            bool finalBeat = _climaxBeatIndex >= ClimaxBeats.Length - 1;
+            float autoSec = finalBeat
+                ? 4.2f
+                : GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
             if (openFor >= autoSec)
+                _scriptBoardAdvance = true;
+
+            // 最終セリフ：入力が取れなくても必ずエピローグへ（保険）
+            if (finalBeat && openFor >= 5.5f)
                 _scriptBoardAdvance = true;
         }
 
@@ -3242,10 +3347,18 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void FinishClimaxSequence()
     {
+        // クリアモーダル表示済みなら二重起動しない。未再生なら再起動可
+        if (_showGameClearModal)
+        {
+            HideScriptBoardCompletely();
+            return;
+        }
+
         _climaxBeatIndex = -1;
         _climaxOverdriveCinematicUntil = 0f;
         _climaxPostOilPhase = 0;
         _climaxPostOilUntil = 0f;
+        _scriptRequireInputRelease = false;
         HideScriptBoardCompletely();
         TeardownScriptBoardUi();
         HideOilPromptUI();
@@ -3260,20 +3373,47 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         _epilogueTriggered = true;
+        _epilogueAct = 1;
+        _epilogueAlpha = 1f;
+        _climaxCrisisStarted = false;
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.KeepEndingThemeActive();
-        StartCoroutine(EpilogueSequenceRoutine());
+        Debug.Log("[RustAndFloat] クライマックス完了 → エピローグ開始（Update駆動）");
+        BeginEpiloguePlayback();
     }
 
     #endregion
 
     #region 10. エピローグ演出 & オートグライド
 
-    static readonly string[] EpilogueActs =
+    struct FilmLine
     {
-        "空が割れた。\n100%最適化された箱庭の外には、\n凍えるほどリアルな風が吹いていた。",
-        "人は最適で最短距離を進んでる時じゃなく、\n寄り道をしては、躓きながらも、\n突然出会えた感動に、生きてる証(あかし)を得るんだ。",
-        "傷つくかもしれない自由と、命の重みを取り戻した\n二人の旅が、また始まる。\n―― 『Rust & Float』"
+        public string Text;
+        public float Hold;
+        public int Act;
+        public Color Color;
+        public FilmLine(string text, float hold, int act, Color color)
+        {
+            Text = text;
+            Hold = hold;
+            Act = act;
+            Color = color;
+        }
+    }
+
+    // 関門5：映画字幕は1行ずつ・3幕（長い一括表示にしない）
+    static readonly FilmLine[] EpilogueFilmLines =
+    {
+        new FilmLine("わぁぁ……！見て、Niko！世界はこんなに広かったんだ……！！", 4.2f, 0,
+            new Color(0.55f, 0.95f, 1f, 1f)),
+        new FilmLine("空が割れた。", 3.4f, 1, new Color(1f, 0.94f, 0.72f, 1f)),
+        new FilmLine("箱庭の外に、凍えるほどリアルな風が吹いていた。", 4.6f, 1, new Color(1f, 0.94f, 0.72f, 1f)),
+        new FilmLine("人は、最適で最短な道を進むときじゃなく、", 4.2f, 2, new Color(1f, 0.96f, 0.82f, 1f)),
+        new FilmLine("寄り道をして、躓きながらも出会えた感動に", 4.4f, 2, new Color(1f, 0.96f, 0.82f, 1f)),
+        new FilmLine("生きてる証を、得るんだ。", 4.0f, 2, new Color(1f, 0.96f, 0.82f, 1f)),
+        new FilmLine("傷つくかもしれない自由と、", 3.2f, 3, new Color(1f, 0.92f, 0.55f, 1f)),
+        new FilmLine("命の重みを取り戻した二人の旅が、", 3.2f, 3, new Color(1f, 0.92f, 0.55f, 1f)),
+        new FilmLine("また始まる。—— 『Rust & Float』", 3.2f, 3, new Color(1f, 0.88f, 0.45f, 1f)),
     };
 
     Font ResolveEpilogueFont()
@@ -3536,8 +3676,14 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
     }
 
-    IEnumerator EpilogueSequenceRoutine()
+    void BeginEpiloguePlayback()
     {
+        if (_epilogueRoutine != null)
+        {
+            StopCoroutine(_epilogueRoutine);
+            _epilogueRoutine = null;
+        }
+
         var player = GetPlayer();
         if (player != null)
         {
@@ -3549,48 +3695,235 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
         SetCinematicCamera(true);
         SetExplorationHudVisible(false);
-        SpawnWildernessPanorama(coldCrisis: false);
-        SoftenSkybreakColdAtmosphere();
-        SuppressAllSpeechAndBanners();
-
-        // 旧テロップ帯は使わず、台本ボードで1枚ずつ
-        _epilogueAct = 0;
-        _epilogueAlpha = 0f;
-
-        yield return StartCoroutine(ShowScriptBeat(
-            "",
-            "✦ 相棒 Rust",
-            "わぁぁ……！見て、Niko！世界はこんなに広かったんだ……！！",
-            new Color(0.35f, 0.92f, 0.98f, 1f),
-            false,
-            5.0f));
-
-        for (int i = 0; i < EpilogueActs.Length; i++)
+        try
         {
-            KeepAutoGlide(player);
-            // 幕ごとの自動送り（標準3.5秒からの延長）
-            float autoSec = i switch
-            {
-                0 => 7.0f, // エピローグ導入
-                1 => 10.0f, // 証の幕
-                2 => 6.5f, // 結び
-                _ => -1f
-            };
-            yield return StartCoroutine(ShowScriptBeat(
-                i == 0 ? "エピローグ" : "",
-                "",
-                EpilogueActs[i],
-                new Color(1f, 0.92f, 0.55f, 1f),
-                false,
-                autoSec));
+            SpawnWildernessPanorama(coldCrisis: false);
+            SoftenSkybreakColdAtmosphere();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[RustAndFloat] エピローグ背景演出: " + e.Message);
+        }
+        SuppressAllSpeechAndBanners();
+        HideScriptBoardCompletely();
+        TeardownScriptBoardUi();
+        HideOilPromptUI();
+
+        var flash = GameObject.Find("BreakthroughFlashCanvas");
+        if (flash != null)
+            Destroy(flash);
+
+        RebuildCinematicLetterbox();
+        if (_letterboxRoot != null)
+        {
+            var canvas = _letterboxRoot.GetComponent<Canvas>();
+            if (canvas != null)
+                canvas.sortingOrder = 9500; // フラッシュより前面
+            _letterboxRoot.SetActive(true);
+        }
+        if (_letterboxCg != null)
+            _letterboxCg.alpha = 1f;
+        _letterboxTargetAlpha = 1f;
+
+        _epilogueStartedAt = Time.unscaledTime;
+        _filmLastAct = -1;
+        _filmIndex = 0;
+        PrepareFilmLine(0, allowActGap: false);
+        Debug.Log($"[RustAndFloat] シネマエピローグ開始（Update） lines={EpilogueFilmLines.Length} subtitle={(_filmSubtitleUi != null)}");
+    }
+
+    void PrepareFilmLine(int index, bool allowActGap)
+    {
+        if (index < 0 || index >= EpilogueFilmLines.Length)
+        {
+            FinishEpilogueFilm();
+            return;
         }
 
+        var line = EpilogueFilmLines[index];
+        _filmIndex = index;
+        // Hold＝放置の総時間（フェードイン＋保持＋フェードアウト）
+        _filmFadeInSec = 0.35f;
+        _filmFadeOutSec = 0.4f;
+        float total = Mathf.Max(1.2f, line.Hold);
+        _filmHoldSec = Mathf.Max(0.5f, total - _filmFadeInSec - _filmFadeOutSec);
+        _filmColor = line.Color;
+
+        if (allowActGap && line.Act != _filmLastAct && line.Act >= 1 && _filmLastAct >= 0)
+        {
+            ClearFilmSubtitle();
+            _epilogueAct = line.Act;
+            _filmPhase = 4;
+            _filmPhaseAt = Time.unscaledTime;
+            return;
+        }
+
+        _filmLastAct = line.Act;
+        _epilogueAct = Mathf.Max(1, line.Act);
+        PresentFilmLineContent(line.Text, line.Color);
+        _filmPhase = 1;
+        _filmPhaseAt = Time.unscaledTime;
+    }
+
+    void PresentFilmLineContent(string text, Color color)
+    {
+        EnsureCinematicLetterbox();
+        if (_filmSubtitleUi == null)
+            RebuildCinematicLetterbox();
+        if (_letterboxRoot != null && !_letterboxRoot.activeSelf)
+            _letterboxRoot.SetActive(true);
+        if (_letterboxCg != null)
+            _letterboxCg.alpha = 1f;
+        _letterboxTargetAlpha = 1f;
+
+        if (_filmSubtitleUi == null)
+        {
+            Debug.LogError("[RustAndFloat] FilmSubtitle UI 生成失敗");
+            return;
+        }
+        _filmSubtitleUi.text = text ?? "";
+        _filmSubtitleUi.color = new Color(color.r, color.g, color.b, 0f);
+        _epilogueAlpha = 0f;
+    }
+
+    void TickEpilogueFilm()
+    {
+        if (!_epilogueTriggered || _showGameClearModal)
+            return;
+        if (_filmIndex < 0 || _filmPhase <= 0)
+            return;
+
+        var player = GetPlayer();
         KeepAutoGlide(player);
+        SetExplorationHudVisible(false);
+        SuppressAllSpeechAndBanners();
+        _letterboxTargetAlpha = 1f;
+        if (_letterboxCg != null)
+            _letterboxCg.alpha = 1f;
+        if (_letterboxRoot != null && !_letterboxRoot.activeSelf)
+            _letterboxRoot.SetActive(true);
+
+        float elapsed = Time.unscaledTime - _filmPhaseAt;
+
+        // 幕あい
+        if (_filmPhase == 4)
+        {
+            if (elapsed >= 1.15f)
+            {
+                var line = EpilogueFilmLines[_filmIndex];
+                _filmLastAct = line.Act;
+                PresentFilmLineContent(line.Text, line.Color);
+                _filmPhase = 1;
+                _filmPhaseAt = Time.unscaledTime;
+            }
+            return;
+        }
+
+        if (_filmSubtitleUi == null)
+        {
+            // UI欠落時は時間だけ進めて次へ
+            if (elapsed >= _filmHoldSec)
+                AdvanceFilmLine();
+            return;
+        }
+
+        Color c = _filmColor;
+        if (_filmPhase == 1)
+        {
+            float a = Mathf.Clamp01(elapsed / _filmFadeInSec);
+            _filmSubtitleUi.color = new Color(c.r, c.g, c.b, a);
+            _epilogueAlpha = a;
+            if (elapsed >= _filmFadeInSec)
+            {
+                _filmSubtitleUi.color = c;
+                _filmPhase = 2;
+                _filmPhaseAt = Time.unscaledTime;
+            }
+        }
+        else if (_filmPhase == 2)
+        {
+            _filmSubtitleUi.color = c;
+            _epilogueAlpha = 1f;
+            bool canSkip = elapsed >= 1.0f && (Time.unscaledTime - _epilogueStartedAt) >= 2.0f;
+            if ((canSkip && WasFilmSkipPressed()) || elapsed >= _filmHoldSec)
+            {
+                _filmPhase = 3;
+                _filmPhaseAt = Time.unscaledTime;
+            }
+        }
+        else if (_filmPhase == 3)
+        {
+            float a = 1f - Mathf.Clamp01(elapsed / _filmFadeOutSec);
+            _filmSubtitleUi.color = new Color(c.r, c.g, c.b, a);
+            _epilogueAlpha = a;
+            if (elapsed >= _filmFadeOutSec)
+                AdvanceFilmLine();
+        }
+    }
+
+    void AdvanceFilmLine()
+    {
+        int next = _filmIndex + 1;
+        if (next >= EpilogueFilmLines.Length)
+        {
+            FinishEpilogueFilm();
+            return;
+        }
+        PrepareFilmLine(next, allowActGap: true);
+    }
+
+    void FinishEpilogueFilm()
+    {
+        ClearFilmSubtitle();
+        _filmIndex = -1;
+        _filmPhase = 0;
+        KeepAutoGlide(GetPlayer());
         IsGameCleared = true;
         _showGameClearModal = true;
+        _epilogueAlpha = 0f;
+        _letterboxTargetAlpha = 0f;
         SuppressAllSpeechAndBanners();
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.KeepEndingThemeActive();
+        Debug.Log("[RustAndFloat] シネマエピローグ完了 → クリアモーダル");
+    }
+
+    IEnumerator EpilogueSequenceRoutine()
+    {
+        // 互換用：Update駆動へ委譲
+        BeginEpiloguePlayback();
+        yield break;
+    }
+
+    IEnumerator ShowFilmSubtitleRoutine(string line, float holdSec, Color color)
+    {
+        yield break;
+    }
+
+    void ClearFilmSubtitle()
+    {
+        if (_filmSubtitleUi != null)
+        {
+            _filmSubtitleUi.text = "";
+            var c = _filmSubtitleUi.color;
+            c.a = 0f;
+            _filmSubtitleUi.color = c;
+        }
+        _epilogueAlpha = 0f;
+    }
+
+    static bool WasFilmSkipPressed()
+    {
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame))
+            return true;
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return))
+                return true;
+        }
+        catch { }
+        return false;
     }
 
     static void KeepAutoGlide(AdventurePlayerController player)
@@ -3614,7 +3947,6 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         if (scrap != null)
             scrap.gameObject.SetActive(visible);
 
-        // 「Guide」テキストをキャッシュして毎回の全Text検索を廃止
         if (_cachedGuideText == null)
         {
             foreach (var t in Object.FindObjectsByType<UnityEngine.UI.Text>(FindObjectsInactive.Include))
@@ -3628,6 +3960,125 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         }
         if (_cachedGuideText != null)
             _cachedGuideText.gameObject.SetActive(visible);
+    }
+
+    void TickCinematicLetterbox()
+    {
+        bool filmPlaying = _epilogueTriggered && !_showGameClearModal && _filmIndex >= 0 && _filmPhase > 0;
+        bool want = filmPlaying || AdventureStoryFlow.IsPerformance;
+        _letterboxTargetAlpha = want ? 1f : 0f;
+        if (filmPlaying)
+            _letterboxTargetAlpha = 1f;
+
+        if (want)
+        {
+            SetExplorationHudVisible(false);
+            EnsureCinematicLetterbox();
+            if (_letterboxRoot != null && !_letterboxRoot.activeSelf)
+                _letterboxRoot.SetActive(true);
+            if (filmPlaying && _letterboxCg != null)
+                _letterboxCg.alpha = 1f;
+        }
+
+        if (_letterboxCg != null)
+        {
+            float a = filmPlaying
+                ? 1f
+                : Mathf.MoveTowards(_letterboxCg.alpha, _letterboxTargetAlpha, Time.unscaledDeltaTime * 2.4f);
+            _letterboxCg.alpha = a;
+            if (_letterboxRoot != null)
+            {
+                bool show = a > 0.02f || _letterboxTargetAlpha > 0.02f || filmPlaying;
+                if (_letterboxRoot.activeSelf != show)
+                    _letterboxRoot.SetActive(show);
+            }
+        }
+        else if (!want && _letterboxRoot != null && _letterboxRoot.activeSelf)
+        {
+            _letterboxRoot.SetActive(false);
+        }
+    }
+
+    void RebuildCinematicLetterbox()
+    {
+        if (_letterboxRoot != null)
+        {
+            Destroy(_letterboxRoot);
+            _letterboxRoot = null;
+        }
+        _letterboxCg = null;
+        _letterboxTop = null;
+        _letterboxBottom = null;
+        _filmSubtitleUi = null;
+        EnsureCinematicLetterbox();
+    }
+
+    void EnsureCinematicLetterbox()
+    {
+        if (_letterboxRoot != null)
+        {
+            if (_filmSubtitleUi == null)
+                BuildFilmSubtitleOnLetterbox();
+            return;
+        }
+        EnsureEventSystemForUi();
+
+        var canvasGo = new GameObject("CinematicLetterboxCanvas");
+        var canvas = canvasGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 9500;
+        var scaler = canvasGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280f, 720f);
+        _letterboxCg = canvasGo.AddComponent<CanvasGroup>();
+        _letterboxCg.alpha = 0f;
+        _letterboxCg.blocksRaycasts = false;
+        _letterboxCg.interactable = false;
+
+        _letterboxTop = MakeLetterbar(canvasGo.transform, "Top", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), 64f);
+        _letterboxBottom = MakeLetterbar(canvasGo.transform, "Bottom", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), 118f);
+        _letterboxRoot = canvasGo;
+        BuildFilmSubtitleOnLetterbox();
+    }
+
+    void BuildFilmSubtitleOnLetterbox()
+    {
+        if (_letterboxRoot == null || _filmSubtitleUi != null) return;
+        Font font = ResolveEpilogueFont();
+        var go = new GameObject("FilmSubtitle");
+        go.transform.SetParent(_letterboxRoot.transform, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.08f, 0f);
+        rt.anchorMax = new Vector2(0.92f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, 36f);
+        rt.sizeDelta = new Vector2(0f, 72f);
+        _filmSubtitleUi = go.AddComponent<Text>();
+        _filmSubtitleUi.font = font;
+        _filmSubtitleUi.fontSize = 30;
+        _filmSubtitleUi.alignment = TextAnchor.MiddleCenter;
+        _filmSubtitleUi.color = new Color(1f, 0.94f, 0.78f, 0f);
+        _filmSubtitleUi.horizontalOverflow = HorizontalWrapMode.Wrap;
+        _filmSubtitleUi.verticalOverflow = VerticalWrapMode.Overflow;
+        _filmSubtitleUi.raycastTarget = false;
+        if (_filmSubtitleUi.font == null)
+            _filmSubtitleUi.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+    }
+
+    static Image MakeLetterbar(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, float height)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, anchorMin.y);
+        rt.anchorMax = new Vector2(1f, anchorMax.y);
+        rt.pivot = new Vector2(0.5f, anchorMin.y);
+        rt.sizeDelta = new Vector2(0f, height);
+        rt.anchoredPosition = Vector2.zero;
+        var img = go.AddComponent<Image>();
+        img.color = new Color(0f, 0f, 0f, 0.94f);
+        img.raycastTarget = false;
+        return img;
     }
 
     static void SetCinematicCamera(bool enabled)
@@ -3646,207 +4097,17 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
 
     #region 12. 外の世界パノラマ & 極寒環境霧
 
-    /// <summary>天蓋の割れ目の外側：未知の荒野。危機時は凍える稜線と氷霞、突破後は朝焼けの金へ</summary>
     void SpawnWildernessPanorama(bool coldCrisis = true)
-    {
-        DestroyAllByName("WildernessPanorama");
-        DestroyAllByName("SkybreakColdMist");
+        => AdventureSkybreakVisuals.SpawnWildernessPanorama(coldCrisis);
 
-        var panoramaGo = new GameObject("WildernessPanorama");
-        panoramaGo.transform.position = new Vector3(512f, 90f, 512f);
-
-        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-        var mountainMat = new Material(shader);
-        // 危機時は冷たい藍灰色、突破後はやや暖かい藍色
-        mountainMat.color = coldCrisis
-            ? new Color(0.14f, 0.18f, 0.28f)
-            : new Color(0.18f, 0.22f, 0.35f);
-
-        var iceMat = new Material(shader);
-        iceMat.color = new Color(0.82f, 0.90f, 0.98f); // 氷雪の冠
-
-        // 全周12方向に連なる巨大な未知の山脈・稜線
-        for (int i = 0; i < 12; i++)
-        {
-            float ang = i * 30f * Mathf.Deg2Rad;
-            float dist = 680f;
-            float peakH = Random.Range(85f, 150f);
-            Vector3 pos = new Vector3(Mathf.Cos(ang) * dist, Random.Range(10f, 40f), Mathf.Sin(ang) * dist);
-
-            var peak = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            peak.name = $"WildernessRidge_{i}";
-            peak.transform.SetParent(panoramaGo.transform, false);
-            peak.transform.localPosition = pos;
-            peak.transform.localScale = new Vector3(260f, peakH, 260f);
-            peak.transform.rotation = Quaternion.Euler(Random.Range(-8f, 8f), i * 30f, Random.Range(-8f, 8f));
-
-            var col = peak.GetComponent<Collider>();
-            if (col != null) Destroy(col);
-
-            var rend = peak.GetComponent<Renderer>();
-            if (rend != null) rend.material = mountainMat;
-
-            // 凍える冠雪（少しだけ：半分の稜線に氷冠）
-            if (coldCrisis && (i % 2 == 0))
-            {
-                var cap = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                cap.name = $"IceCrown_{i}";
-                cap.transform.SetParent(peak.transform, false);
-                cap.transform.localPosition = new Vector3(0f, 0.85f, 0f);
-                cap.transform.localScale = new Vector3(0.55f, 0.22f, 0.55f);
-                var capCol = cap.GetComponent<Collider>();
-                if (capCol != null) Destroy(capCol);
-                var capRend = cap.GetComponent<Renderer>();
-                if (capRend != null) capRend.material = iceMat;
-            }
-        }
-
-        // 光芒：危機時は冷たい蒼白＋薄い金、突破後は金色中心
-        var raysGo = new GameObject("SkybreakGodRays");
-        raysGo.transform.SetParent(panoramaGo.transform, false);
-        raysGo.transform.localPosition = new Vector3(0f, 60f, 0f);
-
-        var rayShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
-        var warmRayMat = new Material(rayShader);
-        warmRayMat.color = new Color(1.0f, 0.92f, 0.65f, coldCrisis ? 0.22f : 0.35f);
-        var coldRayMat = new Material(rayShader);
-        coldRayMat.color = new Color(0.72f, 0.88f, 1.0f, 0.28f);
-
-        for (int r = 0; r < 8; r++)
-        {
-            var ray = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            ray.name = $"GodRay_{r}";
-            ray.transform.SetParent(raysGo.transform, false);
-            ray.transform.localScale = new Vector3(coldCrisis && r % 2 == 0 ? 6f : 8f, 120f, coldCrisis && r % 2 == 0 ? 6f : 8f);
-            ray.transform.localRotation = Quaternion.Euler(Random.Range(15f, 35f), r * 45f + 15f, 0f);
-
-            var col = ray.GetComponent<Collider>();
-            if (col != null) Destroy(col);
-
-            var rend = ray.GetComponent<Renderer>();
-            if (rend != null)
-                rend.material = (coldCrisis && r % 2 == 0) ? coldRayMat : warmRayMat;
-        }
-
-        if (coldCrisis)
-            SpawnSkybreakColdMist(panoramaGo.transform);
-    }
-
-    /// <summary>極寒の氷霞・粉雪が頬をかすめる遠景パーティクル</summary>
-    void SpawnSkybreakColdMist(Transform parent)
-    {
-        var mistGo = new GameObject("SkybreakColdMist");
-        mistGo.transform.SetParent(parent, false);
-        mistGo.transform.localPosition = new Vector3(0f, 40f, 0f);
-
-        var ps = mistGo.AddComponent<ParticleSystem>();
-        var main = ps.main;
-        main.loop = true;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(4.5f, 9f);
-        main.startSize = new ParticleSystem.MinMaxCurve(1.2f, 3.8f);
-        main.startColor = new ParticleSystem.MinMaxGradient(
-            new Color(0.85f, 0.93f, 1f, 0.18f),
-            new Color(0.70f, 0.85f, 1f, 0.08f));
-        main.startSpeed = new ParticleSystem.MinMaxCurve(2f, 8f);
-        main.maxParticles = 120;
-        main.simulationSpace = ParticleSystemSimulationSpace.World;
-
-        var emission = ps.emission;
-        emission.rateOverTime = 18f;
-
-        var shape = ps.shape;
-        shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 90f;
-
-        var vel = ps.velocityOverLifetime;
-        vel.enabled = true;
-        vel.space = ParticleSystemSimulationSpace.World;
-        vel.x = new ParticleSystem.MinMaxCurve(-6f, 6f);
-        vel.y = new ParticleSystem.MinMaxCurve(-1.5f, 0.5f);
-        vel.z = new ParticleSystem.MinMaxCurve(-6f, 6f);
-
-        var colorOver = ps.colorOverLifetime;
-        colorOver.enabled = true;
-        var grad = new Gradient();
-        grad.SetKeys(
-            new[] {
-                new GradientColorKey(new Color(0.9f, 0.95f, 1f), 0f),
-                new GradientColorKey(new Color(0.7f, 0.85f, 1f), 1f)
-            },
-            new[] {
-                new GradientAlphaKey(0f, 0f),
-                new GradientAlphaKey(0.22f, 0.25f),
-                new GradientAlphaKey(0f, 1f)
-            });
-        colorOver.color = grad;
-
-        var rend = mistGo.GetComponent<ParticleSystemRenderer>();
-        if (rend != null)
-        {
-            var sh = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                     ?? Shader.Find("Particles/Standard Unlit")
-                     ?? Shader.Find("Sprites/Default");
-            var mat = new Material(sh);
-            mat.color = new Color(0.85f, 0.92f, 1f, 0.35f);
-            rend.material = mat;
-            rend.renderMode = ParticleSystemRenderMode.Billboard;
-        }
-
-        ps.Play();
-    }
-
-    /// <summary>外気の凍える霧・寒色アンビエント（危機シークエンス用）</summary>
     void ApplySkybreakColdAtmosphere()
-    {
-        if (!_coldAtmosphereActive)
-        {
-            _savedFogEnabled = RenderSettings.fog;
-            _savedFogColor = RenderSettings.fogColor;
-            _savedFogDensity = RenderSettings.fogDensity;
-            _savedAmbient = RenderSettings.ambientLight;
-            _coldAtmosphereActive = true;
-        }
+        => AdventureSkybreakVisuals.ApplyColdAtmosphere();
 
-        RenderSettings.fog = true;
-        RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogColor = new Color(0.62f, 0.74f, 0.88f);
-        RenderSettings.fogDensity = 0.0048f;
-        RenderSettings.ambientLight = new Color(0.55f, 0.68f, 0.82f);
-    }
-
-    /// <summary>注油／突破後：寒さを残しつつ金色の解放感へ寄せる</summary>
     void SoftenSkybreakColdAtmosphere()
-    {
-        if (!_coldAtmosphereActive)
-            ApplySkybreakColdAtmosphere();
-
-        RenderSettings.fog = true;
-        RenderSettings.fogColor = new Color(0.78f, 0.82f, 0.88f);
-        RenderSettings.fogDensity = 0.0028f;
-        RenderSettings.ambientLight = new Color(0.78f, 0.74f, 0.68f);
-
-        // 氷霞を弱める
-        var mist = GameObject.Find("SkybreakColdMist");
-        if (mist != null)
-        {
-            var ps = mist.GetComponent<ParticleSystem>();
-            if (ps != null)
-            {
-                var emission = ps.emission;
-                emission.rateOverTime = 6f;
-            }
-        }
-    }
+        => AdventureSkybreakVisuals.SoftenColdAtmosphere();
 
     void ClearSkybreakColdAtmosphere()
-    {
-        if (!_coldAtmosphereActive) return;
-        RenderSettings.fog = _savedFogEnabled;
-        RenderSettings.fogColor = _savedFogColor;
-        RenderSettings.fogDensity = _savedFogDensity;
-        RenderSettings.ambientLight = _savedAmbient;
-        _coldAtmosphereActive = false;
-    }
+        => AdventureSkybreakVisuals.ClearColdAtmosphere();
 
     #endregion
 
@@ -3937,6 +4198,133 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
         // stepOffset(0.45m) を超える段差の引っ掛かりをゼロにして
         // オアシス池〜テラスへノンストップで駆け上がれるようにする。
         AddStairsRampColliders(stairsRoot.transform, startP, endP, width);
+        ClearTowerStreamWalkBlockers(startP, endP);
+    }
+
+    /// <summary>
+    /// タワー手前のオアシス湧水池〜アプローチ階段まわりで、渓流岩場の歩行阻害を減らす。
+    /// 見た目は残し、進路の岩はコライダー無効／密集分は間引き。
+    /// </summary>
+    static void ClearTowerStreamWalkBlockers(Vector3 startP, Vector3 endP)
+    {
+        Vector3 oasis = new Vector3(480f, 48.2f, 455f);
+        SoftenOrThinRocksAlongPath(startP, endP, corridorHalfWidth: 7.0f, thinHalfWidth: 3.4f, alongTMax: 0.62f);
+        SoftenRockRootNearPoint("SanctuarySpringPond_Rocks", oasis, softRadius: 24f, thinRadius: 11f);
+        SoftenRockRootNearPoint("MountainGorgeProps", oasis, softRadius: 36f, thinRadius: 14f);
+        SoftenRockRootNearPoint("UpperParadiseStream", oasis, softRadius: 40f, thinRadius: 0f);
+        SoftenRockRootNearPoint("BeachStepPonds_Rocks", oasis, softRadius: 28f, thinRadius: 0f);
+
+        // 名称に Rock/Stone を含むオブジェクトも、階段〜池の回廊だけ追加で緩和
+        SoftenLooseRocksNearCorridor(startP, endP, oasis);
+    }
+
+    static void SoftenOrThinRocksAlongPath(Vector3 startP, Vector3 endP, float corridorHalfWidth, float thinHalfWidth, float alongTMax)
+    {
+        var rocks = GameObject.Find("SanctuarySpringPond_Rocks");
+        if (rocks == null) return;
+        SoftenCollidersOnRoot(rocks.transform, startP, endP, corridorHalfWidth, thinHalfWidth, alongTMax, forceAllInRadius: false, center: default, softRadius: 0f, thinRadius: 0f);
+    }
+
+    static void SoftenRockRootNearPoint(string rootName, Vector3 center, float softRadius, float thinRadius)
+    {
+        var root = GameObject.Find(rootName);
+        if (root == null) return;
+        SoftenCollidersOnRoot(root.transform, default, default, 0f, 0f, 0f, forceAllInRadius: true, center: center, softRadius: softRadius, thinRadius: thinRadius);
+    }
+
+    static void SoftenLooseRocksNearCorridor(Vector3 startP, Vector3 endP, Vector3 oasis)
+    {
+        var all = Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            var col = all[i];
+            if (col == null || col.isTrigger) continue;
+            string n = col.gameObject.name;
+            if (n.IndexOf("Rock", System.StringComparison.OrdinalIgnoreCase) < 0
+                && n.IndexOf("Stone", System.StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+
+            Vector3 c = col.bounds.center;
+            float distOasis = Vector2.Distance(new Vector2(c.x, c.z), new Vector2(oasis.x, oasis.z));
+            float distPath = DistancePointToSegment(c, startP, Vector3.Lerp(startP, endP, 0.7f));
+            if (distOasis > 32f && distPath > 8f) continue;
+
+            // 進路真上は間引き、近傍はコライダー無効
+            if (distPath < 3.2f && distOasis < 26f)
+            {
+                col.gameObject.SetActive(false);
+                continue;
+            }
+            if (distPath < 7.5f || distOasis < 18f)
+                col.isTrigger = true;
+        }
+    }
+
+    static void SoftenCollidersOnRoot(
+        Transform root,
+        Vector3 startP, Vector3 endP,
+        float corridorHalfWidth, float thinHalfWidth, float alongTMax,
+        bool forceAllInRadius, Vector3 center, float softRadius, float thinRadius)
+    {
+        var cols = root.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < cols.Length; i++)
+        {
+            var col = cols[i];
+            if (col == null) continue;
+
+            Vector3 c = col.bounds.center;
+            bool soft = false;
+            bool thin = false;
+
+            if (forceAllInRadius)
+            {
+                float d = Vector2.Distance(new Vector2(c.x, c.z), new Vector2(center.x, center.z));
+                if (thinRadius > 0.1f && d <= thinRadius)
+                {
+                    // 池の南側〜階段側（歩行ルート）の岩だけ間引き。北側の景色用は残す
+                    if (c.z <= center.z + 2.5f || c.x <= center.x + 4f)
+                        thin = true;
+                    else
+                        soft = true;
+                }
+                else if (d <= softRadius)
+                {
+                    soft = true;
+                }
+            }
+            else
+            {
+                Vector3 ab = endP - startP;
+                float denom = ab.sqrMagnitude;
+                float t = denom < 0.01f ? 0f : Mathf.Clamp01(Vector3.Dot(c - startP, ab) / denom);
+                if (t > alongTMax) continue;
+                float dist = DistancePointToSegment(c, startP, endP);
+                if (dist <= thinHalfWidth) thin = true;
+                else if (dist <= corridorHalfWidth) soft = true;
+            }
+
+            if (thin)
+            {
+                // 見た目ごと減らす（進路を塞ぐ密集岩）
+                if (col.transform != root)
+                    col.gameObject.SetActive(false);
+                else
+                    col.isTrigger = true;
+            }
+            else if (soft)
+            {
+                col.isTrigger = true;
+            }
+        }
+    }
+
+    static float DistancePointToSegment(Vector3 p, Vector3 a, Vector3 b)
+    {
+        Vector3 ab = b - a;
+        float denom = ab.sqrMagnitude;
+        if (denom < 0.01f) return Vector3.Distance(p, a);
+        float t = Mathf.Clamp01(Vector3.Dot(p - a, ab) / denom);
+        return Vector3.Distance(p, a + ab * t);
     }
 
     /// <summary>

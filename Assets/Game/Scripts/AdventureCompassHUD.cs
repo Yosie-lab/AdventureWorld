@@ -361,6 +361,20 @@ public class AdventureCompassHUD : MonoBehaviour
 
     void LateUpdate()
     {
+        if (AdventureStoryFlow.HidesExplorationHud)
+        {
+            if (_headingBadgeText != null) _headingBadgeText.enabled = false;
+            if (_scrapNavText != null) _scrapNavText.enabled = false;
+            if (_ribbonContainer != null) _ribbonContainer.gameObject.SetActive(false);
+            if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(false);
+            if (_boxMarkerRt != null) _boxMarkerRt.gameObject.SetActive(false);
+            return;
+        }
+        if (_headingBadgeText != null) _headingBadgeText.enabled = true;
+        if (_scrapNavText != null) _scrapNavText.enabled = true;
+        if (_ribbonContainer != null && !_ribbonContainer.gameObject.activeSelf)
+            _ribbonContainer.gameObject.SetActive(true);
+
         var cam = GetActiveCamera();
         if (cam == null)
             return;
@@ -409,6 +423,32 @@ public class AdventureCompassHUD : MonoBehaviour
 
         if (mgr != null && player != null)
         {
+            // 関門6：距離案内はソナー（9個）解禁まで出さない。滑空前は風の示唆のみ。
+            bool sonarUnlocked = mgr.hasPetRadar || mgr.CollectedCount >= 9;
+            bool guidingTower = mgr.IsLeverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken;
+            bool allowDistanceNav = guidingTower || (player.HasEverGlided && sonarUnlocked);
+            if (!allowDistanceNav)
+            {
+                if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(false);
+                if (_boxMarkerRt != null) _boxMarkerRt.gameObject.SetActive(false);
+                _scrapBearingInit = false;
+                _boxBearingInit = false;
+                if (_scrapNavText != null)
+                {
+                    if (!player.HasEverGlided)
+                    {
+                        _scrapNavText.text = "✦ 風に乗ると、次の手掛かりが見えてくる";
+                        _scrapNavText.color = new Color(0.75f, 0.9f, 1f, 0.9f);
+                    }
+                    else
+                    {
+                        _scrapNavText.text = "✦ 光る柱を、自分の目で探そう";
+                        _scrapNavText.color = new Color(0.85f, 0.88f, 0.7f, 0.9f);
+                    }
+                }
+                return;
+            }
+
             Vector3 playerPos = player.transform.position;
             bool isGuidingToTower = mgr.IsLeverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken;
 
@@ -597,7 +637,7 @@ public class AdventureCompassHUD : MonoBehaviour
                 }
                 else if (hasBoxTarget && boxDist <= 3.5f)
                 {
-                    _scrapNavText.text = $"📦 {nearestBox.boxTitle} [★ 足元・Eキーで読む]";
+                    _scrapNavText.text = $"📦 {nearestBox.boxTitle} [★ 足元・近づくと開く]";
                     _scrapNavText.color = new Color(0.35f, 1.0f, 0.65f, 1.0f);
                 }
                 else

@@ -1,30 +1,38 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+/// <summary>
+/// 視点入力は Update（プレイヤーより先）、位置は LateUpdate。
+/// 歩行の移動方向は TargetYaw（スムーズなし）を使い、入力遅延をなくす。
+/// </summary>
+[DefaultExecutionOrder(-200)]
 public class AdventureCameraFollow : MonoBehaviour
 {
     public Transform target;
     public float height = 1.25f;
-    public float distance = 6.2f;
-    public float sensitivity = 0.16f;
+    public float distance = 7.8f;
+    public float sensitivity = 0.26f;
     public float pitchMin = -12f;
     public float pitchMax = 32f;
 
     [Header("位置スムージング（段差・揺れの吸収）")]
-    public float positionSmoothTime = 0.04f;
+    public float positionSmoothTime = 0.02f;
 
     [Header("視点スムージング")]
-    public float lookSmoothTime = 0.03f;
+    public float lookSmoothTime = 0.012f;
 
     [Header("シネマティック用")]
     public float CurrentYaw { get; private set; }
+
+    /// <summary>歩行・移動計算用：マウス意図ヨー（スムーズなし）</summary>
+    public float TargetYaw => _targetYaw;
 
     /// <summary>歩行：完全水平</summary>
     const float WalkPitch = 0f;
     /// <summary>歩行時の注視点（腰〜胸）</summary>
     const float WalkFocusHeight = 1.05f;
     const float WalkPivotHeight = 1.35f;
-    const float WalkMinDistance = 4.2f;
+    const float WalkMinDistance = 5.2f;
 
     float _yaw;
     float _pitch = WalkPitch;
@@ -36,7 +44,6 @@ public class AdventureCameraFollow : MonoBehaviour
 
     Vector3 _currentPivot;
     Vector3 _pivotVelocity;
-    Vector3 _posVelocity;
 
     float _currentDistance;
     float _distVel;
@@ -51,10 +58,12 @@ public class AdventureCameraFollow : MonoBehaviour
 
     bool _cinematic;
     float _cinematicBlend;
-    const float CinematicDistance = 5.0f;
+    const float CinematicDistance = 6.4f;
     const float CinematicHeight = 1.6f;
-    const float CinematicFov = 70f;
+    const float CinematicFov = 74f;
     const float CinematicBlendSpeed = 1.35f;
+
+    bool _lookUpdatedThisFrame;
 
     public void SetCinematicMode(bool enabled)
     {
@@ -64,6 +73,23 @@ public class AdventureCameraFollow : MonoBehaviour
     }
 
     public bool IsCinematic => _cinematic;
+
+    public static AdventureCameraFollow InstanceOrFind()
+    {
+        return Object.FindFirstObjectByType<AdventureCameraFollow>();
+    }
+
+    /// <summary>移動用の水平カメラ基底（意図ヨー即時）</summary>
+    public void GetPlanarMoveBasis(out Vector3 forward, out Vector3 right)
+    {
+        // 同フレームでまだ Update 前なら、ここで視点入力を拾う
+        if (!_lookUpdatedThisFrame)
+            UpdateLookInputOnly();
+
+        Quaternion flat = Quaternion.Euler(0f, _targetYaw, 0f);
+        forward = flat * Vector3.forward;
+        right = flat * Vector3.right;
+    }
 
     /// <summary>Rキー／リセット時：標準後方カメラへ即復帰</summary>
     public void SnapBehindTarget()
@@ -86,6 +112,13 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void Start()
     {
+        sensitivity = 0.26f;
+        positionSmoothTime = 0.02f;
+        lookSmoothTime = 0.012f;
+        // シーンに古い近接距離が残っていても、少し引いた見え方に揃える
+        if (distance < 7.5f)
+            distance = 7.8f;
+
         if (target != null)
             SnapBehindTarget();
         else
@@ -98,6 +131,8 @@ public class AdventureCameraFollow : MonoBehaviour
             _cam.nearClipPlane = 0.05f;
             _cam.farClipPlane = 1200f;
             _cam.useOcclusionCulling = false;
+            if (_cam.fieldOfView < 62f)
+                _cam.fieldOfView = 64f;
         }
         LockCursor();
     }
@@ -108,11 +143,31 @@ public class AdventureCameraFollow : MonoBehaviour
         Cursor.visible = false;
     }
 
+    void Update()
+    {
+        _lookUpdatedThisFrame = false;
+        if (target == null) return;
+        UpdateLookInputOnly();
+        ApplyLookSmoothingForMove();
+    }
+
     void LateUpdate()
     {
-        if (target == null)
-            return;
+        if (target == null) return;
 
+        // Update を飛ばした場合の保険
+        if (!_lookUpdatedThisFrame)
+        {
+            UpdateLookInputOnly();
+            ApplyLookSmoothingForMove();
+        }
+
+        ApplyCameraRig();
+        _lookUpdatedThisFrame = false;
+    }
+
+    void UpdateLookInputOnly()
+    {
         var kb = Keyboard.current;
         var mouse = Mouse.current;
 
@@ -146,7 +201,6 @@ public class AdventureCameraFollow : MonoBehaviour
         if (kb != null && kb.rKey.wasPressedThisFrame)
             SnapBehindTarget();
 
-        // 生マウス入力のみ使用（平滑の残留で勝手に回り続けるのを防ぐ）
         float mouseX = 0f;
         float mouseY = 0f;
         if (mouse != null)
@@ -198,8 +252,8 @@ public class AdventureCameraFollow : MonoBehaviour
 
         if (Mathf.Abs(keyYaw) > 0.01f || Mathf.Abs(keyPitch) > 0.01f)
         {
-            _targetYaw += keyYaw * 95f * Time.deltaTime;
-            _targetPitch = Mathf.Clamp(_targetPitch - keyPitch * 75f * Time.deltaTime, pitchMin, pitchMax);
+            _targetYaw += keyYaw * 110f * Time.deltaTime;
+            _targetPitch = Mathf.Clamp(_targetPitch - keyPitch * 90f * Time.deltaTime, pitchMin, pitchMax);
             _lastMouseInputTime = Time.time;
         }
 
@@ -209,22 +263,26 @@ public class AdventureCameraFollow : MonoBehaviour
             Vector2 rStick = pad.rightStick.ReadValue();
             if (rStick.sqrMagnitude > 0.04f)
             {
-                _targetYaw += rStick.x * 130f * sensitivity * Time.deltaTime;
-                _targetPitch = Mathf.Clamp(_targetPitch - rStick.y * 100f * sensitivity * Time.deltaTime, pitchMin, pitchMax);
+                _targetYaw += rStick.x * 160f * sensitivity * Time.deltaTime;
+                _targetPitch = Mathf.Clamp(_targetPitch - rStick.y * 120f * sensitivity * Time.deltaTime, pitchMin, pitchMax);
                 _lastMouseInputTime = Time.time;
             }
         }
 
+        _targetYaw = Mathf.Repeat(_targetYaw, 360f);
+        _lookUpdatedThisFrame = true;
+    }
+
+    void ApplyLookSmoothingForMove()
+    {
         var player = AdventurePlayerController.Instance;
         bool isGliding = player != null && player.IsGliding;
         bool isAutoGlide = player != null && player.IsAutoGliding;
         bool playerGrounded = player != null && player.IsGrounded;
+        bool playerMoving = player != null && player.HasMoveInput;
 
-        // 地上に戻ったらシネマ残りを切る（エンディング後にNikoが見えない主因）
         if (playerGrounded && !isAutoGlide && _cinematic && !AdventureStoryFlow.HoldCinematicCamera)
-        {
             SetCinematicMode(false);
-        }
 
         float blendTarget = _cinematic ? 1f : 0f;
         _cinematicBlend = Mathf.MoveTowards(_cinematicBlend, blendTarget, CinematicBlendSpeed * Time.unscaledDeltaTime);
@@ -232,7 +290,8 @@ public class AdventureCameraFollow : MonoBehaviour
 
         float followIdle = cine > 0.2f || isAutoGlide ? 0.35f : 1.2f;
         float followRate = cine > 0.2f || isAutoGlide ? 55f : 36f;
-        bool walkingGround = !isGliding && !isAutoGlide && cine < 0.05f && playerGrounded;
+        bool walkingGround = !isGliding && !isAutoGlide && cine < 0.05f && (playerGrounded || playerMoving);
+
         if ((isGliding || isAutoGlide) && (Time.time - _lastMouseInputTime > followIdle))
         {
             float targetHeading = target.eulerAngles.y;
@@ -243,22 +302,46 @@ public class AdventureCameraFollow : MonoBehaviour
         else if (walkingGround)
         {
             float idle = Time.time - _lastMouseInputTime;
-            float settle = idle > 0.45f ? 28f : 8f;
-            _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, settle * Time.deltaTime);
+            float settle = idle > 0.55f ? 22f : 0f; // 操作中はピッチを引き戻さない（重い感の原因）
+            if (settle > 0f)
+                _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, settle * Time.deltaTime);
         }
 
         if (cine > 0.4f && !isAutoGlide)
             _targetPitch = Mathf.Clamp(_targetPitch, -6f, 22f);
 
-        // 歩行はほぼ即応、滑空／シネマだけ少し滑らか
-        float lookSmooth = walkingGround ? 0.018f : Mathf.Max(0.01f, lookSmoothTime);
-        _yaw = Mathf.SmoothDampAngle(_yaw, _targetYaw, ref _yawVel, lookSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
-        _pitch = Mathf.SmoothDamp(_pitch, _targetPitch, ref _pitchVel, lookSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
-        _pitch = Mathf.Clamp(_pitch, pitchMin, pitchMax);
+        // 歩行中は視点ヨーを即時反映（SmoothDampしない）
+        if (walkingGround)
+        {
+            _yaw = _targetYaw;
+            _pitch = _targetPitch;
+            _yawVel = 0f;
+            _pitchVel = 0f;
+        }
+        else
+        {
+            float lookSmooth = Mathf.Max(0.01f, lookSmoothTime);
+            _yaw = Mathf.SmoothDampAngle(_yaw, _targetYaw, ref _yawVel, lookSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
+            _pitch = Mathf.SmoothDamp(_pitch, _targetPitch, ref _pitchVel, lookSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
+        }
 
+        _pitch = Mathf.Clamp(_pitch, pitchMin, pitchMax);
         _yaw = Mathf.Repeat(_yaw, 360f);
         _targetYaw = Mathf.Repeat(_targetYaw, 360f);
         CurrentYaw = _yaw;
+    }
+
+    void ApplyCameraRig()
+    {
+        var player = AdventurePlayerController.Instance;
+        bool isGliding = player != null && player.IsGliding;
+        bool isAutoGlide = player != null && player.IsAutoGliding;
+        bool playerGrounded = player != null && player.IsGrounded;
+        bool playerMoving = player != null && player.HasMoveInput;
+        float cine = _cinematicBlend;
+        // 接地フラグが1F遅れても、移動入力中は歩行扱い（出だしのカメラ遅れ＝反応の悪さ）
+        bool walkingGround = !isGliding && !isAutoGlide && cine < 0.05f && (playerGrounded || playerMoving);
+
         Quaternion currentRot = Quaternion.Euler(_pitch, _yaw, 0f);
 
         Vector3 targetPivot;
@@ -270,7 +353,6 @@ public class AdventureCameraFollow : MonoBehaviour
             targetPivot = target.position + Vector3.up * useHeight;
         }
 
-        // テレポート／柱上昇後にピボットが取り残されないようスナップ
         if (Vector3.Distance(_currentPivot, targetPivot) > 12f)
         {
             _currentPivot = targetPivot;
@@ -279,26 +361,43 @@ public class AdventureCameraFollow : MonoBehaviour
             _distVel = 0f;
         }
 
-        float pivotSmooth = walkingGround ? 0.085f : (isAutoGlide ? 0.08f : (isGliding ? 0.045f : positionSmoothTime));
-        _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, pivotSmooth);
+        // 歩行：ピボットもほぼスナップ（カメラ遅れ＝操作の重さ）
+        if (walkingGround)
+        {
+            _currentPivot = targetPivot;
+            _pivotVelocity = Vector3.zero;
+        }
+        else
+        {
+            float pivotSmooth = isAutoGlide ? 0.06f : (isGliding ? 0.035f : positionSmoothTime);
+            _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, pivotSmooth);
+        }
 
-        float targetFov = Mathf.Lerp(isGliding ? 64f : 58f, CinematicFov, cine);
+        float targetFov = Mathf.Lerp(isGliding ? 68f : 64f, CinematicFov, cine);
         if (_cam != null)
             _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, targetFov, (cine > 0.01f ? 18f : 8f) * Time.deltaTime);
 
-        float desiredDist = Mathf.Lerp(isGliding ? (distance + 0.8f) : distance, CinematicDistance, cine);
+        float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.0f) : distance, CinematicDistance, cine);
         float safeTargetDist = CalculateSafeDistance(_currentPivot, currentRot, desiredDist);
         if (cine > 0.2f)
             safeTargetDist = Mathf.Max(safeTargetDist, Mathf.Lerp(0.9f, 3.2f, cine));
         if (walkingGround)
             safeTargetDist = Mathf.Max(safeTargetDist, WalkMinDistance);
-        _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, cine > 0.2f ? 0.12f : 0.08f);
+
+        if (walkingGround)
+        {
+            _currentDistance = safeTargetDist;
+            _distVel = 0f;
+        }
+        else
+        {
+            _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, cine > 0.2f ? 0.12f : 0.08f);
+        }
 
         Vector3 targetPos = _currentPivot + currentRot * new Vector3(0f, 0f, -_currentDistance);
         float minCamY = Mathf.Lerp(1.15f, 1.35f, cine);
         targetPos.y = Mathf.Max(targetPos.y, target.position.y + minCamY);
 
-        // 地形スナップ：急激な垂直クリップによるガタつきを抑え、滑らかに地表以上をキープ
         if (_land == null)
             _land = AdventureQuestLocations.FindLand();
         if (_land != null)
@@ -318,7 +417,6 @@ public class AdventureCameraFollow : MonoBehaviour
 
         transform.position = targetPos;
 
-        // 歩行：常にNikoの上半身を画角中央へ（ピッチ角をSmoothDampAngleで滑らかに遷移させジッターを完全解消）
         if (walkingGround)
         {
             Vector3 focus = target.position + Vector3.up * WalkFocusHeight;
@@ -329,9 +427,8 @@ public class AdventureCameraFollow : MonoBehaviour
                 float lookPitch = look.eulerAngles.x;
                 if (lookPitch > 180f) lookPitch -= 360f;
                 lookPitch = Mathf.Clamp(lookPitch, pitchMin, pitchMax);
-                float framed = Mathf.Lerp(_pitch, lookPitch, 0.72f);
-                framed = Mathf.Clamp(framed, pitchMin, pitchMax);
-                _framedPitch = Mathf.SmoothDampAngle(_framedPitch, framed, ref _framedPitchVel, 0.045f, Mathf.Infinity, Time.unscaledDeltaTime);
+                // 歩行中はフレーミングも即時（SmoothDampなし）
+                _framedPitch = Mathf.Lerp(_pitch, lookPitch, 0.55f);
                 transform.rotation = Quaternion.Euler(_framedPitch, _yaw, 0f);
             }
             else
@@ -356,7 +453,6 @@ public class AdventureCameraFollow : MonoBehaviour
             if (target != null && (hit.transform == target || hit.transform.IsChildOf(target)))
                 return maxDist;
 
-            // Rust／小さな草木／池／岩／水草／足元の床・テラス・台座・階段で急激にカメラが寄ってガタガタ揺れるのを防ぐ
             string n = hit.collider != null ? hit.collider.name : "";
             if (n.IndexOf("Rust", System.StringComparison.OrdinalIgnoreCase) >= 0
                 || n.IndexOf("Grass", System.StringComparison.OrdinalIgnoreCase) >= 0

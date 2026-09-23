@@ -293,12 +293,31 @@ public class AdventureSaveManager : MonoBehaviour
             SaveGame("SAVEしました");
         }
 
-        // 【Shift + F12】キーで砂浜から0個で始めるニューゲームリセット（誤爆防止）
+        // 【F8】セーブ初期化・砂浜0個スタート（HANDOFF / .cursorrules 準拠）
+        // 【Shift + F12】は誤爆しにくい予備ショートカット
         var kb = GetKeyboard();
-        if (kb != null && kb.f12Key.wasPressedThisFrame && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed))
+        if (kb != null)
         {
-            ResetToNewGame();
+            bool f8NewGame = kb.f8Key.wasPressedThisFrame;
+            bool shiftF12 = kb.f12Key.wasPressedThisFrame
+                            && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
+            if (f8NewGame || shiftF12)
+            {
+                ResetToNewGame();
+                return;
+            }
         }
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.F8)
+                || (Input.GetKeyDown(KeyCode.F12)
+                    && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))))
+            {
+                ResetToNewGame();
+                return;
+            }
+        }
+        catch { }
 
         // 【6】キー（またはテンキー6）でパーツ6個状態（カルデラ湖手前・二段ジャンプ解禁済み）へ即座にセット＆再試行
         if (kb != null && (kb.digit6Key.wasPressedThisFrame || kb.numpad6Key.wasPressedThisFrame))
@@ -604,6 +623,7 @@ public class AdventureSaveManager : MonoBehaviour
                 }
                 PlayerPrefs.Save();
             }
+            AdventureBeachDriftBox.SyncAllOpenedVisualsFromPrefs();
 
             // ピアノ古代遺物回収状態の復元
             if (data.isPianoRelicCollected)

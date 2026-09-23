@@ -58,6 +58,7 @@ public static class AdventureStoryFlow
             return tower.IsSkybreakModalActive
                 || tower.IsClimaxOilPromptActive
                 || tower.IsEpiloguePlaying
+                || tower.EpilogueTriggered
                 || tower.ShowGameClearModal
                 || tower.ClimaxCrisisStarted;
         }
@@ -86,20 +87,28 @@ public static class AdventureStoryFlow
                 tower.IsSkybreakModalActive
                 || tower.IsEpiloguePlaying
                 || tower.ShowGameClearModal
-                || tower.IsClimaxOilPromptActive);
+                || tower.IsClimaxOilPromptActive
+                || tower.ClimaxCrisisStarted);
         }
     }
 
-    /// <summary>下部バナー（台本中、またはレバー前）。</summary>
+    /// <summary>下部バナー（台本・クライマックス・エピローグ・レバー前）。</summary>
     public static bool HidesBottomBanner
     {
         get
         {
             var tower = AdventureSanctuaryTowerManager.Instance;
             if (tower == null) return false;
-            return tower.IsSkybreakModalActive || tower.IsPlayerNearLever;
+            return tower.IsSkybreakModalActive
+                || tower.IsPlayerNearLever
+                || tower.ClimaxCrisisStarted
+                || tower.IsEpiloguePlaying
+                || tower.ShowGameClearModal;
         }
     }
+
+    /// <summary>コンパス・クエストHUD・操作ガイドを消す（映画モード）。</summary>
+    public static bool HidesExplorationHud => IsPerformance;
 
     /// <summary>Rustへの話しかけと、アイドル雑談。</summary>
     public static bool HidesRustInteraction
