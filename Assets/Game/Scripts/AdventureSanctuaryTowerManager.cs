@@ -1933,13 +1933,10 @@ public class AdventureSanctuaryTowerManager : MonoBehaviour
                 _scriptHoldTimer = 0f;
             }
 
-            // 入力が一切取れなくても必ず進む
-            // 1枚目7秒／Niko感謝4秒／その他3.5秒／ダイブ5秒
+            // 1枚目7秒／会話・ナレ3.5秒／ダイブ5秒
             float autoSec = _scriptBoardIsDive ? 5f : 3.0f;
             if (_canopyBeatIndex == 0)
                 autoSec = 7.0f;
-            else if (_canopyBeatIndex == 3)
-                autoSec = 4.0f; // ありがとうRust…たどり着くことができた
             else if (!_scriptBoardIsDive && _canopyBeatIndex >= 1 && _canopyBeatIndex <= 5)
                 autoSec = 3.5f;
             if (openFor >= autoSec)
