@@ -65,11 +65,24 @@ public class AdventureCameraFollow : MonoBehaviour
 
     bool _lookUpdatedThisFrame;
 
+    float _shakeIntensity;
+    float _shakeUntil;
+    float _shakeSeed;
+
     public void SetCinematicMode(bool enabled)
     {
         _cinematic = enabled;
         if (!enabled)
             _cinematicBlend = 0f;
+    }
+
+    /// <summary>地面・衝撃用のカメラ揺れ（天蓋裂開など）。intensity はワールドメートル相当。</summary>
+    public void Shake(float intensity, float duration)
+    {
+        _shakeIntensity = Mathf.Max(_shakeIntensity, intensity);
+        _shakeUntil = Mathf.Max(_shakeUntil, Time.unscaledTime + Mathf.Max(0.05f, duration));
+        if (_shakeSeed < 0.01f)
+            _shakeSeed = Random.Range(10f, 100f);
     }
 
     public bool IsCinematic => _cinematic;
@@ -441,6 +454,28 @@ public class AdventureCameraFollow : MonoBehaviour
         {
             _framedPitch = _pitch;
             transform.rotation = currentRot;
+        }
+
+        if (Time.unscaledTime < _shakeUntil && _shakeIntensity > 0.001f)
+        {
+            float remain = _shakeUntil - Time.unscaledTime;
+            float falloff = Mathf.Clamp01(remain / 0.55f);
+            float amp = _shakeIntensity * falloff;
+            float t = Time.unscaledTime * 55f + _shakeSeed;
+            Vector3 offset = new Vector3(
+                Mathf.Sin(t * 1.7f) * amp,
+                Mathf.Sin(t * 2.3f) * amp * 0.75f,
+                Mathf.Cos(t * 1.9f) * amp * 0.55f);
+            transform.position += offset;
+            transform.rotation = Quaternion.Euler(
+                transform.eulerAngles.x + Mathf.Sin(t * 2.1f) * amp * 4.5f,
+                transform.eulerAngles.y + Mathf.Cos(t * 1.6f) * amp * 3.2f,
+                Mathf.Sin(t * 2.8f) * amp * 6f);
+        }
+        else if (_shakeIntensity > 0f)
+        {
+            _shakeIntensity = 0f;
+            _shakeSeed = 0f;
         }
     }
 

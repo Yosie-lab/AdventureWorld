@@ -50,6 +50,7 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         _canopyBeatIndex = 0;
+        _skyTearPlayed = false;
         PresentCanopyBeat(0);
         Debug.Log("[RustAndFloat] 天蓋台本を Update 駆動で開始（全" + CanopyBeats.Length + "枚）");
     }
@@ -82,6 +83,16 @@ public partial class AdventureSanctuaryTowerManager
             _scriptHintUi.text = beat.IsDive
                 ? "【Space長押し / クリック】ダイブ！"
                 : "【Space長押し / クリック】つづき";
+        }
+
+        // 「空が……割れるよ」で天空裂開シーン
+        if (index == 2 && !_skyTearPlayed)
+        {
+            _skyTearPlayed = true;
+            if (GameObject.Find("SkybreakEffect") == null)
+                SpawnSkybreakCracks(new Vector3(512f, 150f, 512f));
+            StartCoroutine(AdventureSkybreakVisuals.PlaySkyTearOpenRoutine());
+            Debug.Log("[RustAndFloat] 天空裂開シーン開始");
         }
 
         Debug.Log($"[RustAndFloat] 台本 {index + 1}/{CanopyBeats.Length}: {beat.Title} {beat.Speaker}");
@@ -119,10 +130,12 @@ public partial class AdventureSanctuaryTowerManager
                 _scriptHoldTimer = 0f;
             }
 
-            // 1枚目7秒／会話・ナレ3.5秒／ダイブ5秒
+            // 1枚目7秒／「空が割れるよ」5秒（裂開演出）／会話・ナレ3.5秒／ダイブ5秒
             float autoSec = _scriptBoardIsDive ? 5f : 3.0f;
             if (_canopyBeatIndex == 0)
                 autoSec = 7.0f;
+            else if (_canopyBeatIndex == 2)
+                autoSec = 8.0f;
             else if (!_scriptBoardIsDive && _canopyBeatIndex >= 1 && _canopyBeatIndex <= 5)
                 autoSec = 3.5f;
             if (openFor >= autoSec)
@@ -1293,7 +1306,7 @@ public partial class AdventureSanctuaryTowerManager
         rt.sizeDelta = new Vector2(0f, 72f);
         _filmSubtitleUi = go.AddComponent<Text>();
         _filmSubtitleUi.font = font;
-        _filmSubtitleUi.fontSize = 30;
+        _filmSubtitleUi.fontSize = 36;
         _filmSubtitleUi.alignment = TextAnchor.MiddleCenter;
         _filmSubtitleUi.color = new Color(1f, 0.94f, 0.78f, 0f);
         _filmSubtitleUi.horizontalOverflow = HorizontalWrapMode.Wrap;

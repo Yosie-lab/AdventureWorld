@@ -128,6 +128,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     // Update駆動の天蓋台本（コルーチンが死んでも進む）
     int _canopyBeatIndex = -1;
+    bool _skyTearPlayed;
     struct CanopyBeat
     {
         public string Title;
@@ -358,6 +359,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _scriptBoardSpeaker = "";
         _scriptBoardBody = "";
         _canopyBeatIndex = -1;
+        _skyTearPlayed = false;
         _scriptHoldTimer = 0f;
         ClearPendingClimax();
         _showGameClearModal = false;
@@ -1601,6 +1603,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         DestroyAllByName("WildernessPanorama");
         DestroyAllByName("SkybreakEffect");
         DestroyAllByName("SkybreakColdMist");
+        DestroyAllByName("SkyTearOpening");
+        DestroyAllByName("SkyTearFlashCanvas");
     }
 
     /// <summary>天蓋破壊ボード表示と同時に、外気の冷たい風音をフェードイン</summary>
