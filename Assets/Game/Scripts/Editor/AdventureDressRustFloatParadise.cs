@@ -112,6 +112,87 @@ public static class AdventureDressRustFloatParadise
         Dress();
     }
 
+    /// <summary>
+    /// 南東の森林が深すぎる報告向け：既存シーンの南東木を約半分間引く（Play停止中）。
+    /// </summary>
+    [MenuItem("Adventure/🌲 Thin SE Forest (南東の森林を間引き)")]
+    public static void ThinSoutheastForestFromMenu()
+    {
+        if (EditorApplication.isPlaying)
+        {
+            EditorUtility.DisplayDialog("停止してください", "■で再生を止めてから実行してください。", "OK");
+            return;
+        }
+
+        if (EditorSceneManager.GetActiveScene().path != ScenePath)
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+
+        var paradise = GameObject.Find(RootName);
+        if (paradise == null)
+        {
+            EditorUtility.DisplayDialog("Paradise なし", "先に Dress RustAndFloat Paradise を実行してください。", "OK");
+            return;
+        }
+
+        // 南東：島中心(512,512)より東かつ南寄り
+        const float seMinX = 520f;
+        const float seMaxZ = 500f;
+        // 約45%残す（乱数固定で再現性）
+        var rng = new System.Random(20260923);
+        int removed = 0;
+        int kept = 0;
+
+        // 子から走査して破棄（親ごと消える DenseGrove 内の木も含む）
+        var all = paradise.GetComponentsInChildren<Transform>(true);
+        var toDestroy = new System.Collections.Generic.List<GameObject>();
+        for (int i = 0; i < all.Length; i++)
+        {
+            var t = all[i];
+            if (t == null || t.gameObject == paradise) continue;
+            // 葉ノード〜木のルート相当：名前で樹木系を判定
+            if (!IsTreeLikeName(t.name)) continue;
+            // 孫の枝・葉は親の木と一緒に消えるので、親も Tree 名ならスキップしにくい →
+            // Place は prefab 名のルートを直接作る想定なので、そのオブジェクトを対象にする
+            if (t.parent != null && IsTreeLikeName(t.parent.name))
+                continue;
+
+            Vector3 p = t.position;
+            if (p.x < seMinX || p.z > seMaxZ) continue;
+
+            if (rng.NextDouble() < 0.55) // 55%削除 → 約45%残す
+                toDestroy.Add(t.gameObject);
+            else
+                kept++;
+        }
+
+        Undo.IncrementCurrentGroup();
+        int group = Undo.GetCurrentGroup();
+        for (int i = 0; i < toDestroy.Count; i++)
+        {
+            if (toDestroy[i] == null) continue;
+            Undo.DestroyObjectImmediate(toDestroy[i]);
+            removed++;
+        }
+        Undo.CollapseUndoOperations(group);
+
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log($"<color=#00FFAA><b>[RustAndFloat]</b> 南東森林を間引き: 削除 {removed} / 残置 {kept}（x≥{seMinX}, z≤{seMaxZ}）</color>");
+        EditorUtility.DisplayDialog(
+            "南東森林を間引き",
+            $"削除: {removed}\n残置: {kept}\n\nシーンを保存してください（Ctrl/Cmd+S）。\n※シーンはGitコミットしない運用です。",
+            "OK");
+    }
+
+    static bool IsTreeLikeName(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return false;
+        return name.IndexOf("Fir", System.StringComparison.OrdinalIgnoreCase) >= 0
+            || name.IndexOf("Tree", System.StringComparison.OrdinalIgnoreCase) >= 0
+            || name.IndexOf("Willow", System.StringComparison.OrdinalIgnoreCase) >= 0
+            || name.IndexOf("Broadleaf", System.StringComparison.OrdinalIgnoreCase) >= 0
+            || name.IndexOf("Blossom", System.StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
     [MenuItem("Adventure/🏝️ Reset Spawn to West Beach (西側白砂ビーチ・座礁艇前)")]
     public static void ResetSpawnToWestBeach()
     {
@@ -374,14 +455,16 @@ public static class AdventureDressRustFloatParadise
 
                 // ── ゾーニング：西側大草原 vs 東部・北部大樹海 ──
                 bool inWestMeadow = (p.x < 460f && p.z < 650f);
+                bool inSoutheast = (p.x >= 520f && p.z <= 500f);
                 if (isTree)
                 {
                     // 西側大草原ゾーン：地平線まで突き抜ける草原の開放感を保つため、木は爽やかな一本杉や木立（4%のみ）
                     if (inWestMeadow && rng.NextDouble() > 0.04)
                         continue;
 
-                    // 東部〜北東部〜北部（x >= 460f または z >= 650f）：
-                    // 「森林をもっと広く深く」するため、間引かず高密度に林立！
+                    // 南東は深すぎるため、約45%だけ残す
+                    if (inSoutheast && rng.NextDouble() > 0.45)
+                        continue;
                 }
 
                 // 垂直崖（n.y < 0.38）以外はすべて草花・木を配置可能！
@@ -393,7 +476,9 @@ public static class AdventureDressRustFloatParadise
                 spots.Add(p);
 
                 // 大樹海ゾーン（東部・北部）では天蓋が重なり合う深い森（密林クラスター）を自動形成
-                if (isTree && !inWestMeadow && rng.NextDouble() < 0.70)
+                // 南東はクラスターを弱めて間伐感を出す
+                float clusterChance = inSoutheast ? 0.22f : 0.70f;
+                if (isTree && !inWestMeadow && rng.NextDouble() < clusterChance)
                 {
                     Vector3 tc = p + new Vector3((float)(rng.NextDouble() * 5.0 - 2.5), 0f, (float)(rng.NextDouble() * 5.0 - 2.5));
                     tc.y = land.SampleHeight(tc) + origin.y;
@@ -1725,12 +1810,13 @@ public static class AdventureDressRustFloatParadise
         // 11. 南西草原・小川沿い木立 (せせらぎとアブラゼミ・夏の田舎道)
         (Vector3 center, float radius, int treeCount, int cicadaCount, AudioClip forestAmbience, AudioClip[] treeClips)[] groves =
         {
-            (new Vector3(680f, 0f, 530f), 75f, 130, 12, minminForestClip, new[] { minminSoloClip, abura1Clip, abura2Clip }),
+            (new Vector3(680f, 0f, 530f), 75f, 100, 12, minminForestClip, new[] { minminSoloClip, abura1Clip, abura2Clip }),
             (new Vector3(490f, 0f, 680f), 65f, 100, 10, summerMtn1Clip ?? summerMtn2Clip, new[] { niiniiClip, abura1Clip, summerMtn2Clip }),
             (new Vector3(440f, 0f, 480f), 55f, 80, 8, higurashiClip, new[] { tsukutsuku1Clip, tsukutsuku2Clip, higurashiClip }),
-            (new Vector3(720f, 0f, 380f), 70f, 110, 10, minminForestClip ?? summerMtn2Clip, new[] { abura1Clip, abura2Clip, tsukutsuku1Clip }),
+            // 南東スロープ：深すぎたので本数を半減
+            (new Vector3(720f, 0f, 380f), 70f, 55, 8, minminForestClip ?? summerMtn2Clip, new[] { abura1Clip, abura2Clip, tsukutsuku1Clip }),
             (new Vector3(620f, 0f, 640f), 65f, 90, 8, minminForestClip, new[] { minminSoloClip, niiniiClip, abura1Clip }),
-            (new Vector3(580f, 0f, 460f), 55f, 80, 8, higurashiClip, new[] { higurashiClip, minminSoloClip, tsukutsuku2Clip }),
+            (new Vector3(580f, 0f, 460f), 55f, 50, 7, higurashiClip, new[] { higurashiClip, minminSoloClip, tsukutsuku2Clip }),
             (new Vector3(480f, 0f, 430f), 45f, 60, 7, summerMtn1Clip, new[] { tsukutsuku1Clip, tsukutsuku2Clip, higurashiClip }),
             (new Vector3(360f, 0f, 380f), 50f, 70, 7, minminForestClip, new[] { minminSoloClip, abura1Clip, higurashiClip }),
             (new Vector3(250f, 0f, 340f), 35f, 35, 6, higurashiClip, new[] { tsukutsuku1Clip, higurashiClip, minminSoloClip }),

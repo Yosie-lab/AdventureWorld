@@ -45,13 +45,15 @@ public static class AdventureSkybreakVisuals
 
         if (coldCrisis)
         {
-            // 限界中：以前の冷たい荒野パノラマ（スカイボックスは触らない）
+            // 限界中：割れ目の向こうも楽園と同じ澄んだ青空（変色しない）
+            SpawnOuterSkyScene(panoramaGo.transform, coldCrisis: true);
+            ApplySkyboxForSkybreak(coldCrisis: true);
             SpawnColdCrisisWilderness(panoramaGo.transform, lit, unlit);
             SpawnSkybreakColdMist(panoramaGo.transform);
         }
         else
         {
-            // 突破後：豊かな緑の大地＋海＋澄んだ青空
+            // 突破後：豊かな緑の大地＋海＋澄んだ青空（以前の ClearBlueSky）
             SpawnOuterSkyScene(panoramaGo.transform, coldCrisis: false);
             ApplySkyboxForSkybreak(coldCrisis: false);
             SpawnLushLiberationWorld(panoramaGo.transform, lit, unlit);
@@ -72,10 +74,11 @@ public static class AdventureSkybreakVisuals
         horizon.name = "HorizonGlow";
         horizon.transform.SetParent(parent, false);
         horizon.transform.localPosition = new Vector3(0f, -8f, 0f);
-        horizon.transform.localScale = new Vector3(1600f, 1.6f, 1600f);
+        horizon.transform.localScale = new Vector3(1600f, 1.2f, 1600f);
         Object.Destroy(horizon.GetComponent<Collider>());
         var horizonMat = new Material(unlit);
-        horizonMat.color = new Color(0.55f, 0.68f, 0.88f, 0.55f);
+        // 地平は薄い青白のみ（オレンジ／汚れたシアンで空を染めない）
+        horizonMat.color = new Color(0.70f, 0.85f, 0.98f, 0.22f);
         var hr = horizon.GetComponent<Renderer>();
         if (hr != null) hr.material = horizonMat;
 
@@ -177,9 +180,9 @@ public static class AdventureSkybreakVisuals
         var shoreR = shore.GetComponent<Renderer>();
         if (shoreR != null) shoreR.material = shoreMat;
 
-        // 地平の明るい草原の霞
+        // 地平の明るい草原の霞（空の青を汚さない薄い帯）
         var horizonMat = new Material(unlit);
-        horizonMat.color = new Color(0.78f, 0.92f, 0.55f, 0.48f);
+        horizonMat.color = new Color(0.85f, 0.94f, 0.78f, 0.28f);
         var horizon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         horizon.name = "HorizonGlow";
         horizon.transform.SetParent(parent, false);
@@ -319,6 +322,109 @@ public static class AdventureSkybreakVisuals
         }
     }
 
+    /// <summary>
+    /// 半透明の細い光柱（未使用フォールバック。冷危機／解放は上記のクラシック光芒を使う）。
+    /// </summary>
+    static void SpawnSoftGodRays(Transform parent, Shader unlit, bool coldCrisis)
+    {
+        var raysGo = new GameObject("SkybreakGodRays");
+        raysGo.transform.SetParent(parent, false);
+        raysGo.transform.localPosition = new Vector3(0f, 58f, 0f);
+
+        var coreMat = new Material(unlit);
+        coreMat.color = coldCrisis
+            ? new Color(1f, 0.92f, 0.62f, 0.08f)
+            : new Color(1f, 0.96f, 0.78f, 0.09f);
+        var auraMat = new Material(unlit);
+        auraMat.color = coldCrisis
+            ? new Color(1f, 0.78f, 0.40f, 0.04f)
+            : new Color(0.95f, 0.98f, 0.70f, 0.05f);
+
+        int count = coldCrisis ? 10 : 9;
+        for (int r = 0; r < count; r++)
+        {
+            float yaw = r * (360f / count) + Random.Range(-8f, 8f);
+            float pitch = Random.Range(12f, 28f);
+            Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
+
+            // 極細コア（太さは視界で線に近い）
+            var core = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            core.name = $"GodRayCore_{r}";
+            core.transform.SetParent(raysGo.transform, false);
+            core.transform.localRotation = rot;
+            core.transform.localPosition = rot * Vector3.up * 75f;
+            float thin = Random.Range(0.55f, 1.1f);
+            core.transform.localScale = new Vector3(thin, Random.Range(100f, 150f), thin);
+            Object.Destroy(core.GetComponent<Collider>());
+            var cr = core.GetComponent<Renderer>();
+            if (cr != null)
+            {
+                cr.material = coreMat;
+                cr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                cr.receiveShadows = false;
+            }
+
+            var aura = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            aura.name = $"GodRayAura_{r}";
+            aura.transform.SetParent(raysGo.transform, false);
+            aura.transform.localRotation = rot;
+            aura.transform.localPosition = rot * Vector3.up * 70f;
+            float wide = thin * Random.Range(3.5f, 5.5f);
+            aura.transform.localScale = new Vector3(wide, Random.Range(90f, 135f), wide);
+            Object.Destroy(aura.GetComponent<Collider>());
+            var ar = aura.GetComponent<Renderer>();
+            if (ar != null)
+            {
+                ar.material = auraMat;
+                ar.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                ar.receiveShadows = false;
+            }
+        }
+
+        // 光の粉ストリーク（円柱感をぼかす）
+        var streakGo = new GameObject("GodRayStreaks");
+        streakGo.transform.SetParent(raysGo.transform, false);
+        var ps = streakGo.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.loop = true;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(2.5f, 5f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.4f, 1.8f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(8f, 22f);
+        main.startColor = coldCrisis
+            ? new ParticleSystem.MinMaxGradient(
+                new Color(1f, 0.9f, 0.5f, 0.45f),
+                new Color(0.75f, 0.9f, 1f, 0.15f))
+            : new ParticleSystem.MinMaxGradient(
+                new Color(1f, 0.96f, 0.8f, 0.4f),
+                new Color(0.9f, 0.98f, 0.75f, 0.12f));
+        main.maxParticles = 180;
+        main.simulationSpace = ParticleSystemSimulationSpace.Local;
+        var emission = ps.emission;
+        emission.rateOverTime = 24f;
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Cone;
+        shape.angle = 22f;
+        shape.radius = 6f;
+        shape.rotation = new Vector3(-90f, 0f, 0f);
+        var rend = streakGo.GetComponent<ParticleSystemRenderer>();
+        if (rend != null)
+        {
+            var sh = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                     ?? Shader.Find("Sprites/Default");
+            var mat = new Material(sh);
+            mat.color = coldCrisis
+                ? new Color(1f, 0.88f, 0.5f, 0.55f)
+                : new Color(1f, 0.95f, 0.8f, 0.5f);
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", mat.color);
+            rend.material = mat;
+            rend.renderMode = ParticleSystemRenderMode.Stretch;
+            rend.lengthScale = 3.5f;
+            rend.velocityScale = 0.12f;
+        }
+        ps.Play();
+    }
+
     /// <summary>割れ目の外側に見える本物の空（巨大ドーム）</summary>
     static void SpawnOuterSkyScene(Transform parent, bool coldCrisis)
     {
@@ -359,9 +465,7 @@ public static class AdventureSkybreakVisuals
                     ?? Shader.Find("Sprites/Default")
                     ?? Shader.Find("Unlit/Color");
         var glowMat = new Material(unlit);
-        glowMat.color = coldCrisis
-            ? new Color(0.85f, 0.92f, 1f, 0.35f)
-            : new Color(0.95f, 0.98f, 0.85f, 0.40f);
+        glowMat.color = new Color(0.95f, 0.98f, 1f, 0.32f);
         var gr = sunGlow.GetComponent<Renderer>();
         if (gr != null)
         {
@@ -375,33 +479,21 @@ public static class AdventureSkybreakVisuals
         if (mat == null) return;
         if (mat.HasProperty("_TopColor"))
         {
-            if (coldCrisis)
-            {
-                mat.SetColor("_TopColor", new Color(0.04f, 0.14f, 0.42f, 1f));
-                mat.SetColor("_MidColor", new Color(0.22f, 0.48f, 0.82f, 1f));
-                mat.SetColor("_HorizonColor", new Color(0.62f, 0.78f, 0.95f, 1f));
-                mat.SetColor("_GroundColor", new Color(0.35f, 0.48f, 0.72f, 1f));
-                mat.SetColor("_SunColor", new Color(0.92f, 0.96f, 1f, 1f));
-            }
-            else
-            {
-                // 解放後：澄んだ青空＋海際の柔らかい光（砂漠の金は使わない）
-                mat.SetColor("_TopColor", new Color(0.05f, 0.32f, 0.88f, 1f));
-                mat.SetColor("_MidColor", new Color(0.22f, 0.62f, 0.98f, 1f));
-                mat.SetColor("_HorizonColor", new Color(0.78f, 0.92f, 0.82f, 1f));
-                mat.SetColor("_GroundColor", new Color(0.35f, 0.58f, 0.48f, 1f));
-                mat.SetColor("_SunColor", new Color(1f, 0.98f, 0.92f, 1f));
-            }
-            if (mat.HasProperty("_SunSize")) mat.SetFloat("_SunSize", coldCrisis ? 0.028f : 0.038f);
-            if (mat.HasProperty("_SunGlow")) mat.SetFloat("_SunGlow", coldCrisis ? 2.2f : 2.4f);
-            if (mat.HasProperty("_Exponent")) mat.SetFloat("_Exponent", 0.62f);
-            if (mat.HasProperty("_HorizonOffset")) mat.SetFloat("_HorizonOffset", coldCrisis ? 0.02f : 0.0f);
+            // BrightenScene / ClearBlueSky.mat と同じ「以前の澄んだ青空」
+            // coldCrisis でも空の色は変えず、稜線・霧だけで危機感を出す
+            mat.SetColor("_TopColor", new Color(0.01f, 0.24f, 0.85f, 1f));
+            mat.SetColor("_MidColor", new Color(0.05f, 0.48f, 0.98f, 1f));
+            mat.SetColor("_HorizonColor", new Color(0.40f, 0.75f, 0.98f, 1f));
+            mat.SetColor("_GroundColor", new Color(0.22f, 0.58f, 0.90f, 1f));
+            mat.SetColor("_SunColor", new Color(1.0f, 0.98f, 0.90f, 1f));
+            if (mat.HasProperty("_SunSize")) mat.SetFloat("_SunSize", coldCrisis ? 0.032f : 0.035f);
+            if (mat.HasProperty("_SunGlow")) mat.SetFloat("_SunGlow", coldCrisis ? 2.4f : 2.6f);
+            if (mat.HasProperty("_Exponent")) mat.SetFloat("_Exponent", 0.65f);
+            if (mat.HasProperty("_HorizonOffset")) mat.SetFloat("_HorizonOffset", 0.01f);
         }
         else
         {
-            mat.color = coldCrisis
-                ? new Color(0.35f, 0.55f, 0.85f, 1f)
-                : new Color(0.45f, 0.72f, 1f, 1f);
+            mat.color = new Color(0.45f, 0.72f, 1f, 1f);
         }
     }
 
@@ -435,18 +527,16 @@ public static class AdventureSkybreakVisuals
         if (_cachedSun != null)
         {
             _cachedSun.transform.rotation = coldCrisis
-                ? Quaternion.Euler(28f, 150f, 0f)
-                : Quaternion.Euler(48f, 125f, 0f);
-            _cachedSun.intensity = coldCrisis ? 1.35f : 1.85f;
-            _cachedSun.color = coldCrisis
-                ? new Color(0.85f, 0.92f, 1f)
-                : new Color(1f, 0.98f, 0.92f);
+                ? Quaternion.Euler(42f, 145f, 0f)
+                : Quaternion.Euler(50f, 140f, 0f);
+            _cachedSun.intensity = coldCrisis ? 1.55f : 1.8f;
+            _cachedSun.color = new Color(1f, 0.98f, 0.92f);
         }
     }
 
-    static void SpawnLiberationDust(Transform parent)
+    static void SpawnLiberationDust(Transform parent, bool golden = false)
     {
-        var dustGo = new GameObject("LiberationDust");
+        var dustGo = new GameObject(golden ? "LiberationDustGold" : "LiberationDust");
         dustGo.transform.SetParent(parent, false);
         dustGo.transform.localPosition = new Vector3(0f, 55f, 0f);
 
@@ -454,35 +544,56 @@ public static class AdventureSkybreakVisuals
         var main = ps.main;
         main.loop = true;
         main.startLifetime = new ParticleSystem.MinMaxCurve(3.5f, 7f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.35f, 1.4f);
-        main.startColor = new ParticleSystem.MinMaxGradient(
-            new Color(0.85f, 0.98f, 0.65f, 0.55f),
-            new Color(0.95f, 1f, 0.88f, 0.18f));
+        main.startSize = new ParticleSystem.MinMaxCurve(golden ? 0.25f : 0.35f, golden ? 1.1f : 1.4f);
+        main.startColor = golden
+            ? new ParticleSystem.MinMaxGradient(
+                new Color(1f, 0.92f, 0.45f, 0.65f),
+                new Color(1f, 0.98f, 0.82f, 0.2f))
+            : new ParticleSystem.MinMaxGradient(
+                new Color(0.85f, 0.98f, 0.65f, 0.55f),
+                new Color(0.95f, 1f, 0.88f, 0.18f));
         main.startSpeed = new ParticleSystem.MinMaxCurve(0.4f, 2.2f);
-        main.maxParticles = 160;
+        main.maxParticles = golden ? 200 : 160;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.gravityModifier = golden ? -0.02f : 0f;
 
         var emission = ps.emission;
-        emission.rateOverTime = 22f;
+        emission.rateOverTime = golden ? 28f : 22f;
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Cone;
-        shape.angle = 28f;
-        shape.radius = 8f;
+        shape.angle = golden ? 34f : 28f;
+        shape.radius = golden ? 12f : 8f;
 
         var colorOver = ps.colorOverLifetime;
         colorOver.enabled = true;
         var grad = new Gradient();
-        grad.SetKeys(
-            new[] {
-                new GradientColorKey(new Color(0.9f, 1f, 0.75f), 0f),
-                new GradientColorKey(new Color(0.7f, 0.92f, 0.55f), 1f)
-            },
-            new[] {
-                new GradientAlphaKey(0f, 0f),
-                new GradientAlphaKey(0.65f, 0.2f),
-                new GradientAlphaKey(0f, 1f)
-            });
+        if (golden)
+        {
+            grad.SetKeys(
+                new[] {
+                    new GradientColorKey(new Color(1f, 0.95f, 0.7f), 0f),
+                    new GradientColorKey(new Color(1f, 0.78f, 0.35f), 1f)
+                },
+                new[] {
+                    new GradientAlphaKey(0f, 0f),
+                    new GradientAlphaKey(0.75f, 0.18f),
+                    new GradientAlphaKey(0f, 1f)
+                });
+        }
+        else
+        {
+            grad.SetKeys(
+                new[] {
+                    new GradientColorKey(new Color(0.9f, 1f, 0.75f), 0f),
+                    new GradientColorKey(new Color(0.7f, 0.92f, 0.55f), 1f)
+                },
+                new[] {
+                    new GradientAlphaKey(0f, 0f),
+                    new GradientAlphaKey(0.65f, 0.2f),
+                    new GradientAlphaKey(0f, 1f)
+                });
+        }
         colorOver.color = grad;
 
         var rend = dustGo.GetComponent<ParticleSystemRenderer>();
@@ -492,7 +603,11 @@ public static class AdventureSkybreakVisuals
                      ?? Shader.Find("Particles/Standard Unlit")
                      ?? Shader.Find("Sprites/Default");
             var mat = new Material(sh);
-            mat.color = new Color(0.88f, 0.98f, 0.70f, 0.75f);
+            mat.color = golden
+                ? new Color(1f, 0.9f, 0.5f, 0.8f)
+                : new Color(0.88f, 0.98f, 0.70f, 0.75f);
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", mat.color);
             rend.material = mat;
             rend.renderMode = ParticleSystemRenderMode.Billboard;
         }
@@ -501,6 +616,8 @@ public static class AdventureSkybreakVisuals
 
     public static IEnumerator BreakthroughFlashRoutine()
     {
+        DestroyNamed("BreakthroughFlashCanvas");
+
         var canvasGo = new GameObject("BreakthroughFlashCanvas");
         var canvas = canvasGo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -509,35 +626,35 @@ public static class AdventureSkybreakVisuals
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1280f, 720f);
 
-        var imgGo = new GameObject("Flash");
-        imgGo.transform.SetParent(canvasGo.transform, false);
-        var rt = imgGo.AddComponent<RectTransform>();
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
-        var img = imgGo.AddComponent<Image>();
-        img.raycastTarget = false;
-        img.color = new Color(1f, 0.96f, 0.82f, 0f);
+        // 白コア → 黄金グローの二層で「暗い箱庭から外の光へ」
+        var whiteImg = CreateFullScreenImage(canvasGo.transform, "FlashWhite", new Color(1f, 1f, 1f, 0f));
+        var goldImg = CreateFullScreenImage(canvasGo.transform, "FlashGold", new Color(1f, 0.88f, 0.45f, 0f));
 
+        // 急激なホワイトアウト
         float t = 0f;
-        while (t < 0.1f)
+        while (t < 0.08f)
         {
             t += Time.unscaledDeltaTime;
-            float a = Mathf.Clamp01(t / 0.1f);
-            img.color = new Color(1f, 0.95f, 0.78f, a);
+            float a = Mathf.Clamp01(t / 0.08f);
+            whiteImg.color = new Color(1f, 0.99f, 0.96f, a);
+            goldImg.color = new Color(1f, 0.9f, 0.5f, a * 0.55f);
             yield return null;
         }
-        img.color = new Color(1f, 0.97f, 0.88f, 1f);
-        yield return new WaitForSecondsRealtime(0.12f);
+        whiteImg.color = new Color(1f, 0.99f, 0.97f, 1f);
+        goldImg.color = new Color(1f, 0.92f, 0.55f, 0.7f);
+        yield return new WaitForSecondsRealtime(0.18f);
 
+        // 黄金に溶けながら外の世界が見える
         t = 0f;
-        while (t < 1.35f)
+        const float fade = 1.65f;
+        while (t < fade)
         {
             t += Time.unscaledDeltaTime;
-            float a = 1f - Mathf.Clamp01(t / 1.35f);
-            a *= a;
-            img.color = new Color(1f, 0.9f, 0.55f, a * 0.95f);
+            float u = Mathf.Clamp01(t / fade);
+            float soft = 1f - u;
+            soft *= soft;
+            whiteImg.color = new Color(1f, 0.98f, 0.92f, soft * 0.85f);
+            goldImg.color = new Color(1f, 0.86f, 0.42f, soft * 0.55f);
             yield return null;
         }
 
@@ -620,9 +737,10 @@ public static class AdventureSkybreakVisuals
 
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogColor = new Color(0.62f, 0.74f, 0.88f);
-        RenderSettings.fogDensity = 0.0048f;
-        RenderSettings.ambientLight = new Color(0.55f, 0.68f, 0.82f);
+        // 薄い青白霧のみ（空の色を泥くしない）
+        RenderSettings.fogColor = new Color(0.72f, 0.84f, 0.96f);
+        RenderSettings.fogDensity = 0.0024f;
+        RenderSettings.ambientLight = new Color(0.62f, 0.74f, 0.92f);
     }
 
     public static void SoftenColdAtmosphere()
@@ -631,9 +749,9 @@ public static class AdventureSkybreakVisuals
             ApplyColdAtmosphere();
 
         RenderSettings.fog = true;
-        RenderSettings.fogColor = new Color(0.82f, 0.92f, 0.78f);
-        RenderSettings.fogDensity = 0.0018f;
-        RenderSettings.ambientLight = new Color(0.82f, 0.90f, 0.72f);
+        RenderSettings.fogColor = new Color(0.78f, 0.88f, 0.98f);
+        RenderSettings.fogDensity = 0.0012f;
+        RenderSettings.ambientLight = new Color(0.70f, 0.82f, 0.98f);
         ApplySkyboxForSkybreak(coldCrisis: false);
 
         // ドーム色も解放後の空へ

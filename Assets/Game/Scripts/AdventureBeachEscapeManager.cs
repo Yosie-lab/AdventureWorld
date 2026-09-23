@@ -187,50 +187,116 @@ public class AdventureBeachEscapeManager : MonoBehaviour
             center = new Vector3(origin.x + size.x * 0.5f, 0f, origin.z + size.z * 0.5f);
         }
 
-        // 漂着ゴミや探索スポットが密集する南西〜西ビーチ（195°〜235°）を中心に、各海岸線へ木道を多数設置
+        // 本数は半分程度（要所のみ）。勾配は Place 側で緩く伸ばす。
         float[] angles = {
-            195f, // 南西ビーチ（漂着ゴミ・2050年AIドローンプロペラ前）
-            212f, // 南西ビーチ中央（生体追跡リング・健康バンド前）
-            228f, // 南西ビーチ奥（2040年ロボットギア・2030年スマホ前）
-            180f, // 真西ビーチテラス（Hawaii Beach Houseヤシ林前）
-            245f, // 南南西ビーチ
-            270f, // 真南ビーチ
-            295f, // 北西ビーチ（高密度電源結晶前）
-            0f,   // 真東ビーチ
-            60f   // 北東ビーチ
+            180f, // 真西
+            205f, // 南西〜スタート帯
+            228f, // 南西奥
+            245f, // 南南西
+            270f, // 真南
+            315f, // 北西
+            0f,   // 真東
+            60f,  // 北東
         };
 
         for (int i = 0; i < angles.Length; i++)
+            PlaceAngleBoardwalk(rampsRoot.transform, land, waterY, center, angles[i]);
+
+        // スタート座礁艇前は必ず1本
+        PlacePinnedBoardwalk(
+            rampsRoot.transform, land, waterY,
+            beachXZ: new Vector2(152f, 268f),
+            inlandXZ: new Vector2(300f, 355f), // より内陸へ伸ばして緩勾配
+            name: "BoardwalkRamp_SpawnWest");
+    }
+
+    void PlaceAngleBoardwalk(Transform parent, Terrain land, float waterY, Vector3 center, float deg)
+    {
+        float rad = deg * Mathf.Deg2Rad;
+        Vector3 dir = new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad)).normalized;
+
+        // 砂浜側をやや外へ、内陸側を奥へ → 水平距離を稼いで緩勾配に
+        float rBeach = 452f;
+        float rInland = 320f;
+        if (land != null)
         {
-            float deg = angles[i];
-            float rad = deg * Mathf.Deg2Rad;
-            Vector3 dir = new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad)).normalized;
+            while (rBeach > 390f && (land.SampleHeight(center + dir * rBeach) + land.transform.position.y) < waterY + 0.25f)
+                rBeach -= 3f;
+        }
 
-            // 砂浜の安全な白砂（標高 waterY + 0.25m 以上）から内陸の草原へ向かってウッドデッキ道を敷設
-            float r = 445f;
+        Vector3 beachPoint = center + dir * rBeach;
+        Vector3 inlandPoint = center + dir * rInland;
+
+        if (land != null)
+        {
+            beachPoint.y = land.SampleHeight(beachPoint) + land.transform.position.y;
+            inlandPoint.y = land.SampleHeight(inlandPoint) + land.transform.position.y;
+        }
+        else
+        {
+            beachPoint.y = waterY + 0.35f;
+            inlandPoint.y = waterY + 12f;
+        }
+
+        // 高低差がほぼ無い平坦帯はスキップ
+        if (Mathf.Abs(inlandPoint.y - beachPoint.y) < 0.6f && inlandPoint.y < waterY + 3.5f)
+            return;
+
+        LengthenForGentleGrade(ref beachPoint, ref inlandPoint, land, center, dir);
+
+        CreateBoardwalkRamp(parent, beachPoint, inlandPoint, $"BoardwalkRamp_{Mathf.RoundToInt(deg)}deg", land);
+    }
+
+    void PlacePinnedBoardwalk(Transform parent, Terrain land, float waterY, Vector2 beachXZ, Vector2 inlandXZ, string name)
+    {
+        Vector3 beachPoint = new Vector3(beachXZ.x, waterY + 0.35f, beachXZ.y);
+        Vector3 inlandPoint = new Vector3(inlandXZ.x, waterY + 8f, inlandXZ.y);
+        if (land != null)
+        {
+            beachPoint.y = Mathf.Max(waterY + 0.2f, land.SampleHeight(beachPoint) + land.transform.position.y);
+            inlandPoint.y = land.SampleHeight(inlandPoint) + land.transform.position.y;
+        }
+        LengthenForGentleGrade(ref beachPoint, ref inlandPoint, land, default, default);
+        CreateBoardwalkRamp(parent, beachPoint, inlandPoint, name, land);
+    }
+
+    /// <summary>
+    /// 高低差に対して水平距離が足りないとき、内陸側を延ばして最大勾配を約8°に抑える。
+    /// </summary>
+    static void LengthenForGentleGrade(ref Vector3 beachPoint, ref Vector3 inlandPoint, Terrain land, Vector3 center, Vector3 dir)
+    {
+        const float maxGrade = 0.14f; // tan(約8°)
+        Vector3 flat = inlandPoint - beachPoint;
+        flat.y = 0f;
+        float horiz = flat.magnitude;
+        float rise = inlandPoint.y - beachPoint.y;
+        if (horiz < 1f) return;
+
+        float need = Mathf.Abs(rise) / maxGrade;
+        if (need <= horiz) return;
+
+        Vector3 flatDir = flat / horiz;
+        // 島中心方向が使えるなら、そちらへさらに伸ばす（砂浜→内陸）
+        if (dir.sqrMagnitude > 0.01f)
+        {
+            Vector3 inward = -dir; // dir は外向き
+            if (Vector3.Dot(inward, flatDir) > 0.2f)
+                flatDir = inward.normalized;
+        }
+
+        inlandPoint = beachPoint + flatDir * need;
+        if (land != null)
+            inlandPoint.y = land.SampleHeight(inlandPoint) + land.transform.position.y;
+
+        // 伸ばした後もまだ急なら、もう一段内陸へ
+        rise = inlandPoint.y - beachPoint.y;
+        horiz = need;
+        float need2 = Mathf.Abs(rise) / maxGrade;
+        if (need2 > horiz)
+        {
+            inlandPoint = beachPoint + flatDir * need2;
             if (land != null)
-            {
-                while (r > 380f && (land.SampleHeight(center + dir * r) + land.transform.position.y) < waterY + 0.25f)
-                {
-                    r -= 3f;
-                }
-            }
-
-            Vector3 beachPoint = center + dir * r;
-            Vector3 inlandPoint = center + dir * 370f;
-
-            if (land != null)
-            {
-                beachPoint.y = land.SampleHeight(beachPoint) + land.transform.position.y;
                 inlandPoint.y = land.SampleHeight(inlandPoint) + land.transform.position.y;
-            }
-            else
-            {
-                beachPoint.y = waterY + 0.35f;
-                inlandPoint.y = waterY + 12f;
-            }
-
-            CreateBoardwalkRamp(rampsRoot.transform, beachPoint, inlandPoint, $"BoardwalkRamp_{Mathf.RoundToInt(deg)}deg", land);
         }
     }
 
@@ -239,25 +305,30 @@ public class AdventureBeachEscapeManager : MonoBehaviour
         var rampGo = new GameObject(rampName);
         rampGo.transform.SetParent(parent, false);
 
-        int segments = 28; // 高密度分割で地形の傾斜にぴったり追従
-        float width = 4.2f; // ゆったり広々歩ける幅広ウッドデッキ
-        Vector3 totalDir = (inlandPoint - beachPoint);
+        int segments = 36; // 長い緩勾配に合わせて分割を増やす
+        float width = 4.2f;
+        float startY = beachPoint.y;
+        float endY = inlandPoint.y;
 
-        // 各セグメントの標高を地形から計算（空中に浮かさず、地面にぴったり沿わせる）
+        // 各セグメント：線形の緩い高さ＋地形より下には潜らない
         Vector3[] points = new Vector3[segments + 1];
         for (int i = 0; i <= segments; i++)
         {
             float t = (float)i / segments;
+            float u = t * t * (3f - 2f * t); // smoothstep：中腹の急坂感を抑える
             Vector3 p = Vector3.Lerp(beachPoint, inlandPoint, t);
+            float smoothY = Mathf.Lerp(startY, endY, u);
             if (land != null)
             {
                 float ty = land.SampleHeight(p) + land.transform.position.y;
-                // 始点は白砂に先端を少し埋め込んで（-0.08m）段差を完全ゼロにし、スムーズに歩いて乗れるようにする
-                // 中間〜終点は地表+0.08mで地面に沿って美しく敷設
-                float lift = Mathf.Lerp(-0.08f, 0.08f, Mathf.Clamp01(t * 6f));
-                if (t > 0.85f) lift = Mathf.Lerp(0.08f, 0.02f, (t - 0.85f) / 0.15f);
-                p.y = ty + lift;
+                float lift = Mathf.Lerp(-0.06f, 0.06f, Mathf.Clamp01(t * 5f));
+                // 緩い線形スロープを優先。地形が下がる窪みだけ持ち上げ、急な凸は追わない
+                p.y = smoothY + lift;
+                if (p.y < ty - 0.1f)
+                    p.y = ty - 0.04f;
             }
+            else
+                p.y = smoothY;
             points[i] = p;
         }
 

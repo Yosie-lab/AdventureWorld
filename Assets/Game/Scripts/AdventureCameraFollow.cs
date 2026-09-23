@@ -32,7 +32,7 @@ public class AdventureCameraFollow : MonoBehaviour
     /// <summary>歩行時の注視点（腰〜胸）</summary>
     const float WalkFocusHeight = 1.05f;
     const float WalkPivotHeight = 1.35f;
-    const float WalkMinDistance = 5.2f;
+    const float WalkMinDistance = 4.6f;
 
     float _yaw;
     float _pitch = WalkPitch;
@@ -128,8 +128,16 @@ public class AdventureCameraFollow : MonoBehaviour
         sensitivity = 0.26f;
         positionSmoothTime = 0.02f;
         lookSmoothTime = 0.012f;
-        // シーンに古い近接距離が残っていても、少し引いた見え方に揃える
-        if (distance < 7.5f)
+        // RF: 遠カメラ＋低感度だと「重い／鈍い」に見える。寄せて感度も上げる。
+        if (AdventurePlayerController.IsRustFloatScene())
+        {
+            sensitivity = 0.62f;
+            positionSmoothTime = 0.01f;
+            lookSmoothTime = 0.006f;
+            if (distance > 5.8f || distance < 4.8f)
+                distance = 5.4f;
+        }
+        else if (distance < 7.5f)
             distance = 7.8f;
 
         if (target != null)
@@ -146,6 +154,8 @@ public class AdventureCameraFollow : MonoBehaviour
             _cam.useOcclusionCulling = false;
             if (_cam.fieldOfView < 62f)
                 _cam.fieldOfView = 64f;
+            if (AdventurePlayerController.IsRustFloatScene() && _cam.fieldOfView < 68f)
+                _cam.fieldOfView = 70f;
         }
         LockCursor();
     }
@@ -265,8 +275,10 @@ public class AdventureCameraFollow : MonoBehaviour
 
         if (Mathf.Abs(keyYaw) > 0.01f || Mathf.Abs(keyPitch) > 0.01f)
         {
-            _targetYaw += keyYaw * 110f * Time.deltaTime;
-            _targetPitch = Mathf.Clamp(_targetPitch - keyPitch * 90f * Time.deltaTime, pitchMin, pitchMax);
+            float keyRate = AdventurePlayerController.IsRustFloatScene() ? 240f : 110f;
+            float pitchRate = AdventurePlayerController.IsRustFloatScene() ? 180f : 90f;
+            _targetYaw += keyYaw * keyRate * Time.deltaTime;
+            _targetPitch = Mathf.Clamp(_targetPitch - keyPitch * pitchRate * Time.deltaTime, pitchMin, pitchMax);
             _lastMouseInputTime = Time.time;
         }
 
@@ -276,8 +288,9 @@ public class AdventureCameraFollow : MonoBehaviour
             Vector2 rStick = pad.rightStick.ReadValue();
             if (rStick.sqrMagnitude > 0.04f)
             {
-                _targetYaw += rStick.x * 160f * sensitivity * Time.deltaTime;
-                _targetPitch = Mathf.Clamp(_targetPitch - rStick.y * 120f * sensitivity * Time.deltaTime, pitchMin, pitchMax);
+                float padMul = AdventurePlayerController.IsRustFloatScene() ? 280f : 160f;
+                _targetYaw += rStick.x * padMul * Mathf.Max(0.35f, sensitivity) * Time.deltaTime;
+                _targetPitch = Mathf.Clamp(_targetPitch - rStick.y * (padMul * 0.75f) * Mathf.Max(0.35f, sensitivity) * Time.deltaTime, pitchMin, pitchMax);
                 _lastMouseInputTime = Time.time;
             }
         }
