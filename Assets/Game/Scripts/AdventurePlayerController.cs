@@ -18,16 +18,6 @@ public class AdventurePlayerController : MonoBehaviour
     public const float BaseTurnSpeed = 18f;
     public const float DashTurnSpeed = 22f;
 
-    // RustAndFloat 専用：広大島向けに地上を明確に軽く（滑空・空中は据え置き）
-    const float RfWalkSpeed      = 10.2f;
-    const float RfRunSpeed       = 16.0f;
-    const float RfDashRunSpeed   = 18.5f;
-    const float RfTurnSpeed      = 40f;
-    const float RfDashTurnSpeed  = 48f;
-    // 立ち止まり→歩き出しの「助走感」を消す（距離はカメラ側で確保）
-    const float RfStartupBoostMul = 1.55f;
-    const float RfStartupBoostDur = 0.22f;
-
     [Header("Jump")]
     public float jumpHeight        = 2.2f;
     public float gravity           = -24f;
@@ -170,11 +160,7 @@ public class AdventurePlayerController : MonoBehaviour
     public void ApplyBaseLocomotionSpeeds()
     {
         if (IsRustFloatScene())
-        {
-            walkSpeed = RfWalkSpeed;
-            runSpeed  = RfRunSpeed;
-            turnSpeed = RfTurnSpeed;
-        }
+            AdventureRustFloatFeel.ApplyLocomotionSpeeds(this);
         else
         {
             walkSpeed = BaseWalkSpeed;
@@ -183,11 +169,11 @@ public class AdventurePlayerController : MonoBehaviour
         }
     }
 
-    public static float ActiveWalkSpeed => IsRustFloatScene() ? RfWalkSpeed : BaseWalkSpeed;
-    public static float ActiveRunSpeed  => IsRustFloatScene() ? RfRunSpeed  : BaseRunSpeed;
-    public static float ActiveDashRunSpeed => IsRustFloatScene() ? RfDashRunSpeed : DashRunSpeed;
-    public static float ActiveTurnSpeed => IsRustFloatScene() ? RfTurnSpeed : BaseTurnSpeed;
-    public static float ActiveDashTurnSpeed => IsRustFloatScene() ? RfDashTurnSpeed : DashTurnSpeed;
+    public static float ActiveWalkSpeed => IsRustFloatScene() ? AdventureRustFloatFeel.WalkSpeed : BaseWalkSpeed;
+    public static float ActiveRunSpeed  => IsRustFloatScene() ? AdventureRustFloatFeel.RunSpeed  : BaseRunSpeed;
+    public static float ActiveDashRunSpeed => IsRustFloatScene() ? AdventureRustFloatFeel.DashRunSpeed : DashRunSpeed;
+    public static float ActiveTurnSpeed => IsRustFloatScene() ? AdventureRustFloatFeel.TurnSpeed : BaseTurnSpeed;
+    public static float ActiveDashTurnSpeed => IsRustFloatScene() ? AdventureRustFloatFeel.DashTurnSpeed : DashTurnSpeed;
 
     public static bool IsRustFloatScene()
     {
@@ -259,17 +245,7 @@ public class AdventurePlayerController : MonoBehaviour
         bool    justStarted = hasMove && !_wasMoveInput;
         // RustAndFloat：立ち止まり→移動の出だしだけ一瞬速めて「重い助走」を消す
         if (IsRustFloatScene())
-        {
-            if (justStarted)
-                _startupBoostTimer = RfStartupBoostDur;
-            if (_startupBoostTimer > 0f && hasMove)
-            {
-                _startupBoostTimer -= Time.deltaTime;
-                speed *= RfStartupBoostMul;
-            }
-            else
-                _startupBoostTimer = 0f;
-        }
+            speed = AdventureRustFloatFeel.ApplyStartupBoost(ref _startupBoostTimer, justStarted, hasMove, speed);
         _wasMoveInput = hasMove;
 
         bool    spaceHeld = kb != null && kb.spaceKey.isPressed;
@@ -1007,11 +983,9 @@ public class AdventurePlayerController : MonoBehaviour
         if (_grounded && _hop <= 0.05f && !_gliding && !_autoGlide)
         {
             bool moving = horizontal.magnitude > 0.01f;
-            float stickSpeed;
-            if (IsRustFloatScene())
-                stickSpeed = moving ? 1.6f : 1.8f;
-            else
-                stickSpeed = moving ? 3.2f : 2.0f;
+            float stickSpeed = IsRustFloatScene()
+                ? AdventureRustFloatFeel.GroundStickSpeed(moving)
+                : (moving ? 3.2f : 2.0f);
             motion.y = -stickSpeed * Time.deltaTime;
         }
         else
@@ -1626,13 +1600,13 @@ public class AdventurePlayerController : MonoBehaviour
     {
         if (_anim == null) return;
         string next = speed < 0.35f ? "NikoIdle" : (running ? "NikoRuns" : "NikoWalks");
+        bool idle = next == "NikoIdle";
         if (next != _clip)
         {
             _clip = next;
-            // RFは出だし助走フレームを多めに飛ばして見た目の鈍さを減らす
-            float startNorm = 0f;
-            if (fromIdleStartup && next != "NikoIdle")
-                startNorm = IsRustFloatScene() ? 0.48f : 0.12f;
+            float startNorm = IsRustFloatScene()
+                ? AdventureRustFloatFeel.LocomotionAnimStartNorm(fromIdleStartup, idle)
+                : (fromIdleStartup && !idle ? 0.12f : 0f);
             _anim.Play(next, 0, startNorm);
             if (fromIdleStartup)
                 _anim.Update(0f);
@@ -1640,11 +1614,10 @@ public class AdventurePlayerController : MonoBehaviour
         // クリップは Base* 想定で作られている。Active* を分母にすると
         // RFで世界速度を上げても anim.speed が常に1.0のまま＝足が鈍く見える。
         float animRef = running ? BaseRunSpeed : BaseWalkSpeed;
-        float animMul = IsRustFloatScene() ? 1.4f : 1f;
-        float animMax = IsRustFloatScene() ? 2.35f : 1.55f;
-        _anim.speed = next == "NikoIdle"
-            ? 1f
-            : Mathf.Clamp((speed / Mathf.Max(0.01f, animRef)) * animMul, 1.0f, animMax);
+        if (IsRustFloatScene())
+            _anim.speed = AdventureRustFloatFeel.LocomotionAnimSpeed(speed, animRef, idle);
+        else
+            _anim.speed = idle ? 1f : Mathf.Clamp(speed / Mathf.Max(0.01f, animRef), 1.0f, 1.55f);
     }
 
     // ═══════════════════════════════════════════════════════════════════

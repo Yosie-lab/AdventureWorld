@@ -32,7 +32,9 @@ public class AdventureCameraFollow : MonoBehaviour
     /// <summary>歩行時の注視点（腰〜胸）</summary>
     const float WalkFocusHeight = 1.05f;
     const float WalkPivotHeight = 1.35f;
-    const float WalkMinDistance = 5.6f;
+    float WalkMinDistance => AdventureRustFloatFeel.IsActiveScene
+        ? AdventureRustFloatFeel.WalkMinDistance
+        : 5.2f;
 
     float _yaw;
     float _pitch = WalkPitch;
@@ -128,15 +130,9 @@ public class AdventureCameraFollow : MonoBehaviour
         sensitivity = 0.26f;
         positionSmoothTime = 0.02f;
         lookSmoothTime = 0.012f;
-        // RF: カメラは引いたまま、視点・出だしだけ軽く（寄りすぎは頭切れの原因）
-        if (AdventurePlayerController.IsRustFloatScene())
-        {
-            sensitivity = 0.62f;
-            positionSmoothTime = 0.01f;
-            lookSmoothTime = 0.006f;
-            if (distance < 6.8f)
-                distance = 7.4f;
-        }
+        _cam = GetComponent<Camera>();
+        if (AdventureRustFloatFeel.IsActiveScene)
+            AdventureRustFloatFeel.ApplyCameraDefaults(this, _cam);
         else if (distance < 7.5f)
             distance = 7.8f;
 
@@ -146,13 +142,11 @@ public class AdventureCameraFollow : MonoBehaviour
             _currentDistance = distance;
 
         _land = AdventureQuestLocations.FindLand();
-        _cam = GetComponent<Camera>();
-        if (_cam != null)
+        if (_cam != null && !AdventureRustFloatFeel.IsActiveScene)
         {
             _cam.nearClipPlane = 0.05f;
             _cam.farClipPlane = 1200f;
             _cam.useOcclusionCulling = false;
-            // 広すぎる FOV は画面全体が拡大して見える。歩行は 64° 前後に揃える
             if (_cam.fieldOfView < 60f || _cam.fieldOfView > 68f)
                 _cam.fieldOfView = 64f;
         }
@@ -274,8 +268,8 @@ public class AdventureCameraFollow : MonoBehaviour
 
         if (Mathf.Abs(keyYaw) > 0.01f || Mathf.Abs(keyPitch) > 0.01f)
         {
-            float keyRate = AdventurePlayerController.IsRustFloatScene() ? 240f : 110f;
-            float pitchRate = AdventurePlayerController.IsRustFloatScene() ? 180f : 90f;
+            float keyRate = AdventureRustFloatFeel.IsActiveScene ? AdventureRustFloatFeel.KeyYawRate : 110f;
+            float pitchRate = AdventureRustFloatFeel.IsActiveScene ? AdventureRustFloatFeel.KeyPitchRate : 90f;
             _targetYaw += keyYaw * keyRate * Time.deltaTime;
             _targetPitch = Mathf.Clamp(_targetPitch - keyPitch * pitchRate * Time.deltaTime, pitchMin, pitchMax);
             _lastMouseInputTime = Time.time;
@@ -287,7 +281,7 @@ public class AdventureCameraFollow : MonoBehaviour
             Vector2 rStick = pad.rightStick.ReadValue();
             if (rStick.sqrMagnitude > 0.04f)
             {
-                float padMul = AdventurePlayerController.IsRustFloatScene() ? 280f : 160f;
+                float padMul = AdventureRustFloatFeel.IsActiveScene ? AdventureRustFloatFeel.PadLookMul : 160f;
                 _targetYaw += rStick.x * padMul * Mathf.Max(0.35f, sensitivity) * Time.deltaTime;
                 _targetPitch = Mathf.Clamp(_targetPitch - rStick.y * (padMul * 0.75f) * Mathf.Max(0.35f, sensitivity) * Time.deltaTime, pitchMin, pitchMax);
                 _lastMouseInputTime = Time.time;
