@@ -19,14 +19,14 @@ public class AdventurePlayerController : MonoBehaviour
     public const float DashTurnSpeed = 22f;
 
     // RustAndFloat 専用：広大島向けに地上を明確に軽く（滑空・空中は据え置き）
-    // ※7.6/11.8 でも「驚くほど重い」報告あり → 体感で分かる水準まで引き上げ
-    const float RfWalkSpeed      = 11.0f;
+    const float RfWalkSpeed      = 10.2f;
     const float RfRunSpeed       = 16.0f;
     const float RfDashRunSpeed   = 18.5f;
     const float RfTurnSpeed      = 40f;
     const float RfDashTurnSpeed  = 48f;
-    const float RfStartupBoostMul = 1.25f;
-    const float RfStartupBoostDur = 0.12f;
+    // 立ち止まり→歩き出しの「助走感」を消す（距離はカメラ側で確保）
+    const float RfStartupBoostMul = 1.55f;
+    const float RfStartupBoostDur = 0.22f;
 
     [Header("Jump")]
     public float jumpHeight        = 2.2f;
@@ -1009,7 +1009,7 @@ public class AdventurePlayerController : MonoBehaviour
             bool moving = horizontal.magnitude > 0.01f;
             float stickSpeed;
             if (IsRustFloatScene())
-                stickSpeed = moving ? 2.4f : 2.0f;
+                stickSpeed = moving ? 1.6f : 1.8f;
             else
                 stickSpeed = moving ? 3.2f : 2.0f;
             motion.y = -stickSpeed * Time.deltaTime;
@@ -1632,7 +1632,7 @@ public class AdventurePlayerController : MonoBehaviour
             // RFは出だし助走フレームを多めに飛ばして見た目の鈍さを減らす
             float startNorm = 0f;
             if (fromIdleStartup && next != "NikoIdle")
-                startNorm = IsRustFloatScene() ? 0.32f : 0.12f;
+                startNorm = IsRustFloatScene() ? 0.48f : 0.12f;
             _anim.Play(next, 0, startNorm);
             if (fromIdleStartup)
                 _anim.Update(0f);
@@ -1640,8 +1640,8 @@ public class AdventurePlayerController : MonoBehaviour
         // クリップは Base* 想定で作られている。Active* を分母にすると
         // RFで世界速度を上げても anim.speed が常に1.0のまま＝足が鈍く見える。
         float animRef = running ? BaseRunSpeed : BaseWalkSpeed;
-        float animMul = IsRustFloatScene() ? 1.2f : 1f;
-        float animMax = IsRustFloatScene() ? 2.15f : 1.55f;
+        float animMul = IsRustFloatScene() ? 1.4f : 1f;
+        float animMax = IsRustFloatScene() ? 2.35f : 1.55f;
         _anim.speed = next == "NikoIdle"
             ? 1f
             : Mathf.Clamp((speed / Mathf.Max(0.01f, animRef)) * animMul, 1.0f, animMax);

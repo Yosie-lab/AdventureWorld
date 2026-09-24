@@ -32,7 +32,7 @@ public class AdventureCameraFollow : MonoBehaviour
     /// <summary>歩行時の注視点（腰〜胸）</summary>
     const float WalkFocusHeight = 1.05f;
     const float WalkPivotHeight = 1.35f;
-    const float WalkMinDistance = 4.6f;
+    const float WalkMinDistance = 5.6f;
 
     float _yaw;
     float _pitch = WalkPitch;
@@ -128,14 +128,14 @@ public class AdventureCameraFollow : MonoBehaviour
         sensitivity = 0.26f;
         positionSmoothTime = 0.02f;
         lookSmoothTime = 0.012f;
-        // RF: 遠カメラ＋低感度だと「重い／鈍い」に見える。寄せて感度も上げる。
+        // RF: カメラは引いたまま、視点・出だしだけ軽く（寄りすぎは頭切れの原因）
         if (AdventurePlayerController.IsRustFloatScene())
         {
             sensitivity = 0.62f;
             positionSmoothTime = 0.01f;
             lookSmoothTime = 0.006f;
-            if (distance > 5.8f || distance < 4.8f)
-                distance = 5.4f;
+            if (distance < 6.8f)
+                distance = 7.4f;
         }
         else if (distance < 7.5f)
             distance = 7.8f;
@@ -152,10 +152,9 @@ public class AdventureCameraFollow : MonoBehaviour
             _cam.nearClipPlane = 0.05f;
             _cam.farClipPlane = 1200f;
             _cam.useOcclusionCulling = false;
-            if (_cam.fieldOfView < 62f)
+            // 広すぎる FOV は画面全体が拡大して見える。歩行は 64° 前後に揃える
+            if (_cam.fieldOfView < 60f || _cam.fieldOfView > 68f)
                 _cam.fieldOfView = 64f;
-            if (AdventurePlayerController.IsRustFloatScene() && _cam.fieldOfView < 68f)
-                _cam.fieldOfView = 70f;
         }
         LockCursor();
     }
