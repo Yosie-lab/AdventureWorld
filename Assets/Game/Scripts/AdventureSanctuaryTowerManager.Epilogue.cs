@@ -15,12 +15,33 @@ public partial class AdventureSanctuaryTowerManager
         public float Hold;
         public int Act;
         public Color Color;
+        public float FadeIn;
+        public float HoldSec;
+        public float FadeOut;
+        public bool HasCustomTiming;
+
         public FilmLine(string text, float hold, int act, Color color)
         {
             Text = text;
             Hold = hold;
             Act = act;
             Color = color;
+            FadeIn = 0.55f;
+            HoldSec = -1f;
+            FadeOut = 0.50f;
+            HasCustomTiming = false;
+        }
+
+        public FilmLine(string text, float fadeIn, float holdSec, float fadeOut, int act, Color color)
+        {
+            Text = text;
+            Hold = fadeIn + holdSec + fadeOut;
+            Act = act;
+            Color = color;
+            FadeIn = fadeIn;
+            HoldSec = holdSec;
+            FadeOut = fadeOut;
+            HasCustomTiming = true;
         }
     }
 
@@ -34,7 +55,8 @@ public partial class AdventureSanctuaryTowerManager
         new FilmLine("人は、最適で最短な道を進むときじゃなく、", 4.4f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
         new FilmLine("寄り道をして、躓きながらも出会えた感動に——", 4.6f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
         new FilmLine("真の生きている証(あかし)を得るんだ。", 4.4f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
-        new FilmLine("傷つくかもしれない自由と、生きることの重みを取り戻した二人の旅が、", 4.8f, 3, new Color(1f, 0.94f, 0.70f, 1f)),
+        new FilmLine("傷つくかもしれない自由と、", 0.5f, 2.0f, 0.4f, 3, new Color(1f, 0.94f, 0.70f, 1f)),
+        new FilmLine("生きることの重みを取り戻した二人の旅が、", 0.5f, 2.8f, 0.5f, 3, new Color(1f, 0.94f, 0.70f, 1f)),
         new FilmLine("ここから、また始まる。—— 『Rust & Float』", 3.55f, 3, new Color(1f, 0.88f, 0.45f, 1f)),
     };
 
@@ -113,11 +135,20 @@ public partial class AdventureSanctuaryTowerManager
         var line = EpilogueFilmLines[index];
         _filmIndex = index;
         bool isFinalLine = (index == EpilogueFilmLines.Length - 1);
-        // Hold＝放置の総時間（フェードイン＋保持＋フェードアウト）
-        _filmFadeInSec = 0.55f;
-        _filmFadeOutSec = isFinalLine ? 0f : 0.50f;
-        float total = Mathf.Max(1.4f, line.Hold);
-        _filmHoldSec = Mathf.Max(0.6f, total - _filmFadeInSec - _filmFadeOutSec);
+        if (line.HasCustomTiming)
+        {
+            _filmFadeInSec = line.FadeIn;
+            _filmFadeOutSec = isFinalLine ? 0f : line.FadeOut;
+            _filmHoldSec = line.HoldSec;
+        }
+        else
+        {
+            // Hold＝放置の総時間（フェードイン＋保持＋フェードアウト）
+            _filmFadeInSec = 0.55f;
+            _filmFadeOutSec = isFinalLine ? 0f : 0.50f;
+            float total = Mathf.Max(1.4f, line.Hold);
+            _filmHoldSec = Mathf.Max(0.6f, total - _filmFadeInSec - _filmFadeOutSec);
+        }
         _filmColor = line.Color;
 
         if (allowActGap && line.Act != _filmLastAct && line.Act >= 1 && _filmLastAct >= 0)
