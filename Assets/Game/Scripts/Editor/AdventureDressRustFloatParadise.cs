@@ -1765,9 +1765,8 @@ public static class AdventureDressRustFloatParadise
         wings.transform.localScale = new Vector3(0.72f, 0.015f, 0.16f);
         wings.transform.localPosition = new Vector3(0f, 0.04f, 0.12f);
         wings.GetComponent<Renderer>().sharedMaterial = wingMat;
-        Object.DestroyImmediate(wings.GetComponent<Collider>());
-
-        df.AddComponent<DragonflyFlight>();
+        var flight = df.AddComponent<DragonflyFlight>();
+        flight.RebuildDragonflyVisuals();
         df.transform.localScale = Vector3.one * (0.8f + (float)rng.NextDouble() * 0.35f);
     }
 

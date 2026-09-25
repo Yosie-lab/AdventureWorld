@@ -30,7 +30,7 @@ public class AdventureMusicDirector : MonoBehaviour
     const float EndingThemeVolume = 1.00f;
     // AudioSource.volume は 1 で頭打ちになる。1 を超える分は生成波形で足す。
     float SkybreakSourceVolume => Mathf.Min(1f, EndingThemeVolume);
-    const float AmbientThemeVolume = 0.30f;
+    const float AmbientThemeVolume = 0.20f;
 
     /// <summary>外部（古代ピアノ等の環境スポット）からのダッキング要求度 (0.0 = 通常音量, 1.0 = 最大ダッキング)</summary>
     public float spotDuckingFactor = 0f;
