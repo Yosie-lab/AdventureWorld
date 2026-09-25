@@ -1906,7 +1906,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null &&
             (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame ||
-             kb.numpadEnterKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame))
+             kb.numpadEnterKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame ||
+             kb.jKey.wasPressedThisFrame))
         {
             _scriptBoardAdvance = true;
             return;
@@ -1932,6 +1933,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) ||
                 Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.E) ||
+                Input.GetKeyDown(KeyCode.J) ||
                 Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
             {
                 _scriptBoardAdvance = true;
@@ -2603,12 +2605,12 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         var kb = UnityEngine.InputSystem.Keyboard.current;
-        bool spacePressed = kb != null && kb.spaceKey.wasPressedThisFrame;
+        bool spacePressed = kb != null && (kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame);
         bool nPressed = kb != null && kb.nKey.wasPressedThisFrame;
         bool closePressed = kb != null && (kb.eKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame);
         try
         {
-            if (Input.GetKeyDown(KeyCode.Space)) spacePressed = true;
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.J)) spacePressed = true;
             if (Input.GetKeyDown(KeyCode.N)) nPressed = true;
             if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Escape)) closePressed = true;
         }

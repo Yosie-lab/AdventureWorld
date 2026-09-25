@@ -248,32 +248,7 @@ public class AdventureCameraFollow : MonoBehaviour
             _lastMouseInputTime = Time.time;
         }
 
-        float keyYaw = 0f;
-        float keyPitch = 0f;
-        if (kb != null)
-        {
-            if (kb.leftArrowKey.isPressed || kb.jKey.isPressed) keyYaw -= 1f;
-            if (kb.rightArrowKey.isPressed || kb.lKey.isPressed) keyYaw += 1f;
-            if (kb.upArrowKey.isPressed || kb.iKey.isPressed) keyPitch -= 1f;
-            if (kb.downArrowKey.isPressed || kb.kKey.isPressed) keyPitch += 1f;
-        }
-        try
-        {
-            if (Input.GetKey(KeyCode.LeftArrow)) keyYaw -= 1f;
-            if (Input.GetKey(KeyCode.RightArrow)) keyYaw += 1f;
-            if (Input.GetKey(KeyCode.UpArrow)) keyPitch -= 1f;
-            if (Input.GetKey(KeyCode.DownArrow)) keyPitch += 1f;
-        }
-        catch { }
-
-        if (Mathf.Abs(keyYaw) > 0.01f || Mathf.Abs(keyPitch) > 0.01f)
-        {
-            float keyRate = AdventureRustFloatFeel.IsActiveScene ? AdventureRustFloatFeel.KeyYawRate : 110f;
-            float pitchRate = AdventureRustFloatFeel.IsActiveScene ? AdventureRustFloatFeel.KeyPitchRate : 90f;
-            _targetYaw += keyYaw * keyRate * Time.deltaTime;
-            _targetPitch = Mathf.Clamp(_targetPitch - keyPitch * pitchRate * Time.deltaTime, pitchMin, pitchMax);
-            _lastMouseInputTime = Time.time;
-        }
+        // 矢印キー（←→↑↓）はプレイヤーの移動（WASD代替）で使用するため、カメラ回転からは完全除外（マウスおよびRスティックのみで視点回転）
 
         var pad = Gamepad.current;
         if (pad != null)
@@ -363,14 +338,15 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void ApplyCameraRig()
     {
-        var player = AdventurePlayerController.Instance;
+        var player = AdventurePlayerController.InstanceOrFind();
         bool isGliding = player != null && player.IsGliding;
         bool isAutoGlide = player != null && player.IsAutoGliding;
         bool playerGrounded = player != null && player.IsGrounded;
         bool playerMoving = player != null && player.HasMoveInput;
         float cine = _cinematicBlend;
-        // 接地フラグが1F遅れても、移動入力中は歩行扱い（出だしのカメラ遅れ＝反応の悪さ）
-        bool walkingGround = !isGliding && !isAutoGlide && cine < 0.05f && (playerGrounded || playerMoving);
+        bool inAir = !playerGrounded && !isGliding && !isAutoGlide;
+        // 接地フラグが1F遅れても、移動入力中は歩行扱い（ただし空中ジャンプ中は除く）
+        bool walkingGround = !isGliding && !isAutoGlide && !inAir && cine < 0.05f && (playerGrounded || playerMoving);
 
         Quaternion currentRot = Quaternion.Euler(_pitch, _yaw, 0f);
 
@@ -397,6 +373,17 @@ public class AdventureCameraFollow : MonoBehaviour
         {
             _currentPivot = targetPivot;
             _pivotVelocity = Vector3.zero;
+        }
+        else if (inAir)
+        {
+            // ジャンプ中：水平XZはプレイヤーの移動に即応させ、垂直Yは緩やかにスムージング（0.38秒）
+            // これにより Niko が画面内でしっかり地面から跳び上がり、地面が下に揺れるのを防ぐ
+            float targetX = targetPivot.x;
+            float targetZ = targetPivot.z;
+            float smoothY = Mathf.SmoothDamp(_currentPivot.y, targetPivot.y, ref _pivotVelocity.y, 0.38f);
+            _currentPivot = new Vector3(targetX, smoothY, targetZ);
+            _pivotVelocity.x = 0f;
+            _pivotVelocity.z = 0f;
         }
         else
         {
@@ -428,8 +415,11 @@ public class AdventureCameraFollow : MonoBehaviour
         }
 
         Vector3 targetPos = _currentPivot + currentRot * new Vector3(0f, 0f, -_currentDistance);
-        float minCamY = Mathf.Lerp(1.15f, 1.35f, cine);
-        targetPos.y = Mathf.Max(targetPos.y, target.position.y + minCamY);
+        if (!inAir)
+        {
+            float minCamY = Mathf.Lerp(1.15f, 1.35f, cine);
+            targetPos.y = Mathf.Max(targetPos.y, target.position.y + minCamY);
+        }
 
         if (_land == null)
             _land = AdventureQuestLocations.FindLand();

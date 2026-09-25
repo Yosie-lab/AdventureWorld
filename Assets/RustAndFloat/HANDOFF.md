@@ -627,6 +627,20 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
       2. **「生きることの重みを取り戻した二人の旅が、」**: **0.5秒フェードイン** ➔ **2.8秒保持** ➔ **0.5秒フェードアウト**
       3. **「ここから、また始まる。—— 『Rust & Float』」**: 最終結びタイトルへシームレスに接続。
 
+20. **Jキー（小ジャンプ専用）とSpaceキー（大ジャンプ＆滑空ジャンプ）の操作分離＆小岩乗り越え・高度・SE最適化（2026-09-26追加）**:
+    - [AdventurePlayerController.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventurePlayerController.cs)
+    - [AdventureCameraFollow.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureCameraFollow.cs)
+    - [AdventureNikoFootsteps.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureNikoFootsteps.cs)
+    - [AdventureSanctuaryTowerManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs)
+    - **「まだ全然岩に乗れない」根本原因の完全解消**:
+      - **インスペクターキャッシュ問題**: Unity Editor上で以前のインスペクターシリアライズ値（0.8f）がメモリキャッシュされており、コード変更が上書きされていたため、`Start()` および `HandleJump` にて `Mathf.Max(shortJumpHeight, 2.6f)` を強制適用し、確実に高度を保証。
+      - **岩の実寸への最適化**: 島の小岩・中岩（スケール1.3〜1.9倍、高さ約1.8m〜2.4m）を足元に捉えられるよう、小ジャンプ高さを **`2.6m`（初速約11.2m/s）** に引き上げ。
+      - **常時段差乗り上げ判定**: `_cc.stepOffset = StepOffsetGround`（0.45m）を常時有効化し、岩の上面のフチや角に足先が触れた際、弾き落とされずに吸い付くように天面へ乗れるよう改善。
+      - **コヨーテタイム強化**: `_airborneTime < 0.25f` に拡大し、助走中や起伏でジャンプ入力が抜けるのを防止。
+    - **Jキー**: 軽快な小ジャンプ専用（高さ約2.6m / `shortJumpHeight = 2.6f`、踏み切りポップ音 `PlayJumpSound()` 再生、滑空には移行しない）。
+    - **Spaceキー**: 通常〜大ジャンプ（高さ2.2m）＆長押しでの滑空（グライダー展開）。湖・砂浜・崖でのサーマル大上昇ジャンプもSpaceキー専用。
+    - 台本送りや注油ホールド、クリア後の「大空へダイブ」はどちらのキーでも操作可能。
+
 ## 次の推奨タスク
 
 1. **探索の手触り向上：白砂ビーチの貝殻・漂着物・スクラップ採取インタラクション＆収集ポップ演出**:

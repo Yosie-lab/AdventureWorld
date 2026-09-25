@@ -119,6 +119,18 @@ public class AdventureNikoFootsteps : MonoBehaviour
         }
     }
 
+    /// <summary>小ジャンプ・踏み切り時の軽快なポップホップ音</summary>
+    public void PlayJumpSound()
+    {
+        if (_audioSource == null) return;
+        AudioClip clip = _stepR ?? _stepL;
+        if (clip != null)
+        {
+            _audioSource.pitch = 1.35f;
+            _audioSource.PlayOneShot(clip, volume * 1.35f);
+        }
+    }
+
     /// <summary>フォールバック用の愛らしいポップトコトコ音波形合成</summary>
     static AudioClip SynthesizeCuteStep(string name, float startFreq, float endFreq)
     {

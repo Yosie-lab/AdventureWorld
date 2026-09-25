@@ -20,6 +20,7 @@ public class AdventurePlayerController : MonoBehaviour
 
     [Header("Jump")]
     public float jumpHeight        = 2.2f;
+    public float shortJumpHeight   = 2.6f;  // Jキー小ジャンプ（約2.6m・小岩に余裕で乗れる高さ）
     public float gravity           = -24f;
     public bool  canDoubleJump     = false;
     public float jumpMultiplier    = 1.0f;
@@ -198,6 +199,7 @@ public class AdventurePlayerController : MonoBehaviour
     {
         EnsureAllManagers();
         InitSpawnPosition();
+        shortJumpHeight = Mathf.Max(shortJumpHeight, 2.6f);
     }
 
     void Update()
@@ -263,7 +265,7 @@ public class AdventurePlayerController : MonoBehaviour
 
         TickSkybreakPillarLock();
         UpdateGroundedState();
-        _cc.stepOffset = _grounded ? StepOffsetGround : 0f;
+        _cc.stepOffset = StepOffsetGround; // 常時0.45mの段差乗り上げ判定を有効化
 
         HandleJump(kb);
         UpdateGlidingState(holdGlide || _skybreakPillarLock || _autoGlide);
@@ -528,10 +530,10 @@ public class AdventurePlayerController : MonoBehaviour
         {
             if (tower.IsClimaxOilPromptActive)
             {
-                bool held = kb != null && (kb.spaceKey.isPressed || kb.eKey.isPressed || kb.enterKey.isPressed);
+                bool held = kb != null && (kb.spaceKey.isPressed || kb.jKey.isPressed || kb.eKey.isPressed || kb.enterKey.isPressed);
                 try
                 {
-                    if (Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Return))
+                    if (Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.J) || Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Return))
                         held = true;
                 }
                 catch { }
@@ -541,12 +543,12 @@ public class AdventurePlayerController : MonoBehaviour
             }
             if (tower.IsSkybreakModalActive)
             {
-                bool spaceDown = kb != null && kb.spaceKey.wasPressedThisFrame;
-                bool spaceHeld = kb != null && kb.spaceKey.isPressed;
+                bool spaceDown = kb != null && (kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame);
+                bool spaceHeld = kb != null && (kb.spaceKey.isPressed || kb.jKey.isPressed);
                 try
                 {
-                    if (Input.GetKeyDown(KeyCode.Space)) spaceDown = true;
-                    if (Input.GetKey(KeyCode.Space)) spaceHeld = true;
+                    if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.J)) spaceDown = true;
+                    if (Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.J)) spaceHeld = true;
                 }
                 catch { }
                 // 全台本：タップ or 押しっぱなしで送り
@@ -557,13 +559,39 @@ public class AdventurePlayerController : MonoBehaviour
             if (tower.IsPlayerNearLever && tower.IsLeverReadyToOpen) return;
         }
 
-        bool jumpPressed = kb != null && kb.spaceKey.wasPressedThisFrame;
-        try { if (Input.GetKeyDown(KeyCode.Space)) jumpPressed = true; } catch { }
-        if (!jumpPressed) return;
+        bool spaceJumpPressed = kb != null && kb.spaceKey.wasPressedThisFrame;
+        try { if (Input.GetKeyDown(KeyCode.Space)) spaceJumpPressed = true; } catch { }
+
+        bool shortJumpPressed = kb != null && kb.jKey.wasPressedThisFrame;
+        try { if (Input.GetKeyDown(KeyCode.J)) shortJumpPressed = true; } catch { }
+
+        if (!spaceJumpPressed && !shortJumpPressed) return;
 
         float effectiveJumpHeight = jumpHeight * jumpMultiplier;
         bool openingGuarded = AdventureRustFloatOpening.IsInputGuarded;
 
+        // ── Jキー：軽快な小ジャンプ専用（約2.6m・小岩に確実に乗れる高さ・滑空には入らない） ──
+        if (shortJumpPressed)
+        {
+            float targetShortHeight = Mathf.Max(shortJumpHeight, 2.6f) * jumpMultiplier; // 約2.6mのしっかりした跳躍
+            if (_grounded || _airborneTime < 0.25f)
+            {
+                _hop          = Mathf.Sqrt(targetShortHeight * -2f * gravity);
+                _grounded     = false;
+                _airborneTime = 0f;
+                GetComponent<AdventureNikoFootsteps>()?.PlayJumpSound();
+            }
+            else if (canDoubleJump && !_doubleJumpUsed && !_gliding)
+            {
+                _hop = Mathf.Sqrt(targetShortHeight * -1.8f * gravity);
+                _doubleJumpUsed = true;
+                _airborneTime = 0f;
+                GetComponent<AdventureNikoFootsteps>()?.PlayJumpSound();
+            }
+            return;
+        }
+
+        // ── 以下は Spaceキー（大ジャンプ・滑空・ブーストジャンプ） ──
         if (!openingGuarded && IsInLakeOrStreamBasin(transform.position) && (Time.time - _spawnTime > 3.0f))
         {
             LaunchBoostJump(
@@ -954,13 +982,13 @@ public class AdventurePlayerController : MonoBehaviour
                 camR.Normalize();
             }
 
-            float airSpeed = nearGround
+            float airSpeed = (nearGround || _airborneTime < 0.5f)
                 ? (ActiveRunSpeed * moveSpeedMultiplier)
-                : AirSteerMaxSpeed;
+                : Mathf.Max(AirSteerMaxSpeed, ActiveWalkSpeed * moveSpeedMultiplier);
             Vector3 wish = Vector3.ClampMagnitude(camR * input.x + camF * input.y, 1f) * airSpeed;
 
-            if (nearGround)
-                _airMomentum = wish; // 即最大速度
+            if (nearGround || _airborneTime < 0.25f)
+                _airMomentum = wish; // ジャンプ初期は即最大速度で前進（岩へ飛び移る推進力確保）
             else
                 _airMomentum = Vector3.MoveTowards(_airMomentum, wish, AirSteerAccel * Time.deltaTime);
 
