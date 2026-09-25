@@ -92,7 +92,26 @@ public partial class AdventureSanctuaryTowerManager
             if (GameObject.Find("SkybreakEffect") == null)
                 SpawnSkybreakCracks(new Vector3(512f, 150f, 512f));
             StartCoroutine(AdventureSkybreakVisuals.PlaySkyTearOpenRoutine());
-            Debug.Log("[RustAndFloat] 天空裂開シーン開始");
+            Debug.Log("[RustAndFloat] 天空裂開シーン開始（7.0秒演出）");
+        }
+        else if (index >= 3 && index <= 5)
+        {
+            // 後続セリフ（ありがとうRust〜光の柱へ）中も空の裂け目からパルス・閃光を走らせる
+            if (index == 4)
+            {
+                // 「あれが本物の空だ……！」：セリフ中ずっと3回連続で激しく持続（3.2秒間）
+                StartCoroutine(AdventureSkybreakVisuals.PlaySkyTearMiniPulseRoutine(shakeIntensity: 0.35f, pulses: 3, totalDuration: 3.2f));
+            }
+            else if (index == 5)
+            {
+                // 「タワー中央の光の柱へ…」：2回持続パルス（2.2秒間）
+                StartCoroutine(AdventureSkybreakVisuals.PlaySkyTearMiniPulseRoutine(shakeIntensity: 0.30f, pulses: 2, totalDuration: 2.2f));
+            }
+            else
+            {
+                // 「ありがとうRust…！」：1回パルス
+                StartCoroutine(AdventureSkybreakVisuals.PlaySkyTearMiniPulseRoutine(shakeIntensity: 0.22f, pulses: 1, totalDuration: 0.45f));
+            }
         }
 
         Debug.Log($"[RustAndFloat] 台本 {index + 1}/{CanopyBeats.Length}: {beat.Title} {beat.Speaker}");
@@ -130,12 +149,14 @@ public partial class AdventureSanctuaryTowerManager
                 _scriptHoldTimer = 0f;
             }
 
-            // 1枚目7秒／「空が割れるよ」5秒（裂開演出）／会話・ナレ3.5秒／ダイブ5秒
+            // 1枚目7秒／「空が割れるよ」7秒／会話3.8秒／ナレ3.5秒／ダイブ5秒
             float autoSec = _scriptBoardIsDive ? 5f : 3.0f;
             if (_canopyBeatIndex == 0)
                 autoSec = 7.0f;
             else if (_canopyBeatIndex == 2)
-                autoSec = 8.0f;
+                autoSec = 7.0f;
+            else if (_canopyBeatIndex == 3 || _canopyBeatIndex == 4)
+                autoSec = 3.8f;
             else if (!_scriptBoardIsDive && _canopyBeatIndex >= 1 && _canopyBeatIndex <= 5)
                 autoSec = 3.5f;
             if (openFor >= autoSec)

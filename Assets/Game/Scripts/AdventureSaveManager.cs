@@ -721,24 +721,43 @@ public class AdventureSaveManager : MonoBehaviour
             AdventureAncientPianoRelic.ResetAllPianoRelicsStatic();
         }
 
-        // 2. プレイヤーを西側白砂ビーチ（座礁脱出艇の前）へテレポート
+        // 2. プレイヤーを空中状態から完全復帰させ、西側白砂ビーチ（座礁脱出艇の前）へテレポート
         var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
         if (player != null)
         {
+            player.SetAutoGlideMode(false);
+            player.ForceGroundReset();
+
             Vector3 beachSpawn = new Vector3(158f, 6.5f, 275f);
+            var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
+            if (land != null)
+            {
+                float h = land.SampleHeight(beachSpawn) + land.transform.position.y;
+                beachSpawn.y = Mathf.Max(h, 6.3f) + 0.15f;
+            }
+
             player.spawnPosition = beachSpawn;
             player.Teleport(beachSpawn);
             player.transform.rotation = Quaternion.Euler(0f, 75f, 0f);
-            player.SetAutoGlideMode(false);
+            player.ForceGroundReset(); // 地上接地およびカメラ・状態の確定
         }
 
-        // 3. Rustの油をリセット
+        // 3. Rustの油をリセットし、プレイヤーの隣へテレポート
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
             drone.oilCount = 2;
             drone.ResetClimaxState();
             drone.ClearSpeech();
+            drone.TeleportNearPlayer();
+        }
+
+        // カメラをプレイヤー背後へ完全同期
+        var camFollow = AdventureCameraFollow.InstanceOrFind();
+        if (camFollow != null)
+        {
+            camFollow.SetCinematicMode(false);
+            camFollow.SnapBehindTarget();
         }
 
         // 4. 漂着ボックスをPlayerPrefsリセット後に完全再構築（ビーコン光柱の確実な復元）

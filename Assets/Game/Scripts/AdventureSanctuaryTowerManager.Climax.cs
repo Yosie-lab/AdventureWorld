@@ -95,9 +95,20 @@ public partial class AdventureSanctuaryTowerManager
             var drone = GetDrone();
             if (drone != null)
                 drone.TriggerClimaxOverdrive();
+
+            var cam = Camera.main != null ? Camera.main.GetComponent<AdventureCameraFollow>() : null;
+            if (cam != null)
+                cam.Shake(0.65f, 0.95f);
+
+            var player = GetPlayer();
+            if (player != null)
+                player.ApplyGlideBoost(1.25f, 6f);
+
             SpawnWildernessPanorama(coldCrisis: false);
             SoftenSkybreakColdAtmosphere();
             StartCoroutine(AdventureSkybreakVisuals.BreakthroughFlashRoutine());
+            AdventureMusicDirector.Ensure();
+            AdventureMusicDirector.Instance?.TriggerSkybreakOverdriveDrop();
             // 押しっぱなしで即スキップされないよう、一瞬だけ離し待ち
             _scriptRequireInputRelease = true;
             _scriptHoldTimer = 0f;
@@ -139,13 +150,13 @@ public partial class AdventureSanctuaryTowerManager
             return;
         }
 
-        // 最終セリフ後に台本が消えた／進まない場合でもエピローグへ強制遷移
+        // 最終セリフ後に台本が消えた／進まない場合でもエピローグへ強制遷移（8.0秒表示後の保険として9.5秒）
         if (_climaxOilInjected
             && _climaxBeatIndex >= ClimaxBeats.Length - 1
             && !_epilogueTriggered)
         {
             float finalOpen = Time.unscaledTime - _scriptBoardOpenedAt;
-            if (finalOpen >= 4.5f || (!_scriptBoardVisible && finalOpen >= 0.35f))
+            if (finalOpen >= 9.5f || (!_scriptBoardVisible && finalOpen >= 0.35f))
             {
                 Debug.LogWarning("[RustAndFloat] 最終セリフ詰まり検知 → エピローグ強制開始");
                 FinishClimaxSequence();
@@ -173,10 +184,15 @@ public partial class AdventureSanctuaryTowerManager
                 _scriptHoldTimer = 0f;
                 bool finalWhileHeld = _climaxBeatIndex >= ClimaxBeats.Length - 1;
                 float heldOpen = openFor;
-                float heldAuto = finalWhileHeld
-                    ? 4.2f
-                    : GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
-                if (heldOpen >= heldAuto || (finalWhileHeld && heldOpen >= 5.5f))
+                float heldAuto;
+                if (_climaxBeatIndex == 0)
+                    heldAuto = 8.0f;
+                else if (finalWhileHeld)
+                    heldAuto = 8.0f;
+                else
+                    heldAuto = GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
+
+                if (heldOpen >= heldAuto || (finalWhileHeld && heldOpen >= 9.5f))
                 {
                     _scriptRequireInputRelease = false;
                     _scriptBoardAdvance = true;
@@ -186,32 +202,38 @@ public partial class AdventureSanctuaryTowerManager
             }
         }
 
-        // 注油後の最初のセリフは最低2.2秒見せる。最終「全力」は0.85秒で送り可
+        // 注油後の最初のセリフは最低2.2秒見せる。最終セリフ「全力」は誤爆スキップ防止のため最低5.0秒保持
         float minHoldOpen = 0.35f;
         if (postOilBeat && _climaxBeatIndex == ClimaxOilSlot)
             minHoldOpen = 2.2f;
         else if (postOilBeat && _climaxBeatIndex > ClimaxOilSlot)
-            minHoldOpen = 0.85f;
+            minHoldOpen = 5.0f;
         if (openFor >= minHoldOpen)
         {
             PollScriptBoardAdvance();
             if (IsDiveConfirmHeld())
             {
                 _scriptHoldTimer += Time.unscaledDeltaTime;
-                if (_scriptHoldTimer >= 0.18f)
+                float holdThreshold = (_climaxBeatIndex >= ClimaxBeats.Length - 1) ? 0.45f : 0.18f;
+                if (_scriptHoldTimer >= holdThreshold)
                     _scriptBoardAdvance = true;
             }
             else _scriptHoldTimer = 0f;
 
             bool finalBeat = _climaxBeatIndex >= ClimaxBeats.Length - 1;
-            float autoSec = finalBeat
-                ? 4.2f
-                : GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
+            float autoSec;
+            if (_climaxBeatIndex == 0)
+                autoSec = 8.0f;
+            else if (finalBeat)
+                autoSec = 8.0f;
+            else
+                autoSec = GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
+
             if (openFor >= autoSec)
                 _scriptBoardAdvance = true;
 
             // 最終セリフ：入力が取れなくても必ずエピローグへ（保険）
-            if (finalBeat && openFor >= 5.5f)
+            if (finalBeat && openFor >= 9.5f)
                 _scriptBoardAdvance = true;
         }
 
@@ -307,6 +329,12 @@ public partial class AdventureSanctuaryTowerManager
         if (drone != null)
             drone.StartClimaxPetAndOil();
 
+        var cam = Camera.main != null ? Camera.main.GetComponent<AdventureCameraFollow>() : null;
+        if (cam != null)
+            cam.Shake(0.35f, 0.55f);
+
+        StartCoroutine(ClimaxOilWarmGlowRoutine());
+
         // 注油後：極寒の気配を少し緩め、解放の金色へ寄せる
         SoftenSkybreakColdAtmosphere();
 
@@ -319,6 +347,46 @@ public partial class AdventureSanctuaryTowerManager
         _scriptRequireInputRelease = true;
         PresentClimaxBeat(ClimaxOilSlot);
         Debug.Log("[RustAndFloat] 注油完了 → 台本11（蘇生セリフ）");
+    }
+
+    IEnumerator ClimaxOilWarmGlowRoutine()
+    {
+        var glowGo = new GameObject("ClimaxOilWarmGlowCanvas");
+        var canvas = glowGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 5300;
+        var scaler = glowGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280f, 720f);
+
+        var imgGo = new GameObject("Glow");
+        imgGo.transform.SetParent(glowGo.transform, false);
+        var imgRt = imgGo.AddComponent<RectTransform>();
+        imgRt.anchorMin = Vector2.zero;
+        imgRt.anchorMax = Vector2.one;
+        imgRt.sizeDelta = Vector2.zero;
+        var img = imgGo.AddComponent<Image>();
+        img.color = new Color(1f, 0.88f, 0.45f, 0f);
+        img.raycastTarget = false;
+
+        float t = 0f;
+        const float peakTime = 0.22f;
+        while (t < peakTime)
+        {
+            t += Time.unscaledDeltaTime;
+            img.color = new Color(1f, 0.88f, 0.45f, Mathf.Clamp01(t / peakTime) * 0.45f);
+            yield return null;
+        }
+        t = 0f;
+        const float fadeTime = 0.65f;
+        while (t < fadeTime)
+        {
+            t += Time.unscaledDeltaTime;
+            float a = 1f - Mathf.Clamp01(t / fadeTime);
+            img.color = new Color(1f, 0.85f, 0.35f, a * 0.45f);
+            yield return null;
+        }
+        Destroy(glowGo);
     }
 
     void EnsureOilPromptUI()
@@ -359,14 +427,14 @@ public partial class AdventureSanctuaryTowerManager
         // 押し続け判定は Update 側。ここでは見た目用
 
         _oilTitleUi = MakeScriptText(panelGo.transform, "OilTitle", new Vector2(0f, -24f), new Vector2(0.5f, 1f), new Vector2(800f, 40f), 30, TextAnchor.MiddleCenter, font);
-        _oilTitleUi.color = new Color(1f, 0.55f, 0.45f, 1f);
+        _oilTitleUi.color = new Color(1f, 0.82f, 0.42f, 1f);
         _oilTitleUi.text = SkyLimitWarning;
         PrepareFontForText(font, _oilTitleUi.text, 30, FontStyle.Bold);
 
-        _oilPromptUi = MakeScriptText(panelGo.transform, "OilPrompt", new Vector2(0f, 10f), new Vector2(0.5f, 0.5f), new Vector2(780f, 140f), 26, TextAnchor.MiddleCenter, font);
-        _oilPromptUi.color = new Color(1f, 0.92f, 0.4f, 1f);
-        _oilPromptUi.text = "✦ エネルギー注入 ✦\n【E / Space / クリック長押し】\nゲージを満タンにして油をさす";
-        PrepareFontForText(font, _oilPromptUi.text, 26);
+        _oilPromptUi = MakeScriptText(panelGo.transform, "OilPrompt", new Vector2(0f, 10f), new Vector2(0.5f, 0.5f), new Vector2(780f, 140f), 25, TextAnchor.MiddleCenter, font);
+        _oilPromptUi.color = new Color(1f, 0.95f, 0.75f, 1f);
+        _oilPromptUi.text = "極寒の気流でRustのギアが凍りつく……！\n集めた常備油を心臓部へ注ぎ込め！\n【E / Space / クリック長押し】";
+        PrepareFontForText(font, _oilPromptUi.text, 25);
 
         var gaugeBgGo = new GameObject("GaugeBg");
         gaugeBgGo.transform.SetParent(panelGo.transform, false);
@@ -401,7 +469,7 @@ public partial class AdventureSanctuaryTowerManager
         _oilHoldBtn.transition = Selectable.Transition.None;
         _oilHoldLabelUi = MakeScriptText(holdGo.transform, "HoldLabel", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(600f, 56f), 26, TextAnchor.MiddleCenter, font);
         _oilHoldLabelUi.color = new Color(0.12f, 0.08f, 0.02f, 1f);
-        _oilHoldLabelUi.text = "【押し続け】Rustに油をさす";
+        _oilHoldLabelUi.text = "【長押しで注油】Rustを温める";
         PrepareFontForText(font, _oilHoldLabelUi.text, 26, FontStyle.Bold);
 
         _oilUiRoot = canvasGo;
@@ -442,6 +510,26 @@ public partial class AdventureSanctuaryTowerManager
             var parent = _oilGaugeFill.transform.parent as RectTransform;
             float w = parent != null ? parent.sizeDelta.x : 640f;
             _oilGaugeFill.rectTransform.sizeDelta = new Vector2(w * ratio, 0f);
+
+            // 進行度に応じて冷たい青白から温かい琥珀・黄金へ
+            Color coldColor = new Color(0.45f, 0.85f, 1f, 1f);
+            Color warmColor = new Color(1f, 0.82f, 0.22f, 1f);
+            _oilGaugeFill.color = Color.Lerp(coldColor, warmColor, ratio);
+
+            // 注油中のパルス脈動演出
+            bool holding = IsDiveConfirmHeld();
+            if (_oilHoldBtn != null)
+            {
+                if (holding && ratio > 0.01f)
+                {
+                    float pulse = 1f + Mathf.Sin(Time.unscaledTime * 14f) * 0.025f;
+                    _oilHoldBtn.transform.localScale = new Vector3(pulse, pulse, 1f);
+                }
+                else
+                {
+                    _oilHoldBtn.transform.localScale = Vector3.one;
+                }
+            }
         }
     }
 

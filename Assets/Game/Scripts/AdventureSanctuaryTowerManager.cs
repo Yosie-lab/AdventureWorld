@@ -220,16 +220,16 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _climaxOilWaiting && !_climaxOilInjected && !_suppressClimax;
 
     // 注油前台本(0-2) → 注油 → 注油後台本(3-4)
-    const string SkyLimitWarning = "上空で、Rustが限界";
+    const string SkyLimitWarning = "✦ 限界高度：凍結危機 ✦";
     const int ClimaxOilSlot = 3; // next==3 のとき注油フェーズへ入る
     static readonly CanopyBeat[] ClimaxBeats =
     {
-        new CanopyBeat("警告", "", SkyLimitWarning, new Color(1f, 0.55f, 0.45f, 1f)),
-        new CanopyBeat("", "✦ 相棒 Rust", "キキキッ……！ Niko……もうダメかも……この上空、冷たすぎて限界……ギアが凍りつきそう……！", new Color(0.35f, 0.92f, 0.98f, 1f)),
-        new CanopyBeat("", "✦ Niko", "Rust…待ってて！　今、油を目一杯さすから！", new Color(1f, 0.88f, 0.45f, 1f)),
+        new CanopyBeat("限界高度", "", "天蓋の裂け目から、凍てつく突風が吹き荒れる——\nRustのギアが、悲鳴のようなきしみ音を上げていた。", new Color(0.85f, 0.92f, 1f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "ギギッ……！ Niko……身体が……冷え切って動かないよ……！\nギアが……凍りついちゃう……！", new Color(0.45f, 0.92f, 1f, 1f)),
+        new CanopyBeat("", "✦ Niko", "Rust、待ってて！　今、集めた油を全部注ぐから……！", new Color(1f, 0.92f, 0.55f, 1f)),
         // ← ここで注油フェーズ
-        new CanopyBeat("", "✦ 相棒 Rust", "……あ……温かい油が……心臓に……！", new Color(0.35f, 0.92f, 0.98f, 1f)),
-        new CanopyBeat("", "✦ 相棒 Rust", "ピピッ！……ありがとうNiko！僕たちの翼はこれで完全に折れない！全力で行くよ！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "……あ……温かい油が……心臓部に……じわっと染み込んでいく……！", new Color(0.45f, 0.92f, 1f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "ピピッ！……ありがとう、Niko！これで僕たちの翼は折れることはないよ！　大空の向こうまで、全力で行こう！！", new Color(0.45f, 0.95f, 1f, 1f)),
     };
 
     public static void Ensure()
@@ -2603,15 +2603,23 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null)
+        bool spacePressed = kb != null && kb.spaceKey.wasPressedThisFrame;
+        bool nPressed = kb != null && kb.nKey.wasPressedThisFrame;
+        bool closePressed = kb != null && (kb.eKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame);
+        try
         {
-            if (kb.spaceKey.wasPressedThisFrame)
-                RelaunchIntoSky();
-            else if (kb.nKey.wasPressedThisFrame)
-                StartNewGameFromClearModal();
-            else if (kb.eKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
-                CloseGameClearModalForFreeExplore();
+            if (Input.GetKeyDown(KeyCode.Space)) spacePressed = true;
+            if (Input.GetKeyDown(KeyCode.N)) nPressed = true;
+            if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Escape)) closePressed = true;
         }
+        catch { }
+
+        if (spacePressed)
+            RelaunchIntoSky();
+        else if (nPressed)
+            StartNewGameFromClearModal();
+        else if (closePressed)
+            CloseGameClearModalForFreeExplore();
 
         if (WasPointerPressedThisFrame(out Vector2 pointer))
         {
@@ -2776,6 +2784,19 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         if (!ConsumeClearModalAction()) return;
         _showGameClearModal = false;
         HideGameClearModalUI();
+        var player = GetPlayer();
+        if (player != null)
+        {
+            player.SetAutoGlideMode(false);
+            player.ForceGroundReset();
+        }
+        SetCinematicCamera(false);
+        var drone = GetDrone();
+        if (drone != null)
+        {
+            drone.StopSkybreakNestle();
+            drone.ResetClimaxState();
+        }
         AdventureSaveManager.Ensure();
         AdventureSaveManager.Instance?.ResetToNewGame();
     }
