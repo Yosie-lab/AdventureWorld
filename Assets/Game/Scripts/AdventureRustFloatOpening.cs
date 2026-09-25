@@ -447,12 +447,12 @@ public class AdventureRustFloatOpening : MonoBehaviour
         boardRt.anchorMin = new Vector2(0.5f, 0.5f);
         boardRt.anchorMax = new Vector2(0.5f, 0.5f);
         boardRt.pivot = new Vector2(0.5f, 0.5f);
-        boardRt.anchoredPosition = new Vector2(0f, 15f);
-        boardRt.sizeDelta = new Vector2(660f, 400f); // ボタンをボード最下部にゆったり収める
+        boardRt.anchoredPosition = new Vector2(0f, 8f);
+        boardRt.sizeDelta = new Vector2(700f, 515f); // 縦幅をゆったり拡張し、本文・ボタン・操作説明の余白を完璧に確保
 
-        // ボード背景（レバー操作や景色を塞がないよう透明度を高めに）
+        // ボード背景（高級感のあるダークグラスモーフィズム）
         var boardImg = _modalBoard.AddComponent<Image>();
-        boardImg.color = new Color(0.03f, 0.06f, 0.11f, 0.58f);
+        boardImg.color = new Color(0.02f, 0.05f, 0.09f, 0.72f);
         boardImg.raycastTarget = false;
 
         // 外枠線アウトライン（繊細なガラスの光彩エッジ）
@@ -474,7 +474,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         accentImg.raycastTarget = false;
 
         // タイトル（大きく鮮やかに）
-        var titleText = MakeText(_modalBoard.transform, "Title", new Vector2(0f, -16f), new Vector2(0.5f, 1f), new Vector2(620f, 30f), 23, TextAnchor.MiddleCenter, font);
+        var titleText = MakeText(_modalBoard.transform, "Title", new Vector2(0f, -20f), new Vector2(0.5f, 1f), new Vector2(660f, 32f), 23, TextAnchor.MiddleCenter, font);
         titleText.fontStyle = FontStyle.Bold;
         titleText.color = new Color(0.40f, 0.96f, 1.0f, 1f);
         var titleOutline = titleText.gameObject.AddComponent<Outline>();
@@ -482,59 +482,63 @@ public class AdventureRustFloatOpening : MonoBehaviour
         titleOutline.effectDistance = new Vector2(1f, -1f);
 
         // サブタイトル
-        var subText = MakeText(_modalBoard.transform, "SubTitle", new Vector2(0f, -46f), new Vector2(0.5f, 1f), new Vector2(620f, 20f), 13, TextAnchor.MiddleCenter, font);
+        var subText = MakeText(_modalBoard.transform, "SubTitle", new Vector2(0f, -54f), new Vector2(0.5f, 1f), new Vector2(660f, 20f), 13, TextAnchor.MiddleCenter, font);
         subText.color = new Color(0.85f, 0.90f, 0.95f, 0.85f);
         titleText.text = TitleText;
         subText.text = SubTitleText;
 
-        // 本文（16.5pt 太字 ＋ 黒アウトラインフチ取りで圧倒的に見やすく、ボタンと一切重ならない）
-        var bodyText = MakeText(_modalBoard.transform, "StoryBody", new Vector2(0f, -76f), new Vector2(0.5f, 1f), new Vector2(600f, 230f), 16, TextAnchor.UpperLeft, font);
+        // 本文（15.5pt 太字 ＋ 黒アウトラインフチ取り。横幅640pxに広げて縦長さを抑え、PLAYボタンとの間に約95pxの十分な余白を確保）
+        var bodyText = MakeText(_modalBoard.transform, "StoryBody", new Vector2(0f, -88f), new Vector2(0.5f, 1f), new Vector2(640f, 240f), 15, TextAnchor.UpperLeft, font);
         bodyText.fontStyle = FontStyle.Bold; // 太字で視認性抜群
-        bodyText.lineSpacing = 1.45f;
+        bodyText.lineSpacing = 1.40f;
         bodyText.color = Color.white; // 純白
         var bodyOutline = bodyText.gameObject.AddComponent<Outline>();
         bodyOutline.effectColor = new Color(0f, 0f, 0f, 0.85f); // 黒フチ取りで背景に一切埋もれない
         bodyOutline.effectDistance = new Vector2(1f, -1f);
         bodyText.text = StoryText;
 
-        // 5. 【▶ PLAY】ボタン（文章の下・ボード最下部にすっきり配置、文章に一切被らない）
+        // 5. 【▶ PLAY】ボタン（文章の下・ボード最下部にゆったり配置、文章と絶対に重ならない）
         var btnGo = new GameObject("PlayButton");
         btnGo.transform.SetParent(_modalBoard.transform, false);
         _playBtnRt = btnGo.AddComponent<RectTransform>();
         _playBtnRt.anchorMin = new Vector2(0.5f, 0f);
         _playBtnRt.anchorMax = new Vector2(0.5f, 0f);
         _playBtnRt.pivot = new Vector2(0.5f, 0f);
-        _playBtnRt.anchoredPosition = new Vector2(0f, 32f); // ボード下端から32px上に配置（文章との間隔十分）
-        _playBtnRt.sizeDelta = new Vector2(180f, 42f);
+        _playBtnRt.anchoredPosition = new Vector2(0f, 54f); // ボード下端から54px上に配置
+        _playBtnRt.sizeDelta = new Vector2(190f, 44f);
 
         _playBtnImg = btnGo.AddComponent<Image>();
-        _playBtnImg.color = new Color(0.12f, 0.58f, 0.68f, 0.45f); // 上品な半透明シアンガラス
+        _playBtnImg.color = new Color(0.12f, 0.58f, 0.68f, 0.55f); // 上品な半透明シアンガラス
         _playBtnImg.raycastTarget = true; // ボタン自身のみレイキャストを受け取る
 
         var btnOutline = btnGo.AddComponent<Outline>();
-        btnOutline.effectColor = new Color(0.40f, 0.95f, 1.0f, 0.45f); // 繊細な半透明シアン光彩
+        btnOutline.effectColor = new Color(0.40f, 0.95f, 1.0f, 0.55f); // 繊細な半透明シアン光彩
         btnOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
         _playButton = btnGo.AddComponent<Button>();
         var colors = _playButton.colors;
-        colors.normalColor = new Color(0.12f, 0.58f, 0.68f, 0.45f);
-        colors.highlightedColor = new Color(0.20f, 0.88f, 0.98f, 0.70f);
-        colors.pressedColor = new Color(0.08f, 0.45f, 0.55f, 0.75f);
+        colors.normalColor = new Color(0.12f, 0.58f, 0.68f, 0.55f);
+        colors.highlightedColor = new Color(0.20f, 0.88f, 0.98f, 0.80f);
+        colors.pressedColor = new Color(0.08f, 0.45f, 0.55f, 0.85f);
         colors.selectedColor = colors.highlightedColor;
         _playButton.colors = colors;
         _playButton.onClick.AddListener(OnPlayButtonClicked);
 
         // ボタン内ラベル
-        var btnLabel = MakeText(btnGo.transform, "BtnLabel", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(180f, 42f), 15, TextAnchor.MiddleCenter, font);
+        var btnLabel = MakeText(btnGo.transform, "BtnLabel", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(190f, 44f), 15, TextAnchor.MiddleCenter, font);
         btnLabel.fontStyle = FontStyle.Bold;
         btnLabel.color = Color.white;
         btnLabel.text = "▶  PLAY";
         btnLabel.raycastTarget = false; // ラベルがクリック判定を遮らない
 
-        // ボタン下の補助テキスト
-        var hintText = MakeText(_modalBoard.transform, "PlayHint", new Vector2(0f, 12f), new Vector2(0.5f, 0f), new Vector2(520f, 18f), 11, TextAnchor.MiddleCenter, font);
-        hintText.color = new Color(0.80f, 0.88f, 0.96f, 0.70f);
-        hintText.text = "（【WASD】で移動開始 / 【PLAYボタン】または Space・Enter でスタート）";
+        // ボタン下の補助テキスト（13.5pt 太字 ＋ 黒アウトラインでくっきり視認）
+        var hintText = MakeText(_modalBoard.transform, "PlayHint", new Vector2(0f, 18f), new Vector2(0.5f, 0f), new Vector2(660f, 26f), 14, TextAnchor.MiddleCenter, font);
+        hintText.fontStyle = FontStyle.Bold;
+        hintText.color = new Color(0.92f, 0.96f, 1.0f, 0.95f);
+        var hintOutline = hintText.gameObject.AddComponent<Outline>();
+        hintOutline.effectColor = new Color(0f, 0f, 0f, 0.90f);
+        hintOutline.effectDistance = new Vector2(1f, -1f);
+        hintText.text = "【PLAYボタン】または【Space / Enter】で開始　（WASDでもそのまま歩き出せます）";
         hintText.raycastTarget = false;
     }
 

@@ -311,6 +311,12 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     private void CheckPlayerProximity()
     {
+        // ナラティブモーダル（二人の漂着艇等）やプロローグ目覚め・キーストーン演出中は自動開封しない
+        if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal)
+            return;
+        if (AdventurePrologueDrama.Instance != null && (AdventurePrologueDrama.Instance.IsAwakening || AdventurePrologueDrama.Instance.IsShowingDashBoard))
+            return;
+
         var player = AdventurePlayerController.Instance;
         if (player != null)
         {
@@ -326,6 +332,11 @@ public class AdventureBeachDriftBox : MonoBehaviour
     private void CheckReopenProximity()
     {
         if (_isModalOpen) return;
+        if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal)
+            return;
+        if (AdventurePrologueDrama.Instance != null && (AdventurePrologueDrama.Instance.IsAwakening || AdventurePrologueDrama.Instance.IsShowingDashBoard))
+            return;
+
         var player = AdventurePlayerController.Instance;
         if (player != null)
         {
@@ -856,11 +867,11 @@ public class AdventureBeachDriftBox : MonoBehaviour
             scrapMgr.OnDriftBoxOpened(boxId, boxTitle);
         }
 
-        // 相棒Rustのセリフ
+        // 相棒Rustのセリフと歓喜の宙返り＆星スパークル
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
-        if (drone != null && !string.IsNullOrEmpty(rustDialogue))
+        if (drone != null)
         {
-            drone.SpeakCustom(rustDialogue, 6.0f);
+            drone.TriggerCelebration(rustDialogue, 2.2f);
         }
 
         // クエストティッカーの更新（+2 pt 獲得と現在ポイント）
@@ -1092,6 +1103,12 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     public static void ShowModal(string title, string author, string body)
     {
+        // ナラティブモーダルやキーストーンボード（手動の自由）が表示中の場合は重複表示を防止
+        if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal)
+            return;
+        if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsShowingDashBoard)
+            return;
+
         EnsureModalUI();
         if (_modalCanvas == null || _modalPanel == null) return;
         if (_modalCanvas.worldCamera == null || !_modalCanvas.worldCamera.isActiveAndEnabled)

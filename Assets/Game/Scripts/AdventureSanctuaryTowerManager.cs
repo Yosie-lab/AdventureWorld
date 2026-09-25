@@ -1686,7 +1686,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _skybreakWindSource.volume = 0f;
         if (!_skybreakWindSource.isPlaying)
             _skybreakWindSource.Play();
-        StartCoroutine(FadeAudioSource(_skybreakWindSource, 0.22f, 1.4f));
+        StartCoroutine(FadeAudioSource(_skybreakWindSource, 0.45f, 1.4f));
     }
 
     void StopSkybreakWindAmbience()
@@ -2933,6 +2933,11 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             var mr = stepObj.GetComponent<MeshRenderer>();
             if (mr != null) mr.material = marbleMat;
 
+            // ステップ自体の微小段差スタックを排除するため、デフォルトCubeコライダーは削除
+            // （連続した傾斜スロープコライダー StairRamp が滑らかな登攀を担当する）
+            var stepCol = stepObj.GetComponent<Collider>();
+            if (stepCol != null) Object.Destroy(stepCol);
+
             // 4段ごとに両脇に白亜の装飾オベリスク支柱を配置
             if (i % 4 == 0)
             {
@@ -2953,28 +2958,26 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         // ── 木道スロープ式・連続傾斜コライダー（段差スタック完全解消） ──
-        // 大理石ステップのビジュアルはそのままに、BoardwalkRamp と同様の
-        // 「厚み 0.8m の傾斜 Box コライダー」を全体に重ねて配置する。
-        // stepOffset(0.45m) を超える段差の引っ掛かりをゼロにして
-        // オアシス池〜テラスへノンストップで駆け上がれるようにする。
+        // 大理石ステップの美しいビジュアルはそのままに、段差ゼロで地面からテラスまで
+        // 一気に駆け上がれる連続傾斜コライダーと進入ウェッジを配置する。
         AddStairsRampColliders(stairsRoot.transform, startP, endP, width);
         ClearTowerStreamWalkBlockers(startP, endP);
     }
 
     /// <summary>
     /// タワー手前のオアシス湧水池〜アプローチ階段まわりで、渓流岩場の歩行阻害を減らす。
-    /// 見た目は残し、進路の岩はコライダー無効／密集分は間引き。
+    /// 見た目は100%残し、進路・階段周囲の岩コライダーを完全にトリガー化してスタックを根絶する。
     /// </summary>
     static void ClearTowerStreamWalkBlockers(Vector3 startP, Vector3 endP)
     {
         Vector3 oasis = new Vector3(480f, 48.2f, 455f);
-        SoftenOrThinRocksAlongPath(startP, endP, corridorHalfWidth: 7.0f, thinHalfWidth: 3.4f, alongTMax: 0.62f);
-        SoftenRockRootNearPoint("SanctuarySpringPond_Rocks", oasis, softRadius: 32f, thinRadius: 16f);
-        SoftenRockRootNearPoint("MountainGorgeProps", oasis, softRadius: 40f, thinRadius: 18f);
-        SoftenRockRootNearPoint("UpperParadiseStream", oasis, softRadius: 44f, thinRadius: 0f);
-        SoftenRockRootNearPoint("BeachStepPonds_Rocks", oasis, softRadius: 32f, thinRadius: 0f);
+        SoftenOrThinRocksAlongPath(startP, endP, corridorHalfWidth: 8.0f, thinHalfWidth: 4.0f, alongTMax: 0.85f);
+        SoftenRockRootNearPoint("SanctuarySpringPond_Rocks", oasis, softRadius: 36f, thinRadius: 18f);
+        SoftenRockRootNearPoint("MountainGorgeProps", oasis, softRadius: 44f, thinRadius: 20f);
+        SoftenRockRootNearPoint("UpperParadiseStream", oasis, softRadius: 48f, thinRadius: 0f);
+        SoftenRockRootNearPoint("BeachStepPonds_Rocks", oasis, softRadius: 36f, thinRadius: 0f);
 
-        // 階段最下部（StairRamp_0〜1付近）の岩は強制トリガー化
+        // 階段足元・池〜階段アプローチ全域の岩を強制トリガー化
         SoftenRocksNearStairFoot(startP);
 
         // 名称に Rock/Stone を含むオブジェクトも、階段〜池の回廊だけ追加で緩和
@@ -2996,7 +2999,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     }
 
     /// <summary>
-    /// アプローチ階段最下部（StairRamp_0〜1）付近の岩コライダーを歩行阻害しないよう強制緩和。
+    /// アプローチ階段最下部（StairRamp_0〜1）および池〜階段進入路付近の岩コライダーを歩行阻害しないよう強制緩和。
     /// </summary>
     static void SoftenRocksNearStairFoot(Vector3 stairStart)
     {
@@ -3014,7 +3017,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             float dx = c.x - stairStart.x;
             float dz = c.z - stairStart.z;
             float dist = Mathf.Sqrt(dx * dx + dz * dz);
-            if (dist > 14f) continue;
+            if (dist > 24f) continue;
 
             // 見た目は残し、足元の物理だけ外す
             col.isTrigger = true;
@@ -3035,16 +3038,16 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
             Vector3 c = col.bounds.center;
             float distOasis = Vector2.Distance(new Vector2(c.x, c.z), new Vector2(oasis.x, oasis.z));
-            float distPath = DistancePointToSegment(c, startP, Vector3.Lerp(startP, endP, 0.7f));
-            if (distOasis > 32f && distPath > 8f) continue;
+            float distPath = DistancePointToSegment(c, startP, endP);
+            if (distOasis > 36f && distPath > 9f) continue;
 
             // 進路真上は間引き、近傍はコライダー無効
-            if (distPath < 3.2f && distOasis < 26f)
+            if (distPath < 3.6f && distOasis < 28f)
             {
                 col.gameObject.SetActive(false);
                 continue;
             }
-            if (distPath < 7.5f || distOasis < 18f)
+            if (distPath < 8.5f || distOasis < 24f)
                 col.isTrigger = true;
         }
     }
@@ -3117,16 +3120,53 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 古代階段全体をカバーする「滑らかな傾斜コライダー帯」を分割配置する。
-    /// 1本の板で全長をカバーすると傾き誤差が出るため、4段ずつ区切って短い板を並べる。
+    /// 古代階段全体をカバーする「滑らかな連続傾斜スロープコライダー」を配置する。
+    /// 各段Cubeの物理コライダーを排除した上で、階段全域＋手前エントリー（導入部）＋奥テラス接続部を
+    /// 完全にフラットな傾斜板で覆い、歩行・ダッシュの引っ掛かりをゼロにする。
     /// </summary>
     void AddStairsRampColliders(Transform parent, Vector3 startP, Vector3 endP, float width)
     {
-        const int   segments   = 5;   // 階段 22 段を 5 区間に分割（区間ごとに傾きが自然に合う）
-        const float thickness  = 0.8f; // 物理厚み（段差スタック防止）
+        const int   segments       = 5;    // 階段 22 段を 5 区間に分割
+        const float thickness      = 0.35f; // 物理厚み
+        const float stepHalfHeight = 0.16f; // ステップ厚み 0.32m の上面オフセット
 
         var terrain = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
 
+        // 1. 最下部手前からの進入用「エントリースロープ（進入ウェッジ）」
+        // 地面からステップ最下段の上面へ滑らかに段差ゼロで誘導する
+        Vector3 totalForward = (endP - startP).normalized;
+        Vector3 entryStart = startP - totalForward * 2.8f;
+        if (terrain != null)
+        {
+            entryStart.y = terrain.SampleHeight(entryStart) + terrain.transform.position.y - 0.15f;
+        }
+        else
+        {
+            entryStart.y = startP.y - 0.5f;
+        }
+
+        Vector3 entryEnd = startP;
+        if (terrain != null)
+        {
+            entryEnd.y = Mathf.Max(startP.y, terrain.SampleHeight(entryEnd) + terrain.transform.position.y + 0.16f);
+        }
+
+        Vector3 entryCenter = (entryStart + entryEnd) * 0.5f;
+        Vector3 entryFwd = entryEnd - entryStart;
+        float entryLen = entryFwd.magnitude;
+        if (entryLen > 0.05f)
+        {
+            var entryGo = new GameObject("StairRamp_Entry");
+            entryGo.transform.SetParent(parent, false);
+            entryGo.transform.position = entryCenter;
+            entryGo.transform.rotation = Quaternion.LookRotation(entryFwd.normalized, Vector3.up);
+
+            var entryBox = entryGo.AddComponent<BoxCollider>();
+            entryBox.center = new Vector3(0f, stepHalfHeight - thickness * 0.5f, 0f);
+            entryBox.size   = new Vector3(width * 1.15f, thickness, entryLen * 1.1f);
+        }
+
+        // 2. 階段本体のスロープセグメント
         for (int s = 0; s < segments; s++)
         {
             float t0 = (float)s       / segments;
@@ -3135,11 +3175,11 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             Vector3 p0 = Vector3.Lerp(startP, endP, t0);
             Vector3 p1 = Vector3.Lerp(startP, endP, t1);
 
-            // 実際の地形高度に合わせて Y を補正（階段ビジュアルと一致）
+            // 実際の地形高度に合わせて Y を補正
             if (terrain != null)
             {
-                p0.y = Mathf.Max(p0.y, terrain.SampleHeight(p0) + terrain.transform.position.y + 0.15f);
-                p1.y = Mathf.Max(p1.y, terrain.SampleHeight(p1) + terrain.transform.position.y + 0.15f);
+                p0.y = Mathf.Max(p0.y, terrain.SampleHeight(p0) + terrain.transform.position.y + 0.16f);
+                p1.y = Mathf.Max(p1.y, terrain.SampleHeight(p1) + terrain.transform.position.y + 0.16f);
             }
 
             Vector3 segCenter  = (p0 + p1) * 0.5f;
@@ -3150,18 +3190,15 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             var rampGo = new GameObject($"StairRamp_{s}");
             rampGo.transform.SetParent(parent, false);
             rampGo.transform.position = segCenter;
+            // LookRotationだけで上り傾斜方向へピッタリ揃う
             rampGo.transform.rotation = Quaternion.LookRotation(segForward.normalized, Vector3.up);
-            rampGo.transform.localScale = Vector3.one; // スケールは BoxCollider.size で制御
-
-            // 前進方向に沿って傾くように pitch を付ける
-            float slopeAngle = Mathf.Atan2(p1.y - p0.y, new Vector2(p1.x - p0.x, p1.z - p0.z).magnitude)
-                               * Mathf.Rad2Deg;
-            rampGo.transform.rotation = Quaternion.LookRotation(segForward.normalized, Vector3.up)
-                                        * Quaternion.Euler(-slopeAngle, 0f, 0f);
+            rampGo.transform.localScale = Vector3.one;
 
             var box = rampGo.AddComponent<BoxCollider>();
-            box.center = Vector3.zero;
-            box.size   = new Vector3(width, thickness, segLen * 1.05f);
+            // 上面をステップ上面（+0.16f）に正確に一致させる
+            box.center = new Vector3(0f, stepHalfHeight - thickness * 0.5f, 0f);
+            // 隙間や段差が出ないよう、前後にわずかにラップ（1.06倍、終端はテラスに食い込ませる）
+            box.size   = new Vector3(width, thickness, segLen * (s == segments - 1 ? 1.15f : 1.06f));
         }
     }
 

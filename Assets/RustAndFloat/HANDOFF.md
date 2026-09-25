@@ -495,12 +495,126 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
      4. ドローンRustも `drone.TeleportNearPlayer()` でプレイヤーの横へ確実にテレポート。
      5. クリアモーダルのキー入力判定に旧 Input（`Input.GetKeyDown(KeyCode.N)` 等）のフォールバックを追加。
 
+7. **神殿アプローチ階段＆オアシス池周辺の歩行引っかかり・段差スタック完全解消（2026-09-25追加）**:
+   - `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`
+   - **原因**:
+     1. `BuildTowerStairs()` 内で生成していた各ステップ（`stepObj`）のデフォルト Cube コライダー（BoxCollider）が削除されておらず、22段の物理エッジによる微小段差スタックが発生していた。
+     2. スロープコライダー `StairRamp` の回転計算で `Quaternion.LookRotation(segForward.normalized, Vector3.up) * Quaternion.Euler(-slopeAngle, 0f, 0f)` と角度が2重に掛かって不自然に急勾配になり、厚み 0.8m の上面がステップ表面より 0.24m 浮き上がって最下段手前に 0.4m 近い垂直段差（見えない壁）が生じていた。
+     3. オアシス池〜階段アプローチ周辺の巨大岩（`SanctuarySpringPond_Rocks` 等）の足元物理コライダーが階段進入路やステップ側面に食い込んでいた。
+   - **対策**:
+     1. 各ステップの Cube コライダーを `Object.Destroy(stepCol)` で完全撤去し、ビジュアルのみに変更。
+     2. スロープコライダーの回転を `Quaternion.LookRotation(segForward.normalized, Vector3.up)` に是正し、厚み 0.35m・上面をステップ表面（+0.16m）とミリ単位で正確に一致化。
+     3. 最下段の手前（オアシス池側地面）から滑らかにステップ上面へと導く「進入ウェッジ（`StairRamp_Entry`）」を新設し、地面からの段差ゼロ（完全バリアフリー）化。終端もテラス床に食い込ませて段差を排除。
+     4. 階段中心線から全幅 17m 範囲のコリドー内岩コライダー、および階段足元半径 24m・オアシス池周辺半径 36m の全岩コライダーを `isTrigger = true` 化（見た目は100%残し、足元の激突・引っかかりを完全根絶）。
+
+8. **相棒Rustの自律感情＆愛着仕草・喜び宙返りシステム（2026-09-25追加）**:
+   - `Assets/Game/Scripts/AdventureRustDrone.Curiosity.cs` (新規)
+   - `Assets/Game/Scripts/AdventureRustDrone.cs`, `AdventureScrapItem.cs`, `AdventureBeachDriftBox.cs`
+   - **機能内容**:
+     1. **自律好奇心（Curiosity Investigation）**:
+        - プレイヤーが立ち止まった際（静止時）、周囲12m以内の蝶（`AdventureButterflyDrift`）や水辺（海面・オアシス）、足元の草花を自律検知し、ふわりと近づいて観察・ホバリング。
+        - 「わぁ、チョウチョだ！」「水面がきらきら光ってる！」など状況に応じたセリフとおしゃべりチャイムを再生。
+        - プレイヤーが走り出したり6.5m以上離れると即座に追従復帰。
+     2. **愛らしい首かしげ（Curious Tilt）**:
+        - アイドル中や観察中に、ボディがコテンと左右に16〜22度傾く（犬や鳥のような首かしげモーション）。
+        - 興味対象のない立ち止まり時にもNikoの視線の先へ回り込み、首をかしげてアイコンタクト。
+     3. **パーツ獲得・宝箱開封時の喜び宙返り＆星スパークル（Victory Somersault）**:
+        - スクラップ獲得時および漂着ボックス開封時に `TriggerCelebration()` が発動。
+        - Nikoの斜め前上空へ浮上しながら360度ループ（SmoothStepによる美しい縦宙返り＋横ロール）を実行し、頭上からゴールド＆シアンの星型スパークル粒子（`RustHappyStars`）を散らしながらピロリロリン♪と歓喜チャイムを奏でる。
+
+9. **ピアニスト・カピタのピアノ無音解消＆右手単音・控えめ音量への再調整（2026-09-25追加）**:
+   - `Assets/Game/Scripts/AdventureAncientPianoRelic.cs`
+   - **調整内容**:
+     1. **左手伴奏コードの完全排除**:
+        - プロのピアニストのような左手重低音アルペジオを全撤去。カピタ（動物）が小さな前足でぽろん、ぽろんと鍵盤を叩いているような、素朴で愛らしい右手単音メロディ（E5, D5, B4, C5, A4, G5...）のみに特化。
+     2. **音量の適正化（控えめで優しい3D音響）**:
+        - 音量が大きすぎたため、`volume = 0.38f`、合成波形ピークノーマライズを `0.42f` に抑制。
+        - `minDistance = 3.5f`、`maxDistance = 28.0f`、`spatialBlend = 0.70f` に調整し、カピタの木陰のすぐそばで自然に香るような穏やかな3D音響に最適化。
+        - 接近時のBGMダッキングも22m以内で最大 `0.22f` とほんのり下げる程度に留め、環境BGMとの調和を確立。
+     3. **連弾和音（Eキー）の音量調整**:
+        - `CreateFeltPianoChord` のピークノーマライズを `0.48f`、再生音量を `0.55f` に調整。
+
+10. **オープニング演出：遭難直後の波音とRustが心配そうに覗き込んで起こしに来る目覚めシークエンス（2026-09-25追加）**:
+    - `Assets/Game/Scripts/AdventurePrologueDrama.cs`
+    - `Assets/Game/Scripts/AdventurePlayerController.cs`
+    - `Assets/Game/Scripts/AdventureRustDrone.cs`
+    - **機能内容**:
+      1. **波音と暗闇（意識の微睡み）**:
+         - PLAYボタン押下後、全画面黒幕（まぶたUI: 上下スライド方式）で暗転し、BGMがダッキング。
+         - 実録波音（`ocean_waves_grand.wav`）およびフォールバックのプロシージャル波音（ピンクノイズ＋周期エンベロープ合成）が耳元で静かにフェードイン。
+         - 字幕テロップで「……ザザァ……ザザァ……」「……遠くで、波の音が聴こえる。」と表示。
+      2. **Rustの必死な呼びかけと薄目アニメーション**:
+         - Nikoが仰向けで倒れている足元・胸元から空を見上げるシネマティック視点（地面0.35m, ピッチ-75度）。
+         - Rustが顔の真上（0.88m）で心配そうに首をかしげながらホバリングし、「……Niko？　……Niko……？」。
+         - まぶたが薄く開き（開度0.28）、青空とRustの輪郭がうっすら見えるが、意識が薄れて再度閉じる（暗転）。
+         - Rustが顔のすぐ前（0.65m）まで近づき、頬を小突くようにバウンスしながら「Niko……！　目を覚まして、Niko……！！」。
+      3. **完全開眼と起き上がりカメラワーク**:
+         - まぶたが完全に開き、光が満ちる。
+         - Nikoが上半身を起こして起き上がるように、カメラが仰向け視点から通常の後方俯瞰視点（後方3.6m, 高さ1.55m）へ2.4秒かけてSmoothStepで滑らかにドリー＆パン移動。
+      4. **歓喜宙返りと注油ドラマへの接続**:
+         - Nikoが起き上がったのを見て、Rustが「ピピッ！……よかったぁぁ！！気がついた……！」と歓喜の宙返りジャンプ（`TriggerCelebration`）。
+         - 「脱出ポッドが海に落ちて……ボクたち、この島に打ち上げられたんだ！」と状況を説明。
+         - BGMがふんわりとフェードインし、波音が静かな環境音へと引いていく。
+         - カメラ操作・プレイヤー操作を解放し、既存の「キキッ……塩水で古いギアが凍りついて動かない……」という注油ドラマへシームレスに接続。
+
+11. **オープニングボードのレイアウト＆操作説明テキストの視認性改善（2026-09-25追加）**:
+    - `Assets/Game/Scripts/AdventureRustFloatOpening.cs`
+    - ボードサイズを `700x515` へゆったり拡張。
+    - 本文末尾とPLAYボタンの間に約95pxの余白を確保し、最終行の文字重なりを完全根絶。
+    - 最下部の操作説明テキスト（`PlayHint`）を従来の11pt薄色・縁取りなしから、**14pt 太字・くっきりホワイト＋黒アウトライン（フチ取り）** へ強化し、視認性を大幅向上。
+
+12. **サバイバルケースボードと二人の漂着艇ボードの重複重なり解消（2026-09-25追加）**:
+    - `Assets/Game/Scripts/AdventureBeachDriftBoxManager.cs`
+    - `Assets/Game/Scripts/AdventureBeachDriftBox.cs`
+    - `Assets/Game/Scripts/AdventureBeachNarrativeManager.cs`
+    - **原因**: 漂着サバイバルケース#1の座標 `(151, 270)` と二人の漂着艇の座標 `(152, 275)` がわずか 5m しか離れておらず、サバイバルケースの4.5m接近自動開封と漂着艇のEキー調べが同時にトリガーされ、画面上で2つのボードが重なっていた。
+    - **対策**:
+      1. サバイバルケース#1の配置を漂着艇から北東へ30m離れた波打ち際 `(178, 290)` へ移動。
+      2. `AdventureBeachDriftBox` と `AdventureBeachNarrativeManager` の間に相互排他制御（一方が開いている時はもう一方が絶対に開かないガード）を実装し、画面上でのボード重なりを完全根絶。
+
+13. **漂着航海カプセル#3とキーストーン・手動の自由ボードの重複重なり解消（2026-09-25追加）**:
+    - `Assets/Game/Scripts/AdventureBeachDriftBoxManager.cs`
+    - `Assets/Game/Scripts/AdventureBeachDriftBox.cs`
+    - `Assets/Game/Scripts/AdventurePrologueDrama.cs`
+    - **原因**: 3個目のスクラップパーツ座標 `(140, 320)` と漂着航海カプセル#3の座標 `(145, 320)` がわずか 5m しか離れておらず、3個目取得時の「キーストーン I：手動の自由（ダッシュ解禁）」演出とカプセルの4.5m接近自動開封が同時に発火して画面上でボードが重なっていた。
+    - **対策**:
+      1. 漂着航海カプセル#3の配置をパーツ3番から26m離れた木道手前 `(135, 345)` へ移動。
+      2. `AdventurePrologueDrama` のダッシュ解禁ルーチン冒頭で既存の情報ボードを安全に閉じる処理を追加。
+      3. `AdventureBeachDriftBox` に `IsShowingDashBoard` の排他ガードを追加し、キーストーンボード表示中の自動開封・モーダル表示を完全防止。
+
+14. **マウス視点操作感度の微調整（2026-09-25追加）**:
+    - `Assets/Game/Scripts/AdventureRustFloatFeel.cs`
+    - `Sensitivity`: `0.62f` → `0.50f`（約19%低減し、過敏さを抑えて自然に狙いやすく調整）。
+    - `LookSmoothTime`: `0.006f` → `0.008f`（手ブレをわずかに吸収し、滑らかな視点移動に最適化）。
+
+15. **Rust回復後の天空突破BGM（オーバードライブ）のリズム隊強化＆スネア2拍・4拍化（2026-09-25追加）**:
+    - `Assets/Game/Scripts/AdventureMusicDirector.cs`
+    - 天蓋開放後、Rust回復・完全修復時のドロップBGM（Skybreak Overdrive）において：
+      - キック（4つ打ち）: `0.24f` → `0.30f`（+25%）
+      - スネアタイミング: 従来のハーフタイム（3拍目のみ: `0.75s, 2.25s`）から、**BPM 160基準の王道ストレートな2拍目・4拍目バックビート（`0.375s, 1.125s, 1.875s, 2.625s`）** へ変更。
+      - スネア音量: `0.16f` → `0.22f`（音抜けとタイトなキレを強化）
+      - シンセベース（16分Moog風）: `0.26f` → `0.34f`（+30%）
+      - アナログ風ソフトリミッター（tanh）を適用し、音割れ（クリッピング）を防ぎつつ力強い推進力と音圧を両立。
+
+16. **風の音の音量強化 & 天空BGMの段階的ビルドアップ展開（2026-09-25追加）**:
+    - **風の音の音量強化**（[AdventureSanctuaryTowerManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs)）:
+      - 天蓋崩壊・天空滑空時の風音アンビエンス（`_skybreakWindSource`）のフェード目標音量を `0.22f` → **`0.45f`**（約2倍）へ引き上げ、天蓋の開けた大空を切り裂く風の臨場感と迫力を大幅強化。
+    - **段階的BGMビルドアップ展開**（[AdventureMusicDirector.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureMusicDirector.cs)）:
+      - 4段階トラック（`Intro`, `BassOnly`, `Full`, `DrumsOnly`）を導入。
+      - **BGM 1周目（天蓋レバー操作〜12秒間）**: 神聖なブラスとアルペジオのみ（ドラムなし・ベースなし）で天蓋開放の荘厳さを表現。
+      - **BGM 2周目（12秒〜24秒）**: 2周目の頭から**ベースが入り**、力強いグルーヴと前進感をプラス。
+      - **BGM 3周目（24秒〜Rust回復まで）**: 3周目の頭から**ドラムも加わり**、キック・スネア・ハット＋ベース＋ブラスの完全フル編成へ！
+      - **Rust回復時（「全力で行こう！！」のクライマックス）**: 今までと同じタイミングで再生位置をシームレスに引き継ぎ、**ベースが抜けてドラムとBGMになる**！爽快で軽快な疾走感で大空の滑空へ飛び立つ。
+    - **エピローグ映画字幕テキストの更新**（[AdventureSanctuaryTowerManager.Epilogue.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSanctuaryTowerManager.Epilogue.cs)）:
+      - 第2幕テロップを「真の生きている証(あかし)を、見出すんだ。」から「**真の生きている証(あかし)を得るんだ。**」へ変更。
+
+
 ## 次の推奨タスク
 
-1. **アプローチ階段下部の岩コライダー干渉解消**:
-   - `SanctuaryApproachStairs` 最下部と干渉する池の岩コライダーを `isTrigger = true` に設定し、スムーズな歩行登頂を完全保証する。
-2. **探索動線・相棒Rustの愛着・仕草強化**:
-   - 探索中のRustの自律仕草（花や蝶への興味、首傾げなど）を追加し、旅の相棒感をさらに深める。
+1. **探索の手触り向上：白砂ビーチの貝殻・漂着物・スクラップ採取インタラクション＆収集ポップ演出**:
+   - ビーチ散策時にキラキラ光る貝殻や古代の漂着ボトルをワンボタンで拾える小気味よい収集ループ（拾うとチャリン音と小さな浮遊アイコンポップアップ）。
+2. **海・波打ち際・水しぶきの環境美化**:
+   - 白砂ビーチ周辺の波打ち際エフェクトや水面の反射・環境音の微細チューニング。
 
 ## ブランチ
 

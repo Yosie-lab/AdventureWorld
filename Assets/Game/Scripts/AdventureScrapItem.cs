@@ -349,8 +349,12 @@ public class AdventureScrapItem : MonoBehaviour
             AdventureScrapManager.Instance.OnScrapCollected(this);
         }
 
-        // NikoとRustのスキンシップアクション
-        if (AdventurePettingAction.Instance != null && !AdventurePettingAction.Instance.IsPetting)
+        // NikoとRustのスキンシップアクション＆Rustの歓喜宙返り
+        if (AdventureRustDrone.Instance != null)
+        {
+            AdventureRustDrone.Instance.TriggerCelebration();
+        }
+        else if (AdventurePettingAction.Instance != null && !AdventurePettingAction.Instance.IsPetting)
         {
             AdventurePettingAction.Instance.PetRust("やったねRust！パーツを見つけたよ！", 1.8f);
         }

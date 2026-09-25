@@ -543,6 +543,10 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
     /// <summary>ナラティブモーダルを開く</summary>
     public void OpenNarrativeModal(string id, string title, string subTitle, string body, string rustComment)
     {
+        // 漂着サバイバルケースボードが開いている時はナラティブモーダルを開かない（画面重なり完全防止）
+        if (AdventureBeachDriftBox.IsModalOpen)
+            return;
+
         _modalTitle = title;
         _modalSubTitle = subTitle;
         _modalBody = body;
@@ -710,21 +714,22 @@ public class AdventureBeachNarrativeSpot : MonoBehaviour
         if (player == null) return;
 
         float dist = Vector3.Distance(transform.position, player.transform.position);
-        _playerNearby = (dist < 4.2f);
+        _playerNearby = (dist < 4.2f) && !AdventureBeachDriftBox.IsModalOpen;
 
         if (_playerNearby)
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.eKey.wasPressedThisFrame)
             {
-                AdventureBeachNarrativeManager.Instance?.OpenNarrativeModal(spotId, title, subTitle, bodyText, rustDialogue);
+                if (!AdventureBeachDriftBox.IsModalOpen)
+                    AdventureBeachNarrativeManager.Instance?.OpenNarrativeModal(spotId, title, subTitle, bodyText, rustDialogue);
             }
         }
     }
 
     void OnGUI()
     {
-        if (!_playerNearby) return;
+        if (!_playerNearby || AdventureBeachDriftBox.IsModalOpen) return;
 
         // プレイヤー頭上に【Eキー】調べるHUDを表示
         Vector3 screenPos = Camera.main != null ? Camera.main.WorldToScreenPoint(transform.position + Vector3.up * 1.2f) : Vector3.zero;

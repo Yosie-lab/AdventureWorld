@@ -118,7 +118,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
                 message = "気がつくと見知らぬ白砂の海岸に打ち上げられていた。\n\n内陸から心地よいせせらぎが聞こえる。川を遡ると『せせらぎ池』や『カルデラ湖』があるようだ。\n\n水と古代パーツを探すなら、まずは目の前の川沿いに内陸を目指すのが良いだろう。",
                 rustDialogue = "ケースの中にサバイバルメモがあるよ！川を遡ると内陸の池や湖に出られるみたいだね。川沿いに行ってみよう！",
                 nextObjective = "川沿いに進んで内陸のせせらぎ池を目指そう",
-                position = new Vector3(151f, 0f, 270f),
+                position = new Vector3(178f, 0f, 290f), // 漂着艇(152, 275)から約30m離れた波打ち際へ配置し、干渉・重複を完全根絶
                 rotationY = 45f
             },
             new DriftBoxData
@@ -129,7 +129,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
                 message = "島中に散らばる『古代パーツ』を集めれば、相棒ドローンの故障したブースターが修復されるらしい。\n\nパーツを【3個】集めると『高速ダッシュ』が解放され、広大な島を快適に駆け抜けられるようになる。\n\n空へ伸びる黄金やシアンの光の柱を探せ。",
                 rustDialogue = "パーツを3個集めれば僕のブースターが直ってダッシュできるようになるんだ！周りを見渡して光の柱を探そう！",
                 nextObjective = "古代パーツを3個集めてブースターダッシュを解放しよう",
-                position = new Vector3(163f, 0f, 255f),
+                position = new Vector3(165f, 0f, 240f), // 川の南側ビーチへすっきりと配置
                 rotationY = 25f
             },
             new DriftBoxData
@@ -140,7 +140,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
                 message = "砂浜と内陸の高台の間には、海風が吹き上げる『サーマル上昇気流』や、登りやすい『木道スロープ』がある。\n\n高い崖も、Spaceキーを長押しして海風に乗れば、一気に上空へ舞い上がって高台を飛び越えられるはずだ。",
                 rustDialogue = "高い崖も海風の上昇気流に乗れば一気に飛べるんだ！Spaceキー長押しで風に乗ってみよう！",
                 nextObjective = "海風の上昇気流や木道を使って高台へ登ろう",
-                position = new Vector3(145f, 0f, 320f),
+                position = new Vector3(135f, 0f, 345f), // 3個目のスクラップパーツ(140, 320)から約26m離れた木道手前へ移動し、キーストーン演出との衝突を完全根絶
                 rotationY = 110f
             },
             new DriftBoxData
