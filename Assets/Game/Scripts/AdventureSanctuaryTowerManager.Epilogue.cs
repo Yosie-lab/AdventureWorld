@@ -33,7 +33,7 @@ public partial class AdventureSanctuaryTowerManager
         new FilmLine("箱庭の外には、凍えるほどリアルで、優しい風が吹いていた。", 4.8f, 1, new Color(1f, 0.96f, 0.82f, 1f)),
         new FilmLine("人は、最適で最短な道を進むときじゃなく、", 4.4f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
         new FilmLine("寄り道をして、躓きながらも出会えた感動に——", 4.6f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
-        new FilmLine("真の生きている証(あかし)を、見出すんだ。", 4.4f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
+        new FilmLine("真の生きている証(あかし)を得るんだ。", 4.4f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
         new FilmLine("傷つくかもしれない自由と、生きることの重みを取り戻した二人の旅が、", 4.8f, 3, new Color(1f, 0.94f, 0.70f, 1f)),
         new FilmLine("ここから、また始まる。—— 『Rust & Float』", 3.55f, 3, new Color(1f, 0.88f, 0.45f, 1f)),
     };

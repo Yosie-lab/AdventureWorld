@@ -1,9 +1,10 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System.Collections;
 
 /// <summary>
 /// 前半オープニングの小さなドラマ：
-/// Rust極寒・油切れ → Nikoのいたわりと注油 → 甘え寄り添い → 最初のギア／3個目でダッシュ祝福
+/// 遭難直後の波音とRustの目覚まし → Rust極寒・油切れ → Nikoのいたわりと注油 → 甘え寄り添い → 最初のギア／3個目でダッシュ祝福
 /// </summary>
 public class AdventurePrologueDrama : MonoBehaviour
 {
@@ -13,6 +14,7 @@ public class AdventurePrologueDrama : MonoBehaviour
     enum Phase
     {
         Idle,
+        Awakening,
         Act1Distress,
         WaitOil,
         Act2Revived,
@@ -32,8 +34,12 @@ public class AdventurePrologueDrama : MonoBehaviour
     float _dashBoardOpenTime;
     bool _secondGearDone;
 
+    public bool IsAwakening => _phase == Phase.Awakening;
+    public bool IsShowingDashBoard => _showDashBoard && _phase == Phase.DashCelebrate;
+
     public bool IsBlockingSpeech =>
-        _phase == Phase.Act1Distress
+        _phase == Phase.Awakening
+        || _phase == Phase.Act1Distress
         || _phase == Phase.WaitOil
         || _phase == Phase.Act2Revived
         || _phase == Phase.FirstGearDone
@@ -97,6 +103,16 @@ public class AdventurePrologueDrama : MonoBehaviour
         _secondGearDone = false;
         var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
         drone?.EndPrologueDistress();
+
+        var eyelidCanvas = GameObject.Find("AwakeningEyelidCanvas");
+        if (eyelidCanvas != null) Destroy(eyelidCanvas);
+        var camFollow = AdventureCameraFollow.InstanceOrFind();
+        if (camFollow != null)
+        {
+            camFollow.enabled = true;
+            camFollow.SnapBehindTarget();
+        }
+        AdventureMusicDirector.Instance?.SetSpotDucking(0f);
     }
 
     /// <summary>Rustへの注油／手当て成功時</summary>
@@ -133,6 +149,9 @@ public class AdventurePrologueDrama : MonoBehaviour
 
     IEnumerator PrologueRoutine()
     {
+        // 遭難直後の波音とRustが心配そうに覗き込んで起こしに来る目覚めシークエンス
+        yield return StartCoroutine(AwakeningSequence());
+
         _phase = Phase.Act1Distress;
         yield return null;
 
@@ -279,6 +298,13 @@ public class AdventurePrologueDrama : MonoBehaviour
 
     IEnumerator DashCelebrateRoutine()
     {
+        // 漂着カプセル等の情報ボードが開いている場合は閉じてからキーストーンボードを提示（画面重なり完全防止）
+        if (AdventureBeachDriftBox.IsModalOpen)
+        {
+            AdventureBeachDriftBox.CloseModal();
+            yield return null;
+        }
+
         _phase = Phase.DashCelebrate;
         _showDashBoard = true;
         _dashBoardAdvance = false;
@@ -393,4 +419,360 @@ public class AdventurePrologueDrama : MonoBehaviour
         GUI.Label(new Rect(x, y + h - 70f, w, 40f), "【Space / クリック】で続ける", hint);
         GUI.color = Color.white;
     }
+
+    #region Awakening Sequence (遭難直後の波音とRustの目覚まし)
+    IEnumerator AwakeningSequence()
+    {
+        _phase = Phase.Awakening;
+
+        var player = AdventurePlayerController.Resolve();
+        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var camFollow = AdventureCameraFollow.InstanceOrFind();
+        Camera mainCam = Camera.main;
+
+        // BGMをダッキングして静かな波音を際立たせる
+        AdventureMusicDirector.Ensure();
+        var music = AdventureMusicDirector.Instance;
+        if (music != null)
+            music.SetSpotDucking(1.0f);
+
+        // 波音AudioSourceを動的生成して再生
+        AudioSource waveSource = gameObject.AddComponent<AudioSource>();
+        waveSource.loop = true;
+        waveSource.spatialBlend = 0f; // 2Dステレオ
+        waveSource.volume = 0f;
+        waveSource.clip = LoadOrMakeWaveClip();
+        waveSource.Play();
+
+        // まぶたUIと字幕Canvasの生成
+        RectTransform upperEyelid, lowerEyelid;
+        Text subtitleText;
+        CanvasGroup subtitleCg;
+        GameObject eyelidCanvasGo = CreateAwakeningUI(out upperEyelid, out lowerEyelid, out subtitleText, out subtitleCg);
+        SetEyelidsOpen(upperEyelid, lowerEyelid, 0f); // 初期は完全閉眼（暗転）
+
+        // カメラ制御の一時乗っ取り（Nikoの仰向け視点）
+        if (camFollow != null)
+            camFollow.enabled = false;
+
+        Transform playerTransform = player != null ? player.transform : transform;
+        Vector3 playerPos = playerTransform.position;
+        Vector3 playerForward = playerTransform.forward;
+
+        // 仰向け視点：地面すれすれから空を見上げるアングル
+        Vector3 supineCamPos = playerPos + Vector3.up * 0.35f + playerForward * 0.15f;
+        Quaternion supineCamRot = Quaternion.Euler(-75f, playerTransform.eulerAngles.y, 0f);
+
+        if (mainCam != null)
+        {
+            mainCam.transform.position = supineCamPos;
+            mainCam.transform.rotation = supineCamRot;
+        }
+
+        // RustドローンをNikoの顔の上で心配そうに見下ろす姿勢に配置
+        if (drone != null)
+        {
+            drone.ClearSpeech();
+            Vector3 rustHoverPos = playerPos + Vector3.up * 0.88f + playerForward * 0.20f;
+            Quaternion rustTiltRot = Quaternion.Euler(68f, playerTransform.eulerAngles.y + 180f, 15f);
+            drone.transform.position = rustHoverPos;
+            drone.transform.rotation = rustTiltRot;
+        }
+
+        // --- シーン1: 暗闇の中で波の音と遠い意識 ---
+        float fadeT = 0f;
+        while (fadeT < 1.6f)
+        {
+            fadeT += Time.deltaTime;
+            if (waveSource != null)
+                waveSource.volume = Mathf.Lerp(0f, 0.72f, fadeT / 1.6f);
+            yield return null;
+        }
+
+        yield return new WaitForSeconds(0.6f);
+        yield return ShowSubtitle(subtitleText, subtitleCg, "……ザザァ……ザザァ……", 2.2f);
+        yield return new WaitForSeconds(0.5f);
+        yield return ShowSubtitle(subtitleText, subtitleCg, "……遠くで、波の音が聴こえる。", 2.5f);
+        yield return new WaitForSeconds(0.8f);
+
+        // Rustの遠い呼びかけ
+        if (drone != null)
+            drone.SpeakCustom("……Niko？　……Niko……？", 3.0f);
+        yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「……Niko？　……Niko……？」", 2.6f);
+        yield return new WaitForSeconds(0.5f);
+
+        // --- シーン2: 薄目を開けるが力尽きてまた閉じる ---
+        float eyeT = 0f;
+        while (eyeT < 1.1f)
+        {
+            eyeT += Time.deltaTime;
+            float factor = Mathf.SmoothStep(0f, 0.28f, eyeT / 1.1f);
+            SetEyelidsOpen(upperEyelid, lowerEyelid, factor);
+            yield return null;
+        }
+
+        yield return new WaitForSeconds(0.8f);
+
+        // 再び意識が途切れ、まぶたが閉じる
+        eyeT = 0f;
+        while (eyeT < 0.9f)
+        {
+            eyeT += Time.deltaTime;
+            float factor = Mathf.SmoothStep(0.28f, 0f, eyeT / 0.9f);
+            SetEyelidsOpen(upperEyelid, lowerEyelid, factor);
+            yield return null;
+        }
+
+        yield return new WaitForSeconds(0.5f);
+
+        // Rustがさらに顔に近づき必死に呼びかける
+        if (drone != null)
+        {
+            Vector3 rustCloserPos = playerPos + Vector3.up * 0.65f + playerForward * 0.18f;
+            drone.transform.position = rustCloserPos;
+            drone.SpeakCustom("Niko……！　目を覚まして、Niko……！！", 3.2f);
+        }
+        yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「Niko……！　目を覚まして、Niko……！！」", 2.8f);
+        yield return new WaitForSeconds(0.4f);
+
+        // --- シーン3: 完全開眼と起き上がりカメラワーク ---
+        Vector3 targetCamPos = playerPos + Vector3.up * 1.55f - playerForward * 3.6f;
+        Quaternion targetCamRot = Quaternion.Euler(6f, playerTransform.eulerAngles.y, 0f);
+
+        float riseT = 0f;
+        float riseDuration = 2.4f;
+        while (riseT < riseDuration)
+        {
+            riseT += Time.deltaTime;
+            float u = Mathf.Clamp01(riseT / riseDuration);
+            float smoothU = Mathf.SmoothStep(0f, 1f, u);
+
+            // まぶた全開へ
+            SetEyelidsOpen(upperEyelid, lowerEyelid, smoothU);
+
+            // カメラの起き上がりドリー＆チルト
+            if (mainCam != null)
+            {
+                mainCam.transform.position = Vector3.Lerp(supineCamPos, targetCamPos, smoothU);
+                mainCam.transform.rotation = Quaternion.Slerp(supineCamRot, targetCamRot, smoothU);
+            }
+
+            // Rustの姿勢も通常ホバリングへ戻す
+            if (drone != null)
+            {
+                Vector3 rustGoalPos = playerPos + playerForward * 1.2f + Vector3.up * 1.2f;
+                drone.transform.position = Vector3.Lerp(drone.transform.position, rustGoalPos, Time.deltaTime * 3f);
+                drone.transform.rotation = Quaternion.Slerp(drone.transform.rotation, Quaternion.LookRotation(playerPos + Vector3.up * 1.2f - drone.transform.position), Time.deltaTime * 4f);
+            }
+
+            yield return null;
+        }
+
+        // まぶたUIと字幕Canvasの破棄
+        if (eyelidCanvasGo != null)
+            Destroy(eyelidCanvasGo);
+
+        // --- シーン4: Rustの歓喜宙返りと安堵 ---
+        if (drone != null)
+        {
+            drone.TriggerCelebration("ピピッ！……よかったぁぁ！！気がついた……！", 2.2f);
+        }
+        yield return new WaitForSeconds(2.4f);
+
+        if (drone != null)
+        {
+            yield return SpeakRust(drone, "脱出ポッドが海に落ちて……ボクたち、この島に打ち上げられたんだ！", 4.5f);
+        }
+
+        // BGMフェードイン＆波音フェードアウト
+        StartCoroutine(FadeInBgmAndFadeOutWave(waveSource));
+
+        // カメラ制御復帰
+        if (camFollow != null)
+        {
+            camFollow.enabled = true;
+            camFollow.SnapBehindTarget();
+        }
+
+        yield return new WaitForSeconds(1.0f);
+    }
+
+    GameObject CreateAwakeningUI(out RectTransform upperEyelid, out RectTransform lowerEyelid, out Text subtitleText, out CanvasGroup subtitleCg)
+    {
+        var canvasGo = new GameObject("AwakeningEyelidCanvas");
+        DontDestroyOnLoad(canvasGo);
+        var canvas = canvasGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 700;
+        var scaler = canvasGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+        canvasGo.AddComponent<GraphicRaycaster>();
+
+        // 上まぶた
+        var upperGo = new GameObject("UpperEyelid");
+        upperGo.transform.SetParent(canvasGo.transform, false);
+        var upperImg = upperGo.AddComponent<Image>();
+        upperImg.color = Color.black;
+        upperEyelid = upperGo.GetComponent<RectTransform>();
+        upperEyelid.anchorMin = new Vector2(0f, 0.5f);
+        upperEyelid.anchorMax = new Vector2(1f, 1f);
+        upperEyelid.pivot = new Vector2(0.5f, 1f);
+        upperEyelid.offsetMin = Vector2.zero;
+        upperEyelid.offsetMax = Vector2.zero;
+
+        // 下まぶた
+        var lowerGo = new GameObject("LowerEyelid");
+        lowerGo.transform.SetParent(canvasGo.transform, false);
+        var lowerImg = lowerGo.AddComponent<Image>();
+        lowerImg.color = Color.black;
+        lowerEyelid = lowerGo.GetComponent<RectTransform>();
+        lowerEyelid.anchorMin = new Vector2(0f, 0f);
+        lowerEyelid.anchorMax = new Vector2(1f, 0.5f);
+        lowerEyelid.pivot = new Vector2(0.5f, 0f);
+        lowerEyelid.offsetMin = Vector2.zero;
+        lowerEyelid.offsetMax = Vector2.zero;
+
+        // 字幕コンテナ
+        var subGo = new GameObject("AwakeningSubtitle");
+        subGo.transform.SetParent(canvasGo.transform, false);
+        var subRt = subGo.AddComponent<RectTransform>();
+        subRt.anchorMin = new Vector2(0.1f, 0.12f);
+        subRt.anchorMax = new Vector2(0.9f, 0.28f);
+        subRt.offsetMin = Vector2.zero;
+        subRt.offsetMax = Vector2.zero;
+        subtitleCg = subGo.AddComponent<CanvasGroup>();
+        subtitleCg.alpha = 0f;
+
+        // 字幕テキスト
+        subtitleText = subGo.AddComponent<Text>();
+        subtitleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        subtitleText.fontSize = 32;
+        subtitleText.alignment = TextAnchor.MiddleCenter;
+        subtitleText.color = new Color(0.95f, 0.98f, 1.0f, 1.0f);
+
+        var outline = subGo.AddComponent<Outline>();
+        outline.effectColor = new Color(0f, 0f, 0f, 0.85f);
+        outline.effectDistance = new Vector2(2f, -2f);
+
+        return canvasGo;
+    }
+
+    void SetEyelidsOpen(RectTransform upper, RectTransform lower, float openFactor)
+    {
+        if (upper == null || lower == null) return;
+        float halfScreen = 540f;
+        float offset = halfScreen * Mathf.Clamp01(openFactor);
+        upper.anchoredPosition = new Vector2(0f, offset);
+        lower.anchoredPosition = new Vector2(0f, -offset);
+    }
+
+    IEnumerator ShowSubtitle(Text text, CanvasGroup cg, string message, float duration)
+    {
+        if (text == null || cg == null) yield break;
+        text.text = message;
+
+        float t = 0f;
+        while (t < 0.35f)
+        {
+            t += Time.deltaTime;
+            cg.alpha = Mathf.Lerp(0f, 1f, t / 0.35f);
+            yield return null;
+        }
+        cg.alpha = 1f;
+
+        yield return new WaitForSeconds(duration);
+
+        t = 0f;
+        while (t < 0.35f)
+        {
+            t += Time.deltaTime;
+            cg.alpha = Mathf.Lerp(1f, 0f, t / 0.35f);
+            yield return null;
+        }
+        cg.alpha = 0f;
+    }
+
+    IEnumerator FadeInBgmAndFadeOutWave(AudioSource waveSource)
+    {
+        var music = AdventureMusicDirector.Instance;
+        float t = 0f;
+        float duration = 3.0f;
+        float startWaveVol = waveSource != null ? waveSource.volume : 0.72f;
+
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            float factor = Mathf.Clamp01(t / duration);
+
+            if (music != null)
+                music.SetSpotDucking(Mathf.Lerp(1f, 0f, factor));
+
+            if (waveSource != null)
+                waveSource.volume = Mathf.Lerp(startWaveVol, 0.18f, factor);
+
+            yield return null;
+        }
+
+        if (music != null)
+            music.SetSpotDucking(0f);
+
+        yield return new WaitForSeconds(12f);
+        if (waveSource != null)
+        {
+            t = 0f;
+            float cur = waveSource.volume;
+            while (t < 3f && waveSource != null)
+            {
+                t += Time.deltaTime;
+                waveSource.volume = Mathf.Lerp(cur, 0f, t / 3f);
+                yield return null;
+            }
+            if (waveSource != null)
+                Destroy(waveSource);
+        }
+    }
+
+    static AudioClip LoadOrMakeWaveClip()
+    {
+        AudioClip clip = null;
+#if UNITY_EDITOR
+        clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFloat/Audio/Ambience/ocean_waves_grand.wav");
+#endif
+        if (clip == null)
+            clip = Resources.Load<AudioClip>("ocean_waves_grand");
+        if (clip == null)
+            clip = MakeGentleShoreWavesClip();
+        return clip;
+    }
+
+    static AudioClip MakeGentleShoreWavesClip()
+    {
+        int sampleRate = 44100;
+        float lengthSec = 7.5f;
+        int samples = (int)(sampleRate * lengthSec);
+        float[] data = new float[samples];
+
+        float b0 = 0f, b1 = 0f, b2 = 0f;
+        for (int i = 0; i < samples; i++)
+        {
+            float t = (float)i / sampleRate;
+            float white = Random.Range(-1f, 1f);
+            b0 = 0.99765f * b0 + white * 0.0990460f;
+            b1 = 0.96300f * b1 + white * 0.2965164f;
+            b2 = 0.57000f * b2 + white * 1.0526913f;
+            float pink = (b0 + b1 + b2 + white * 0.1848f) * 0.09f;
+
+            float cycle = (t % 3.75f) / 3.75f;
+            float waveEnv = Mathf.Sin(cycle * Mathf.PI);
+            waveEnv = Mathf.Pow(waveEnv, 2.0f);
+
+            data[i] = Mathf.Clamp(pink * (0.15f + waveEnv * 0.85f), -1f, 1f);
+        }
+
+        var clip = AudioClip.Create("ProceduralShoreWaves", samples, 1, sampleRate, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
+    #endregion
 }

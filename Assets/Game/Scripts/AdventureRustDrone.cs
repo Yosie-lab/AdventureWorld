@@ -348,6 +348,10 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (_lookAt == null)
             return;
 
+        // プロローグの遭難目覚め演出中はAdventurePrologueDramaが位置・姿勢・覗き込みを直接演出
+        if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening)
+            return;
+
         TickDriftBoxDetection();
         UpdateCommandInput();
 

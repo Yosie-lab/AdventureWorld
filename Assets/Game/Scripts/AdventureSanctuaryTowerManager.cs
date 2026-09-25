@@ -1686,7 +1686,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _skybreakWindSource.volume = 0f;
         if (!_skybreakWindSource.isPlaying)
             _skybreakWindSource.Play();
-        StartCoroutine(FadeAudioSource(_skybreakWindSource, 0.22f, 1.4f));
+        StartCoroutine(FadeAudioSource(_skybreakWindSource, 0.45f, 1.4f));
     }
 
     void StopSkybreakWindAmbience()

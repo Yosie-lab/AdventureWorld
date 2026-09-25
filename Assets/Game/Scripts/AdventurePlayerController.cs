@@ -133,6 +133,8 @@ public class AdventurePlayerController : MonoBehaviour
         return Instance;
     }
 
+    public static AdventurePlayerController InstanceOrFind() => Resolve();
+
     public bool InteractPressed { get; private set; }
     public bool IsGliding    => _gliding;
     public bool HasEverGlided { get; private set; }
@@ -210,6 +212,13 @@ public class AdventurePlayerController : MonoBehaviour
                 opening.ForceDismissForGameplay();
             else
                 return;
+        }
+
+        // プロローグの遭難目覚め演出中は操作をロック（砂浜で倒れた状態から起き上がるまで）
+        var prologue = AdventurePrologueDrama.Instance;
+        if (prologue != null && prologue.IsAwakening)
+        {
+            return;
         }
 
         ReadInputFlags(kb);
