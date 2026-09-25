@@ -24,19 +24,18 @@ public partial class AdventureSanctuaryTowerManager
         }
     }
 
-    // 関門5：映画字幕は1行ずつ・3幕（長い一括表示にしない）
+    // 関門5：映画字幕は1行ずつ・3幕（格調高い映画テロップ）
     static readonly FilmLine[] EpilogueFilmLines =
     {
-        new FilmLine("わぁぁ……！見て、Niko！世界はこんなに広かったんだ……！！", 4.2f, 0,
+        new FilmLine("「わぁぁ……！見て、Niko！　世界はこんなに広かったんだ……！！」", 8.0f, 0,
             new Color(0.55f, 0.95f, 1f, 1f)),
-        new FilmLine("空が割れた。", 3.4f, 1, new Color(1f, 0.94f, 0.72f, 1f)),
-        new FilmLine("箱庭の外に、凍えるほどリアルな風が吹いていた。", 4.6f, 1, new Color(1f, 0.94f, 0.72f, 1f)),
-        new FilmLine("人は、最適で最短な道を進むときじゃなく、", 4.2f, 2, new Color(1f, 0.96f, 0.82f, 1f)),
-        new FilmLine("寄り道をして、躓きながらも出会えた感動に", 4.4f, 2, new Color(1f, 0.96f, 0.82f, 1f)),
-        new FilmLine("生きてる証を、得るんだ。", 4.0f, 2, new Color(1f, 0.96f, 0.82f, 1f)),
-        new FilmLine("傷つくかもしれない自由と、", 3.2f, 3, new Color(1f, 0.92f, 0.55f, 1f)),
-        new FilmLine("命の重みを取り戻した二人の旅が、", 3.2f, 3, new Color(1f, 0.92f, 0.55f, 1f)),
-        new FilmLine("また始まる。—— 『Rust & Float』", 3.2f, 3, new Color(1f, 0.88f, 0.45f, 1f)),
+        new FilmLine("空が割れた。", 3.4f, 1, new Color(1f, 0.96f, 0.82f, 1f)),
+        new FilmLine("箱庭の外には、凍えるほどリアルで、優しい風が吹いていた。", 4.8f, 1, new Color(1f, 0.96f, 0.82f, 1f)),
+        new FilmLine("人は、最適で最短な道を進むときじゃなく、", 4.4f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
+        new FilmLine("寄り道をして、躓きながらも出会えた感動に——", 4.6f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
+        new FilmLine("真の生きている証(あかし)を、見出すんだ。", 4.4f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
+        new FilmLine("傷つくかもしれない自由と、生きることの重みを取り戻した二人の旅が、", 4.8f, 3, new Color(1f, 0.94f, 0.70f, 1f)),
+        new FilmLine("ここから、また始まる。—— 『Rust & Float』", 3.55f, 3, new Color(1f, 0.88f, 0.45f, 1f)),
     };
 
     Font ResolveEpilogueFont()
@@ -113,11 +112,12 @@ public partial class AdventureSanctuaryTowerManager
 
         var line = EpilogueFilmLines[index];
         _filmIndex = index;
+        bool isFinalLine = (index == EpilogueFilmLines.Length - 1);
         // Hold＝放置の総時間（フェードイン＋保持＋フェードアウト）
-        _filmFadeInSec = 0.35f;
-        _filmFadeOutSec = 0.4f;
-        float total = Mathf.Max(1.2f, line.Hold);
-        _filmHoldSec = Mathf.Max(0.5f, total - _filmFadeInSec - _filmFadeOutSec);
+        _filmFadeInSec = 0.55f;
+        _filmFadeOutSec = isFinalLine ? 0f : 0.50f;
+        float total = Mathf.Max(1.4f, line.Hold);
+        _filmHoldSec = Mathf.Max(0.6f, total - _filmFadeInSec - _filmFadeOutSec);
         _filmColor = line.Color;
 
         if (allowActGap && line.Act != _filmLastAct && line.Act >= 1 && _filmLastAct >= 0)
@@ -154,6 +154,7 @@ public partial class AdventureSanctuaryTowerManager
         }
         _filmSubtitleUi.text = text ?? "";
         _filmSubtitleUi.color = new Color(color.r, color.g, color.b, 0f);
+        _filmSubtitleUi.transform.localScale = new Vector3(0.985f, 0.985f, 1f);
         _epilogueAlpha = 0f;
     }
 
@@ -176,10 +177,10 @@ public partial class AdventureSanctuaryTowerManager
 
         float elapsed = Time.unscaledTime - _filmPhaseAt;
 
-        // 幕あい
+        // 幕あい（余韻）
         if (_filmPhase == 4)
         {
-            if (elapsed >= 1.15f)
+            if (elapsed >= 1.35f)
             {
                 var line = EpilogueFilmLines[_filmIndex];
                 _filmLastAct = line.Act;
@@ -201,12 +202,16 @@ public partial class AdventureSanctuaryTowerManager
         Color c = _filmColor;
         if (_filmPhase == 1)
         {
-            float a = Mathf.Clamp01(elapsed / _filmFadeInSec);
+            float t = Mathf.Clamp01(elapsed / _filmFadeInSec);
+            float a = Mathf.SmoothStep(0f, 1f, t);
             _filmSubtitleUi.color = new Color(c.r, c.g, c.b, a);
             _epilogueAlpha = a;
+            float scale = Mathf.Lerp(0.985f, 1.0f, t);
+            _filmSubtitleUi.transform.localScale = new Vector3(scale, scale, 1f);
             if (elapsed >= _filmFadeInSec)
             {
                 _filmSubtitleUi.color = c;
+                _filmSubtitleUi.transform.localScale = Vector3.one;
                 _filmPhase = 2;
                 _filmPhaseAt = Time.unscaledTime;
             }
@@ -215,18 +220,37 @@ public partial class AdventureSanctuaryTowerManager
         {
             _filmSubtitleUi.color = c;
             _epilogueAlpha = 1f;
-            bool canSkip = elapsed >= 1.0f && (Time.unscaledTime - _epilogueStartedAt) >= 2.0f;
+            float holdT = Mathf.Clamp01(elapsed / _filmHoldSec);
+            float scale = Mathf.Lerp(1.0f, 1.025f, holdT);
+            _filmSubtitleUi.transform.localScale = new Vector3(scale, scale, 1f);
+
+            bool canSkip = elapsed >= 1.2f && (Time.unscaledTime - _epilogueStartedAt) >= 2.0f;
             if ((canSkip && WasFilmSkipPressed()) || elapsed >= _filmHoldSec)
             {
-                _filmPhase = 3;
-                _filmPhaseAt = Time.unscaledTime;
+                if (_filmFadeOutSec <= 0.01f)
+                {
+                    AdvanceFilmLine();
+                }
+                else
+                {
+                    _filmPhase = 3;
+                    _filmPhaseAt = Time.unscaledTime;
+                }
             }
         }
         else if (_filmPhase == 3)
         {
-            float a = 1f - Mathf.Clamp01(elapsed / _filmFadeOutSec);
+            if (_filmFadeOutSec <= 0.01f)
+            {
+                AdvanceFilmLine();
+                return;
+            }
+            float t = Mathf.Clamp01(elapsed / _filmFadeOutSec);
+            float a = Mathf.SmoothStep(1f, 0f, t);
             _filmSubtitleUi.color = new Color(c.r, c.g, c.b, a);
             _epilogueAlpha = a;
+            float scale = Mathf.Lerp(1.025f, 1.04f, t);
+            _filmSubtitleUi.transform.localScale = new Vector3(scale, scale, 1f);
             if (elapsed >= _filmFadeOutSec)
                 AdvanceFilmLine();
         }
@@ -422,11 +446,12 @@ public partial class AdventureSanctuaryTowerManager
         rt.anchorMin = new Vector2(0.08f, 0f);
         rt.anchorMax = new Vector2(0.92f, 0f);
         rt.pivot = new Vector2(0.5f, 0f);
-        rt.anchoredPosition = new Vector2(0f, 36f);
-        rt.sizeDelta = new Vector2(0f, 72f);
+        rt.anchoredPosition = new Vector2(0f, 38f);
+        rt.sizeDelta = new Vector2(0f, 84f);
         _filmSubtitleUi = go.AddComponent<Text>();
         _filmSubtitleUi.font = font;
-        _filmSubtitleUi.fontSize = 36;
+        _filmSubtitleUi.fontSize = 35;
+        _filmSubtitleUi.lineSpacing = 1.18f;
         _filmSubtitleUi.alignment = TextAnchor.MiddleCenter;
         _filmSubtitleUi.color = new Color(1f, 0.94f, 0.78f, 0f);
         _filmSubtitleUi.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -434,6 +459,10 @@ public partial class AdventureSanctuaryTowerManager
         _filmSubtitleUi.raycastTarget = false;
         if (_filmSubtitleUi.font == null)
             _filmSubtitleUi.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+        var shadow = go.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0.01f, 0.02f, 0.04f, 0.88f);
+        shadow.effectDistance = new Vector2(1.5f, -2.0f);
     }
 
     static Image MakeLetterbar(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, float height)

@@ -907,13 +907,13 @@ public static class AdventureSkybreakVisuals
         var flashImg = CreateFullScreenImage(flashGo.transform, "Flash", new Color(0.88f, 0.95f, 1f, 0f));
         var flashWhite = CreateFullScreenImage(flashGo.transform, "FlashWhite", new Color(1f, 1f, 1f, 0f));
 
-        // 各稲妻の撃つタイミング（リアルな連続落雷）＋後半の余韻2秒
-        float[] strikeAt = { 0.08f, 0.32f, 0.55f, 0.95f, 1.45f, 2.15f, 3.2f, 4.35f };
-        float[] strikeDur = { 0.12f, 0.09f, 0.18f, 0.11f, 0.14f, 0.1f, 0.13f, 0.11f };
-        var boltsExtra = new LightningBolt[2];
+        // 各稲妻の撃つタイミング（7秒間のリアルな連続落雷）
+        float[] strikeAt = { 0.08f, 0.32f, 0.55f, 0.95f, 1.45f, 2.15f, 3.2f, 4.35f, 5.4f, 6.35f };
+        float[] strikeDur = { 0.12f, 0.09f, 0.18f, 0.11f, 0.14f, 0.1f, 0.13f, 0.11f, 0.12f, 0.10f };
+        var boltsExtra = new LightningBolt[4];
         for (int i = 0; i < boltsExtra.Length; i++)
         {
-            float yaw = -30f + i * 50f + Random.Range(-10f, 10f);
+            float yaw = -40f + i * 28f + Random.Range(-8f, 8f);
             Vector3 origin = root.transform.position
                             + Quaternion.Euler(0f, yaw, 0f) * new Vector3(0f, 50f + Random.Range(-8f, 16f), 40f);
             Vector3 tip = root.transform.position
@@ -927,7 +927,7 @@ public static class AdventureSkybreakVisuals
                 branchChance: 0.4f);
             SetLightningVisible(boltsExtra[i], false);
         }
-        // 後半2本を配列に結合
+        // 後半追加分を配列に結合
         var allBolts = new LightningBolt[bolts.Length + boltsExtra.Length];
         for (int i = 0; i < bolts.Length; i++) allBolts[i] = bolts[i];
         for (int i = 0; i < boltsExtra.Length; i++) allBolts[bolts.Length + i] = boltsExtra[i];
@@ -935,12 +935,13 @@ public static class AdventureSkybreakVisuals
         bool[] struck = new bool[bolts.Length];
         bool[] reshaped = new bool[bolts.Length];
 
-        float duration = 6.0f;
+        float duration = 7.0f;
         float t = 0f;
         bool shookHard = false;
         bool shookMid = false;
         bool shookLate1 = false;
         bool shookLate2 = false;
+        bool shookLate3 = false;
         while (t < duration)
         {
             t += Time.unscaledDeltaTime;
@@ -983,10 +984,11 @@ public static class AdventureSkybreakVisuals
                 flashA += SkyTearFlashEnvelope(t, strikeAt[i], strikeDur[i] * 1.8f, i % 2 == 0 ? 0.72f : 0.45f);
                 whiteA += SkyTearFlashEnvelope(t, strikeAt[i], Mathf.Min(0.08f, strikeDur[i]), 0.55f);
             }
-            // 余韻の薄明かり（＋2秒）
+            // 余韻の薄明かり
             flashA += SkyTearFlashEnvelope(t, 2.6f, 1.2f, 0.14f);
             flashA += SkyTearFlashEnvelope(t, 4.0f, 1.4f, 0.18f);
-            flashA += SkyTearFlashEnvelope(t, 5.2f, 0.9f, 0.1f);
+            flashA += SkyTearFlashEnvelope(t, 5.2f, 0.9f, 0.12f);
+            flashA += SkyTearFlashEnvelope(t, 6.3f, 0.8f, 0.10f);
             flashImg.color = new Color(0.78f, 0.92f, 1f, Mathf.Clamp01(flashA));
             flashWhite.color = new Color(1f, 1f, 1f, Mathf.Clamp01(whiteA));
 
@@ -1020,6 +1022,11 @@ public static class AdventureSkybreakVisuals
                 shookLate2 = true;
                 if (cam != null) cam.Shake(0.35f, 1.4f);
             }
+            if (!shookLate3 && t >= 5.5f)
+            {
+                shookLate3 = true;
+                if (cam != null) cam.Shake(0.4f, 1.5f);
+            }
 
             yield return null;
         }
@@ -1043,6 +1050,75 @@ public static class AdventureSkybreakVisuals
             Object.Destroy(flashGo);
         if (coreLight != null)
             coreLight.intensity = 2.5f;
+    }
+
+    /// <summary>
+    /// 後続の台本表示中（ありがとうRust〜光の柱へ）に空の裂け目から走るミニ裂開パルス演出。
+    /// pulses > 1 で複数回の持続パルス（波状落雷・明滅）を発生させる。
+    /// </summary>
+    public static IEnumerator PlaySkyTearMiniPulseRoutine(float shakeIntensity = 0.25f, int pulses = 1, float totalDuration = 0.4f)
+    {
+        var cam = AdventureCameraFollow.InstanceOrFind();
+
+        var flashGo = new GameObject("SkyTearMiniFlashCanvas");
+        var canvas = flashGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 8850;
+        var scaler = flashGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280f, 720f);
+        var flashImg = CreateFullScreenImage(flashGo.transform, "MiniFlash", new Color(0.85f, 0.95f, 1f, 0f));
+
+        if (pulses <= 1)
+        {
+            if (cam != null) cam.Shake(shakeIntensity, 0.45f);
+            float t = 0f;
+            const float peak = 0.05f;
+            while (t < peak)
+            {
+                t += Time.unscaledDeltaTime;
+                flashImg.color = new Color(0.85f, 0.95f, 1f, Mathf.Clamp01(t / peak) * 0.25f);
+                yield return null;
+            }
+            t = 0f;
+            const float fade = 0.35f;
+            while (t < fade)
+            {
+                t += Time.unscaledDeltaTime;
+                float a = 1f - Mathf.Clamp01(t / fade);
+                flashImg.color = new Color(0.85f, 0.95f, 1f, a * 0.25f);
+                yield return null;
+            }
+        }
+        else
+        {
+            // 持続マルチパルス（指定時間内に複数回の閃光・揺れが波状に持続）
+            float interval = totalDuration / pulses;
+            for (int p = 0; p < pulses; p++)
+            {
+                if (cam != null) cam.Shake(shakeIntensity * (p == 0 ? 1f : 0.85f), interval * 0.7f);
+                float pt = 0f;
+                float pulsePeak = Mathf.Min(0.06f, interval * 0.22f);
+                while (pt < pulsePeak)
+                {
+                    pt += Time.unscaledDeltaTime;
+                    flashImg.color = new Color(0.85f, 0.95f, 1f, Mathf.Clamp01(pt / pulsePeak) * 0.27f);
+                    yield return null;
+                }
+                pt = 0f;
+                float pulseFade = interval - pulsePeak;
+                while (pt < pulseFade)
+                {
+                    pt += Time.unscaledDeltaTime;
+                    float a = 1f - Mathf.Clamp01(pt / pulseFade);
+                    flashImg.color = new Color(0.85f, 0.95f, 1f, a * 0.27f);
+                    yield return null;
+                }
+            }
+        }
+
+        if (flashGo != null)
+            Object.Destroy(flashGo);
     }
 
     struct LightningBolt

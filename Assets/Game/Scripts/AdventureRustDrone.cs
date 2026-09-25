@@ -218,6 +218,30 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
     }
 
+    /// <summary>プレイヤーの隣へドローンを即時テレポート・静止させる（ニューゲーム／リセット用）</summary>
+    public void TeleportNearPlayer()
+    {
+        EnsureLookAtCached();
+        if (_lookAt != null)
+        {
+            Vector3 nest = GetNikoChestPosition() + _lookAt.forward * 0.75f + _lookAt.right * 0.7f + Vector3.up * 0.15f;
+            transform.position = nest;
+            _lagTarget = nest;
+            _velocity = Vector3.zero;
+        }
+        else
+        {
+            var player = AdventurePlayerController.Instance;
+            if (player != null)
+            {
+                Vector3 p = player.transform.position + player.transform.right * 1.0f + Vector3.up * 1.2f;
+                transform.position = p;
+                _lagTarget = p;
+                _velocity = Vector3.zero;
+            }
+        }
+    }
+
     public void EndPrologueDistress()
     {
         _prologueDistress = false;

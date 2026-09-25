@@ -314,9 +314,20 @@ public class AdventureCameraFollow : MonoBehaviour
         if ((isGliding || isAutoGlide) && (Time.time - _lastMouseInputTime > followIdle))
         {
             float targetHeading = target.eulerAngles.y;
-            _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading, followRate * Time.deltaTime);
-            if (cine > 0.01f)
-                _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, 24f * Time.deltaTime);
+            // エピローグのシネマ中：映画的な斜めアングル＋微細ドリフト（ドローンショット）
+            if (isAutoGlide && cine > 0.3f)
+            {
+                float driftYaw = 14f + Mathf.Sin(Time.unscaledTime * 0.16f) * 8f;
+                float driftPitch = WalkPitch + 3.4f + Mathf.Sin(Time.unscaledTime * 0.11f) * 1.6f;
+                _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading + driftYaw, followRate * 0.85f * Time.deltaTime);
+                _targetPitch = Mathf.MoveTowards(_targetPitch, driftPitch, 14f * Time.deltaTime);
+            }
+            else
+            {
+                _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading, followRate * Time.deltaTime);
+                if (cine > 0.01f)
+                    _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, 24f * Time.deltaTime);
+            }
         }
         else if (walkingGround)
         {
@@ -368,7 +379,8 @@ public class AdventureCameraFollow : MonoBehaviour
             targetPivot = target.position + Vector3.up * WalkPivotHeight;
         else
         {
-            float useHeight = Mathf.Lerp(height, CinematicHeight, cine);
+            float targetHeight = (isAutoGlide && cine > 0.3f) ? 1.95f : CinematicHeight;
+            float useHeight = Mathf.Lerp(height, targetHeight, cine);
             targetPivot = target.position + Vector3.up * useHeight;
         }
 
@@ -392,11 +404,13 @@ public class AdventureCameraFollow : MonoBehaviour
             _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, pivotSmooth);
         }
 
-        float targetFov = Mathf.Lerp(isGliding ? 68f : 64f, CinematicFov, cine);
+        float cineFov = (isAutoGlide && cine > 0.3f) ? 76f : CinematicFov;
+        float targetFov = Mathf.Lerp(isGliding ? 68f : 64f, cineFov, cine);
         if (_cam != null)
             _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, targetFov, (cine > 0.01f ? 18f : 8f) * Time.deltaTime);
 
-        float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.0f) : distance, CinematicDistance, cine);
+        float cineDist = (isAutoGlide && cine > 0.3f) ? 7.8f : CinematicDistance;
+        float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.0f) : distance, cineDist, cine);
         float safeTargetDist = CalculateSafeDistance(_currentPivot, currentRot, desiredDist);
         if (cine > 0.2f)
             safeTargetDist = Mathf.Max(safeTargetDist, Mathf.Lerp(0.9f, 3.2f, cine));

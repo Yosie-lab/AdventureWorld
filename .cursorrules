@@ -14,8 +14,11 @@
 
 ---
 
-## 直近の完了作業（Antigravityセッション 2026-09-22）
-詳細な引き継ぎ資料は `Assets/RustAndFloat/HANDOFF.md` を参照してください。
+## 直近の完了作業（Cursor → Antigravity 2026-09-25）
+詳細は `Assets/RustAndFloat/HANDOFF.md` 先頭の「Antigravity への引き継ぎ」を読む。
+
+- 空は `b71b6db` の ClearBlueSky に戻した。写真パノラマは却下。`Assets/Resources/Skybreak/` を空に繋がない。
+- `AdventureSkybreakPanorama.cs` と `SkybreakPanorama.shader` は削除済み。作り直さない。
 
 - **タワー台座・階段・レバーステップのスムーズ登頂化（コミット `8585448`）**:
   - `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`:
@@ -28,12 +31,8 @@
 
 ## 現在の優先タスク（Cursorへの引き継ぎ項目）
 
-### 1. 【最優先】背景ビジュアル・光芒・天蓋突破フラッシュの強化
-- **対象**: `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs` (`SpawnWildernessPanorama`)
-- **内容**:
-  - 天蓋の割れ目の外側に、朝焼け〜黄金に輝く地平線と雄大な山脈グラデーション、雲海（浮かぶ雲の層）を配置。
-  - 天蓋から差し込む光芒（God Rays）を半透明・加算ブレンド風の柔らかい光柱にし、周囲に金色の光の粒子（解放の光粉）を漂わせる。
-  - 天蓋突破の瞬間に、画面全体が一瞬ホワイトアウト（金色の全画面グローフラッシュ）して、暗い箱庭ドーム内から眩しい外の世界へ出た瞬間の感動（露出のコントラスト）を表現。
+### 1. 天蓋の外の絵は触らない
+- 2026-09-25、写真は場面と合わないため却下。空は昨日の ClearBlueSky のまま維持する。
 
 ### 2. セリフ & 字幕の整理（映画字幕の3幕構成）
 - **対象**: `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`

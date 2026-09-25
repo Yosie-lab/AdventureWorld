@@ -7,6 +7,21 @@ created: 2026-09-11
 
 次のエージェント（Antigravity 含む）は、このファイルを最初に読む。作業対象は **RustAndFloat**。元ゲーム **AdventureWorld は壊さない**。
 
+## Antigravity への引き継ぎ（2026-09-25）
+
+**いまの正は `main` の `b71b6db`（2026-09-24、PR #14 マージ）と同じ。** 空の実験は戻してある。未コミットの空用スクリプトは残っていない。
+
+- **空**: レバー後も島と同じ `RustAndFloat/ClearBlueSky`。色は天頂 `(0.01, 0.24, 0.85)`、中間 `(0.05, 0.48, 0.98)`、地平 `(0.40, 0.75, 0.98)`、下 `(0.22, 0.58, 0.90)`。実装は `Assets/Game/Scripts/AdventureSkybreakVisuals.cs` の `ApplySkyboxForSkybreak`。
+- **やってはいけない**: `Assets/Resources/Skybreak/` の写真（Poly Haven の HDR を `.png` に改名したもの）を空に戻さない。場面と合わず、ユーザーが却下した。`AdventureSkybreakPanorama.cs` と `SkybreakPanorama.shader` は削除済み。作り直さない。
+- **天蓋の外の絵**: 昨日の最後の状態。球の稜線・地平・雲は `SpawnWildernessPanorama` のプリミティブ。写真スカイボックスではない。
+- **直近で main に入っているもの**:
+  - `761f64e` レバー見た目、青空復帰、歩行と木道
+  - `b6fa2d5` 進行を `AdventureStoryFlow` と Canopy / Climax / Epilogue partial に分割
+  - `654a00d` カメラの寄りすぎを戻し、歩き出しを軽く、歩行速度 10.2
+  - `b71b6db` 体感定数を `AdventureRustFloatFeel.cs` に集約
+- **確認**: Play を止めてから再生。F9 で天蓋。空はレバー前と同じ青。
+- **コミットしない**: ユーザーが明示するまで commit / push しない。シーンファイルはコミットしない。
+
 ## 触ってよい / 触るな
 
 | 触ってよい | 触るな |
@@ -441,19 +456,51 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
 - **セーブデータリセット**:
   - 探索リセットは **F8** または メニュー **Adventure → 🗑️ Delete Save Data**。
 
-## 次の推奨タスク（Cursorで着手する項目）
+## 直近の完了作業（Antigravityセッション 2026-09-25）
 
-1. **背景ビジュアル・光芒・天蓋突破フラッシュ**（最優先）
-   - 対象: `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs` (`SpawnWildernessPanorama`)
-   - 改善内容:
-     - 天蓋の割れ目の外側に朝焼け〜黄金の地平線・雄大な山脈グラデーション・雲海を配置。
-     - 天蓋から差し込む光芒（God Rays）を半透明・加算ブレンド風の柔らかい光柱にし、周囲に金色の光粒子を漂わせる。
-     - 天蓋突破の瞬間に画面全体を金色の全画面グローフラッシュ（ホワイトアウト）させ、解放感を最大化。
-2. **映画字幕3幕構成 & HUDクリーンアップ**
-   - 対象: `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`
-   - クライマックス〜エピローグ中の字幕演出整理、コンパス・HUD完全非表示化。
-3. **【任意】階段下部の岩コライダー干渉解消**
-   - `SanctuaryApproachStairs` 下部と干渉する池の岩コライダーを `isTrigger = true` に設定。
+### 物語・エンディングの感動強化（クライマックス演出・映画字幕・ドローンショット）
+1. **クライマックス（凍結危機〜注油〜オーバードライブ突破）のドラマ・手触り強化**:
+   - `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`, `AdventureSanctuaryTowerManager.Climax.cs`
+   - 「警告」タイトルを廃止し、天蓋直下の凍てつく突風とRustのギアの悲鳴、Nikoの必死な掛け合いへとドラマチックに刷新。
+   - 注油UIの進行度グラデーション（冷たいシアン〜温かい黄金）、長押し中の心拍パルス脈動演出、注油完了時のカメラシェイク＆温かい黄金ソフトグロー演出を追加。
+   - オーバードライブ突入時のカメラシェイクと滑空推進ブーストを強化。
+2. **映画字幕3幕構成のタイポグラフィ・滑らかなイージング・余韻の極上化**:
+   - `Assets/Game/Scripts/AdventureSanctuaryTowerManager.Epilogue.cs`
+   - 第1幕（真実と優しい風）、第2幕（最適へのアンチテーゼと躓きの美しさ）、第3幕（二人の旅立ちとタイトルコール）の詩的テキストにブラッシュアップ。
+   - `Mathf.SmoothStep` による極上フェードイン/アウト、微細Ken Burnsスケールドリフト（0.985→1.0→1.025）、幕間余韻1.35秒、ソフトシャドウによる視認性向上。
+3. **エピローグ中のシネマティック・ドリフトカメラ（ドローンショット構図）**:
+   - `Assets/Game/Scripts/AdventureCameraFollow.cs`
+   - オートグライド＋シネマティック時に、斜め後方（+14度）からゆっくり揺らぐドリフト旋回、カメラ距離（7.8m）と高さ（1.95m）、FOV（76°）を適用し、大空を飛ぶ二人と眼下の島を雄大に捉えるドローン構図を実現。
+4. **クライマックス最終セリフの表示時間確保と誤スキップ防止（2026-09-25追加）**:
+   - `Assets/Game/Scripts/AdventureSanctuaryTowerManager.Climax.cs`
+   - 「ピピッ！……ありがとう、Niko！これで僕たちの翼は折れることはないよ！　大空の向こうまで、全力で行こう！！」が4.5秒の保険タイマーや直前の入力残り（0.85秒）ですぐに消えてシネマエピローグへ飛んでしまう不具合を修正。
+   - 強制遷移タイマーを9.5秒に延長し、手動スキップ受付開始を5.0秒（長押し判定0.45秒）に保護することで、指定の **8.0秒間** 確実に表示・堪能できるよう調整。
+5. **映画的BGM2段階ドロップ演出（コミカル音排除・重厚ベース解禁）（2026-09-25追加）**:
+   - `Assets/Game/Scripts/AdventureMusicDirector.cs`, `AdventureSanctuaryTowerManager.Climax.cs`
+   - コミカルに聴こえる裏拍スタブ音やベースのピッチブレ（ポヨン感）を完全撤去。
+   - 前半（天蓋破壊〜ダイブ〜凍結危機〜注油）は今まで通りの壮大なシネマティック・ブラスパッド＋駆け上がるキラキラしたアルペジオのみで演奏。
+   - Rustの最終セリフ「……大空の向こうまで、全力で行こう！！」の表示と同時に、コード進行の位置を引き継いだままMoog風の太くブリブリうねる16分アナログシンセベース（ルート重低音＋オクターブ上レイヤーのデュアルオシレーター構成、フィルターエンベロープ＋ノコギリ倍音＋サチュレーション）＋タイトなキック・スネアが一気に解禁（ドロップ）するカタルシス演出を実装。
+
+6. **ゲームクリア後【N】はじめから（New Game）スポーン位置リセット不具合の修正（2026-09-25追加）**:
+   - `Assets/Game/Scripts/AdventureSaveManager.cs`, `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`
+   - **原因**:
+     1. クリア後のエピローグ・オートグライド飛行中に【N】を押した際、`ResetToNewGame()` 内で `player.SetAutoGlideMode(false)` を呼ぶ前に `player.Teleport(beachSpawn)` を実行していたため、`AdventureStoryFlow.KeepsAirborne()` が `true` と判定され、地面への吸着（`Stick`）や `ForceGroundReset()` がスキップされていた。
+     2. その結果、滑空フラグや空中慣性が残ったままになり、さらに `ForceGroundReset()` 内のカメラ追従リセット（`SnapBehindTarget()`）が走らず、シネマティックカメラがタワー上空を取り残して映し続けていた。
+     3. 相棒Rust（ドローン）のプレイヤー近傍テレポート（`drone.TeleportNearPlayer()`）が抜けており、ドローンがタワー上空に置き去りになっていた。
+     4. クリアモーダルのキー入力判定が Input System のみで旧 `Input.GetKeyDown(KeyCode.N)` のフォールバックが欠けていた。
+   - **対策**:
+     1. `ResetToNewGame()` 内でテレポート前に `player.SetAutoGlideMode(false)` と `player.ForceGroundReset()` を先行実行し、確実に滞空・滑空状態を完全解除。
+     2. プレイヤーを西側白砂ビーチ（158, 6.5, 275）へテレポートさせ、Terrain高さを加味して完全に接地させた上で `player.ForceGroundReset()` を再実行。
+     3. カメラ（`AdventureCameraFollow`）のシネマティックモードを解除し、`SnapBehindTarget()` でプレイヤー背後（ヨー75度・水平）へ即時スナップ。
+     4. ドローンRustも `drone.TeleportNearPlayer()` でプレイヤーの横へ確実にテレポート。
+     5. クリアモーダルのキー入力判定に旧 Input（`Input.GetKeyDown(KeyCode.N)` 等）のフォールバックを追加。
+
+## 次の推奨タスク
+
+1. **アプローチ階段下部の岩コライダー干渉解消**:
+   - `SanctuaryApproachStairs` 最下部と干渉する池の岩コライダーを `isTrigger = true` に設定し、スムーズな歩行登頂を完全保証する。
+2. **探索動線・相棒Rustの愛着・仕草強化**:
+   - 探索中のRustの自律仕草（花や蝶への興味、首傾げなど）を追加し、旅の相棒感をさらに深める。
 
 ## ブランチ
 
