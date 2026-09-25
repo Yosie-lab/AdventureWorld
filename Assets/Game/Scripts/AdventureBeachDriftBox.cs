@@ -856,11 +856,11 @@ public class AdventureBeachDriftBox : MonoBehaviour
             scrapMgr.OnDriftBoxOpened(boxId, boxTitle);
         }
 
-        // 相棒Rustのセリフ
+        // 相棒Rustのセリフと歓喜の宙返り＆星スパークル
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
-        if (drone != null && !string.IsNullOrEmpty(rustDialogue))
+        if (drone != null)
         {
-            drone.SpeakCustom(rustDialogue, 6.0f);
+            drone.TriggerCelebration(rustDialogue, 2.2f);
         }
 
         // クエストティッカーの更新（+2 pt 獲得と現在ポイント）

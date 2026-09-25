@@ -495,12 +495,53 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
      4. ドローンRustも `drone.TeleportNearPlayer()` でプレイヤーの横へ確実にテレポート。
      5. クリアモーダルのキー入力判定に旧 Input（`Input.GetKeyDown(KeyCode.N)` 等）のフォールバックを追加。
 
+7. **神殿アプローチ階段＆オアシス池周辺の歩行引っかかり・段差スタック完全解消（2026-09-25追加）**:
+   - `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`
+   - **原因**:
+     1. `BuildTowerStairs()` 内で生成していた各ステップ（`stepObj`）のデフォルト Cube コライダー（BoxCollider）が削除されておらず、22段の物理エッジによる微小段差スタックが発生していた。
+     2. スロープコライダー `StairRamp` の回転計算で `Quaternion.LookRotation(segForward.normalized, Vector3.up) * Quaternion.Euler(-slopeAngle, 0f, 0f)` と角度が2重に掛かって不自然に急勾配になり、厚み 0.8m の上面がステップ表面より 0.24m 浮き上がって最下段手前に 0.4m 近い垂直段差（見えない壁）が生じていた。
+     3. オアシス池〜階段アプローチ周辺の巨大岩（`SanctuarySpringPond_Rocks` 等）の足元物理コライダーが階段進入路やステップ側面に食い込んでいた。
+   - **対策**:
+     1. 各ステップの Cube コライダーを `Object.Destroy(stepCol)` で完全撤去し、ビジュアルのみに変更。
+     2. スロープコライダーの回転を `Quaternion.LookRotation(segForward.normalized, Vector3.up)` に是正し、厚み 0.35m・上面をステップ表面（+0.16m）とミリ単位で正確に一致化。
+     3. 最下段の手前（オアシス池側地面）から滑らかにステップ上面へと導く「進入ウェッジ（`StairRamp_Entry`）」を新設し、地面からの段差ゼロ（完全バリアフリー）化。終端もテラス床に食い込ませて段差を排除。
+     4. 階段中心線から全幅 17m 範囲のコリドー内岩コライダー、および階段足元半径 24m・オアシス池周辺半径 36m の全岩コライダーを `isTrigger = true` 化（見た目は100%残し、足元の激突・引っかかりを完全根絶）。
+
+8. **相棒Rustの自律感情＆愛着仕草・喜び宙返りシステム（2026-09-25追加）**:
+   - `Assets/Game/Scripts/AdventureRustDrone.Curiosity.cs` (新規)
+   - `Assets/Game/Scripts/AdventureRustDrone.cs`, `AdventureScrapItem.cs`, `AdventureBeachDriftBox.cs`
+   - **機能内容**:
+     1. **自律好奇心（Curiosity Investigation）**:
+        - プレイヤーが立ち止まった際（静止時）、周囲12m以内の蝶（`AdventureButterflyDrift`）や水辺（海面・オアシス）、足元の草花を自律検知し、ふわりと近づいて観察・ホバリング。
+        - 「わぁ、チョウチョだ！」「水面がきらきら光ってる！」など状況に応じたセリフとおしゃべりチャイムを再生。
+        - プレイヤーが走り出したり6.5m以上離れると即座に追従復帰。
+     2. **愛らしい首かしげ（Curious Tilt）**:
+        - アイドル中や観察中に、ボディがコテンと左右に16〜22度傾く（犬や鳥のような首かしげモーション）。
+        - 興味対象のない立ち止まり時にもNikoの視線の先へ回り込み、首をかしげてアイコンタクト。
+     3. **パーツ獲得・宝箱開封時の喜び宙返り＆星スパークル（Victory Somersault）**:
+        - スクラップ獲得時および漂着ボックス開封時に `TriggerCelebration()` が発動。
+        - Nikoの斜め前上空へ浮上しながら360度ループ（SmoothStepによる美しい縦宙返り＋横ロール）を実行し、頭上からゴールド＆シアンの星型スパークル粒子（`RustHappyStars`）を散らしながらピロリロリン♪と歓喜チャイムを奏でる。
+
+9. **ピアニスト・カピタのピアノ無音不具合の解消＆音質・音圧・演出強化（2026-09-25追加）**:
+   - `Assets/Game/Scripts/AdventureAncientPianoRelic.cs`
+   - **原因**:
+     1. `_pianoAudioSource` のロールオフ設定が `AudioRolloffMode.Custom` でカスタムカーブをスクリプト設定していたため、Unity（FMOD）環境下で距離減衰評価が正しく行われず無音（0.0）化していた。
+     2. `spatialBlend = 0.75f` かつ `minDistance = 6.5f` だったため、プレイヤー操作時でもカメラ距離（7〜8m）によって急激に減衰していた。
+     3. 自動演奏合成波形 `CreateFeltPianoPerformanceClip` の音圧が低く（ピーク0.18程度）、休符も多く、最大音量ノーマライズが行われていなかったため、環境音やBGMにかき消されていた。
+     4. 万一再生が落ちた場合の再生保証がUpdate内になかった。
+   - **対策**:
+     1. `rolloffMode` を確実な `AudioRolloffMode.Linear` に変更し、`minDistance = 12.0f`、`maxDistance = 65.0f`、`volume = 1.0f`、`spatialBlend = 0.38f`（3D方向感を保ちつつ距離で消音されない快適ブレンド）に刷新。
+     2. ピアノ音源波形に4重倍音（基音＋第2・第3・第4倍音）と打弦ハンマーアタックノイズを導入し、最大ピークを `0.88f` に正規化（ノーマライズ）。豊かで温かいジブリ風アルペジオが途切れず流れるようにメロディを全面改修。
+     3. Eキー連弾和音（`CreateFeltPianoChord`）も同様にアルペジオストローク＆ピークノーマライズ（`0.90f`）を適用。
+     4. Update内で再生状態を常時監視し、未再生時の自動再開を保証。カピタ接近時のBGMダッキング範囲を45m〜12mに拡大（ピアノ生演奏が主役に浮き立つ）。
+     5. カピタの演奏リズムに合わせて音符パーティクル（`_capytaMusicNotes`）が定期的に舞い上がる演出を追加。
+
 ## 次の推奨タスク
 
-1. **アプローチ階段下部の岩コライダー干渉解消**:
-   - `SanctuaryApproachStairs` 最下部と干渉する池の岩コライダーを `isTrigger = true` に設定し、スムーズな歩行登頂を完全保証する。
-2. **探索動線・相棒Rustの愛着・仕草強化**:
-   - 探索中のRustの自律仕草（花や蝶への興味、首傾げなど）を追加し、旅の相棒感をさらに深める。
+1. **探索の手触り向上：白砂ビーチの貝殻・漂着物・スクラップ採取インタラクション＆収集ポップ演出**:
+   - ビーチ散策時にキラキラ光る貝殻や古代の漂着ボトルをワンボタンで拾える小気味よい収集ループ（拾うとチャリン音と小さな浮遊アイコンポップアップ）。
+2. **海・波打ち際・水しぶきの環境美化**:
+   - 白砂ビーチ周辺の波打ち際エフェクトや水面の反射・環境音の微細チューニング。
 
 ## ブランチ
 

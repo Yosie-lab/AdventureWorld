@@ -425,7 +425,9 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
         else if (CurrentState == RustState.Celebrating)
         {
-            goal = _lookAt.position + Vector3.up * 1.35f + _lookAt.right * 1.2f;
+            goal = _lookAt.position + Vector3.up * 1.42f + _lookAt.right * 1.15f;
+            float bounce = Mathf.Sin(Time.time * 8.5f) * 0.08f;
+            goal.y += bounce;
             _stateTimer -= Time.deltaTime;
             if (_stateTimer <= 0f)
                 CurrentState = RustState.Follow;
@@ -544,8 +546,8 @@ public partial class AdventureRustDrone : MonoBehaviour
             Quaternion look = Quaternion.LookRotation(to);
             if (CurrentState == RustState.Celebrating)
             {
-                // 嬉しい宙返り回転！
-                look *= Quaternion.Euler(Time.time * 720f, 0f, 0f);
+                // 流麗な360度宙返り＆ハッピーバウンス！
+                look = GetCelebrationRotation(look);
             }
             else if (IsClimaxCrisis && !_climaxHealing)
             {
@@ -572,6 +574,11 @@ public partial class AdventureRustDrone : MonoBehaviour
                 look *= Quaternion.Euler(0f, Mathf.Sin(Time.time * 18f) * 8f, 0f);
             else if (_isPointingToScrap && CurrentState == RustState.Follow)
                 look *= Quaternion.Euler(Mathf.Sin(Time.time * 10f) * 6f, 0f, Mathf.Cos(Time.time * 8f) * 4f);
+            else if (CurrentState == RustState.Follow && Mathf.Abs(_idleTiltAngle) > 0.05f)
+            {
+                // 通常追従・立ち止まり時の愛らしい首かしげチルト
+                look *= Quaternion.Euler(0f, 0f, _idleTiltAngle);
+            }
 
             float rotSpeed = IsClimaxCrisis ? 14f : (IsClimaxOverdrive ? 9f : 6.5f);
             transform.rotation = Quaternion.Slerp(transform.rotation, look, rotSpeed * Time.deltaTime);
@@ -590,6 +597,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         UpdateGuide();
         UpdatePlayerInteraction();
         UpdateSonar();
+        UpdateCuriosity();
     }
 
     static Camera ResolveCommandCamera()
@@ -839,6 +847,14 @@ public partial class AdventureRustDrone : MonoBehaviour
             Vector3 guidePos = niko + toScrap * 1.8f;
             float sBob = Mathf.Sin(Time.time * bobSpeed * 1.6f) * (bobAmount * 1.2f);
             return new Vector3(guidePos.x, chest.y + 0.1f + sBob, guidePos.z);
+        }
+
+        // 自律好奇心アクション実行中（花・蝶・水辺・アイコンタクト）：対象位置へフワリと移動
+        if (_curiosityKind != CuriosityKind.None)
+        {
+            Vector3 curiousPos = GetCuriosityTargetPosition();
+            if (curiousPos != Vector3.zero)
+                return curiousPos;
         }
 
         // 通常追従の理想位置: Nikoの右肩の斜め後ろ（右1.15m、後方1.45m）
