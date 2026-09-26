@@ -566,6 +566,8 @@ public class AdventureLakeVisualEnhancer : MonoBehaviour
 
         var vel = ps.velocityOverLifetime;
         vel.enabled = true;
+        vel.orbitalX = 0f;
+        vel.orbitalY = 0f;
         vel.orbitalZ = 1.8f; // らせん状に美しく舞い上がる
 
         var col = ps.colorOverLifetime;

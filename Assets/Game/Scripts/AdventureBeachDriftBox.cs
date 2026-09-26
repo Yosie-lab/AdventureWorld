@@ -524,7 +524,9 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
         var velDust = _magicalDust.velocityOverLifetime;
         velDust.enabled = true;
+        velDust.x = new ParticleSystem.MinMaxCurve(0f, 0f);
         velDust.y = new ParticleSystem.MinMaxCurve(0.15f, 0.45f);
+        velDust.z = new ParticleSystem.MinMaxCurve(0f, 0f);
 
         var rendDust = dustGo.GetComponent<ParticleSystemRenderer>();
         if (rendDust != null) rendDust.material = _particleMat;

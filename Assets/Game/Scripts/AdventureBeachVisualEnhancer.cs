@@ -328,10 +328,12 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
         CleanExpiredFootprints();
     }
 
-    /// <summary>コースティクス光の揺らぎと波打ち際の寄せては返すアニメーション</summary>
+    /// <summary>コースティクス光の揺らぎと波打ち際の寄せては返すアニメーション（夕暮れ反射・夜光虫連動）</summary>
     void UpdateWaterAnimations()
     {
         float t = Time.time;
+        float night = AdventureDayNightDirector.NightFactor;
+        float sunset = AdventureDayNightDirector.SunsetFactor;
 
         // 1. コースティクスのUVスクロール（2方向ブレンド感）
         if (_causticsMat != null)
@@ -342,12 +344,19 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
             );
             _causticsMat.mainTextureOffset = offset;
 
-            // 太陽光の微かなゆらめき輝度変化
+            // 太陽光の微かなゆらめき輝度変化（夜は月光で微かに透き通り、昼は輝く）
             float glow = 0.38f + 0.08f * Mathf.Sin(t * 1.8f) + 0.04f * Mathf.Cos(t * 2.7f);
-            _causticsMat.color = new Color(0.65f, 0.95f, 1.0f, glow);
+            Color causticsBase = Color.Lerp(
+                new Color(0.65f, 0.95f, 1.0f),
+                new Color(1.0f, 0.80f, 0.55f),
+                sunset * 0.6f
+            );
+            causticsBase = Color.Lerp(causticsBase, new Color(0.25f, 0.50f, 0.85f), night * 0.8f);
+            glow *= Mathf.Lerp(1.0f, 0.45f, night);
+            _causticsMat.color = new Color(causticsBase.r, causticsBase.g, causticsBase.b, glow);
         }
 
-        // 2. 波打ち際の寄せては返す白波（周期 約4.2秒）
+        // 2. 波打ち際の寄せては返す白波＆夜光虫（周期 約4.2秒）
         if (_shoreWaveMat != null)
         {
             // 寄せる波（急）と引く波（ゆるやか）の非線形ウェーブ
@@ -357,9 +366,17 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
             // UVオフセットで波が砂浜に押し寄せて引く
             _shoreWaveMat.mainTextureOffset = new Vector2(surge * 0.65f, Mathf.Repeat(t * 0.015f, 1f));
 
-            // 満ちたときに白く際立ち、引くときに透き通る
-            float waveAlpha = Mathf.Lerp(0.15f, 0.72f, surge);
-            _shoreWaveMat.color = new Color(1f, 1f, 1f, waveAlpha);
+            // 昼は純白、夕暮れは茜色、夜は神秘的な「夜光虫（ネオンシアンの幻想発光）」！
+            Color dayWaveColor = new Color(1f, 1f, 1f);
+            Color sunsetWaveColor = new Color(1.0f, 0.82f, 0.70f);
+            Color bioluminescentColor = new Color(0.18f, 0.95f, 1.0f) * 1.6f; // 夜光虫の青白いネオン発光
+
+            Color curWaveColor = Color.Lerp(dayWaveColor, sunsetWaveColor, sunset);
+            curWaveColor = Color.Lerp(curWaveColor, bioluminescentColor, night);
+
+            // 満ちたときに白く/青白く際立ち、引くときに透き通る
+            float waveAlpha = Mathf.Lerp(0.15f, 0.85f, surge);
+            _shoreWaveMat.color = new Color(curWaveColor.r, curWaveColor.g, curWaveColor.b, waveAlpha);
         }
     }
 
@@ -458,11 +475,53 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
 
         _activeFootprints.Add(fp);
 
+        // 夜間（NightFactor > 0.25f）なら、足元から神秘的な青白い夜光虫がポワンと舞い散る
+        if (AdventureDayNightDirector.NightFactor > 0.25f)
+        {
+            SpawnBioluminescentStep(footPos);
+        }
+
         // 最大プール数（36個）を超えたら最も古いものをフェードアウト
         if (_activeFootprints.Count > 36)
         {
             _activeFootprints[0].lifetime = 0.1f;
         }
+    }
+
+    /// <summary>夜間に砂浜を踏みしめたときの夜光虫の青白いきらめき飛沫</summary>
+    void SpawnBioluminescentStep(Vector3 footPos)
+    {
+        var bioGo = new GameObject("BioluminescentStep");
+        bioGo.transform.SetParent(transform, true);
+        bioGo.transform.position = footPos + Vector3.up * 0.05f;
+
+        var ps = bioGo.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.loop = false;
+        main.playOnAwake = true;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.startLifetime = Random.Range(1.2f, 1.8f);
+        main.startSpeed = Random.Range(0.2f, 0.65f);
+        main.startSize = Random.Range(0.08f, 0.16f);
+        main.startColor = new Color(0.20f, 0.95f, 1.0f, 0.85f); // 鮮やかな夜光虫シアン
+        main.maxParticles = 8;
+
+        var emission = ps.emission;
+        emission.enabled = true;
+        emission.rateOverTime = 0f;
+        emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 4, 7) });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Hemisphere;
+        shape.radius = 0.18f;
+
+        var rend = bioGo.GetComponent<ParticleSystemRenderer>();
+        var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                  ?? Shader.Find("Particles/Standard Unlit")
+                  ?? Shader.Find("Unlit/Color");
+        rend.sharedMaterial = new Material(shader) { color = new Color(0.25f, 0.98f, 1.0f, 0.9f) };
+
+        Destroy(bioGo, 2.2f);
     }
 
     void CleanExpiredFootprints()

@@ -57,9 +57,31 @@ public class AdventureCapytaBlessing : MonoBehaviour
         "ピキーッ！カピタ優しい…！ジャンプも油も…Niko、あとで撫でてね……？",
     };
 
+    // 貝殻物々交換用のカピタリアクション
+    static readonly System.Collections.Generic.Dictionary<AdventureBeachSeashellItem.ShellKind, string> CapytaTradeReactions =
+        new System.Collections.Generic.Dictionary<AdventureBeachSeashellItem.ShellKind, string>
+        {
+            { AdventureBeachSeashellItem.ShellKind.Sakuragai, "ブヒヒ！桜色のきれいなサクラガイ！大好物だよ！お礼に油を山盛りあげるね！" },
+            { AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald, "プヒッ！深緑のガラス玉！海が削ったエメラルドだね、頭のみかんも喜んでるよ！" },
+            { AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire, "ブヒヒッ！吸い込まれそうな青いサファイアガラス…一番の宝物にするね！" },
+            { AdventureBeachSeashellItem.ShellKind.AmberPebble, "ブヒィィ！黄金色に透き通る太陽の琥珀！最高のお宝だ！！" },
+            { AdventureBeachSeashellItem.ShellKind.SpiralShell, "プヒ〜…耳に当てると遠い海の波音がするよ。大切にするね！" }
+        };
+
+    static readonly System.Collections.Generic.Dictionary<AdventureBeachSeashellItem.ShellKind, string> ShellNames =
+        new System.Collections.Generic.Dictionary<AdventureBeachSeashellItem.ShellKind, string>
+        {
+            { AdventureBeachSeashellItem.ShellKind.Sakuragai, "桜色のサクラガイ" },
+            { AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald, "エメラルド・シーグラス" },
+            { AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire, "サファイア・シーグラス" },
+            { AdventureBeachSeashellItem.ShellKind.AmberPebble, "太陽の小琥珀" },
+            { AdventureBeachSeashellItem.ShellKind.SpiralShell, "純白の小巻貝" }
+        };
+
     bool _promptVisible;
     float _lastTalkTime = -10f;
     int _talkIndex;
+    int _tradeCount = 0;
 
     public static void Ensure()
     {
@@ -379,7 +401,19 @@ public class AdventureCapytaBlessing : MonoBehaviour
         if (kb != null && kb.eKey.wasPressedThisFrame) ePressed = true;
         try { if (Input.GetKeyDown(KeyCode.E)) ePressed = true; } catch { }
 
-        if (ePressed && Time.unscaledTime - _lastTalkTime > 0.45f)
+        bool qPressed = false;
+        if (kb != null && kb.qKey.wasPressedThisFrame) qPressed = true;
+        try { if (Input.GetKeyDown(KeyCode.Q)) qPressed = true; } catch { }
+        var pad = Gamepad.current;
+        if (pad != null && (pad.buttonNorth.wasPressedThisFrame || pad.leftShoulder.wasPressedThisFrame))
+            qPressed = true;
+
+        if (qPressed && Time.unscaledTime - _lastTalkTime > 0.45f)
+        {
+            _lastTalkTime = Time.unscaledTime;
+            TradeWithCapyta(player, nearest);
+        }
+        else if (ePressed && Time.unscaledTime - _lastTalkTime > 0.45f)
         {
             _lastTalkTime = Time.unscaledTime;
             _talkCooldownUntil = Time.unscaledTime + 5.0f; // 会話中はプロンプトを隠してボード重複を防止
@@ -393,6 +427,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
     void TalkToCapyta(AdventurePlayerController player, Transform capy)
     {
         TryPlayCapytaReaction(capy);
+        SpawnHeartSparkleFx(capy.position + Vector3.up * 0.85f);
 
         var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
         bool firstJump = !player.hasCapytaSuperJump;
@@ -434,6 +469,151 @@ public class AdventureCapytaBlessing : MonoBehaviour
 
         PlayGiftChime();
         _talkIndex++;
+    }
+
+    /// <summary>貝殻・シーグラスをカピタに渡して物々交換</summary>
+    void TradeWithCapyta(AdventurePlayerController player, Transform capy)
+    {
+        var shellMgr = AdventureBeachSeashellManager.Instance;
+        if (shellMgr == null || !shellMgr.TryConsumeAnyShell(out var consumedKind))
+        {
+            var drone = AdventureRustDrone.Instance;
+            drone?.SpeakAs("🐾 カピタ", new Color(0.40f, 1f, 0.70f),
+                "カピタ「ブヒ…？ 砂浜に落ちてる綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ！」", 4.5f);
+            return;
+        }
+
+        _talkCooldownUntil = Time.unscaledTime + 5.5f;
+        _promptVisible = false;
+
+        // カピタ大喜びダンス＆ハートキラキラエフェクト
+        TryPlayCapytaReaction(capy);
+        SpawnHeartSparkleFx(capy.position + Vector3.up * 0.9f);
+
+        // カピタの頭に可愛いみかんを乗せる！
+        EquipCapytaAccessory(capy);
+
+        // お返し：大盤振る舞い油（26〜45）＋Rust大喜び宙返り
+        int giftOil = Random.Range(26, 45);
+        var rust = AdventureRustDrone.Instance;
+        if (rust != null)
+        {
+            rust.oilCount += giftOil;
+            rust.TriggerCelebration("わぁぁ！カピタに貝殻プレゼントできたね！頭にみかん乗せて大喜びしてるよ！", 3.0f);
+        }
+
+        string shellName = ShellNames.TryGetValue(consumedKind, out var sn) ? sn : "綺麗な貝殻";
+        string capytaLine = CapytaTradeReactions.TryGetValue(consumedKind, out var cr) ? cr : "ブヒヒ！きれいな貝殻、ありがとう！";
+
+        string combined =
+            $"カピタ「{capytaLine}」\n" +
+            $"Rust「頭にみかんが乗ったよ！かわいい…！（油 +{giftOil}／所持: {(rust != null ? rust.oilCount : giftOil)}）」";
+
+        rust?.SpeakAs($"🐾 カピタ ✦ 『{shellName}』の物々交換！", new Color(1.0f, 0.82f, 0.25f), combined, 6.2f);
+        PlayGiftChime();
+        _tradeCount++;
+    }
+
+    /// <summary>カピタの頭に可愛い温州みかんをプロシージャル生成して乗せる</summary>
+    static void EquipCapytaAccessory(Transform capy)
+    {
+        if (capy == null) return;
+        Transform headBone = FindChildRecursive(capy, "Head");
+        Transform parentTransform = headBone != null ? headBone : capy;
+
+        var existing = parentTransform.Find("Capyta_MikanAccessory");
+        if (existing != null) return;
+
+        GameObject mikanObj = new GameObject("Capyta_MikanAccessory");
+        mikanObj.transform.SetParent(parentTransform, false);
+
+        if (headBone != null)
+        {
+            // Headボーン基準のローカルオフセット（頭頂部）
+            mikanObj.transform.localPosition = new Vector3(0f, 0.28f, 0.08f);
+            mikanObj.transform.localRotation = Quaternion.Euler(-15f, 0f, 0f);
+        }
+        else
+        {
+            mikanObj.transform.localPosition = new Vector3(0f, 0.78f, 0.35f);
+            mikanObj.transform.localRotation = Quaternion.identity;
+        }
+        mikanObj.transform.localScale = Vector3.one * 0.16f;
+
+        // 1. オレンジ色のみかん果実（少し扁平な球体）
+        var fruit = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        fruit.name = "Fruit";
+        fruit.transform.SetParent(mikanObj.transform, false);
+        fruit.transform.localScale = new Vector3(1.0f, 0.82f, 1.0f);
+        var fruitRend = fruit.GetComponent<Renderer>();
+        var fruitMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+        fruitMat.color = new Color(1.0f, 0.52f, 0.06f); // 鮮やかな温州みかんオレンジ
+        fruitMat.SetFloat("_Smoothness", 0.65f);
+        fruitRend.sharedMaterial = fruitMat;
+        Object.Destroy(fruit.GetComponent<Collider>());
+
+        // 2. 緑の小さなヘタと葉っぱ
+        var leaf = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        leaf.name = "Leaf";
+        leaf.transform.SetParent(mikanObj.transform, false);
+        leaf.transform.localPosition = new Vector3(0.08f, 0.44f, 0.04f);
+        leaf.transform.localRotation = Quaternion.Euler(60f, 35f, 0f);
+        leaf.transform.localScale = new Vector3(0.38f, 0.22f, 1f);
+        var leafRend = leaf.GetComponent<Renderer>();
+        var leafMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+        leafMat.color = new Color(0.16f, 0.68f, 0.20f);
+        leafRend.sharedMaterial = leafMat;
+        Object.Destroy(leaf.GetComponent<Collider>());
+
+        // ポップインアニメーション
+        mikanObj.AddComponent<AdventureItemPopIn>();
+    }
+
+    static Transform FindChildRecursive(Transform parent, string name)
+    {
+        if (parent.name == name) return parent;
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            Transform result = FindChildRecursive(parent.GetChild(i), name);
+            if (result != null) return result;
+        }
+        return null;
+    }
+
+    static void SpawnHeartSparkleFx(Vector3 worldPos)
+    {
+        var fxGo = new GameObject("Capyta_HeartFx");
+        fxGo.transform.position = worldPos;
+        var ps = fxGo.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.duration = 1.0f;
+        main.loop = false;
+        main.startLifetime = 1.2f;
+        main.startSpeed = 0.85f;
+        main.startSize = 0.16f;
+        main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.45f, 0.75f), new Color(1f, 0.88f, 0.35f));
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        var emission = ps.emission;
+        emission.rateOverTime = 0f;
+        emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 16) });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 0.35f;
+
+        var vel = ps.velocityOverLifetime;
+        vel.enabled = true;
+        vel.x = new ParticleSystem.MinMaxCurve(0f, 0f);
+        vel.y = new ParticleSystem.MinMaxCurve(0.8f, 1.4f);
+        vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+
+        var rend = fxGo.GetComponent<ParticleSystemRenderer>();
+        var mat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit"));
+        rend.sharedMaterial = mat;
+
+        ps.Play();
+        Object.Destroy(fxGo, 2.5f);
     }
 
     static void TryPlayCapytaReaction(Transform capy)
@@ -511,16 +691,20 @@ public class AdventureCapytaBlessing : MonoBehaviour
     {
         if (!_promptVisible) return;
 
-        // カピタ会話プロンプト（視認性の高いエメラルドグリーンの美しいバナー）
+        int shellCount = AdventureBeachSeashellManager.Instance != null
+            ? AdventureBeachSeashellManager.Instance.GetTotalStockCount()
+            : 0;
+
+        // カピタ会話・交換プロンプト（視認性の高いエメラルドグリーンの美しいバナー）
         float scale = Mathf.Clamp(Screen.height / 720f, 1f, 1.35f);
-        float w = Mathf.Min(460f * scale, Screen.width * 0.65f);
-        float h = 38f * scale;
+        float w = Mathf.Min((shellCount > 0 ? 560f : 440f) * scale, Screen.width * 0.90f);
+        float h = 40f * scale;
         float x = (Screen.width - w) * 0.5f;
         float y = Screen.height - (185f * scale);
         float bar = 3f * scale;
 
         // 背景ボックス
-        GUI.color = new Color(0.02f, 0.10f, 0.07f, 0.85f);
+        GUI.color = new Color(0.02f, 0.10f, 0.07f, 0.88f);
         GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
         // 上部アクセントライン
         GUI.color = new Color(0.35f, 0.98f, 0.65f, 0.95f);
@@ -528,16 +712,55 @@ public class AdventureCapytaBlessing : MonoBehaviour
 
         var style = new GUIStyle(GUI.skin.label)
         {
-            fontSize = Mathf.RoundToInt(16f * scale),
+            fontSize = Mathf.RoundToInt(15f * scale),
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             wordWrap = false
         };
         style.normal.textColor = new Color(0.45f, 1f, 0.75f, 1.0f);
-        string tip = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.hasCapytaSuperJump
-            ? "🐾 【E】カピタと話す"
-            : "🐾 【E】カピタと話す（スーパージャンプ＆潤滑油）";
+
+        string tip;
+        if (shellCount > 0)
+        {
+            tip = $"🐾 【E】ふれあう  |  🐚 【Q】貝殻を渡して物々交換（所持: {shellCount}個）";
+        }
+        else
+        {
+            tip = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.hasCapytaSuperJump
+                ? "🐾 【E】カピタとふれあう（スキンシップ＆潤滑油）"
+                : "🐾 【E】カピタと話す（スーパージャンプ＆潤滑油）";
+        }
+
         GUI.Label(new Rect(x, y, w, h), tip, style);
         GUI.color = Color.white;
+    }
+}
+
+/// <summary>アイテム出現時の弾むポップインアニメーション</summary>
+public class AdventureItemPopIn : MonoBehaviour
+{
+    Vector3 _targetScale;
+    float _time = 0f;
+
+    void Awake()
+    {
+        _targetScale = transform.localScale;
+        transform.localScale = Vector3.zero;
+    }
+
+    void Update()
+    {
+        _time += Time.deltaTime * 3.5f;
+        if (_time < 1.0f)
+        {
+            float s = Mathf.Sin(_time * Mathf.PI * 0.5f);
+            float bounce = s + Mathf.Sin(_time * Mathf.PI * 2f) * 0.18f * (1f - _time);
+            transform.localScale = _targetScale * Mathf.Max(0f, bounce);
+        }
+        else
+        {
+            transform.localScale = _targetScale;
+            Destroy(this);
+        }
     }
 }

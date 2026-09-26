@@ -784,7 +784,9 @@ public class AdventureAncientPianoRelic : MonoBehaviour
 
         var vel = ps.velocityOverLifetime;
         vel.enabled = true;
+        vel.x = new ParticleSystem.MinMaxCurve(0f, 0f);
         vel.y = new ParticleSystem.MinMaxCurve(0.40f, 0.75f);
+        vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
 
         var pRend = noteObj.GetComponent<ParticleSystemRenderer>();
         var pMat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit"));
@@ -895,7 +897,9 @@ public class AdventureAncientPianoRelic : MonoBehaviour
 
         var vel = ps.velocityOverLifetime;
         vel.enabled = true;
+        vel.x = new ParticleSystem.MinMaxCurve(0f, 0f);
         vel.y = new ParticleSystem.MinMaxCurve(0.45f, 0.85f);
+        vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
 
         var pRend = psGo.GetComponent<ParticleSystemRenderer>();
         var pMat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit"));

@@ -130,7 +130,9 @@ public class AdventurePettingAction : MonoBehaviour
 
             var vel = _heartFxInstance.velocityOverLifetime;
             vel.enabled = true;
+            vel.x = 0f;
             vel.y = 0.75f; // ふわふわと上へ昇る
+            vel.z = 0f;
 
             var rend = fxGo.GetComponent<ParticleSystemRenderer>();
             var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")

@@ -59,6 +59,32 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         return true;
     }
 
+    /// <summary>所持している全種類の貝殻・シーグラスの合計ストック数</summary>
+    public int GetTotalStockCount()
+    {
+        int sum = 0;
+        foreach (AdventureBeachSeashellItem.ShellKind k in System.Enum.GetValues(typeof(AdventureBeachSeashellItem.ShellKind)))
+        {
+            sum += GetShellCount(k);
+        }
+        return sum;
+    }
+
+    /// <summary>所持している貝殻の中から1つ取り出して消費する（カピタとの物々交換用）</summary>
+    public bool TryConsumeAnyShell(out AdventureBeachSeashellItem.ShellKind consumedKind)
+    {
+        foreach (AdventureBeachSeashellItem.ShellKind k in System.Enum.GetValues(typeof(AdventureBeachSeashellItem.ShellKind)))
+        {
+            if (ConsumeShell(k, 1))
+            {
+                consumedKind = k;
+                return true;
+            }
+        }
+        consumedKind = AdventureBeachSeashellItem.ShellKind.Sakuragai;
+        return false;
+    }
+
     /// <summary>指定地点から最も近い未収集の貝殻・シーグラスを取得する（Rustのお宝レーダー連携用）</summary>
     public AdventureBeachSeashellItem GetNearestUncollectedShell(Vector3 playerPos, out float minDistance)
     {

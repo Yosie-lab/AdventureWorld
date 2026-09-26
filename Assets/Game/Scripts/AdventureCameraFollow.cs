@@ -98,18 +98,19 @@ public class AdventureCameraFollow : MonoBehaviour
     {
         get
         {
-            float val = PlayerPrefs.GetFloat("Adventure_MouseSensitivity", 0.12f);
-            if (val > 0.20f)
+            float val = PlayerPrefs.GetFloat("Adventure_MouseSensitivity", 0.28f);
+            // 過去の鈍い0.12fや異常値が保存されていたら軽快な0.28fへ自動更新
+            if (val < 0.18f || val > 1.20f)
             {
-                val = 0.12f;
-                PlayerPrefs.SetFloat("Adventure_MouseSensitivity", 0.12f);
+                val = 0.28f;
+                PlayerPrefs.SetFloat("Adventure_MouseSensitivity", 0.28f);
                 PlayerPrefs.Save();
             }
             return val;
         }
         set
         {
-            float clamped = Mathf.Clamp(value, 0.05f, 0.80f);
+            float clamped = Mathf.Clamp(value, 0.10f, 1.20f);
             PlayerPrefs.SetFloat("Adventure_MouseSensitivity", clamped);
             PlayerPrefs.Save();
             if (_instance != null) _instance.sensitivity = clamped;
@@ -156,9 +157,9 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void Start()
     {
-        sensitivity = 0.12f;
-        positionSmoothTime = 0.015f;
-        lookSmoothTime = 0.008f;
+        sensitivity = MasterSensitivity;
+        positionSmoothTime = 0.01f;
+        lookSmoothTime = 0.002f;
         _cam = GetComponent<Camera>();
         if (AdventureRustFloatFeel.IsActiveScene)
             AdventureRustFloatFeel.ApplyCameraDefaults(this, _cam);
@@ -203,9 +204,21 @@ public class AdventureCameraFollow : MonoBehaviour
         Cursor.visible = false;
     }
 
+    void EnsureTarget()
+    {
+        if (target != null) return;
+        var player = AdventurePlayerController.InstanceOrFind();
+        if (player != null)
+        {
+            target = player.transform;
+            SnapBehindTarget();
+        }
+    }
+
     void Update()
     {
         _lookUpdatedThisFrame = false;
+        EnsureTarget();
         if (target == null) return;
         UpdateLookInputOnly();
         ApplyLookSmoothingForMove();
@@ -213,6 +226,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
+        EnsureTarget();
         if (target == null) return;
 
         // Update を飛ばした場合の保険
@@ -231,9 +245,14 @@ public class AdventureCameraFollow : MonoBehaviour
         var kb = Keyboard.current;
         var mouse = Mouse.current;
 
+        bool isModalOpen = AdventurePauseMenu.IsOpen ||
+                           AdventureRustWorkshopUI.IsOpen ||
+                           AdventureBeachDriftBox.IsModalOpen ||
+                           (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal);
+
         bool wantsFreeCursor = AdventureStoryFlow.WantsFreeCursor;
 
-        if (wantsFreeCursor)
+        if (wantsFreeCursor || isModalOpen)
         {
             if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
             {
@@ -244,7 +263,6 @@ public class AdventureCameraFollow : MonoBehaviour
         else
         {
             bool toggleCursor = (kb != null && kb.leftAltKey.wasPressedThisFrame);
-            try { if (Input.GetKeyDown(KeyCode.LeftAlt)) toggleCursor = true; } catch { }
 
             if (toggleCursor)
             {
@@ -267,9 +285,9 @@ public class AdventureCameraFollow : MonoBehaviour
         if (kb != null && kb.rKey.wasPressedThisFrame)
             SnapBehindTarget();
 
-        bool isPaused = AdventurePauseMenu.IsOpen;
-        if (isPaused) return;
+        if (isModalOpen) return;
 
+        // マウスデルタの取得（Unity Input System）
         float mouseX = 0f;
         float mouseY = 0f;
         if (mouse != null)
@@ -278,16 +296,9 @@ public class AdventureCameraFollow : MonoBehaviour
             mouseX = delta.x;
             mouseY = delta.y;
         }
-        bool isRightDragging = mouse != null && (mouse.rightButton.isPressed || mouse.middleButton.isPressed);
 
-        bool isModalOpen = AdventureRustWorkshopUI.IsOpen ||
-                           AdventureBeachDriftBox.IsModalOpen ||
-                           (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal);
-
-        bool isCursorLocked = Cursor.lockState == CursorLockMode.Locked;
-        bool canRotateByMouse = !isModalOpen && (isCursorLocked || isRightDragging || !wantsFreeCursor);
-
-        if (canRotateByMouse && (Mathf.Abs(mouseX) > 0.01f || Mathf.Abs(mouseY) > 0.01f))
+        // モーダルが開いていない限り、マウス移動は即座にカメラ回転へ反映
+        if (Mathf.Abs(mouseX) > 0.001f || Mathf.Abs(mouseY) > 0.001f)
         {
             _targetYaw += mouseX * sensitivity;
             _targetPitch = Mathf.Clamp(_targetPitch - mouseY * sensitivity, pitchMin, pitchMax);
@@ -306,6 +317,21 @@ public class AdventureCameraFollow : MonoBehaviour
                 _targetYaw += rStick.x * padMul * Mathf.Max(0.35f, sensitivity) * Time.deltaTime;
                 _targetPitch = Mathf.Clamp(_targetPitch - rStick.y * (padMul * 0.75f) * Mathf.Max(0.35f, sensitivity) * Time.deltaTime, pitchMin, pitchMax);
                 _lastMouseInputTime = Time.time;
+            }
+        }
+
+        // 感度微調整ホットキー（[ / ] キー または テンキー - / +）
+        if (kb != null)
+        {
+            if (kb.leftBracketKey.wasPressedThisFrame || kb.numpadMinusKey.wasPressedThisFrame)
+            {
+                MasterSensitivity = Mathf.Max(0.10f, MasterSensitivity - 0.05f);
+                AdventureNotificationToast.Show($"カメラ感度: {MasterSensitivity:F2}", 1.5f);
+            }
+            else if (kb.rightBracketKey.wasPressedThisFrame || kb.numpadPlusKey.wasPressedThisFrame)
+            {
+                MasterSensitivity = Mathf.Min(0.90f, MasterSensitivity + 0.05f);
+                AdventureNotificationToast.Show($"カメラ感度: {MasterSensitivity:F2}", 1.5f);
             }
         }
 
@@ -358,8 +384,9 @@ public class AdventureCameraFollow : MonoBehaviour
         if (cine > 0.4f && !isAutoGlide)
             _targetPitch = Mathf.Clamp(_targetPitch, -6f, 22f);
 
-        // 歩行中は視点ヨーを即時反映（SmoothDampしない）
-        if (walkingGround)
+        // 手動操作時（マウス操作直後や歩行中）は SmoothDamp による遅延を完全排除し、ダイレクト即時反映
+        bool isManualAiming = (Time.time - _lastMouseInputTime < 0.25f);
+        if (walkingGround || isManualAiming || cine < 0.05f)
         {
             _yaw = _targetYaw;
             _pitch = _targetPitch;
@@ -368,7 +395,7 @@ public class AdventureCameraFollow : MonoBehaviour
         }
         else
         {
-            float lookSmooth = Mathf.Max(0.01f, lookSmoothTime);
+            float lookSmooth = Mathf.Max(0.003f, lookSmoothTime);
             _yaw = Mathf.SmoothDampAngle(_yaw, _targetYaw, ref _yawVel, lookSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
             _pitch = Mathf.SmoothDamp(_pitch, _targetPitch, ref _pitchVel, lookSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
         }
