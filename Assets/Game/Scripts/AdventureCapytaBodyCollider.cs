@@ -28,16 +28,16 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
 {
     [Header("Target World Dimensions")]
     [Tooltip("カピタのワールド空間での目標横幅 (m)")]
-    public float targetWorldWidth = 1.05f;
+    public float targetWorldWidth = 1.25f;
 
-    [Tooltip("カピタのワールド空間での目標高さ (m) - Nikoの身長(1.5m)に対して踏み越えられない十分な高さ")]
-    public float targetWorldHeight = 1.45f;
+    [Tooltip("カピタのワールド空間での目標高さ (m) - Nikoのジャンプやステップクライムで踏み越えられない十分な高さ")]
+    public float targetWorldHeight = 1.95f;
 
     [Tooltip("カピタのワールド空間での目標全長 (m)")]
-    public float targetWorldLength = 1.65f;
+    public float targetWorldLength = 1.85f;
 
     [Tooltip("カピタのワールド空間での中心高さ (m)")]
-    public float targetWorldCenterY = 0.725f;
+    public float targetWorldCenterY = 0.975f;
 
     [Tooltip("カピタのワールド空間での中心前後オフセット (m)")]
     public float targetWorldCenterZ = 0.10f;
@@ -93,6 +93,7 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
 
     /// <summary>
     /// カピタの個体スケールを吸収し、ワールド空間で常に均一な固体BoxColliderを構築
+    /// さらに Kinematic Rigidbody (ContinuousSpeculative) を付与して PhysX のトンネリングを完全遮断
     /// </summary>
     public void EnsureCollider()
     {
@@ -109,6 +110,17 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
                 }
             }
         }
+
+        // アニメーション・首振り・移動するカピタを PhysX に動的剛体コライダーとして認識させ、トンネリングを遮断
+        var rb = GetComponent<Rigidbody>();
+        if (rb == null)
+        {
+            rb = gameObject.AddComponent<Rigidbody>();
+        }
+        rb.isKinematic = true;
+        rb.useGravity = false;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
 
         if (_boxCollider == null)
         {
@@ -165,9 +177,13 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
         Vector3 playerPos = _cachedCharacterController.transform.position;
         Vector3 capytaPos = transform.position;
 
-        // 地面からの高さ差をチェック（砂浜の傾斜や段差を考慮して広めにカバー）
-        float deltaY = playerPos.y - capytaPos.y;
-        if (deltaY < -0.6f || deltaY > targetWorldHeight + 0.6f)
+        // 垂直方向の重なり判定（Nikoの身長1.5mを考慮し、足元〜頭上がカピタの体躯と交差しているか）
+        float playerBottom = playerPos.y;
+        float playerTop = playerPos.y + 1.55f;
+        float capytaBottom = capytaPos.y - 0.45f; // 丸椅子・台座や傾斜での高低差を完全にカバー
+        float capytaTop = capytaPos.y + targetWorldHeight + 0.35f;
+
+        if (playerBottom > capytaTop || playerTop < capytaBottom)
         {
             return;
         }
@@ -191,8 +207,8 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
 
         // Nikoの半径（0.28m）+ カピタの半幅・半長 + 安全マージン
         float nikoRadius = _cachedCharacterController.radius;
-        float halfW = (targetWorldWidth * 0.5f) + nikoRadius + 0.04f;
-        float halfL = (targetWorldLength * 0.5f) + nikoRadius + 0.04f;
+        float halfW = (targetWorldWidth * 0.5f) + nikoRadius + 0.06f;
+        float halfL = (targetWorldLength * 0.5f) + nikoRadius + 0.06f;
 
         float absRight = Mathf.Abs(distRight);
         float absFwd = Mathf.Abs(distForward);
@@ -212,24 +228,36 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
                 // 左右方向へ押し出す
                 float signX = distRight >= 0f ? 1f : -1f;
                 pushDir = rgt * signX;
-                pushDist = overlapX + 0.03f;
+                pushDist = overlapX + 0.05f;
             }
             else
             {
                 // 前後方向へ押し出す
                 float signZ = distForward >= 0f ? 1f : -1f;
                 pushDir = fwd * signZ;
-                pushDist = overlapZ + 0.03f;
+                pushDist = overlapZ + 0.05f;
             }
 
-            // 背中に乗っかってしまっている場合（deltaY > 0.7m）はさらに強めに滑落させる
-            if (deltaY > 0.7f)
+            // 背中に乗っかってしまっている場合（playerBottom > capytaPos.y + 0.5f）は強制滑落
+            if (playerBottom > capytaPos.y + 0.5f)
             {
-                pushDist = Mathf.Max(pushDist, 0.15f);
+                pushDist = Mathf.Max(pushDist, 0.22f);
             }
 
             Vector3 pushVector = pushDir * pushDist;
             _cachedCharacterController.Move(pushVector);
+
+            // ハードフェイルセーフ：Move()が他の物理コライダー等で阻まれた場合でも、確実にカピタの外側へ押し戻す
+            Vector3 postPlayerPos = _cachedCharacterController.transform.position;
+            Vector3 postDelta = postPlayerPos - center;
+            postDelta.y = 0f;
+            float postDistFwd = Mathf.Abs(Vector3.Dot(postDelta, fwd));
+            float postDistRgt = Mathf.Abs(Vector3.Dot(postDelta, rgt));
+            if (postDistRgt < halfW && postDistFwd < halfL)
+            {
+                _cachedCharacterController.transform.position += pushDir * 0.12f;
+                Physics.SyncTransforms();
+            }
         }
     }
 

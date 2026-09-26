@@ -749,7 +749,7 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         capy.transform.localScale = Vector3.one * 0.40f;
 
         // すり抜け防止固体コライダーの付与
-        var bodyCol = capy.AddComponent<AdventureCapytaBodyCollider>();
+        var bodyCol = capy.GetComponent<AdventureCapytaBodyCollider>() ?? capy.AddComponent<AdventureCapytaBodyCollider>();
         bodyCol.EnsureCollider();
 
         // アニメーション初期化（お座り待機モーション）

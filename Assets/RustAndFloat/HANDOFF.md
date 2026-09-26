@@ -734,6 +734,16 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
       - **完全スタンドアロンなプロシージャル波形合成**:
         - 外部オーディオファイルへの依存なしに、実行時に高品質なループクリップ・小鳥の鳴き声を自動生成して常時動作。
 
+27. **カピタの体躯すり抜け防止の多重強化（2026-09-26追加）**:
+    - [AdventureCapytaBodyCollider.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureCapytaBodyCollider.cs)
+    - [AdventureAncientPianoRelic.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureAncientPianoRelic.cs)
+    - **原因と解消**:
+      - **原因**: カピタはアニメーションや首振り等で毎フレームTransformが動いていたが、`Rigidbody` がなかったためPhysXがStatic Colliderと見なして内部キャッシュが狂い、CharacterControllerとのトンネリング（すり抜け）が発生していた。また、コライダー高さ（1.45m）がNikoのジャンプ・ステップ登攀で踏み越えられやすく、ピアノの椅子（高低差）でプッシュバックのY軸判定が外れるケースがあった。
+      - **改修内容**:
+        - **Kinematic Rigidbody（ContinuousSpeculative）の自動付与**: アニメーション中もPhysXが毎フレーム衝突面を完全トラッキングし、高速移動時も物理レベルでトンネリングを遮断。
+        - **目標ワールド寸法の強化**: 横幅 `1.25m`、全長 `1.85m`、高さ **`1.95m`** に拡大し、Nikoが頭上を踏み越えたりステップクライムできない十分な防壁を形成。
+        - **高低差対応プッシュバック＆ハードフェイルセーフ**: ピアノ丸椅子や起伏のある地形でも上下判定が外れないよう足元〜頭上交差判定へ刷新し、Move()が引っかかった場合でも瞬時に外側へスナップ押し出しする二重防御を実装。
+
 ## 次の推奨タスク
 
 1. **白砂ビーチ・海面のビジュアルリファイン（コースティクスや波の泡立ち表現の強化）**:
