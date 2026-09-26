@@ -601,10 +601,11 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
       - 天蓋崩壊・天空滑空時の風音アンビエンス（`_skybreakWindSource`）のフェード目標音量を `0.22f` → **`0.45f`**（約2倍）へ引き上げ、天蓋の開けた大空を切り裂く風の臨場感と迫力を大幅強化。
     - **段階的BGMビルドアップ展開**（[AdventureMusicDirector.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureMusicDirector.cs)）:
       - 4段階トラック（`Intro`, `BassOnly`, `Full`, `DrumsOnly`）を導入。
-      - **BGM 1周目（天蓋レバー操作〜12秒間）**: 神聖なブラスとアルペジオのみ（ドラムなし・ベースなし）で天蓋開放の荘厳さを表現。
-      - **BGM 2周目（12秒〜24秒）**: 2周目の頭から**ベースが入り**、力強いグルーヴと前進感をプラス。
-      - **BGM 3周目（24秒〜Rust回復まで）**: 3周目の頭から**ドラムも加わり**、キック・スネア・ハット＋ベース＋ブラスの完全フル編成へ！
-      - **Rust回復時（「全力で行こう！！」のクライマックス）**: 今までと同じタイミングで再生位置をシームレスに引き継ぎ、**ベースが抜けてドラムとBGMになる**！爽快で軽快な疾走感で大空の滑空へ飛び立つ。
+      - **原因と解消（2026-09-26改善）**: 従来のコルーチン待機だと、外部からの `KeepEndingThemeActive()` 呼び出しや `StopAllCoroutines`、曲終了時のリスタート判定によりコルーチンが途中で強制終了され、2周目以降へ遷移できない問題があった。これをコルーチン完全廃止し、**`Update()` による再生秒数・周回監視の堅牢なステートマシン**へ刷新。外部呼び出し時も再生中なら絶対に頭へ巻き戻さないよう保護。
+      - **BGM 1周目（天蓋レバー操作〜12秒間）**: 神聖なブラスパッドとアルペジオ、温かいパッド和音のみで静謐かつ荘厳に大空の開放を演出。
+      - **BGM 2周目（12秒〜24秒）**: 12秒到達で**ブリブリベースが鳴り響き合流**、推進力と前進感をプラス。
+      - **BGM 3周目（24秒〜Rust回復まで）**: 24秒到達で**ドラムが合流**（キック・スネア・ハット＋ベース＋ブラス＋アルペジオ＋パッド和音による力強いフル編成！※バイオリン主旋律は一時ミュート中）。
+      - **Rust回復時（「全力で行こう！！」のクライマックス）**: 今までと同じタイミングで再生位置をシームレスに引き継ぎ、**ベースが消え、軽快なドラムと爽快なブラス・アルペジオBGMのみになる**！大空へ抜け出すクリアな疾走感へスイッチ。
 17. **トンボの「歯ブラシ」違和感解消＆リアル昆虫造形・前後位相差羽ばたきへの刷新（2026-09-25追加）**:
     - **原因**:
       - 従来のトンボ（`AdventureParadiseCreatures.cs` / `AdventureDragonfly.cs`）は、頭部や目がなく、棒状シリンダーの先端に幅広のCube（板1枚）が乗り、さらに羽ばたきが前後回転（X軸）で高速振動していたため、先端のブラシが小刻みに震える「電動歯ブラシ」に見えていた。
@@ -640,6 +641,15 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
     - **Jキー**: 軽快な小ジャンプ専用（高さ約2.6m / `shortJumpHeight = 2.6f`、踏み切りポップ音 `PlayJumpSound()` 再生、滑空には移行しない）。
     - **Spaceキー**: 通常〜大ジャンプ（高さ2.2m）＆長押しでの滑空（グライダー展開）。湖・砂浜・崖でのサーマル大上昇ジャンプもSpaceキー専用。
     - 台本送りや注油ホールド、クリア後の「大空へダイブ」はどちらのキーでも操作可能。
+
+21. **木道スロープ（Boardwalk Ramps）の地下完全埋め込み＆頭上挟まり自動脱出の実装（2026-09-26追加）**:
+    - [AdventureBeachEscapeManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBeachEscapeManager.cs)
+    - [AdventureRebuildBoardwalkRamps.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/Editor/AdventureRebuildBoardwalkRamps.cs)
+    - [AdventurePlayerController.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventurePlayerController.cs)
+    - **「下から登ってたら板をすり抜けようとして挟まった」根本原因と解消**:
+      - **原因**: 木道スロープが地面の窪みの上を通る際、板の厚みが0.80m（下へ0.65m）しかなかったため、板の底面と地面との間に1m〜2.5mの空洞（隙間）ができていた。海岸から登るプレイヤーがこの空洞に潜り込み、傾斜が狭まる途中で頭上の板と地面に挟まってスタックしていた。
+      - **板の地下完全埋め込み**: 各セグメントの底面を地形の深さよりさらに1.2m深く（`bottomY = Mathf.Min(center.y - 1.2f, groundUnder - 1.2f)`）埋め込み、下方向の隙間・空洞を100%消滅。下から潜り込むこと自体を物理的に不可能にした。
+      - **頭上挟まり自動脱出（`UnstuckFromOverheadPlanks`）**: 万が一頭上に板や構造物が接触・圧迫した際、板の上面（歩行面）へスッと自動リフト・脱出させる救済判定をPlayerControllerに導入。
 
 ## 次の推奨タスク
 

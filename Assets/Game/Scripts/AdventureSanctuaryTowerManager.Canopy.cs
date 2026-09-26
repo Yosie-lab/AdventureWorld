@@ -24,8 +24,8 @@ public partial class AdventureSanctuaryTowerManager
             player.ForceGroundReset();
 
         AdventureMusicDirector.Ensure();
-        // 天蓋崩壊に入ったら壮大な天空突破テーマBGMを開始
-        AdventureMusicDirector.Instance?.KeepEndingThemeActive();
+        // 天蓋崩壊に入ったら壮大な天空突破テーマBGMを1周目（神聖ブラス＋アルペジオ）から確実に開始
+        AdventureMusicDirector.Instance?.PlaySkybreakTheme(force: true);
         StartSkybreakWindAmbience(); // 風の音は追加で流す
 
         // 「空が割れた」直後から割れ目の向こうの空を見せる
