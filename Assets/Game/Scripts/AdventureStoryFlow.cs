@@ -244,11 +244,8 @@ public static class AdventureStoryFlow
                     return true;
             }
 
-            var p = Current;
-            if (p == Phase.Opening || p == Phase.Skybreak || p == Phase.Clear)
-                return true;
-
-            if (AdventurePrologueDrama.Instance != null && (AdventurePrologueDrama.Instance.IsWaitingForOil || AdventurePrologueDrama.Instance.IsShowingDashBoard))
+            // プロローグ：ダッシュ解禁キーストーンボード表示中のみカーソル解放
+            if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsShowingDashBoard)
                 return true;
 
             return false;

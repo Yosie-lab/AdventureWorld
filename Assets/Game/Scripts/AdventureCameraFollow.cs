@@ -226,6 +226,10 @@ public class AdventureCameraFollow : MonoBehaviour
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
+        else
+        {
+            LockCursor();
+        }
     }
 
     void LockCursor()
@@ -279,14 +283,14 @@ public class AdventureCameraFollow : MonoBehaviour
         var kb = Keyboard.current;
         var mouse = Mouse.current;
 
-        // ポーズ中またはUIモーダル操作中（カーソル解放中）はカメラ回転入力を受け付けない
-        if (AdventurePauseMenu.IsOpen || AdventureStoryFlow.WantsFreeCursor)
+        // ポーズ中はカメラ回転入力を受け付けない
+        if (AdventurePauseMenu.IsOpen)
         {
             _hasPrevMousePos = false;
             return;
         }
 
-        // 画面クリックで即座にカーソルをロックしてゲームに復帰
+        // 画面クリックで即座にカーソルをロックしてゲーム視点操作に復帰
         if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
         {
             bool isPointerOverUi = UnityEngine.EventSystems.EventSystem.current != null &&
@@ -296,6 +300,13 @@ public class AdventureCameraFollow : MonoBehaviour
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
             }
+        }
+
+        // UIモーダル操作中（カーソルが解放されている状態）はカメラ回転入力を抑制
+        if (AdventureStoryFlow.WantsFreeCursor && Cursor.lockState != CursorLockMode.Locked)
+        {
+            _hasPrevMousePos = false;
+            return;
         }
 
         // Altキーでカーソルロックのトグル
@@ -333,6 +344,22 @@ public class AdventureCameraFollow : MonoBehaviour
             }
             _prevMouseScreenPos = curScreenPos;
             _hasPrevMousePos = true;
+        }
+
+        // 系統3: レガシー Input フォールバック（プロジェクト設定の両立環境・エディタでのOSロック差異対応）
+        if (Mathf.Abs(mouseX) < 0.001f && Mathf.Abs(mouseY) < 0.001f)
+        {
+            try
+            {
+                float lx = Input.GetAxisRaw("Mouse X");
+                float ly = Input.GetAxisRaw("Mouse Y");
+                if (Mathf.Abs(lx) > 0.001f || Mathf.Abs(ly) > 0.001f)
+                {
+                    mouseX = lx * 15f;
+                    mouseY = ly * 15f;
+                }
+            }
+            catch { }
         }
 
         // カメラ回転へ即時反映
