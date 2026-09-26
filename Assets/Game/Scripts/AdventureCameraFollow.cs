@@ -94,10 +94,23 @@ public class AdventureCameraFollow : MonoBehaviour
 
     public static AdventureCameraFollow InstanceOrFind() => Instance;
 
+    public static float MasterSensitivity
+    {
+        get => PlayerPrefs.GetFloat("Adventure_MouseSensitivity", 0.26f);
+        set
+        {
+            float clamped = Mathf.Clamp(value, 0.05f, 0.80f);
+            PlayerPrefs.SetFloat("Adventure_MouseSensitivity", clamped);
+            PlayerPrefs.Save();
+            if (_instance != null) _instance.sensitivity = clamped;
+        }
+    }
+
     void Awake()
     {
         if (_instance == null)
             _instance = this;
+        sensitivity = MasterSensitivity;
     }
 
     /// <summary>移動用の水平カメラ基底（意図ヨー即時）</summary>
@@ -195,7 +208,9 @@ public class AdventureCameraFollow : MonoBehaviour
 
         var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
         bool isModalBoardOpen = opening != null && opening.IsModalBoardOpen();
-        if (AdventureStoryFlow.WantsFreeCursor)
+        bool isPaused = AdventurePauseMenu.IsOpen;
+
+        if (AdventureStoryFlow.WantsFreeCursor || isPaused)
         {
             if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
             {
@@ -205,8 +220,8 @@ public class AdventureCameraFollow : MonoBehaviour
         }
         else
         {
-            bool toggleCursor = (kb != null && (kb.escapeKey.wasPressedThisFrame || kb.leftAltKey.wasPressedThisFrame));
-            try { if (Input.GetKeyDown(KeyCode.LeftAlt) || Input.GetKeyDown(KeyCode.Escape)) toggleCursor = true; } catch { }
+            bool toggleCursor = (kb != null && kb.leftAltKey.wasPressedThisFrame);
+            try { if (Input.GetKeyDown(KeyCode.LeftAlt)) toggleCursor = true; } catch { }
 
             if (toggleCursor)
             {
@@ -222,6 +237,8 @@ public class AdventureCameraFollow : MonoBehaviour
 
         if (kb != null && kb.rKey.wasPressedThisFrame)
             SnapBehindTarget();
+
+        if (isPaused) return;
 
         float mouseX = 0f;
         float mouseY = 0f;
@@ -245,7 +262,7 @@ public class AdventureCameraFollow : MonoBehaviour
         try { if (Input.GetMouseButton(1) || Input.GetMouseButton(2)) isRightDragging = true; } catch { }
 
         bool isCursorLocked = Cursor.lockState == CursorLockMode.Locked;
-        bool canRotateByMouse = !isModalBoardOpen || isRightDragging || isCursorLocked;
+        bool canRotateByMouse = (!isModalBoardOpen && !isPaused) || isRightDragging || isCursorLocked;
 
         if (canRotateByMouse && (Mathf.Abs(mouseX) > 0.01f || Mathf.Abs(mouseY) > 0.01f))
         {

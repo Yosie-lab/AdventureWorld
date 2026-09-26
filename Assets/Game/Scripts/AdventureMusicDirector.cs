@@ -32,10 +32,33 @@ public class AdventureMusicDirector : MonoBehaviour
     /// <summary>外部（古代ピアノ等の環境スポット）からのダッキング要求度 (0.0 = 通常音量, 1.0 = 最大ダッキング)</summary>
     public float spotDuckingFactor = 0f;
 
+    /// <summary>マスターBGMボリュームスケール (0.0〜1.0)</summary>
+    public static float MasterBgmVolumeScale
+    {
+        get => PlayerPrefs.GetFloat("Adventure_BgmVolume", 1.0f);
+        set
+        {
+            float clamped = Mathf.Clamp01(value);
+            PlayerPrefs.SetFloat("Adventure_BgmVolume", clamped);
+            PlayerPrefs.Save();
+            Instance?.ApplyMasterVolumeScale();
+        }
+    }
+
+    public void ApplyMasterVolumeScale()
+    {
+        float scale = MasterBgmVolumeScale;
+        if (_bgmSourceA != null)
+            _bgmSourceA.volume = AmbientThemeVolume * scale * (1f - spotDuckingFactor * 0.85f);
+        if (_bgmSourceB != null)
+            _bgmSourceB.volume = SkybreakSourceVolume * scale;
+    }
+
     /// <summary>スポットダッキング係数の設定 (0.0〜1.0)</summary>
     public void SetSpotDucking(float factor)
     {
         spotDuckingFactor = Mathf.Clamp01(factor);
+        ApplyMasterVolumeScale();
     }
 
     public static void Ensure()

@@ -686,6 +686,19 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
       - **愛らしいアイコンタクト（`NikoEyeContact`）**: Nikoの胸〜顔の前に回り込んで上目遣いで見つめ、「どうしたの、Niko？」「ずっと一緒だよ」と語りかける。
       - これら無駄だが愛おしい自律生命感により、終盤の「相棒が凍りつき、最後の油を全部注ぐクライマックス」の感情移入と切なさが最高潮に引き立つ設計へ昇華。
 
+24. **ESCポーズ＆設定メニュー（BGM/SE音量・マウス感度・操作チートシート・リスタート）の実装（2026-09-26追加）**:
+    - [AdventurePauseMenu.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventurePauseMenu.cs)
+    - [AdventureCameraFollow.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureCameraFollow.cs)
+    - [AdventureMusicDirector.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureMusicDirector.cs)
+    - [AdventurePlayerController.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventurePlayerController.cs)
+    - **実施内容**:
+      - **洗練された全画面ポーズUI**: 【ESCキー】でゲーム時間を完全一時停止（`Time.timeScale = 0f`）し、カーソルを解放して美しい2カラム設定パネルを表示。
+      - **BGM音量スライダー**: 0〜100%のリアルタイム制御（`AdventureMusicDirector.MasterBgmVolumeScale`）。PlayerPrefsに永続化。
+      - **SE音量スライダー**: 0〜100%の制御。スライダー操作時に心地よいクリスタルチャイム音で試聴可能。PlayerPrefsに永続化。
+      - **マウス視点感度スライダー**: 0.05〜0.60の範囲で直感調整可能（`AdventureCameraFollow.MasterSensitivity`）。
+      - **操作ガイドチートシート**: 移動・視点・小ジャンプ(J)・滑空(Space)・ダイブ/滞空(W/S)・手当て/撫でる(E)・遠隔指示(F)・クエスト切替(Tab)・セーブ(F5)を一覧で即座に確認可能。
+      - **最初からやり直す（リスタート）機能**: 誤爆防止の確認ダイアログを挟み、砂浜座礁艇前からのニューゲーム初期化をワンクリックで実行可能。
+
 ## 次の推奨タスク
 
 1. **探索の手触り向上：白砂ビーチの貝殻・漂着物・スクラップ採取インタラクション＆収集ポップ演出**:

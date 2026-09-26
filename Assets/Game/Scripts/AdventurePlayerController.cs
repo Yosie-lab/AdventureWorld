@@ -228,6 +228,12 @@ public class AdventurePlayerController : MonoBehaviour
         if (TryHandleResetKey(kb)) return;
         TryHandleSaveKey(kb);
 
+        // ポーズメニュー表示中は操作を停止
+        if (AdventurePauseMenu.IsOpen)
+        {
+            return;
+        }
+
         // 漂着ボックス情報モーダル表示中は操作を一時停止（Spaceキー閉じる時の誤爆ジャンプ防止）
         if (AdventureBeachDriftBox.IsModalOpen)
         {
