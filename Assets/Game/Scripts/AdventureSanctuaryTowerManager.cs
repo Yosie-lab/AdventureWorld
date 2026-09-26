@@ -56,6 +56,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         }
     }
 
+    public const float TerraceTopY = 64.02f;
+
     Transform _leverHandle;
     Light _leverLight;
     readonly System.Collections.Generic.List<Transform> _allLeverHandles = new System.Collections.Generic.List<Transform>();
