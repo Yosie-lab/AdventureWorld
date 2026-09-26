@@ -799,19 +799,20 @@ public class AdventurePlayerController : MonoBehaviour
         horizontal = ProjectHorizontalOntoGround(horizontal);
 
         // 向き：
-        // AW は従来どおり移動方向を向く。
-        // RF はカメラ前方を向く（WASDはストレイフ）→「方向転換＝マウス」が即反応。
-        //   体が移動方向へ振り回されると、視点据え置きのままスピンして鈍く感じる。
-        if (IsRustFloatScene())
+        // 移動中は押したキー（進行方向）へ自然に向き、立ち止まり時はカメラ正面を向く。
+        // これにより、矢印キーやWASDでの自由な歩行とマウス視点操作が完全に両立する。
+        if (horizontal.sqrMagnitude > 0.001f)
+        {
+            Vector3 face = horizontal.SetY(0f);
+            if (face.sqrMagnitude > 0.001f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(face.normalized);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, 720f * Time.deltaTime);
+            }
+        }
+        else if (IsRustFloatScene())
         {
             FaceCameraForward();
-        }
-        else
-        {
-            Vector3 face = horizontal.sqrMagnitude > 0.0001f ? horizontal : wishWalk;
-            face.y = 0f;
-            if (face.sqrMagnitude > 0.0001f)
-                transform.rotation = Quaternion.LookRotation(face.normalized);
         }
         return horizontal;
     }

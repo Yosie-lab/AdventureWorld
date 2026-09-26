@@ -76,7 +76,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         ForceDismissForGameplay();
         if (_guideText != null)
         {
-            _guideText.text = "【WASD】移動　【マウス / 矢印キー】視点　【Space長押し】崖から滑空　【R】リセット";
+            _guideText.text = "【WASD / 矢印キー】移動　【マウス】視点　【Shift】走る　【Space長押し】滑空　【R】リセット";
             _guideText.gameObject.SetActive(true);
         }
     }
@@ -359,7 +359,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         if (_guideText != null)
         {
-            _guideText.text = "【WASD】移動　【マウス / 矢印キー】視点　【Space長押し】崖から滑空　【R】リセット";
+            _guideText.text = "【WASD / 矢印キー】移動　【マウス】視点　【Shift】走る　【Space長押し】滑空　【R】リセット";
             _guideText.gameObject.SetActive(true);
         }
 
@@ -373,7 +373,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_guideText == null) return;
         _guideText.text = isGliding
             ? "【A / D】旋回　【W】ダイブ　【S】フレア　【Space長押し】滑空"
-            : "【WASD】移動　【マウス / 矢印キー】視点　【Space長押し】崖から滑空　【R】リセット";
+            : "【WASD / 矢印キー】移動　【マウス】視点　【Shift】走る　【Space長押し】滑空　【R】リセット";
     }
 
     void BuildHud()
