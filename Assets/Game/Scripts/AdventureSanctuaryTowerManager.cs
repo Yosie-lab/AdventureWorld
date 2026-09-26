@@ -234,6 +234,9 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     public static void Ensure()
     {
+        if (_instance != null && _instance.gameObject != null)
+            return;
+
         var existing = Object.FindObjectsByType<AdventureSanctuaryTowerManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
         if (_instance == null || _instance.gameObject == null)

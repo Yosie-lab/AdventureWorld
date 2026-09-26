@@ -375,12 +375,18 @@ public partial class AdventureSanctuaryTowerManager
 
         if (_cachedGuideText == null)
         {
-            foreach (var t in Object.FindObjectsByType<UnityEngine.UI.Text>(FindObjectsInactive.Include))
+            var opening = AdventureRustFloatOpening.Instance;
+            if (opening != null && opening.GuideText != null)
+                _cachedGuideText = opening.GuideText;
+            else
             {
-                if (t != null && t.name == "Guide")
+                foreach (var t in Object.FindObjectsByType<UnityEngine.UI.Text>(FindObjectsInactive.Include))
                 {
-                    _cachedGuideText = t;
-                    break;
+                    if (t != null && t.name == "Guide")
+                    {
+                        _cachedGuideText = t;
+                        break;
+                    }
                 }
             }
         }
@@ -514,12 +520,7 @@ public partial class AdventureSanctuaryTowerManager
 
     static void SetCinematicCamera(bool enabled)
     {
-        var cam = Camera.main;
-        if (cam == null)
-            cam = Object.FindFirstObjectByType<Camera>();
-        if (cam == null)
-            return;
-        var follow = cam.GetComponent<AdventureCameraFollow>();
+        var follow = AdventureCameraFollow.Instance;
         if (follow != null)
             follow.SetCinematicMode(enabled);
     }

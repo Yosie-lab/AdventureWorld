@@ -89,9 +89,15 @@ public class AdventureCameraFollow : MonoBehaviour
 
     public bool IsCinematic => _cinematic;
 
-    public static AdventureCameraFollow InstanceOrFind()
+    static AdventureCameraFollow _instance;
+    public static AdventureCameraFollow Instance => _instance != null ? _instance : (_instance = Object.FindFirstObjectByType<AdventureCameraFollow>());
+
+    public static AdventureCameraFollow InstanceOrFind() => Instance;
+
+    void Awake()
     {
-        return Object.FindFirstObjectByType<AdventureCameraFollow>();
+        if (_instance == null)
+            _instance = this;
     }
 
     /// <summary>移動用の水平カメラ基底（意図ヨー即時）</summary>

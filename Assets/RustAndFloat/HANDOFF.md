@@ -651,6 +651,30 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
       - **板の地下完全埋め込み**: 各セグメントの底面を地形の深さよりさらに1.2m深く（`bottomY = Mathf.Min(center.y - 1.2f, groundUnder - 1.2f)`）埋め込み、下方向の隙間・空洞を100%消滅。下から潜り込むこと自体を物理的に不可能にした。
       - **頭上挟まり自動脱出（`UnstuckFromOverheadPlanks`）**: 万が一頭上に板や構造物が接触・圧迫した際、板の上面（歩行面）へスッと自動リフト・脱出させる救済判定をPlayerControllerに導入。
 
+22. **スタートからエンドまでの包括的リファクタリング＆高速化（2026-09-26追加）**:
+    - [AdventureStoryFlow.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureStoryFlow.cs)
+    - [AdventureCameraFollow.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureCameraFollow.cs)
+    - [AdventureRustFloatOpening.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureRustFloatOpening.cs)
+    - [AdventureCapytaBodyCollider.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureCapytaBodyCollider.cs)
+    - [AdventureCapytaBlessing.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureCapytaBlessing.cs)
+    - [AdventureScrapManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureScrapManager.cs)
+    - [AdventureScrapHUD.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureScrapHUD.cs)
+    - [AdventureSanctuaryTowerManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs) (& `.Canopy.cs`, `.Climax.cs`, `.Epilogue.cs`)
+    - [AdventureRustDrone.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureRustDrone.cs)
+    - [AdventureSaveManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSaveManager.cs)
+    - **実施内容**:
+      - **毎フレームの重いシーン探索（`FindObjectsByType` / `FindAnyObjectByType`）の根絶**:
+        - `AdventureCapytaBlessing.FindNearestCapyta()`: 毎フレーム実行されていた全Transform走査（`FindObjectsByType<Transform>`）を完全撤廃し、`AdventureCapytaBodyCollider.AllCapytas` の静的レジストリ（`OnEnable`/`OnDisable` で自動登録）へ移行。
+        - `AdventureCameraFollow`: `Instance` シングルトン化を行い、他クラスからの毎フレームの `Camera.main.GetComponent<AdventureCameraFollow>()` や探索を直結キャッシュへ置換。
+        - 各マネージャーの `Ensure()`: 既にインスタンスが存在する場合の早期リターン（`if (_instance != null) return;`）を徹底し、無駄なオブジェクト検索・GCアロケーションを抑止。
+      - **イベント駆動連携とフレームキャッシュ**:
+        - `AdventureStoryFlow`: `OnPhaseChanged` イベントを新設。また、1フレーム内に各所から数十回呼び出される `Current` プロパティに `Time.frameCount` によるフレームキャッシュを導入し、重複プロパティ判定を1回に集約。
+        - `AdventureScrapManager`: `OnProgressChanged` イベントを新設し、パーツ回収・ボックス開封・ピアノ遺物回収・ニューゲームリセット時に発火。
+        - `AdventureScrapHUD`: イベント購読（`OnPhaseChanged`, `OnProgressChanged`）により、毎フレームの過剰な文字列組み立てや状態ポーリングを最小化。
+      - **UI・シネマティック参照の整理**:
+        - `AdventureRustFloatOpening.GuideText` の直接参照化により、エピローグ等での `FindObjectsByType<Text>` による名前検索を根絶。
+        - エンディング〜クリアモーダル〜ニューゲーム再開（F8）のライフサイクルにおいて、不要なオブジェクト探索や状態の競合を解消。
+
 ## 次の推奨タスク
 
 1. **探索の手触り向上：白砂ビーチの貝殻・漂着物・スクラップ採取インタラクション＆収集ポップ演出**:

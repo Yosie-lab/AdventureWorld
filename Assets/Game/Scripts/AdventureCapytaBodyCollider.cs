@@ -50,6 +50,26 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
     private static CharacterController _cachedCharacterController;
     private static float _lastPlayerSearchTime = -10f;
 
+    // 全カピタのインスタンスレジストリ（毎フレームの全Transform走査を完全排除）
+    private static readonly System.Collections.Generic.List<Transform> _allCapytaRoots = new System.Collections.Generic.List<Transform>();
+    public static System.Collections.Generic.IReadOnlyList<Transform> AllCapytas => _allCapytaRoots;
+
+    void OnEnable()
+    {
+        if (!_allCapytaRoots.Contains(transform))
+            _allCapytaRoots.Add(transform);
+    }
+
+    void OnDisable()
+    {
+        _allCapytaRoots.Remove(transform);
+    }
+
+    void OnDestroy()
+    {
+        _allCapytaRoots.Remove(transform);
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void OnRuntimeInit()
     {

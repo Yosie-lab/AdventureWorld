@@ -60,10 +60,19 @@ public class AdventureScrapManager : MonoBehaviour
         }
     }
 
+    /// <summary>探索進捗（パーツ・ボックス・遺物）が変化した際に発火するイベント</summary>
+    public static event System.Action OnProgressChanged;
+
+    public static void NotifyProgressChanged()
+    {
+        OnProgressChanged?.Invoke();
+    }
+
     /// <summary>ドリフトボックス開封数キャッシュを破棄し再読み込みを促す</summary>
     public void InvalidateDriftBoxCache()
     {
         _cachedOpenedDriftBoxCount = -1;
+        NotifyProgressChanged();
     }
 
     /// <summary>ピアノの上の光る古代遺物を回収済みか</summary>
@@ -74,6 +83,7 @@ public class AdventureScrapManager : MonoBehaviour
         {
             PlayerPrefs.SetInt(PrefKeyPianoRelic, value ? 1 : 0);
             PlayerPrefs.Save();
+            NotifyProgressChanged();
         }
     }
 
@@ -567,6 +577,9 @@ public class AdventureScrapManager : MonoBehaviour
         _collectedCount = Mathf.Max(_collectedCount + 1, _collectedIds.Count);
         _activeItems.Remove(item);
 
+        // 進捗変化イベントを発行
+        NotifyProgressChanged();
+
         // HUDに通知
         if (AdventureScrapHUD.Instance != null)
         {
@@ -972,6 +985,7 @@ public class AdventureScrapManager : MonoBehaviour
         tower?.OnLeverUnlockedByPoints();
 
         // 6. HUD表示を0個・0ptへ即時反映
+        NotifyProgressChanged();
         AdventureScrapHUD.Instance?.ResetForNewGame();
         AdventureScrapHUD.Instance?.OnCollect("", 0, TotalScrapCount);
 

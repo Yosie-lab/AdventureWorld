@@ -23,34 +23,66 @@ public static class AdventureStoryFlow
         FreeFlight = 7
     }
 
-    /// <summary>現在フェーズ。後段を優先（Clear &gt; Epilogue &gt; Climax &gt; Skybreak）。</summary>
+    public static event System.Action<Phase, Phase> OnPhaseChanged;
+
+    static Phase _lastPhase = Phase.Explore;
+    static int _lastPhaseFrame = -1;
+    static Phase _cachedPhase = Phase.Explore;
+
+    /// <summary>現在フェーズ。後段を優先（Clear &gt; Epilogue &gt; Climax &gt; Skybreak）。同フレーム内はキャッシュを返し負荷を抑制。</summary>
     public static Phase Current
     {
         get
         {
-            var opening = AdventureRustFloatOpening.Instance;
-            if (opening != null && opening.IsModalBoardOpen())
-                return Phase.Opening;
+            if (_lastPhaseFrame == Time.frameCount)
+                return _cachedPhase;
 
-            var tower = AdventureSanctuaryTowerManager.Instance;
-            if (tower != null)
+            Phase nextPhase = ResolveCurrentPhase();
+            _lastPhaseFrame = Time.frameCount;
+            _cachedPhase = nextPhase;
+
+            if (_lastPhase != nextPhase)
             {
-                if (tower.ShowGameClearModal)
-                    return Phase.Clear;
-                if (tower.IsEpiloguePlaying)
-                    return Phase.Epilogue;
-                if (tower.ClimaxCrisisStarted || tower.IsClimaxOilPromptActive)
-                    return Phase.Climax;
-                if (tower.IsSkybreakModalActive)
-                    return Phase.Skybreak;
+                Phase prev = _lastPhase;
+                _lastPhase = nextPhase;
+                try
+                {
+                    OnPhaseChanged?.Invoke(prev, nextPhase);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"[AdventureStoryFlow] OnPhaseChanged 例外: {ex.Message}");
+                }
             }
 
-            if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsPrologueActive)
-                return Phase.Prologue;
-            if (AdventureSanctuaryTowerManager.IsGameCleared)
-                return Phase.FreeFlight;
-            return Phase.Explore;
+            return nextPhase;
         }
+    }
+
+    static Phase ResolveCurrentPhase()
+    {
+        var opening = AdventureRustFloatOpening.Instance;
+        if (opening != null && opening.IsModalBoardOpen())
+            return Phase.Opening;
+
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null)
+        {
+            if (tower.ShowGameClearModal)
+                return Phase.Clear;
+            if (tower.IsEpiloguePlaying)
+                return Phase.Epilogue;
+            if (tower.ClimaxCrisisStarted || tower.IsClimaxOilPromptActive)
+                return Phase.Climax;
+            if (tower.IsSkybreakModalActive)
+                return Phase.Skybreak;
+        }
+
+        if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsPrologueActive)
+            return Phase.Prologue;
+        if (AdventureSanctuaryTowerManager.IsGameCleared)
+            return Phase.FreeFlight;
+        return Phase.Explore;
     }
 
     public static bool Is(Phase phase) => Current == phase;

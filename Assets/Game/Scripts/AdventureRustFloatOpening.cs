@@ -41,6 +41,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
     float _openTime = 0f;
     static float _inputGuardUntil = 0f;
 
+    public Text GuideText => _guideText;
+
     /// <summary>オープニング決定後、入力の誤爆（ジャンプや滑空）を防止する入力ガード中か判定</summary>
     public static bool IsInputGuarded => Time.unscaledTime < _inputGuardUntil;
 

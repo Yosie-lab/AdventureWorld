@@ -33,14 +33,9 @@ public partial class AdventureSanctuaryTowerManager
         ApplySkybreakColdAtmosphere();
 
         // ピアノが鳴っていたら2秒かけてフェードアウト＆ダッキング解除
-        var piano = AdventureAncientPianoRelic.Instance;
+        var piano = AdventureAncientPianoRelic.Instance ?? Object.FindFirstObjectByType<AdventureAncientPianoRelic>();
         if (piano != null)
             piano.FadeOutPiano(2.0f);
-        else
-        {
-            foreach (var p in Object.FindObjectsByType<AdventureAncientPianoRelic>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                if (p != null) p.FadeOutPiano(2.0f);
-        }
 
         var drone = GetDrone();
         if (drone != null)

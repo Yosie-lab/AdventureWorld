@@ -464,6 +464,24 @@ public class AdventureCapytaBlessing : MonoBehaviour
         bestDist = float.MaxValue;
         Transform best = null;
 
+        var registered = AdventureCapytaBodyCollider.AllCapytas;
+        if (registered != null && registered.Count > 0)
+        {
+            for (int i = 0; i < registered.Count; i++)
+            {
+                var t = registered[i];
+                if (t == null) continue;
+                float d = FlatDist(playerPos, t.position);
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    best = t;
+                }
+            }
+            return best;
+        }
+
+        // レジストリ未初期化時の安全フォールバック
         var npcs = Object.FindObjectsByType<AdventureNpc>(FindObjectsInactive.Exclude);
         for (int i = 0; i < npcs.Length; i++)
         {
@@ -476,19 +494,6 @@ public class AdventureCapytaBlessing : MonoBehaviour
             {
                 bestDist = d;
                 best = n.transform;
-            }
-        }
-
-        var all = Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude);
-        for (int i = 0; i < all.Length; i++)
-        {
-            var t = all[i];
-            if (!IsCapytaInstanceRoot(t)) continue;
-            float d = FlatDist(playerPos, t.position);
-            if (d < bestDist)
-            {
-                bestDist = d;
-                best = t;
             }
         }
 

@@ -77,6 +77,29 @@ public class AdventureScrapHUD : MonoBehaviour
         CreateUI();
     }
 
+    void OnEnable()
+    {
+        AdventureStoryFlow.OnPhaseChanged += OnStoryPhaseChanged;
+        AdventureScrapManager.OnProgressChanged += OnScrapProgressUpdated;
+    }
+
+    void OnDisable()
+    {
+        AdventureStoryFlow.OnPhaseChanged -= OnStoryPhaseChanged;
+        AdventureScrapManager.OnProgressChanged -= OnScrapProgressUpdated;
+    }
+
+    void OnStoryPhaseChanged(AdventureStoryFlow.StoryPhase phase)
+    {
+        RefreshQuestDisplay();
+        RefreshOilDisplay(force: true);
+    }
+
+    void OnScrapProgressUpdated()
+    {
+        RefreshQuestDisplay();
+    }
+
     void CreateUI()
     {
         var canvasGo = new GameObject("ScrapHUD_Canvas");
@@ -324,7 +347,7 @@ public class AdventureScrapHUD : MonoBehaviour
         _oilCg.alpha = cinematicHide ? 0f : 1f;
         if (cinematicHide) return;
 
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance;
         int oil = drone != null ? Mathf.Max(0, drone.oilCount) : 0;
         if (!force && oil == _lastOilShown) return;
         _lastOilShown = oil;
@@ -384,7 +407,7 @@ public class AdventureScrapHUD : MonoBehaviour
     {
         if (_tickerText == null) return;
 
-        var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
+        var scrapMgr = AdventureScrapManager.Instance;
         int count = scrapMgr != null ? scrapMgr.CollectedCount : _lastKnownCount;
         if (scrapMgr != null && scrapMgr.CollectedCount == 0)
         {
@@ -401,7 +424,7 @@ public class AdventureScrapHUD : MonoBehaviour
             count = _lastKnownCount;
         }
 
-        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance;
         int totalPts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
         bool leverUnlocked = scrapMgr != null && scrapMgr.IsLeverUnlocked;
 
@@ -426,7 +449,7 @@ public class AdventureScrapHUD : MonoBehaviour
 
         // 2行目：最寄りパーツ探知（方角と距離）またはレバー誘導
         string subInfo = "";
-        var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
+        var player = AdventurePlayerController.Instance;
         if (player != null && !leverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken)
         {
             float dist = 0f;

@@ -96,7 +96,7 @@ public partial class AdventureSanctuaryTowerManager
             if (drone != null)
                 drone.TriggerClimaxOverdrive();
 
-            var cam = Camera.main != null ? Camera.main.GetComponent<AdventureCameraFollow>() : null;
+            var cam = AdventureCameraFollow.Instance;
             if (cam != null)
                 cam.Shake(0.65f, 0.95f);
 
@@ -329,7 +329,7 @@ public partial class AdventureSanctuaryTowerManager
         if (drone != null)
             drone.StartClimaxPetAndOil();
 
-        var cam = Camera.main != null ? Camera.main.GetComponent<AdventureCameraFollow>() : null;
+        var cam = AdventureCameraFollow.Instance;
         if (cam != null)
             cam.Shake(0.35f, 0.55f);
 

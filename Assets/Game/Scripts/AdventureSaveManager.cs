@@ -675,7 +675,7 @@ public class AdventureSaveManager : MonoBehaviour
         // 継続プレイ時は中央の時代背景ボードを出さない／残っていれば閉じる
         if (data.collectedCount > 0)
         {
-            var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
+            var opening = AdventureRustFloatOpening.Instance ?? FindAnyObjectByType<AdventureRustFloatOpening>();
             opening?.DismissBecauseContinuingSave();
         }
     }
@@ -771,7 +771,7 @@ public class AdventureSaveManager : MonoBehaviour
         Debug.Log("[AdventureSaveManager] ニューゲーム開始：全ポイント0・パーツ配置を再抽選しました。");
 
         // 時代背景オープニングから再開（Play後にプロローグ）
-        var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
+        var opening = AdventureRustFloatOpening.Instance ?? FindAnyObjectByType<AdventureRustFloatOpening>();
         if (opening != null)
             opening.ShowForNewGame();
         else
