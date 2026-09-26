@@ -31,8 +31,8 @@ public class AdventureHermitCrab : MonoBehaviour
         _startPos = transform.position;
         _moveDir = (Random.value > 0.5f ? transform.right : -transform.right);
 
-        var niko = GameObject.Find("Niko");
-        if (niko != null) _player = niko.transform;
+        var player = AdventurePlayerController.InstanceOrFind();
+        if (player != null) _player = player.transform;
 
         BuildHermitCrab();
     }
@@ -189,6 +189,12 @@ public class AdventureHermitCrab : MonoBehaviour
 
     void Update()
     {
+        if (_player == null)
+        {
+            var p = AdventurePlayerController.InstanceOrFind();
+            if (p != null) _player = p.transform;
+        }
+
         if (_player != null)
         {
             float dist = Vector3.Distance(transform.position, _player.position);

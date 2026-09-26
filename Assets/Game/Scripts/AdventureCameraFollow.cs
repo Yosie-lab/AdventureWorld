@@ -51,7 +51,6 @@ public class AdventureCameraFollow : MonoBehaviour
     float _distVel;
 
     float _framedPitch;
-    float _framedPitchVel;
     float _camGroundY;
     float _camGroundYVel;
 
@@ -151,7 +150,6 @@ public class AdventureCameraFollow : MonoBehaviour
         _currentDistance = distance;
         _distVel = 0f;
         _framedPitch = WalkPitch;
-        _framedPitchVel = 0f;
         CurrentYaw = _yaw;
     }
 

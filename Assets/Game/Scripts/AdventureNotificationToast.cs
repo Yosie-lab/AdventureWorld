@@ -78,7 +78,9 @@ public class AdventureNotificationToast : MonoBehaviour
         panelRect.sizeDelta = new Vector2(560f, 52f);
 
         var panelImg = panelGo.AddComponent<Image>();
-        panelImg.color = new Color(0.08f, 0.12f, 0.18f, 0.88f); // シックなダークブルー半透明
+        panelImg.sprite = CreateRoundedRectSprite(24, 6);
+        panelImg.type = Image.Type.Sliced;
+        panelImg.color = new Color(0.06f, 0.10f, 0.16f, 0.88f); // 落ち着いた深いブルーグレー半透明
 
         _canvasGroup = panelGo.AddComponent<CanvasGroup>();
         _canvasGroup.alpha = 0f;
@@ -93,16 +95,53 @@ public class AdventureNotificationToast : MonoBehaviour
         textRect.anchorMin = Vector2.zero;
         textRect.anchorMax = Vector2.one;
         textRect.sizeDelta = Vector2.zero;
-        textRect.offsetMin = new Vector2(16f, 4f);
-        textRect.offsetMax = new Vector2(-16f, -4f);
+        textRect.offsetMin = new Vector2(24f, 6f);
+        textRect.offsetMax = new Vector2(-24f, -6f);
 
         _messageText = textGo.AddComponent<Text>();
         _messageText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
                          ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
-        _messageText.fontSize = 20;
+        _messageText.fontSize = 19;
         _messageText.alignment = TextAnchor.MiddleCenter;
         _messageText.supportRichText = true;
         _messageText.color = new Color(1f, 1f, 1f, 0.95f);
+    }
+
+    static Sprite CreateRoundedRectSprite(int size, int radius)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+
+        Color fill = Color.white;
+        Color clear = new Color(1f, 1f, 1f, 0f);
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                int dx = Mathf.Min(x, size - 1 - x);
+                int dy = Mathf.Min(y, size - 1 - y);
+
+                if (dx < radius && dy < radius)
+                {
+                    float dist = Vector2.Distance(new Vector2(dx, dy), new Vector2(radius, radius));
+                    if (dist > radius)
+                        tex.SetPixel(x, y, clear);
+                    else
+                    {
+                        float alpha = Mathf.Clamp01(radius - dist + 0.5f);
+                        tex.SetPixel(x, y, new Color(fill.r, fill.g, fill.b, alpha));
+                    }
+                }
+                else
+                {
+                    tex.SetPixel(x, y, fill);
+                }
+            }
+        }
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
     }
 
     void ShowInternal(string message, float duration)
@@ -110,6 +149,12 @@ public class AdventureNotificationToast : MonoBehaviour
         if (_messageText != null)
         {
             _messageText.text = message;
+            // メッセージ長さに応じてパネル幅を程よくフィット（最小420px、最大680px）
+            int charCount = message.Length;
+            float targetWidth = Mathf.Clamp(charCount * 22f + 80f, 420f, 680f);
+            var rt = _messageText.transform.parent as RectTransform;
+            if (rt != null)
+                rt.sizeDelta = new Vector2(targetWidth, 52f);
         }
         _displayTimer = duration;
     }

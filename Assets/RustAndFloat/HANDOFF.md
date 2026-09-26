@@ -921,6 +921,11 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
       - **5. 水辺・ヤシの木・草むらに舞う発光ホタル（Fireflies）**:
         - 夕暮れ〜夜になると、ヤシの木林や水辺、草むらに黄緑色・エメラルド・黄金の光を点滅させながらフワフワと舞うホタルの群れが自然発生。
 
+38. **コードクリーンアップ＆UI/生態系リファクタリング（2026-09-26追加）**:
+    - [AdventureNotificationToast.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureNotificationToast.cs): 角丸スプライトのプロシージャル生成（9スライス）とテキスト文字数に応じた適応幅レイアウト（Dynamic Width Fit）を導入し、通知UIの上質感を向上。
+    - [AdventureHermitCrab.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureHermitCrab.cs) / [AdventureSchoolingFish.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSchoolingFish.cs): `GameObject.Find("Niko")` の名前依存を撤廃し、`AdventurePlayerController.InstanceOrFind()` による直接型参照および遅延リカバリ処理へ統一。
+    - [AdventureCameraFollow.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureCameraFollow.cs): 未使用変数（`_framedPitchVel` 等）の削除とコンパイラ警告のクリーンアップ。
+
 ## 次の推奨タスク
 
 1. **相棒Rustのドローン視点フォトモード（思い出アルバム撮影機能）**:

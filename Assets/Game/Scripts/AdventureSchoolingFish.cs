@@ -34,8 +34,8 @@ public class AdventureSchoolingFish : MonoBehaviour
 
     void Start()
     {
-        var niko = GameObject.Find("Niko");
-        if (niko != null) _player = niko.transform;
+        var player = AdventurePlayerController.InstanceOrFind();
+        if (player != null) _player = player.transform;
 
         BuildFishMesh();
 
@@ -242,6 +242,12 @@ public class AdventureSchoolingFish : MonoBehaviour
 
     void UpdateAI()
     {
+        if (_player == null)
+        {
+            var p = AdventurePlayerController.InstanceOrFind();
+            if (p != null) _player = p.transform;
+        }
+
         // プレイヤー接近判定
         if (_player != null)
         {
