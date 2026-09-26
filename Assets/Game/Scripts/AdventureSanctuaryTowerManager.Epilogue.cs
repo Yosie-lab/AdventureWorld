@@ -309,9 +309,11 @@ public partial class AdventureSanctuaryTowerManager
         _epilogueAlpha = 0f;
         _letterboxTargetAlpha = 0f;
         SuppressAllSpeechAndBanners();
+        EnsureGameClearModalUI();
+        PlayGameClearTriumphChime();
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.KeepEndingThemeActive();
-        Debug.Log("[RustAndFloat] シネマエピローグ完了 → クリアモーダル");
+        Debug.Log("[RustAndFloat] シネマエピローグ完了 → クリアモーダル＆祝祭チャイム再生");
     }
 
     IEnumerator EpilogueSequenceRoutine()

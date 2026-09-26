@@ -926,6 +926,13 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
     - [AdventureHermitCrab.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureHermitCrab.cs) / [AdventureSchoolingFish.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSchoolingFish.cs): `GameObject.Find("Niko")` の名前依存を撤廃し、`AdventurePlayerController.InstanceOrFind()` による直接型参照および遅延リカバリ処理へ統一。
     - [AdventureCameraFollow.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureCameraFollow.cs): 未使用変数（`_framedPitchVel` 等）の削除とコンパイラ警告のクリーンアップ。
 
+39. **ゲームクリアボード表示時の祝祭クリスタルチャイム実装（2026-09-26追加）**:
+    - [AdventureSanctuaryTowerManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs)
+    - [AdventureSanctuaryTowerManager.Epilogue.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSanctuaryTowerManager.Epilogue.cs)
+    - **機能概要**:
+      - エピローグシネマ完了時、およびゲームクリアボード（`GameClearModal`）が表示された瞬間に、プロシージャル合成された壮大で感動的な祝祭のクリスタルベル・チャイム（`GameClearTriumphChime`）を自動再生。
+      - Cメジャー7th〜9thの上行アルペジオ（大空への羽ばたきを象徴する8音）＋オクターブ倍音＋ステレオ空間ディレイ＋広大な天空リバーブにより、冒険を完走した達成感と余韻を情緒豊かに演出。
+
 ## 次の推奨タスク
 
 1. **相棒Rustのドローン視点フォトモード（思い出アルバム撮影機能）**:
