@@ -581,10 +581,10 @@ public partial class AdventureRustDrone : MonoBehaviour
                 look *= Quaternion.Euler(0f, Mathf.Sin(Time.time * 18f) * 8f, 0f);
             else if (_isPointingToScrap && CurrentState == RustState.Follow)
                 look *= Quaternion.Euler(Mathf.Sin(Time.time * 10f) * 6f, 0f, Mathf.Cos(Time.time * 8f) * 4f);
-            else if (CurrentState == RustState.Follow && Mathf.Abs(_idleTiltAngle) > 0.05f)
+            else if (CurrentState == RustState.Follow)
             {
-                // 通常追従・立ち止まり時の愛らしい首かしげチルト
-                look *= Quaternion.Euler(0f, 0f, _idleTiltAngle);
+                // 自律感情・好奇心（水濡れプルプル・花見下ろし・うたた寝・首かしげ）の姿勢補正
+                look = ApplyCuriosityRotation(look);
             }
 
             float rotSpeed = IsClimaxCrisis ? 14f : (IsClimaxOverdrive ? 9f : 6.5f);
