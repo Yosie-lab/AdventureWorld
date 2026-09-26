@@ -35,6 +35,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     static AudioClip _chimeClip;
 
     public bool IsCollected => _isCollected;
+    public Color itemColor => themeColor;
 
     void Awake()
     {
@@ -323,11 +324,12 @@ public class AdventureBeachSeashellItem : MonoBehaviour
             AdventureBeachSeashellManager.Instance.NotifyCollected(this);
         }
 
-        // 相棒Rustのリアクション
+        // 相棒Rustのリアクション＆お祝い宙返り！
         var drone = AdventureRustDrone.Instance;
-        if (drone != null && Random.value < 0.75f)
+        if (drone != null)
         {
-            drone.SpeakCustom(rustReaction, 2.8f);
+            string speech = !string.IsNullOrEmpty(rustReaction) ? rustReaction : $"ピピッ！綺麗な「{itemName}」だね！";
+            drone.TriggerCelebration(speech, 2.4f);
         }
 
         gameObject.SetActive(false);

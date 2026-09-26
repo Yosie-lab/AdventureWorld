@@ -1139,9 +1139,12 @@ public class AdventureBeachDriftBox : MonoBehaviour
         }
         _isModalOpen = false;
 
-        // ゲームプレイ用にマウスカーソルを再度ロック
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        // ゲームプレイ用にマウスカーソルを再度ロック（他のモーダルが開いていなければ）
+        if (!AdventureStoryFlow.WantsFreeCursor)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════

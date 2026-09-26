@@ -20,6 +20,10 @@ public class AdventureNikoFootsteps : MonoBehaviour
     AudioClip _waterStepR;
     AudioClip _waterLanding;
 
+    // 白砂ビーチ用サクサク足音クリップ
+    AudioClip _sandStepL;
+    AudioClip _sandStepR;
+
     float _stepTimer = 0f;
     int _stepCount = 0;
     Vector3 _lastPos;
@@ -64,6 +68,10 @@ public class AdventureNikoFootsteps : MonoBehaviour
         _waterStepL = SynthesizeWaterSplash("WaterStep_L", 1150f, 380f, 0.11f);
         _waterStepR = SynthesizeWaterSplash("WaterStep_R", 1380f, 440f, 0.11f);
         _waterLanding = SynthesizeWaterSplash("WaterLanding", 850f, 240f, 0.24f);
+
+        // 白砂ビーチのサクサク砂踏み足音（乾いた細粒砂の擦過音＋低音レゾナンス）
+        _sandStepL = SynthesizeSandStep("SandStep_L", isLeft: true);
+        _sandStepR = SynthesizeSandStep("SandStep_R", isLeft: false);
     }
 
     void Update()
@@ -139,6 +147,7 @@ public class AdventureNikoFootsteps : MonoBehaviour
         _stepCount++;
         bool isLeft = (_stepCount % 2 == 0);
         bool inWater = CheckIsInWater(footPos);
+        bool onSand = !inWater && AdventureBeachVisualEnhancer.CheckIsOnSandBeach(footPos);
 
         AudioClip clip;
         if (inWater)
@@ -161,6 +170,16 @@ public class AdventureNikoFootsteps : MonoBehaviour
 
             _audioSource.pitch = Random.Range(0.96f, 1.04f);
             _audioSource.PlayOneShot(clip, vol);
+
+            // 砂浜の場合、心地よいサクサク砂踏み音をブレンド再生
+            if (onSand)
+            {
+                AudioClip sandClip = isLeft ? _sandStepL : _sandStepR;
+                if (sandClip != null)
+                {
+                    _audioSource.PlayOneShot(sandClip, vol * 0.95f);
+                }
+            }
         }
     }
 
@@ -290,6 +309,44 @@ public class AdventureNikoFootsteps : MonoBehaviour
             float total = (liquidPop * 0.65f + noise * 0.35f) * env;
 
             data[i] = Mathf.Clamp(total * 0.92f, -1f, 1f);
+        }
+
+        var ac = AudioClip.Create(name, count, 1, rate, false);
+        ac.SetData(data, 0);
+        return ac;
+    }
+
+    /// <summary>乾いた細粒白砂を踏みしめたときの心地よいサクサク砂音（擦過ホワイトノイズ＋低音クッション）</summary>
+    static AudioClip SynthesizeSandStep(string name, bool isLeft)
+    {
+        const int rate = 44100;
+        float duration = 0.14f;
+        int count = (int)(rate * duration);
+        float[] data = new float[count];
+
+        // 左右でわずかにピッチ・音色差をつけて自然な歩行リズム感を演出
+        float baseFreq = isLeft ? 180f : 210f;
+        Random.InitState(isLeft ? 101 : 202);
+
+        float lastFilter = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float p = t / duration;
+
+            // 乾いた砂粒が擦れ合う微細な粒状ノイズ（バンドパス風の滑らかさ）
+            float rawNoise = (Random.value * 2f - 1f);
+            float filteredNoise = lastFilter * 0.45f + rawNoise * 0.55f;
+            lastFilter = filteredNoise;
+
+            // 砂の踏み込みによる柔らかな低域レゾナンス（足の重みが砂に沈む）
+            float lowThump = Mathf.Sin(2f * Mathf.PI * baseFreq * t * (1f - p * 0.4f)) * Mathf.Exp(-t * 36f);
+
+            // 急峻な立ち上がりと自然な減衰エンベロープ
+            float env = (t < 0.008f) ? (t / 0.008f) : Mathf.Exp(-(t - 0.008f) * 26f) * (1f - p);
+
+            float total = (filteredNoise * 0.68f + lowThump * 0.32f) * env;
+            data[i] = Mathf.Clamp(total * 0.75f, -1f, 1f);
         }
 
         var ac = AudioClip.Create(name, count, 1, rate, false);

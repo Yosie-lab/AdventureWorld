@@ -744,16 +744,138 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
         - **目標ワールド寸法の強化**: 横幅 `1.25m`、全長 `1.85m`、高さ **`1.95m`** に拡大し、Nikoが頭上を踏み越えたりステップクライムできない十分な防壁を形成。
         - **高低差対応プッシュバック＆ハードフェイルセーフ**: ピアノ丸椅子や起伏のある地形でも上下判定が外れないよう足元〜頭上交差判定へ刷新し、Move()が引っかかった場合でも瞬時に外側へスナップ押し出しする二重防御を実装。
 
+28. **貝殻・シーグラスの報酬ループ＆Rust着せ替え工房の実装（2026-09-26追加）**:
+    - [AdventureRustCosmetics.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureRustCosmetics.cs)
+    - [AdventureRustWorkshopUI.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureRustWorkshopUI.cs)
+    - [AdventureBeachSeashellManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBeachSeashellManager.cs)
+    - [AdventureRustDrone.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureRustDrone.cs)
+    - [AdventureSaveManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSaveManager.cs)
+    - **実施内容**:
+      - **収集アイテムのインベントリストック化**:
+        - サクラガイ・エメラルド硝子・サファイア硝子・太陽琥珀・純白巻貝の採取時にストック数を加算・PlayerPrefs保存。
+      - **全5種類のRustアクセサリー（ドレスアップ・コスメティクス）**:
+        - 🌸 **サクラガイの花冠 (Head)**: 桜色貝殻のティアラ＋花びらパーティクル。
+        - 🟢 **エメラルド・アンテナランプ (Antenna)**: 深緑のクリスタル発光＋周囲を照らすPointLight。
+        - 🔷 **サファイアの翼チャーム (Wings)**: 左右サファイア小翼＋飛行時の蒼いTrail（光の軌跡）。
+        - ☀️ **太陽の琥珀コア (Core)**: 黄金色の琥珀コア＋胴体ライト黄金化＋推進ゴールドスパーク。
+        - 🐚 **純白巻貝のホイッスル (Side)**: 側面の純白巻貝。
+      - **Rust着せ替え工房UI＆砂浜の作業台（Workbench）**:
+        - 【Bキー】または座礁艇前の作業台で【Eキー】を押すと、洗練された2カラムのガラスモフィズム工房UIが起動。
+        - 左側に素材ポーチの所持数、右側にアクセサリーカタログと「つくる」「そうびする」「はずす」ボタンを配置。
+        - クラフト・装備時にはRustが宙返り（Celebrate）し、「わぁ…！すっごく可愛い！ありがとう！」と嬉しそうにリアクション。
+        - ニューゲーム（F8 / ポーズ初期化）時のコスメティクス初期化連携を完備。
+
+29. **カーソル消失・ロック競合の完全根絶（2026-09-26追加）**:
+    - [AdventureStoryFlow.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureStoryFlow.cs)
+    - [AdventureCameraFollow.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureCameraFollow.cs)
+    - [AdventureRustWorkshopUI.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureRustWorkshopUI.cs)
+    - [AdventureBeachDriftBox.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBeachDriftBox.cs)
+    - [AdventureBeachNarrativeManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBeachNarrativeManager.cs)
+    - **原因と改修内容**:
+      - **原因**:
+        1. 各種UIモーダル（Rust工房UI、漂流箱手記、海岸日誌・石碑、ポーズメニュー等）が開いた際、`AdventureStoryFlow.WantsFreeCursor` がそれらを網羅していなかったため、カメラUpdate側でマウス移動やクリック時に即座に `Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;` と再ロック・不可視化されてしまっていた。
+        2. UI上のボタンクリック時（`IsPointerOverGameObject`）でもカメラのクリック判定が走り、カーソルが再ロックされていた。
+        3. Unityウィンドウのフォーカス復帰時（`OnApplicationFocus`）にカーソル復帰処理がなかった。
+      - **改修内容**:
+        - `AdventureStoryFlow.WantsFreeCursor` をすべてのUIモーダル（ポーズ、工房UI、手記、海岸日誌、オープニング、聖域台本、クリア画面等）を統合判定するプロパティに刷新。
+        - `AdventureCameraFollow` で `WantsFreeCursor` 中はカーソル表示とアンロック（`CursorLockMode.None`）を強固に維持し、UIクリック等による意図しない再ロックを完全遮断。UI表示中の背景カメラ誤回転も停止。
+        - 通常探索時も `EventSystem.IsPointerOverGameObject()` ガードを設け、UI要素クリックでカーソルが消えないように保護。
+        - 各UIを閉じる際も、他に開いているモーダルがあればカーソルを解放し続ける安全ガードを徹底。
+
+30. **白砂ビーチ＆浅瀬の4大情緒ビジュアル・環境音響強化（2026-09-26追加）**:
+    - [AdventureBeachVisualEnhancer.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBeachVisualEnhancer.cs)
+    - [AdventureNikoFootsteps.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureNikoFootsteps.cs)
+    - **実装内容**:
+      - **1. 浅瀬の光の揺らめき（コースティクス・網目状の波光投影）**:
+        - 西側海岸線（Z: 165m〜425m）の地形表面を二分探索で自動スキャンし、水深0m〜1.8mの浅瀬底面にぴったり沿うリボンメッシュを生成。
+        - 太陽光が水面で屈折して生まれるプロシージャルVoronoi光網目テクスチャを多重UVスクロールさせ、ゆらゆらと波打つ美しい海底の光を再現。
+      - **2. 寄せては返す波打ち際の白波ライン（Shoreline Wave & Foam）**:
+        - 汀線から砂浜にかけて広がるサーフフォームメッシュを自動生成。
+        - 周期約4.2秒の非線形ウェーブにより、海から砂浜へ白泡が押し寄せ、引くときにすっと消える情緒的な波打ち際を演出。
+      - **3. 白砂に残る愛らしい足跡（Sand Footprints）**:
+        - Nikoが白砂ビーチを歩いたとき、左右の足元に小さな足跡デカール（クワッド）を生成。
+        - 約3〜7秒かけて砂に溶けるようにフェードアウト。波打ち際近くの足跡は波によって洗い流される。
+      - **4. 砂浜サクサク足音 & 波打ち際のきらめく潮煙（Sea Mist）**:
+        - 砂浜を歩いたときに心地よい「サクッ、サクッ」という乾いた細粒白砂の擦過音をプロシージャル合成して自動ブレンド。
+        - 海岸線沿いにふんわりと漂い、陸地への海風に乗ってきらめく微細な潮煙（シーミスト）パーティクルを配置。
+
+31. **RustのNiko体躯食い込み完全防止＆寄り添い距離の適正化（2026-09-26追加）**:
+    - [AdventureRustDrone.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureRustDrone.cs)
+    - [AdventureRustDrone.Curiosity.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureRustDrone.Curiosity.cs)
+    - **原因と改修内容**:
+      - **原因**:
+        1. 水嫌がり（`CuriosityKind.WaterPanic`）や見つめ合い（`NikoEyeContact`）、スキンシップ（`Petting`）時の目標オフセットがNikoの首〜肩・胸元に近すぎ（水平距離約0.5m）、Rust本体やアクセサリーがNikoの体や頭にめり込んでいた。
+        2. Rustにコライダーがないため、Nikoの急停止や旋回時に慣性で体内へ突入してしまっていた。
+      - **改修内容**:
+        - **体躯クリアランス安全ガード（`EnforceNikoBodyClearance`）の実装**:
+          - Nikoの体躯（足元〜頭上、半径0.82m）への食い込みを、`Update` および `LateUpdate` の二重ループで毎フレーム監視・物理的プッシュアウト。体内方向への速度ベクトルもカットし、めり込みを100%遮断。
+        - **各寄り添いアクション目標位置の適正化**:
+          - 水嫌がり退避: 右肩斜め上（右0.85m, 後方0.35m, 高さ1.82m）へ外出しし、肩越しに怖がる愛らしい姿がクリアに見えるよう調整。
+          - 見つめ合い: 前方1.60m, 右0.65m, 高さ+0.22m に調整。
+          - 撫でスキンシップ（Petting）: 前方1.35m, 右0.45m, 高さ+0.18m に適正化。
+          - 通常追従（Follow）: 右1.25m, 後方1.55m にわずかに広げ、アクセサリーが映える構図を確保。
+
+32. **相棒Rustの探索ナビ＆お宝レーダー（2026-09-26追加）**:
+    - [AdventureRustDrone.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureRustDrone.cs)
+    - [AdventureBeachSeashellItem.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBeachSeashellItem.cs)
+    - [AdventureBeachDriftBox.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBeachDriftBox.cs)
+    - **機能概要**:
+      - **3大お宝の優先探知**:
+        1. **スクラップパーツ（35m以内、最優先）**: 「ピピピッ！あそこにパーツの反応があるよ！」（黄金の光）
+        2. **漂流木箱（26m以内）**: 「見て見て！あっちに漂着した木箱が落ちてるよ！」（シアンブルーの光）
+        3. **貝殻・シーグラス（22m以内）**: 「ピピッ！あっちに綺麗な『{itemName}』があるよ！」（貝殻固有のテーマカラーの光）
+      - **レーダーPointLight（9Hz点滅）＆ソナーチャイム音**:
+        - Rust上部のアンテナ位置に配置した `Rust_RadarLight` が、お宝発見中にお宝カラーで9Hz高速点滅。
+        - 探知開始時および約4.0秒おきに高周波のソナーピピピ音を再生。
+      - **先行飛行＆指差し姿勢**:
+        - Nikoとお宝を結ぶベクトル上、前方2.1mへ先行飛行。
+        - 胸元より少し高い位置でリズミカルに上下バウンスしながら、お宝の方向へピシッと機首を向けて「あそこ！」と小刻みに指差し合図。
+      - **アイテム取得時の大喜び宙返り（Celebration）連動**:
+        - スクラップ、漂流木箱、貝殻を拾い上げた瞬間に、Rustが空中で360度宙返りして大喜び＆感想を喋る。
+
+33. **ウミネコ（カモメ）の翼展開＆力強い羽ばたき・滑空飛行の完全刷新（2026-09-26追加）**:
+    - [AdventureBeachSeagull.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBeachSeagull.cs)
+    - **原因と改修内容**:
+      - **原因**: 翼メッシュの座標軸定義と飛行時の回転計算において、地上で閉じた姿勢から飛行時の「横に広げる角度」への展開が行われず、胴体に沿った閉じた角度のまま羽ばたき成分が微弱に加算されていたため、翼を閉じたまま滑るように飛んでいた。
+      - **改修内容**:
+        - **流線型の外向き翼メッシュ（左右個別）**: 付け根を原点とし、左右外側へ滑らかに広がる翼型メッシュ（上面・下面・前縁・後縁）を新規生成。
+        - **地上での折りたたみ姿勢**: 地上に佇んでいるときは、翼を背中・お尻側にキュッと美しく折りたたんで休むリアルな鳥の姿勢を再現。
+        - **離陸時の翼オープン＆ダイナミック羽ばたき**: 飛び立つ瞬間に0.25秒で翼を左右へバッと全開展開。
+        - **3軸連動羽ばたき（Flapping）**:
+          - 上下フラッピング（振幅 ±38度）
+          - 迎え角ひねり（打ち下ろし時は前傾・推進力、打ち上げ時は後傾）
+          - 前後スイング
+        - **上昇後の優雅な滑空（グライディング）**: 巡航高度に達すると、風に乗って羽を水平に広げて揺れる滑空モードと羽ばたきを周期的に交互に実施。胴体・尾羽も羽ばたきと同期して上下に連動バウンス。
+
+34. **カメラ視点の反応異常の根絶＆極上TPS操作感への全面最適化（2026-09-26追加）**:
+    - [AdventureCameraFollow.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureCameraFollow.cs)
+    - [AdventureRustFloatFeel.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureRustFloatFeel.cs)
+    - **原因と改修内容**:
+      - **原因**:
+        1. **過敏すぎる感度**: `Sensitivity` が 0.50f（過剰値）に設定されており、高DPIや微小なマウス移動で視点が吹っ飛ぶような過剰反応を起こしていた。
+        2. **勝手なピッチ水平引き戻し**: マウス操作停止後わずか0.55秒で、ピッチが勝手に 0度（完全水平）へ強制リセットされていたため、見下ろしたり見上げたりしてもすぐに正面に戻されていた。
+        3. **腰への強制LookRotationブレンド**: 地上歩行中にカメラ姿勢をNikoの腰（1.05m）を見る向きと55%強制ブレンドしていたため、上下入力が潰れたり引っかかる歪みが生じていた。
+        4. **狭すぎる上下視野制限**: `pitchMin = -12f, pitchMax = 32f` で足元も空も見えず窮屈だった。
+      - **改修内容**:
+        - **感度を吸い付くような 0.12f へ適正化**（過去の保存値も安全に自動補正）。
+        - **勝手なピッチ引き戻し処理を完全撤廃**（プレイヤーが向けた上下アングルを100%忠実に維持）。
+        - **腰への強制フレーミングを完全撤廃**し、入力角度をダイレクトにカメラへ適用。
+        - **上下可動域を拡大**（見下ろし -42度、見上げ +58度）し、足元の貝殻から大空のウミネコまで快適に見回せるよう改善。
+
 ## 次の推奨タスク
 
-1. **白砂ビーチ・海面のビジュアルリファイン（コースティクスや波の泡立ち表現の強化）**:
-   - 浅瀬や波打ち際のキラキラとした水面反射の追加。
-2. **相棒Rustのさらなるリアクション（貝殻を見つけたときの探索ナビ・指差し）**:
-   - 近くに貝殻や宝箱があるときにアンテナをピピッと光らせて案内する小気味よいサポート行動。
+1. **カピタたちとのふれあい・物々交換（癒やし要素の拡張）**:
+   - 砂浜や草むらのカピタに貝殻をプレゼントすると珍しい宝物を掘り出してくれたり、Rustとお揃いの花冠を乗せて一緒に寄り添って休めるインタラクション。
+2. **ドローン視点のフォトモード（思い出撮影機能）**:
+   - Rustのカメラ視点に切り替えて、自由なアングルで島全体の絶景やおしゃれしたRust、カピタたちとの記念撮影ができる機能。
+3. **海中・浅瀬の小魚の群れ＆サンゴ礁の生息（浅瀬の生態系強化）**:
+   - 浅瀬を歩くと小魚の群れが足元からサッと逃げたり、色とりどりのサンゴの周りを熱帯魚が泳ぐ生き生きとした海辺の表現。
 
 ## ブランチ
 
 `main`
 リモート: `https://github.com/Yosie-lab/AdventureWorld.git`
 コミット方針: ユーザーが commit / push を明示したときだけ。AdventureWorld の地形と Demo/Loader へのビルド差し替えは入れない。
+
+
 

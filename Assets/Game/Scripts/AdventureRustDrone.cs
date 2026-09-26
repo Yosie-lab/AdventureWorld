@@ -52,10 +52,26 @@ public partial class AdventureRustDrone : MonoBehaviour
     bool _isPlayerNear = false;
     float _lastInteractTime = 0f;
 
-    // 探索アシスト（近くの未発見パーツへの誘導・合図）
+    // 3大お宝レーダー探知（スクラップ・漂流木箱・貝殻）
+    public enum GuidedTreasureType
+    {
+        None,
+        Scrap,
+        DriftBox,
+        Seashell
+    }
+
+    GuidedTreasureType _guidedTreasureType = GuidedTreasureType.None;
+    GuidedTreasureType _prevGuidedTreasureType = GuidedTreasureType.None;
+    Vector3 _guidedTreasurePos;
+    Color _radarLightColor = Color.yellow;
+    Light _radarFlashLight;
+    float _nextRadarBeepTime = 0f;
+
     AdventureScrapItem _guidedScrap;
     float _nextGuideNotice = 0f;
     bool _isPointingToScrap = false;
+    public bool IsGuidingTreasure => _guidedTreasureType != GuidedTreasureType.None;
 
     // 20pt達成時の中央タワー先導誘導
     bool _isGuidingToTower = false;
@@ -178,6 +194,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         SetupAudio();
         SetupHeat();
         SetupOil();
+        SetupRadarLight();
         oilCount = Mathf.Max(oilCount, 8); // 開始時から十分ストック（Rustを甘やかす）
 
         AdventureRustSpeechUI.Ensure();
@@ -309,6 +326,20 @@ public partial class AdventureRustDrone : MonoBehaviour
         SpawnGoldSparkles(transform.position + Vector3.up * 0.5f, 48);
         if (_audio != null && _happyBeepClip != null)
             _audio.PlayOneShot(_happyBeepClip, 0.7f);
+    }
+
+    /// <summary>着せ替えやクラフト成功時の大はしゃぎ（ピョンと跳ねて宙返り＆キラキラ音）</summary>
+    public void TriggerCelebrate()
+    {
+        _velocity += Vector3.up * 2.8f;
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 40);
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = Random.Range(1.15f, 1.35f);
+            _audio.PlayOneShot(_happyBeepClip, 0.85f);
+        }
+        CurrentState = RustState.Celebrating;
+        _stateTimer = 1.4f;
     }
 
     float _nextIdleTalk;
@@ -455,7 +486,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             else
             {
                 Vector3 chestPos = GetNikoChestPosition();
-                goal = chestPos + _lookAt.forward * 1.2f + _lookAt.right * 0.25f + Vector3.up * 0.1f;
+                goal = chestPos + _lookAt.forward * 1.35f + _lookAt.right * 0.45f + Vector3.up * 0.18f;
                 goal.y += Mathf.Sin(Time.time * 3.5f) * 0.035f;
                 _lagTarget = goal;
                 _stateTimer -= Time.deltaTime;
@@ -512,6 +543,9 @@ public partial class AdventureRustDrone : MonoBehaviour
             transform.position += Vector3.up * floatUp;
         }
 
+        // Nikoの体躯への食い込みを物理的に100%遮断・押し出す安全ガード
+        EnforceNikoBodyClearance();
+
         // 回転の計算
         Vector3 to = goal - transform.position;
         if (IsClimaxOverdrive && _lookAt != null)
@@ -533,6 +567,8 @@ public partial class AdventureRustDrone : MonoBehaviour
             to = _lookAt.position + Vector3.up * 0.7f - transform.position;
             if (_isGuidingToTower)
                 to = SanctuaryTowerCenter + Vector3.up * 2.0f - transform.position;
+            else if (_guidedTreasureType != GuidedTreasureType.None)
+                to = _guidedTreasurePos + Vector3.up * 0.25f - transform.position;
             else if (_isPointingToScrap && _guidedScrap != null)
                 to = _guidedScrap.transform.position + Vector3.up * 0.3f - transform.position;
         }
@@ -579,7 +615,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             }
             else if (hitching)
                 look *= Quaternion.Euler(0f, Mathf.Sin(Time.time * 18f) * 8f, 0f);
-            else if (_isPointingToScrap && CurrentState == RustState.Follow)
+            else if ((_guidedTreasureType != GuidedTreasureType.None || _isPointingToScrap) && CurrentState == RustState.Follow)
                 look *= Quaternion.Euler(Mathf.Sin(Time.time * 10f) * 6f, 0f, Mathf.Cos(Time.time * 8f) * 4f);
             else if (CurrentState == RustState.Follow)
             {
@@ -605,6 +641,65 @@ public partial class AdventureRustDrone : MonoBehaviour
         UpdatePlayerInteraction();
         UpdateSonar();
         UpdateCuriosity();
+    }
+
+    void LateUpdate()
+    {
+        // Nikoの移動処理後にも毎フレーム体躯クリアランスを強制し、めり込みを完全排除
+        EnforceNikoBodyClearance();
+    }
+
+    /// <summary>
+    /// Nikoの体躯（足元〜頭上、半径0.82m）への食い込みを物理的に100%遮断・押し出す安全ガード。
+    /// 急停止・急旋回・寄り添い・スキンシップ・水パニック等、いかなる状況でもNikoの体にRustがめり込むのを完全根絶する。
+    /// </summary>
+    void EnforceNikoBodyClearance()
+    {
+        if (_lookAt == null) return;
+
+        Vector3 nikoPos = _lookAt.position;
+        Vector3 curPos = transform.position;
+
+        // Nikoの体躯の高さ範囲（足元 -0.1m 〜 頭上 +0.25m）
+        float minY = nikoPos.y - 0.1f;
+        float maxY = nikoPos.y + 1.85f;
+
+        if (curPos.y < minY || curPos.y > maxY)
+            return; // Nikoの頭上高く、または足元より下なら干渉なし
+
+        Vector2 nikoXZ = new Vector2(nikoPos.x, nikoPos.z);
+        Vector2 droneXZ = new Vector2(curPos.x, curPos.z);
+        float flatDist = Vector2.Distance(droneXZ, nikoXZ);
+
+        // Niko体幹半径 (0.40m) + Rust球体半径・アクセサリー余裕 (0.42m) = 安全距離 0.82m
+        const float minSafeRadius = 0.82f;
+
+        if (flatDist < minSafeRadius)
+        {
+            Vector2 pushDir = droneXZ - nikoXZ;
+            if (pushDir.sqrMagnitude < 0.0001f)
+            {
+                // 完全に同軸の場合はNikoの右斜め後方へ押し出し
+                Vector3 defaultDir = (_lookAt.right * 0.85f - _lookAt.forward * 0.52f).normalized;
+                pushDir = new Vector2(defaultDir.x, defaultDir.z);
+            }
+            else
+            {
+                pushDir.Normalize();
+            }
+
+            Vector2 safeXZ = nikoXZ + pushDir * minSafeRadius;
+            transform.position = new Vector3(safeXZ.x, curPos.y, safeXZ.y);
+            _lagTarget = new Vector3(safeXZ.x, _lagTarget.y, safeXZ.y);
+
+            // Nikoの中心に向かう速度成分をカットし、めり込み慣性を消去
+            Vector3 pushDir3D = new Vector3(pushDir.x, 0f, pushDir.y);
+            float inwardVel = Vector3.Dot(_velocity, -pushDir3D);
+            if (inwardVel > 0f)
+            {
+                _velocity = Vector3.ProjectOnPlane(_velocity, pushDir3D);
+            }
+        }
     }
 
     static Camera ResolveCommandCamera()
@@ -727,28 +822,31 @@ public partial class AdventureRustDrone : MonoBehaviour
 
     void UpdateGuide()
     {
-        // ScrapManager.Instanceはシングルトン。見つからない場合はガイドを無効化
-        var mgr = AdventureScrapManager.Instance;
-        if (mgr == null || _lookAt == null)
+        if (_lookAt == null)
         {
+            _guidedTreasureType = GuidedTreasureType.None;
             _guidedScrap = null;
             _isPointingToScrap = false;
             _isGuidingToTower = false;
+            UpdateRadarVisuals();
             return;
         }
 
-        // 20pt達成〜天蓋開放前：中央タワーへの先導誘導を最優先！
-        bool leverUnlocked = mgr.IsLeverUnlocked;
+        Vector3 nikoPos = _lookAt.position;
+
+        // 1. 中央タワーへの先導誘導（20pt達成〜天蓋開放前：最優先！）
+        var scrapMgr = AdventureScrapManager.Instance;
+        bool leverUnlocked = scrapMgr != null && scrapMgr.IsLeverUnlocked;
         bool canopyBroken = AdventureSanctuaryTowerManager.IsCanopyBroken;
 
         if (leverUnlocked && !canopyBroken)
         {
             _isGuidingToTower = true;
+            _guidedTreasureType = GuidedTreasureType.None;
             _guidedScrap = null;
             _isPointingToScrap = false;
 
-            float distToTower = Vector3.Distance(_lookAt.position, SanctuaryTowerCenter);
-
+            float distToTower = Vector3.Distance(nikoPos, SanctuaryTowerCenter);
             if (distToTower <= 14f)
             {
                 _isGuidingToTower = false; // タワー到着後はNikoの肩へ寄り添う（オベリスクへ突っ込まない）
@@ -777,6 +875,7 @@ public partial class AdventureRustDrone : MonoBehaviour
                     }
                 }
             }
+            UpdateRadarVisuals();
             return;
         }
         else
@@ -784,28 +883,152 @@ public partial class AdventureRustDrone : MonoBehaviour
             _isGuidingToTower = false;
         }
 
-        var nearest = mgr.GetNearestScrapItem(_lookAt.position, out float dist);
-        // 35m以内のパーツを鋭敏に探知してプレイヤーに案内
-        if (nearest != null && dist <= 35f && !nearest.IsCollected)
+        // 2. スクラップパーツの探知（35m以内、脱出・修復に最重要なお宝）
+        AdventureScrapItem nearestScrap = null;
+        float scrapDist = 999f;
+        if (scrapMgr != null)
         {
-            _guidedScrap = nearest;
+            nearestScrap = scrapMgr.GetNearestScrapItem(nikoPos, out scrapDist);
+        }
+
+        if (nearestScrap != null && scrapDist <= 35f && !nearestScrap.IsCollected)
+        {
+            _guidedTreasureType = GuidedTreasureType.Scrap;
+            _guidedScrap = nearestScrap;
+            _guidedTreasurePos = nearestScrap.transform.position;
+            _radarLightColor = new Color(1f, 0.85f, 0.2f); // 黄金の輝き
             _isPointingToScrap = true;
 
-            if (Time.time >= _nextGuideNotice)
+            if (_prevGuidedTreasureType != GuidedTreasureType.Scrap || Time.time >= _nextGuideNotice)
             {
                 _nextGuideNotice = Time.time + 12f;
                 SetSpeech("ピピピッ！あそこにパーツの反応があるよ！", 3.8f);
-                if (_audio != null && _happyBeepClip != null)
-                {
-                    _audio.pitch = 1.35f;
-                    _audio.PlayOneShot(_happyBeepClip, 0.65f);
-                }
+                PlayRadarSonarSound();
             }
+
+            _prevGuidedTreasureType = _guidedTreasureType;
+            UpdateRadarVisuals();
+            return;
         }
         else
         {
             _guidedScrap = null;
-            _isPointingToScrap = false;
+        }
+
+        // 3. 漂流木箱の探知（26m以内）
+        AdventureBeachDriftBox nearestBox = AdventureBeachDriftBox.GetNearestUnopenedBox(nikoPos, out float boxDist);
+        if (nearestBox != null && boxDist <= 26f)
+        {
+            _guidedTreasureType = GuidedTreasureType.DriftBox;
+            _guidedTreasurePos = nearestBox.transform.position;
+            _radarLightColor = new Color(0.2f, 0.85f, 1f); // シアンブルー
+            _isPointingToScrap = true;
+
+            if (_prevGuidedTreasureType != GuidedTreasureType.DriftBox || Time.time >= _nextGuideNotice)
+            {
+                _nextGuideNotice = Time.time + 12f;
+                SetSpeech("見て見て！あっちに漂着した木箱が落ちてるよ！", 3.8f);
+                PlayRadarSonarSound();
+            }
+
+            _prevGuidedTreasureType = _guidedTreasureType;
+            UpdateRadarVisuals();
+            return;
+        }
+
+        // 4. 貝殻・シーグラスの探知（22m以内）
+        var shellMgr = AdventureBeachSeashellManager.Instance;
+        AdventureBeachSeashellItem nearestShell = null;
+        float shellDist = 999f;
+        if (shellMgr != null)
+        {
+            nearestShell = shellMgr.GetNearestUncollectedShell(nikoPos, out shellDist);
+        }
+
+        if (nearestShell != null && shellDist <= 22f)
+        {
+            _guidedTreasureType = GuidedTreasureType.Seashell;
+            _guidedTreasurePos = nearestShell.transform.position;
+            // 貝殻固有のテーマカラー（マリンピンク／エメラルド等）
+            _radarLightColor = (nearestShell.themeColor.maxColorComponent > 0.1f) ? nearestShell.themeColor : new Color(1f, 0.45f, 0.75f);
+            _isPointingToScrap = true;
+
+            if (_prevGuidedTreasureType != GuidedTreasureType.Seashell || Time.time >= _nextGuideNotice)
+            {
+                _nextGuideNotice = Time.time + 12f;
+                string shellName = string.IsNullOrEmpty(nearestShell.itemName) ? "貝殻" : nearestShell.itemName;
+                SetSpeech($"ピピッ！あっちに綺麗な『{shellName}』があるよ！", 3.8f);
+                PlayRadarSonarSound();
+            }
+
+            _prevGuidedTreasureType = _guidedTreasureType;
+            UpdateRadarVisuals();
+            return;
+        }
+
+        // 周囲にお宝なし
+        _guidedTreasureType = GuidedTreasureType.None;
+        _prevGuidedTreasureType = GuidedTreasureType.None;
+        _isPointingToScrap = false;
+        UpdateRadarVisuals();
+    }
+
+    void SetupRadarLight()
+    {
+        if (_radarFlashLight != null) return;
+
+        // ドローン上部のアンテナ位置にレーダーPointLightを生成
+        GameObject lightObj = new GameObject("Rust_RadarLight");
+        lightObj.transform.SetParent(transform, false);
+        lightObj.transform.localPosition = new Vector3(0f, 0.45f, 0f);
+
+        _radarFlashLight = lightObj.AddComponent<Light>();
+        _radarFlashLight.type = LightType.Point;
+        _radarFlashLight.range = 4.2f;
+        _radarFlashLight.intensity = 2.4f;
+        _radarFlashLight.color = Color.yellow;
+        _radarFlashLight.enabled = false;
+    }
+
+    void UpdateRadarVisuals()
+    {
+        if (_radarFlashLight != null)
+        {
+            if (_guidedTreasureType != GuidedTreasureType.None)
+            {
+                _radarFlashLight.color = _radarLightColor;
+                // 9Hz でピカピカ点滅（お宝探知ソナー点滅）
+                float flash = Mathf.PingPong(Time.time * 9f, 1f);
+                _radarFlashLight.enabled = flash > 0.35f;
+                _radarFlashLight.intensity = Mathf.Lerp(1.2f, 3.2f, flash);
+            }
+            else
+            {
+                _radarFlashLight.enabled = false;
+            }
+        }
+
+        // 探知中の定期ソナーチャイム音（4.0秒おき）
+        if (_guidedTreasureType != GuidedTreasureType.None)
+        {
+            if (Time.time >= _nextRadarBeepTime)
+            {
+                _nextRadarBeepTime = Time.time + 4.0f;
+                if (_audio != null && _happyBeepClip != null && !AdventurePauseMenu.IsOpen)
+                {
+                    _audio.pitch = 1.5f;
+                    _audio.PlayOneShot(_happyBeepClip, 0.4f);
+                }
+            }
+        }
+    }
+
+    void PlayRadarSonarSound()
+    {
+        if (_audio != null && _happyBeepClip != null && !AdventurePauseMenu.IsOpen)
+        {
+            _audio.pitch = 1.4f;
+            _audio.PlayOneShot(_happyBeepClip, 0.65f);
         }
     }
 
@@ -847,8 +1070,20 @@ public partial class AdventureRustDrone : MonoBehaviour
             return new Vector3(guidePos.x, chest.y + 0.25f + sBob, guidePos.z);
         }
 
-        // 近くに未回収パーツがある場合、RustはNikoの少し前方（パーツ寄り）へ先行して合図
-        if (_isPointingToScrap && _guidedScrap != null)
+        // 近くに未発見お宝（スクラップ・漂流木箱・貝殻）がある場合、RustはNikoとお宝を結ぶ線上の前方へ先行飛行して指差し案内！
+        if (_guidedTreasureType != GuidedTreasureType.None)
+        {
+            Vector3 toTreasure = Vector3.ProjectOnPlane(_guidedTreasurePos - niko, Vector3.up);
+            if (toTreasure.sqrMagnitude > 0.01f)
+                toTreasure.Normalize();
+            else
+                toTreasure = _lookAt.forward;
+
+            Vector3 guidePos = niko + toTreasure * 2.1f;
+            float sBob = Mathf.Sin(Time.time * bobSpeed * 1.8f) * (bobAmount * 1.3f);
+            return new Vector3(guidePos.x, chest.y + 0.18f + sBob, guidePos.z);
+        }
+        else if (_isPointingToScrap && _guidedScrap != null)
         {
             Vector3 toScrap = Vector3.ProjectOnPlane(_guidedScrap.transform.position - niko, Vector3.up).normalized;
             Vector3 guidePos = niko + toScrap * 1.8f;
@@ -864,16 +1099,16 @@ public partial class AdventureRustDrone : MonoBehaviour
                 return curiousPos;
         }
 
-        // 通常追従の理想位置: Nikoの右肩の斜め後ろ（右1.15m、後方1.45m）
-        Vector3 rightBack = _lookAt.right * 1.15f - _lookAt.forward * 1.45f;
+        // 通常追従の理想位置: Nikoの右肩の斜め後ろ（右1.25m、後方1.55m）
+        Vector3 rightBack = _lookAt.right * 1.25f - _lookAt.forward * 1.55f;
         Vector3 targetPos = niko + rightBack;
 
-        // Nikoの真正面／体内にRustが居座るのを防止（直径≈1.6m）
-        const float bodyClearance = 1.65f;
+        // Nikoの真正面／体内にRustが居座るのを防止（直径≈1.75m）
+        const float bodyClearance = 1.75f;
         float flat = FlatDistance(niko);
         Vector3 toDrone = transform.position - niko;
         float forwardDot = Vector3.Dot(_lookAt.forward, toDrone);
-        if (flat < bodyClearance || (flat < 1.9f && forwardDot > -0.15f))
+        if (flat < bodyClearance || (flat < 2.0f && forwardDot > -0.15f))
         {
             targetPos = niko + rightBack;
         }

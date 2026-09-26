@@ -11,9 +11,9 @@ public class AdventureCameraFollow : MonoBehaviour
     public Transform target;
     public float height = 1.25f;
     public float distance = 7.8f;
-    public float sensitivity = 0.26f;
-    public float pitchMin = -12f;
-    public float pitchMax = 32f;
+    public float sensitivity = 0.12f;
+    public float pitchMin = -42f; // 足元・砂浜・貝殻を自然に見下ろせる
+    public float pitchMax = 58f;  // ヤシの木・大空・ウミネコを気持ちよく見上げられる
 
     [Header("位置スムージング（段差・揺れの吸収）")]
     public float positionSmoothTime = 0.02f;
@@ -96,7 +96,17 @@ public class AdventureCameraFollow : MonoBehaviour
 
     public static float MasterSensitivity
     {
-        get => PlayerPrefs.GetFloat("Adventure_MouseSensitivity", 0.26f);
+        get
+        {
+            float val = PlayerPrefs.GetFloat("Adventure_MouseSensitivity", 0.12f);
+            if (val > 0.20f)
+            {
+                val = 0.12f;
+                PlayerPrefs.SetFloat("Adventure_MouseSensitivity", 0.12f);
+                PlayerPrefs.Save();
+            }
+            return val;
+        }
         set
         {
             float clamped = Mathf.Clamp(value, 0.05f, 0.80f);
@@ -146,9 +156,9 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void Start()
     {
-        sensitivity = 0.26f;
-        positionSmoothTime = 0.02f;
-        lookSmoothTime = 0.012f;
+        sensitivity = 0.12f;
+        positionSmoothTime = 0.015f;
+        lookSmoothTime = 0.008f;
         _cam = GetComponent<Camera>();
         if (AdventureRustFloatFeel.IsActiveScene)
             AdventureRustFloatFeel.ApplyCameraDefaults(this, _cam);
@@ -169,11 +179,26 @@ public class AdventureCameraFollow : MonoBehaviour
             if (_cam.fieldOfView < 60f || _cam.fieldOfView > 68f)
                 _cam.fieldOfView = 64f;
         }
-        LockCursor();
+        if (!AdventureStoryFlow.WantsFreeCursor)
+        {
+            LockCursor();
+        }
+    }
+
+    void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus) return;
+
+        if (AdventureStoryFlow.WantsFreeCursor)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
     }
 
     void LockCursor()
     {
+        if (AdventureStoryFlow.WantsFreeCursor) return;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -206,11 +231,9 @@ public class AdventureCameraFollow : MonoBehaviour
         var kb = Keyboard.current;
         var mouse = Mouse.current;
 
-        var opening = FindAnyObjectByType<AdventureRustFloatOpening>();
-        bool isModalBoardOpen = opening != null && opening.IsModalBoardOpen();
-        bool isPaused = AdventurePauseMenu.IsOpen;
+        bool wantsFreeCursor = AdventureStoryFlow.WantsFreeCursor;
 
-        if (AdventureStoryFlow.WantsFreeCursor || isPaused)
+        if (wantsFreeCursor)
         {
             if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
             {
@@ -231,13 +254,20 @@ public class AdventureCameraFollow : MonoBehaviour
             }
             else if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
             {
-                LockCursor();
+                // UI操作中のクリック（uGUIコンポーネント等）ならカーソルをロックしない
+                bool isPointerOverUi = UnityEngine.EventSystems.EventSystem.current != null &&
+                                       UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+                if (!isPointerOverUi)
+                {
+                    LockCursor();
+                }
             }
         }
 
         if (kb != null && kb.rKey.wasPressedThisFrame)
             SnapBehindTarget();
 
+        bool isPaused = AdventurePauseMenu.IsOpen;
         if (isPaused) return;
 
         float mouseX = 0f;
@@ -248,21 +278,14 @@ public class AdventureCameraFollow : MonoBehaviour
             mouseX = delta.x;
             mouseY = delta.y;
         }
-        if (Mathf.Abs(mouseX) < 0.001f && Mathf.Abs(mouseY) < 0.001f)
-        {
-            try
-            {
-                mouseX = Input.GetAxis("Mouse X") * 10f;
-                mouseY = Input.GetAxis("Mouse Y") * 10f;
-            }
-            catch { }
-        }
-
         bool isRightDragging = mouse != null && (mouse.rightButton.isPressed || mouse.middleButton.isPressed);
-        try { if (Input.GetMouseButton(1) || Input.GetMouseButton(2)) isRightDragging = true; } catch { }
+
+        bool isModalOpen = AdventureRustWorkshopUI.IsOpen ||
+                           AdventureBeachDriftBox.IsModalOpen ||
+                           (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal);
 
         bool isCursorLocked = Cursor.lockState == CursorLockMode.Locked;
-        bool canRotateByMouse = (!isModalBoardOpen && !isPaused) || isRightDragging || isCursorLocked;
+        bool canRotateByMouse = !isModalOpen && (isCursorLocked || isRightDragging || !wantsFreeCursor);
 
         if (canRotateByMouse && (Mathf.Abs(mouseX) > 0.01f || Mathf.Abs(mouseY) > 0.01f))
         {
@@ -329,10 +352,7 @@ public class AdventureCameraFollow : MonoBehaviour
         }
         else if (walkingGround)
         {
-            float idle = Time.time - _lastMouseInputTime;
-            float settle = idle > 0.55f ? 22f : 0f; // 操作中はピッチを引き戻さない（重い感の原因）
-            if (settle > 0f)
-                _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, settle * Time.deltaTime);
+            // プレイヤーが向けた上下アングル（ピッチ）を100%維持（勝手な引き戻しは一切行わない）
         }
 
         if (cine > 0.4f && !isAutoGlide)
@@ -463,31 +483,8 @@ public class AdventureCameraFollow : MonoBehaviour
 
         transform.position = targetPos;
 
-        if (walkingGround)
-        {
-            Vector3 focus = target.position + Vector3.up * WalkFocusHeight;
-            Vector3 toFocus = focus - targetPos;
-            if (toFocus.sqrMagnitude > 0.01f)
-            {
-                Quaternion look = Quaternion.LookRotation(toFocus.normalized);
-                float lookPitch = look.eulerAngles.x;
-                if (lookPitch > 180f) lookPitch -= 360f;
-                lookPitch = Mathf.Clamp(lookPitch, pitchMin, pitchMax);
-                // 歩行中はフレーミングも即時（SmoothDampなし）
-                _framedPitch = Mathf.Lerp(_pitch, lookPitch, 0.55f);
-                transform.rotation = Quaternion.Euler(_framedPitch, _yaw, 0f);
-            }
-            else
-            {
-                _framedPitch = _pitch;
-                transform.rotation = currentRot;
-            }
-        }
-        else
-        {
-            _framedPitch = _pitch;
-            transform.rotation = currentRot;
-        }
+        _framedPitch = _pitch;
+        transform.rotation = currentRot;
 
         if (Time.unscaledTime < _shakeUntil && _shakeIntensity > 0.001f)
         {

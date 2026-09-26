@@ -13,6 +13,7 @@ public class AdventurePauseMenu : MonoBehaviour
     public static AdventurePauseMenu Instance { get; private set; }
 
     public static bool IsOpen { get; private set; } = false;
+    public bool IsPaused => IsOpen;
 
     Canvas _canvas;
     CanvasGroup _canvasGroup;
@@ -31,6 +32,7 @@ public class AdventurePauseMenu : MonoBehaviour
     Text _sensValueText;
 
     float _prevTimeScale = 1f;
+    float _lastToggleTime = -1f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void AutoInit()
@@ -53,6 +55,23 @@ public class AdventurePauseMenu : MonoBehaviour
         Instance = go.AddComponent<AdventurePauseMenu>();
     }
 
+    public static void EnsureEventSystemForUi()
+    {
+        var es = UnityEngine.EventSystems.EventSystem.current;
+        if (es == null)
+        {
+            var go = new GameObject("EventSystem");
+            es = go.AddComponent<UnityEngine.EventSystems.EventSystem>();
+        }
+
+        var legacy = es.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+        if (legacy != null)
+            Object.Destroy(legacy);
+
+        if (es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>() == null)
+            es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+    }
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -61,6 +80,7 @@ public class AdventurePauseMenu : MonoBehaviour
             return;
         }
         Instance = this;
+        EnsureEventSystemForUi();
         CreateUI();
     }
 
@@ -108,6 +128,9 @@ public class AdventurePauseMenu : MonoBehaviour
 
     void Update()
     {
+        // 直前の開閉から0.2秒以内の連続入力は無視（キーチャタリング防止）
+        if (Time.unscaledTime - _lastToggleTime < 0.2f) return;
+
         var kb = Keyboard.current;
         bool escPressed = false;
         if (kb != null && kb.escapeKey.wasPressedThisFrame)
@@ -116,10 +139,19 @@ public class AdventurePauseMenu : MonoBehaviour
 
         if (escPressed)
         {
+            // メニューが閉じていて他のモーダルが開いている場合は、そちらのESCキャンセルを優先
+            if (!IsOpen)
+            {
+                if (AdventureRustWorkshopUI.IsOpen) return;
+                if (AdventureBeachDriftBox.IsModalOpen) return;
+                if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal) return;
+            }
+
             // 確認モーダルが開いている場合は先に確認モーダルを閉じる
             if (_confirmModalRoot != null && _confirmModalRoot.activeSelf)
             {
                 _confirmModalRoot.SetActive(false);
+                _lastToggleTime = Time.unscaledTime;
                 return;
             }
 
@@ -135,10 +167,13 @@ public class AdventurePauseMenu : MonoBehaviour
     public void SetMenuVisible(bool visible, bool instant = false)
     {
         IsOpen = visible;
+        _lastToggleTime = Time.unscaledTime;
 
         if (visible)
         {
-            _prevTimeScale = Time.timeScale > 0.001f ? Time.timeScale : 1f;
+            EnsureEventSystemForUi();
+
+            _prevTimeScale = Time.timeScale > 0.05f ? Time.timeScale : 1f;
             Time.timeScale = 0f;
 
             Cursor.lockState = CursorLockMode.None;
@@ -147,6 +182,7 @@ public class AdventurePauseMenu : MonoBehaviour
             LoadCurrentSettings();
             if (_confirmModalRoot != null) _confirmModalRoot.SetActive(false);
 
+            if (_canvas != null) _canvas.enabled = true;
             if (_panelRoot != null) _panelRoot.SetActive(true);
             if (_canvasGroup != null)
             {
@@ -157,24 +193,24 @@ public class AdventurePauseMenu : MonoBehaviour
         }
         else
         {
-            Time.timeScale = _prevTimeScale > 0.001f ? _prevTimeScale : 1f;
+            Time.timeScale = _prevTimeScale > 0.05f ? _prevTimeScale : 1f;
 
-            // オープニングやダイアログが開いていない限りカーソルをロック
-            var opening = AdventureRustFloatOpening.Instance;
-            bool isOpening = opening != null && opening.IsModalBoardOpen();
-            if (!isOpening && !AdventureStoryFlow.WantsFreeCursor)
+            // 他のモーダルが開いていない限りカーソルをロック
+            if (!AdventureStoryFlow.WantsFreeCursor)
             {
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
             }
 
             if (_panelRoot != null) _panelRoot.SetActive(false);
+            if (_confirmModalRoot != null) _confirmModalRoot.SetActive(false);
             if (_canvasGroup != null)
             {
                 _canvasGroup.alpha = 0f;
                 _canvasGroup.interactable = false;
                 _canvasGroup.blocksRaycasts = false;
             }
+            if (_canvas != null) _canvas.enabled = false;
         }
     }
 

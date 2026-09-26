@@ -210,23 +210,44 @@ public static class AdventureStoryFlow
         }
     }
 
-    /// <summary>マウスを画面に出す。オープニング、レバー、台本、注油、クリア、プロローグ注油。</summary>
+    /// <summary>マウスを画面に出す。ポーズメニュー、着せ替え工房、オープニング、レバー、台本、注油、クリア、手記モーダル等。</summary>
     public static bool WantsFreeCursor
     {
         get
         {
+            // ポーズメニュー
+            if (AdventurePauseMenu.IsOpen)
+                return true;
+
+            // Rust着せ替え工房UI
+            if (AdventureRustWorkshopUI.IsOpen)
+                return true;
+
+            // 漂流物木箱の手記モーダル
+            if (AdventureBeachDriftBox.IsModalOpen)
+                return true;
+
+            // 海岸日誌・石碑ナラティブモーダル
+            if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal)
+                return true;
+
+            // オープニングストーリーボード
+            var opening = AdventureRustFloatOpening.Instance;
+            if (opening != null && opening.IsModalBoardOpen())
+                return true;
+
+            // 聖域の塔／クリア画面／台本モーダル
+            var tower = AdventureSanctuaryTowerManager.Instance;
+            if (tower != null)
+            {
+                if (tower.IsSkybreakModalActive || tower.ShowGameClearModal || tower.IsClimaxOilPromptActive || tower.IsPlayerNearLever)
+                    return true;
+            }
+
             var p = Current;
             if (p == Phase.Opening || p == Phase.Skybreak || p == Phase.Clear)
                 return true;
-            if (p == Phase.Climax)
-            {
-                var tower = AdventureSanctuaryTowerManager.Instance;
-                if (tower != null && tower.IsClimaxOilPromptActive)
-                    return true;
-            }
-            var towerNear = AdventureSanctuaryTowerManager.Instance;
-            if (towerNear != null && towerNear.IsPlayerNearLever)
-                return true;
+
             return AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsWaitingForOil;
         }
     }

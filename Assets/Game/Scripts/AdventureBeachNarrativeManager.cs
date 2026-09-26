@@ -573,8 +573,11 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
     public void CloseModal()
     {
         _isShowingModal = false;
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        if (!AdventureStoryFlow.WantsFreeCursor)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
 
     void OnGUI()

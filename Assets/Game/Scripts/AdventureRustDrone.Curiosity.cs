@@ -436,8 +436,8 @@ public partial class AdventureRustDrone
         switch (_curiosityKind)
         {
             case CuriosityKind.WaterPanic:
-                // 水を怖がってNikoの肩・頭上高くへピタッと退避
-                Vector3 shoulderPos = nikoPos + Vector3.up * 1.65f - _lookAt.forward * 0.25f + _lookAt.right * 0.45f;
+                // 水を怖がってNikoの右肩斜め上（食い込まない安全距離）へピタッと退避
+                Vector3 shoulderPos = nikoPos + Vector3.up * 1.82f - _lookAt.forward * 0.35f + _lookAt.right * 0.85f;
                 float panicBob = Mathf.Sin(Time.time * 24f) * 0.04f;
                 return shoulderPos + Vector3.up * panicBob;
 
@@ -463,8 +463,8 @@ public partial class AdventureRustDrone
                 return _curiosityWorldPos + Vector3.up * (0.05f + floraBob);
 
             case CuriosityKind.NikoEyeContact:
-                // Nikoの斜め前（視線の先・胸〜顔の高さ）に回り込んで見つめる
-                Vector3 contactPos = chestPos + _lookAt.forward * 1.35f + _lookAt.right * 0.4f + Vector3.up * 0.1f;
+                // Nikoの斜め前（視線の先・胸〜顔の高さ）に回り込んで見つめる（食い込まない安全距離）
+                Vector3 contactPos = chestPos + _lookAt.forward * 1.60f + _lookAt.right * 0.65f + Vector3.up * 0.22f;
                 float contactBob = Mathf.Sin(Time.time * 2.8f) * 0.03f;
                 return contactPos + Vector3.up * contactBob;
 

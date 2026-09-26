@@ -21,6 +21,8 @@ public class AdventureBeachSeashellManager : MonoBehaviour
 
     readonly List<AdventureBeachSeashellItem> _items = new List<AdventureBeachSeashellItem>();
 
+    public static event System.Action OnInventoryChanged;
+
     public int TotalCollectedCount
     {
         get => PlayerPrefs.GetInt(PrefKeyTotalShells, 0);
@@ -29,6 +31,51 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             PlayerPrefs.SetInt(PrefKeyTotalShells, value);
             PlayerPrefs.Save();
         }
+    }
+
+    /// <summary>指定した種類の貝殻の現在所持ストック数を取得</summary>
+    public int GetShellCount(AdventureBeachSeashellItem.ShellKind kind)
+    {
+        return PlayerPrefs.GetInt("Seashell_Stock_" + kind.ToString(), 0);
+    }
+
+    /// <summary>貝殻を指定数ストックに追加</summary>
+    public void AddShell(AdventureBeachSeashellItem.ShellKind kind, int amount = 1)
+    {
+        int cur = GetShellCount(kind);
+        PlayerPrefs.SetInt("Seashell_Stock_" + kind.ToString(), cur + amount);
+        PlayerPrefs.Save();
+        OnInventoryChanged?.Invoke();
+    }
+
+    /// <summary>クラフト等で貝殻を消費（足りていれば消費してtrue）</summary>
+    public bool ConsumeShell(AdventureBeachSeashellItem.ShellKind kind, int amount)
+    {
+        int cur = GetShellCount(kind);
+        if (cur < amount) return false;
+        PlayerPrefs.SetInt("Seashell_Stock_" + kind.ToString(), cur - amount);
+        PlayerPrefs.Save();
+        OnInventoryChanged?.Invoke();
+        return true;
+    }
+
+    /// <summary>指定地点から最も近い未収集の貝殻・シーグラスを取得する（Rustのお宝レーダー連携用）</summary>
+    public AdventureBeachSeashellItem GetNearestUncollectedShell(Vector3 playerPos, out float minDistance)
+    {
+        minDistance = float.MaxValue;
+        AdventureBeachSeashellItem nearest = null;
+        for (int i = 0; i < _items.Count; i++)
+        {
+            var item = _items[i];
+            if (item == null || item.IsCollected || !item.gameObject.activeInHierarchy) continue;
+            float d = Vector3.Distance(playerPos, item.transform.position);
+            if (d < minDistance)
+            {
+                minDistance = d;
+                nearest = item;
+            }
+        }
+        return nearest;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -65,7 +112,33 @@ public class AdventureBeachSeashellManager : MonoBehaviour
 
     void Start()
     {
+        CheckAndMigrateLegacyStock();
         SpawnBeachSeashells();
+    }
+
+    void CheckAndMigrateLegacyStock()
+    {
+        // 過去に拾った実績があるが個別ストックが未記録の場合の移行
+        int total = TotalCollectedCount;
+        if (total > 0)
+        {
+            int currentSum = GetShellCount(AdventureBeachSeashellItem.ShellKind.Sakuragai)
+                           + GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald)
+                           + GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire)
+                           + GetShellCount(AdventureBeachSeashellItem.ShellKind.AmberPebble)
+                           + GetShellCount(AdventureBeachSeashellItem.ShellKind.SpiralShell);
+            if (currentSum == 0)
+            {
+                // バランスよく分配
+                int each = total / 5;
+                int rem = total % 5;
+                AddShell(AdventureBeachSeashellItem.ShellKind.Sakuragai, each + (rem > 0 ? 1 : 0));
+                AddShell(AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald, each + (rem > 1 ? 1 : 0));
+                AddShell(AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire, each + (rem > 2 ? 1 : 0));
+                AddShell(AdventureBeachSeashellItem.ShellKind.AmberPebble, each + (rem > 3 ? 1 : 0));
+                AddShell(AdventureBeachSeashellItem.ShellKind.SpiralShell, each);
+            }
+        }
     }
 
     /// <summary>白砂ビーチの波打ち際に貝殻・シーグラスを美しく配置</summary>
@@ -153,15 +226,17 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         Debug.Log($"[AdventureBeachSeashellManager] 白砂ビーチに {spawnPoints.Length} 個の貝殻・シーグラスを配置しました");
     }
 
-    /// <summary>貝殻採取時のトースト通知</summary>
+    /// <summary>貝殻採取時のトースト通知＆ストック加算</summary>
     public void NotifyCollected(AdventureBeachSeashellItem item)
     {
         TotalCollectedCount++;
+        AddShell(item.kind, 1);
+        int currentStock = GetShellCount(item.kind);
 
         if (_toastText != null)
         {
             string hexCol = ColorUtility.ToHtmlStringRGB(item.themeColor);
-            _toastText.text = $"<color=#{hexCol}><b>✦ {item.itemName}</b></color> <color=#FFFFFF>を拾った</color>  <size=13><color=#FFE066>({TotalCollectedCount}個目)</color></size>";
+            _toastText.text = $"<color=#{hexCol}><b>✦ {item.itemName}</b></color> <color=#FFFFFF>を拾った</color>  <size=13><color=#FFE066>(所持: {currentStock}個)</color></size>";
         }
 
         _toastTimer = 2.6f;
@@ -243,7 +318,12 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             PlayerPrefs.DeleteKey($"Seashell_Collected_shell_{i:D2}");
         }
         PlayerPrefs.DeleteKey(PrefKeyTotalShells);
+        foreach (AdventureBeachSeashellItem.ShellKind k in System.Enum.GetValues(typeof(AdventureBeachSeashellItem.ShellKind)))
+        {
+            PlayerPrefs.DeleteKey("Seashell_Stock_" + k.ToString());
+        }
         PlayerPrefs.Save();
+        OnInventoryChanged?.Invoke();
 
         // 既存アイテムを全再表示
         foreach (var item in _items)
