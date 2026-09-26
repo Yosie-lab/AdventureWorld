@@ -153,6 +153,39 @@ public class AdventureCameraFollow : MonoBehaviour
         CurrentYaw = _yaw;
     }
 
+    void OnEnable()
+    {
+        AdventureStoryFlow.OnPhaseChanged += HandleStoryPhaseChanged;
+    }
+
+    void OnDisable()
+    {
+        AdventureStoryFlow.OnPhaseChanged -= HandleStoryPhaseChanged;
+    }
+
+    void HandleStoryPhaseChanged(AdventureStoryFlow.Phase prev, AdventureStoryFlow.Phase next)
+    {
+        if (next == AdventureStoryFlow.Phase.Climax || next == AdventureStoryFlow.Phase.Epilogue || next == AdventureStoryFlow.Phase.Clear)
+        {
+            SetCinematicMode(true);
+        }
+        else if (prev == AdventureStoryFlow.Phase.Clear && next == AdventureStoryFlow.Phase.FreeFlight)
+        {
+            SetCinematicMode(false);
+        }
+
+        if (AdventureStoryFlow.WantsFreeCursor)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            _hasPrevMousePos = false;
+        }
+        else
+        {
+            LockCursor();
+        }
+    }
+
     void Start()
     {
         sensitivity = MasterSensitivity;
@@ -246,8 +279,12 @@ public class AdventureCameraFollow : MonoBehaviour
         var kb = Keyboard.current;
         var mouse = Mouse.current;
 
-        // ポーズ中のみカメラ回転を停止
-        if (AdventurePauseMenu.IsOpen) return;
+        // ポーズ中またはUIモーダル操作中（カーソル解放中）はカメラ回転入力を受け付けない
+        if (AdventurePauseMenu.IsOpen || AdventureStoryFlow.WantsFreeCursor)
+        {
+            _hasPrevMousePos = false;
+            return;
+        }
 
         // 画面クリックで即座にカーソルをロックしてゲームに復帰
         if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))

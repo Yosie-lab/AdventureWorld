@@ -236,11 +236,11 @@ public static class AdventureStoryFlow
             if (opening != null && opening.IsModalBoardOpen())
                 return true;
 
-            // 聖域の塔／クリア画面／台本モーダル
+            // 聖域の塔／クリア画面／台本モーダル（※レバー接近中は視点をロックせずEキー操作を維持）
             var tower = AdventureSanctuaryTowerManager.Instance;
             if (tower != null)
             {
-                if (tower.IsSkybreakModalActive || tower.ShowGameClearModal || tower.IsClimaxOilPromptActive || tower.IsPlayerNearLever)
+                if (tower.IsSkybreakModalActive || tower.ShowGameClearModal || tower.IsClimaxOilPromptActive)
                     return true;
             }
 
@@ -248,7 +248,10 @@ public static class AdventureStoryFlow
             if (p == Phase.Opening || p == Phase.Skybreak || p == Phase.Clear)
                 return true;
 
-            return AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsWaitingForOil;
+            if (AdventurePrologueDrama.Instance != null && (AdventurePrologueDrama.Instance.IsWaitingForOil || AdventurePrologueDrama.Instance.IsShowingDashBoard))
+                return true;
+
+            return false;
         }
     }
 }

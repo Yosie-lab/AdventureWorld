@@ -128,11 +128,8 @@ public class AdventurePettingAction : MonoBehaviour
             shape.shapeType = ParticleSystemShapeType.Sphere;
             shape.radius = 0.12f;
 
-            var vel = _heartFxInstance.velocityOverLifetime;
-            vel.enabled = true;
-            vel.x = 0f;
-            vel.y = 0.75f; // ふわふわと上へ昇る
-            vel.z = 0f;
+            main.startSpeed = 0.75f; // ふわふわと上へ昇る
+            shape.rotation = new Vector3(-90f, 0f, 0f);
 
             var rend = fxGo.GetComponent<ParticleSystemRenderer>();
             var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")

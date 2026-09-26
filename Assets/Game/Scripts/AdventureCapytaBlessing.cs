@@ -602,11 +602,8 @@ public class AdventureCapytaBlessing : MonoBehaviour
         shape.shapeType = ParticleSystemShapeType.Sphere;
         shape.radius = 0.35f;
 
-        var vel = ps.velocityOverLifetime;
-        vel.enabled = true;
-        vel.x = new ParticleSystem.MinMaxCurve(0f, 0f);
-        vel.y = new ParticleSystem.MinMaxCurve(0.8f, 1.4f);
-        vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.8f, 1.4f);
+        shape.rotation = new Vector3(-90f, 0f, 0f);
 
         var rend = fxGo.GetComponent<ParticleSystemRenderer>();
         var mat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit"));

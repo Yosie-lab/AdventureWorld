@@ -564,11 +564,7 @@ public class AdventureLakeVisualEnhancer : MonoBehaviour
         shape.radius = 4.5f;
         shape.rotation = new Vector3(-90f, 0f, 0f); // 真上へ噴出
 
-        var vel = ps.velocityOverLifetime;
-        vel.enabled = true;
-        vel.orbitalX = 0f;
-        vel.orbitalY = 0f;
-        vel.orbitalZ = 1.8f; // らせん状に美しく舞い上がる
+        main.startSpeed = new ParticleSystem.MinMaxCurve(1.4f, 2.4f); // 真上へ優雅に舞い上がる
 
         var col = ps.colorOverLifetime;
         col.enabled = true;

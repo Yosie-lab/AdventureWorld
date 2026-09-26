@@ -680,8 +680,11 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         style.normal.textColor = orig;
     }
 
-    AudioClip MakePaperSound()
+    static AudioClip _cachedPaperClip;
+
+    static AudioClip MakePaperSound()
     {
+        if (_cachedPaperClip != null) return _cachedPaperClip;
         int rate = 22050;
         float duration = 0.22f;
         int count = (int)(rate * duration);
@@ -694,6 +697,7 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         }
         var clip = AudioClip.Create("PaperFlip", count, 1, rate, false);
         clip.SetData(samples, 0);
+        _cachedPaperClip = clip;
         return clip;
     }
 }

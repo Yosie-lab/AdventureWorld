@@ -510,7 +510,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var mainDust = _magicalDust.main;
         mainDust.loop = true;
         mainDust.startLifetime = 2.8f;
-        mainDust.startSpeed = 0.32f;
+        mainDust.startSpeed = new ParticleSystem.MinMaxCurve(0.15f, 0.45f);
         mainDust.startSize = 0.22f;
         mainDust.startColor = new Color(1.0f * 2.5f, 0.90f * 2.5f, 0.50f * 2.5f, 0.90f);
         mainDust.simulationSpace = ParticleSystemSimulationSpace.World;
@@ -521,12 +521,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var shapeDust = _magicalDust.shape;
         shapeDust.shapeType = ParticleSystemShapeType.Box;
         shapeDust.scale = new Vector3(1.1f, 0.5f, 0.8f);
-
-        var velDust = _magicalDust.velocityOverLifetime;
-        velDust.enabled = true;
-        velDust.x = new ParticleSystem.MinMaxCurve(0f, 0f);
-        velDust.y = new ParticleSystem.MinMaxCurve(0.15f, 0.45f);
-        velDust.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+        shapeDust.rotation = new Vector3(-90f, 0f, 0f); // 上向きに放出
 
         var rendDust = dustGo.GetComponent<ParticleSystemRenderer>();
         if (rendDust != null) rendDust.material = _particleMat;

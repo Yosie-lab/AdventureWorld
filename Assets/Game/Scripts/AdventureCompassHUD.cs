@@ -116,6 +116,26 @@ public class AdventureCompassHUD : MonoBehaviour
         _instance = this;
     }
 
+    void OnEnable()
+    {
+        AdventureStoryFlow.OnPhaseChanged += HandleStoryPhaseChanged;
+    }
+
+    void OnDisable()
+    {
+        AdventureStoryFlow.OnPhaseChanged -= HandleStoryPhaseChanged;
+    }
+
+    void HandleStoryPhaseChanged(AdventureStoryFlow.Phase prev, AdventureStoryFlow.Phase next)
+    {
+        bool hide = AdventureStoryFlow.HidesExplorationHud;
+        if (_headingBadgeText != null) _headingBadgeText.enabled = !hide;
+        if (_scrapNavText != null) _scrapNavText.enabled = !hide;
+        if (_ribbonContainer != null) _ribbonContainer.gameObject.SetActive(!hide);
+        if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(!hide);
+        if (_boxMarkerRt != null) _boxMarkerRt.gameObject.SetActive(!hide);
+    }
+
     void BuildUI(Font font)
     {
         // 1. コンパス外枠ルート（画面最上部中央）

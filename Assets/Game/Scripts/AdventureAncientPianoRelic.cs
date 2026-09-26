@@ -769,7 +769,7 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         main.playOnAwake = true;
         main.loop = true;
         main.startLifetime = 2.0f;
-        main.startSpeed = 0.45f;
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.40f, 0.75f);
         main.startSize = 0.22f;
         main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.90f, 0.35f, 0.95f), new Color(0.35f, 0.95f, 0.88f, 0.95f));
         main.maxParticles = 60;
@@ -779,14 +779,9 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         emission.rateOverTime = 3.5f; // 常時ふわふわと優しい音符が舞う
 
         var shape = ps.shape;
-        shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.30f;
-
-        var vel = ps.velocityOverLifetime;
-        vel.enabled = true;
-        vel.x = new ParticleSystem.MinMaxCurve(0f, 0f);
-        vel.y = new ParticleSystem.MinMaxCurve(0.40f, 0.75f);
-        vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+        shape.shapeType = ParticleSystemShapeType.Box;
+        shape.scale = new Vector3(0.6f, 0.1f, 0.35f);
+        shape.rotation = new Vector3(-90f, 0f, 0f); // 鍵盤から上向きに舞い上がる
 
         var pRend = noteObj.GetComponent<ParticleSystemRenderer>();
         var pMat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit"));
@@ -883,7 +878,7 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         main.playOnAwake = true;
         main.loop = true;
         main.startLifetime = 2.2f;
-        main.startSpeed = 0.35f;
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.45f, 0.85f);
         main.startSize = 0.09f;
         main.startColor = new Color(0.4f, 0.98f, 0.90f, 0.85f);
         main.simulationSpace = ParticleSystemSimulationSpace.World;
@@ -892,14 +887,9 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         emission.rateOverTime = 12f;
 
         var shape = ps.shape;
-        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.shapeType = ParticleSystemShapeType.Circle;
         shape.radius = 0.35f;
-
-        var vel = ps.velocityOverLifetime;
-        vel.enabled = true;
-        vel.x = new ParticleSystem.MinMaxCurve(0f, 0f);
-        vel.y = new ParticleSystem.MinMaxCurve(0.45f, 0.85f);
-        vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+        shape.rotation = new Vector3(-90f, 0f, 0f); // 上向きに舞い上がる
 
         var pRend = psGo.GetComponent<ParticleSystemRenderer>();
         var pMat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit"));
