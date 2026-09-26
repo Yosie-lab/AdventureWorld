@@ -469,9 +469,15 @@ public class AdventurePlayerController : MonoBehaviour
 
     bool IsNearWalkableSurface()
     {
-        // 足裏すぐ下のみ（遠距離レイキャストだと空中歩行になる）
+        // ジャンプ上昇中は地上歩行にしない
         if (_hop > 0.15f) return false;
-        return Physics.Raycast(transform.position + Vector3.up * 0.08f, Vector3.down, 0.22f, ~0, QueryTriggerInteraction.Ignore);
+        // 足裏下0.30mまで安定して地表を検知（小石や坂道による一瞬の判定抜けを防止）
+        if (Physics.Raycast(transform.position + Vector3.up * 0.10f, Vector3.down, out RaycastHit hit, 0.40f, ~0, QueryTriggerInteraction.Ignore))
+        {
+            if (hit.collider != null && !hit.collider.CompareTag("Player") && !hit.collider.name.Contains("Rust"))
+                return true;
+        }
+        return false;
     }
     #endregion
 
@@ -497,12 +503,15 @@ public class AdventurePlayerController : MonoBehaviour
 
         bool wasGrounded = _grounded;
         bool ccGrounded = _cc.isGrounded;
-        // 微小浮遊のみ吸収（長く取ると空中を歩ける）
+        // 微小浮遊や凸凹・小石による一瞬の離地を吸収し、地上歩行の滑らかさを維持
         bool rayGrounded = false;
         if (_hop <= 0.05f)
         {
-            if (Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, out _, 0.28f, ~0, QueryTriggerInteraction.Ignore))
-                rayGrounded = true;
+            if (Physics.Raycast(transform.position + Vector3.up * 0.12f, Vector3.down, out RaycastHit groundHit, 0.38f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (groundHit.collider != null && !groundHit.collider.CompareTag("Player") && !groundHit.collider.name.Contains("Rust"))
+                    rayGrounded = true;
+            }
         }
 
         bool isGroundedEffective = (ccGrounded || rayGrounded) && _hop <= 0.05f && !TooSteep();
@@ -772,10 +781,9 @@ public class AdventurePlayerController : MonoBehaviour
             : Vector3.zero;
 
         // 本当に接地（または足裏すぐ下）のときだけ地上移動。空中は重力付き空中操舵へ
-        // ※以前 RF で airborneTime<0.18 を許していたため、離地直後に空中歩行になっていた
         bool nearFoot = IsNearWalkableSurface();
         bool forceGroundMove = !_gliding && !_autoGlide && !_skybreakPillarLock
-                               && (_grounded || (_hop <= 0.05f && nearFoot && _airborneTime < 0.06f));
+                               && (_grounded || (_hop <= 0.05f && nearFoot && _airborneTime < 0.18f));
 
         if (forceGroundMove) return ComputeGroundHorizontal(wishWalk, running);
         if (_gliding)        return ComputeGlideHorizontal(input);
@@ -868,8 +876,10 @@ public class AdventurePlayerController : MonoBehaviour
         Vector3 origin = transform.position + Vector3.up * 0.4f;
         if (!Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 1.4f, ~0, QueryTriggerInteraction.Ignore))
             return horizontal;
-        // 壁面には投影しない（張り付き防止）
-        if (hit.normal.y < 0.4f) return horizontal;
+        if (hit.collider == null || hit.collider.CompareTag("Player") || hit.collider.name.Contains("Rust") || hit.collider.name.Contains("Drone"))
+            return horizontal;
+        // 壁面・急斜面には投影しない（張り付き・停止防止）
+        if (hit.normal.y < 0.35f) return horizontal;
 
         Vector3 projected = Vector3.ProjectOnPlane(horizontal, hit.normal);
         if (projected.sqrMagnitude < 0.0001f) return horizontal;
@@ -1052,15 +1062,24 @@ public class AdventurePlayerController : MonoBehaviour
     {
         Vector3 motion = ClipMotion(horizontal * Time.deltaTime);
 
-        // 接地吸着：RFは以前 0.35 まで落としすぎて宙に浮きやすかった。
-        // 歩行の軽さは速度・斜面投影で確保し、足は地面に落とす。
+        // 接地吸着：
+        // 坂道を登っている（horizontal.y > 0）場合は上向き登坂ベクトルを維持し、地面への過度な押し付け（摩擦スタック）を防止
         if (_grounded && _hop <= 0.05f && !_gliding && !_autoGlide)
         {
             bool moving = horizontal.magnitude > 0.01f;
             float stickSpeed = IsRustFloatScene()
                 ? AdventureRustFloatFeel.GroundStickSpeed(moving)
                 : (moving ? 3.2f : 2.0f);
-            motion.y = -stickSpeed * Time.deltaTime;
+
+            if (motion.y > 0.001f)
+            {
+                // 登坂ベクトルを維持（斜面に沿ってスムーズに登る）
+                motion.y = Mathf.Max(motion.y, -stickSpeed * Time.deltaTime * 0.2f);
+            }
+            else
+            {
+                motion.y = -stickSpeed * Time.deltaTime;
+            }
         }
         else
             motion.y = _hop * Time.deltaTime;
@@ -1272,11 +1291,11 @@ public class AdventurePlayerController : MonoBehaviour
         Vector3 p = transform.position;
         float minY = SurfaceY(p) + Skin;
         // 通常の歩行（ミリ〜センチ単位の沈み込み）ではテレポートを行わない。
-        // 本当に地面を貫通して 0.35m 以上潜り落ちた時のみ緊急引き上げ
-        if (p.y >= minY - 0.35f) return;
+        // 本当に地面を貫通して 0.50m 以上潜り落ちた時のみ緊急引き上げ
+        if (p.y >= minY - 0.50f) return;
 
-        // 足元に物理コライダー（岩や床面）が存在している場合は、窪地や岩の上に乗っている正常状態なのでテレポートしない
-        if (Physics.Raycast(p + Vector3.up * 0.20f, Vector3.down, out RaycastHit hit, 0.60f, ~0, QueryTriggerInteraction.Ignore))
+        // 足元に物理コライダー（地面・岩・床面）が存在している場合は、窪地や正常な足場に乗っているのでテレポートしない
+        if (Physics.Raycast(p + Vector3.up * 0.40f, Vector3.down, out RaycastHit hit, 1.20f, ~0, QueryTriggerInteraction.Ignore))
             return;
 
         if (_cc != null) _cc.enabled = false;
@@ -1294,21 +1313,34 @@ public class AdventurePlayerController : MonoBehaviour
         if (_gliding || _autoGlide || _skybreakPillarLock) return;
 
         Vector3 p = transform.position;
-        // 頭上（高さ0.8m〜1.9m）に板・コライダーが接触／圧迫しているか検知
-        if (Physics.Raycast(p + Vector3.up * 0.8f, Vector3.up, out RaycastHit hitUp, 1.1f, ~0, QueryTriggerInteraction.Ignore))
+        // 頭上（高さ1.2m〜1.9m）に板・コライダーが接触／圧迫しているか検知
+        if (Physics.Raycast(p + Vector3.up * 1.2f, Vector3.up, out RaycastHit hitUp, 0.7f, ~0, QueryTriggerInteraction.Ignore))
         {
             if (hitUp.collider != null && !(hitUp.collider is TerrainCollider))
             {
+                // ドローンやプレイヤー自身の場合は絶対にスキップ
+                if (hitUp.collider.CompareTag("Player") || hitUp.collider.name.Contains("Rust") || hitUp.collider.name.Contains("Drone"))
+                    return;
+
+                // 明らかに人工物の板（Plank / Ramp / Bridge / Wood）である場合のみ対象
+                string colName = hitUp.collider.name.ToLower();
+                if (!colName.Contains("plank") && !colName.Contains("ramp") && !colName.Contains("bridge") && !colName.Contains("wood") && !colName.Contains("stair"))
+                    return;
+
                 // 板の上面高さを探す（hitUpの衝突点から少し上から下向きにレイキャスト）
                 Vector3 probeAbove = new Vector3(p.x, hitUp.point.y + 1.2f, p.z);
                 if (Physics.Raycast(probeAbove, Vector3.down, out RaycastHit hitSurface, 1.5f, ~0, QueryTriggerInteraction.Ignore))
                 {
                     float safeY = hitSurface.point.y + 0.05f;
-                    if (_cc != null) _cc.enabled = false;
-                    transform.position = new Vector3(p.x, safeY, p.z);
-                    if (_cc != null) _cc.enabled = true;
-                    _hop = -0.85f;
-                    _grounded = true;
+                    // 現在位置より明らかに高く、かつ合理的な範囲（0.3m〜1.8m以内）の引き上げのみ実行
+                    if (safeY > p.y + 0.3f && safeY < p.y + 1.8f)
+                    {
+                        if (_cc != null) _cc.enabled = false;
+                        transform.position = new Vector3(p.x, safeY, p.z);
+                        if (_cc != null) _cc.enabled = true;
+                        _hop = -0.85f;
+                        _grounded = true;
+                    }
                 }
             }
         }

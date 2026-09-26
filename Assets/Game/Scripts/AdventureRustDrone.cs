@@ -179,6 +179,12 @@ public partial class AdventureRustDrone : MonoBehaviour
             return;
         }
         Instance = this;
+
+        // ドローン自身や子オブジェクトのコライダーがNikoの歩行やレイキャストを邪魔しないよう完全除去
+        foreach (var col in GetComponentsInChildren<Collider>(true))
+        {
+            Destroy(col);
+        }
     }
 
     void Start()
