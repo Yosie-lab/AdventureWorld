@@ -699,6 +699,21 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
       - **操作ガイドチートシート**: 移動・視点・小ジャンプ(J)・滑空(Space)・ダイブ/滞空(W/S)・手当て/撫でる(E)・遠隔指示(F)・クエスト切替(Tab)・セーブ(F5)を一覧で即座に確認可能。
       - **最初からやり直す（リスタート）機能**: 誤爆防止の確認ダイアログを挟み、砂浜座礁艇前からのニューゲーム初期化をワンクリックで実行可能。
 
+25. **白砂ビーチの貝殻・シーグラス収集ループ＆水しぶき足音・飛沫エフェクトの実装（2026-09-26追加）**:
+    - [AdventureNikoFootsteps.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureNikoFootsteps.cs)
+    - [AdventureBeachSeashellItem.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBeachSeashellItem.cs)
+    - [AdventureBeachSeashellManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBeachSeashellManager.cs)
+    - [AdventureSaveManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSaveManager.cs)
+    - **実施内容**:
+      - **水しぶき足音＆飛沫パーティクル（Splash Footsteps & FX）**:
+        - 波打ち際（標高5.85m〜6.25m）や池の浅瀬に入った瞬間、通常の乾いた足音から**「チャプッ、ピシャッ」**という澄んだ水しぶき足音へシームレスに自動切替。
+        - 足元から水滴がパッと跳ね上がる半透明の飛沫パーティクルエフェクトを左右交互に生成。水面着地時には「バシャァン！」と水飛沫が弾ける。
+      - **白砂ビーチの貝殻・シーグラス・小琥珀収集ループ**:
+        - 西側白砂ビーチの波打ち際に全24個の可憐なアイテム（桜色のサクラガイ、エメラルド/サファイアのシーグラス、黄金の小琥珀、純白の巻貝）を散滅配置。太陽光のキラキラスパークル付き。
+        - Nikoが近寄って【Eキー】またはクリックで採取。澄んだクリスタルチャイム音とともに手元へフワリと吸い込まれるポップアニメーション。
+        - 画面下部に洗練された収集トースト（「✦ 桜色のサクラガイ を拾った」）を表示し、相棒Rustも「わぁ、花びらみたいな貝殻だね！」と嬉しそうにリアクション。
+        - ニューゲーム（F8 / ポーズ初期化）時には自動で全貝殻が再配置される連携を完備。
+
 ## 次の推奨タスク
 
 1. **探索の手触り向上：白砂ビーチの貝殻・漂着物・スクラップ採取インタラクション＆収集ポップ演出**:
