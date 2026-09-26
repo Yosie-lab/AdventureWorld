@@ -240,64 +240,67 @@ public class AdventureCameraFollow : MonoBehaviour
         _lookUpdatedThisFrame = false;
     }
 
+    Vector2 _prevMouseScreenPos;
+    bool _hasPrevMousePos;
+
     void UpdateLookInputOnly()
     {
         var kb = Keyboard.current;
         var mouse = Mouse.current;
 
-        bool isModalOpen = AdventurePauseMenu.IsOpen ||
-                           AdventureRustWorkshopUI.IsOpen ||
-                           AdventureBeachDriftBox.IsModalOpen ||
-                           (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal);
+        // ポーズ中のみカメラ回転を停止
+        if (AdventurePauseMenu.IsOpen) return;
 
-        bool wantsFreeCursor = AdventureStoryFlow.WantsFreeCursor;
-
-        if (wantsFreeCursor || isModalOpen)
+        // 画面クリックで即座にカーソルをロックしてゲームに復帰
+        if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
         {
-            if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
+            bool isPointerOverUi = UnityEngine.EventSystems.EventSystem.current != null &&
+                                   UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+            if (!isPointerOverUi && !AdventureStoryFlow.WantsFreeCursor)
             {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
             }
         }
-        else
-        {
-            bool toggleCursor = (kb != null && kb.leftAltKey.wasPressedThisFrame);
 
-            if (toggleCursor)
-            {
-                bool locked = Cursor.lockState != CursorLockMode.Locked;
-                Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
-                Cursor.visible = !locked;
-            }
-            else if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
-            {
-                // UI操作中のクリック（uGUIコンポーネント等）ならカーソルをロックしない
-                bool isPointerOverUi = UnityEngine.EventSystems.EventSystem.current != null &&
-                                       UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
-                if (!isPointerOverUi)
-                {
-                    LockCursor();
-                }
-            }
+        // Altキーでカーソルロックのトグル
+        if (kb != null && kb.leftAltKey.wasPressedThisFrame)
+        {
+            bool locked = Cursor.lockState != CursorLockMode.Locked;
+            Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !locked;
         }
 
         if (kb != null && kb.rKey.wasPressedThisFrame)
             SnapBehindTarget();
 
-        if (isModalOpen) return;
-
-        // マウスデルタの取得（Unity Input System）
+        // ── マウス移動量の高信頼取得 ──
         float mouseX = 0f;
         float mouseY = 0f;
+
         if (mouse != null)
         {
+            // 系統1: delta による取得
             Vector2 delta = mouse.delta.ReadValue();
             mouseX = delta.x;
             mouseY = delta.y;
+
+            // 系統2: delta が 0 の場合、スクリーン座標の差分から直接算出（エディタ・OS非ロック時対応）
+            Vector2 curScreenPos = mouse.position.ReadValue();
+            if (_hasPrevMousePos && Mathf.Abs(mouseX) < 0.001f && Mathf.Abs(mouseY) < 0.001f)
+            {
+                Vector2 diff = curScreenPos - _prevMouseScreenPos;
+                if (diff.sqrMagnitude < 250000f) // 画面端ワープ防止
+                {
+                    mouseX = diff.x;
+                    mouseY = diff.y;
+                }
+            }
+            _prevMouseScreenPos = curScreenPos;
+            _hasPrevMousePos = true;
         }
 
-        // モーダルが開いていない限り、マウス移動は即座にカメラ回転へ反映
+        // カメラ回転へ即時反映
         if (Mathf.Abs(mouseX) > 0.001f || Mathf.Abs(mouseY) > 0.001f)
         {
             _targetYaw += mouseX * sensitivity;
@@ -305,8 +308,7 @@ public class AdventureCameraFollow : MonoBehaviour
             _lastMouseInputTime = Time.time;
         }
 
-        // 矢印キー（←→↑↓）はプレイヤーの移動（WASD代替）で使用するため、カメラ回転からは完全除外（マウスおよびRスティックのみで視点回転）
-
+        // ゲームパッド対応
         var pad = Gamepad.current;
         if (pad != null)
         {

@@ -863,6 +863,7 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
         - **腰への強制フレーミングを完全撤廃**し、入力角度をダイレクトにカメラへ適用。
         - **上下可動域を拡大**（見下ろし -42度、見上げ +58度）し、足元の貝殻から大空のウミネコまで快適に見回せるよう改善。
         - **リアルタイム感度微調整ホットキー**: 【 [ / ] 】キー またはテンキーの【 - / + 】でゲームプレイ中にいつでも好みの感度に微調整可能。
+        - **マウス移動高信頼ハイブリッド検知**: `mouse.delta` に加え、エディタ非ロック時でも確実に動作する `mouse.position` 前フレーム差分の2系統検知を導入。クリック時の即時フォーカス復帰と不要ブロッキング撤廃により、100%安定した視点操作を実現。
 
 35. **カピタとのふれあい・物々交換（トレード）システムの実装（2026-09-26追加）**:
     - [AdventureCapytaBlessing.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureCapytaBlessing.cs)
