@@ -46,6 +46,12 @@ public class AdventureRustFloatOpening : MonoBehaviour
     /// <summary>オープニング決定後、入力の誤爆（ジャンプや滑空）を防止する入力ガード中か判定</summary>
     public static bool IsInputGuarded => Time.unscaledTime < _inputGuardUntil;
 
+    /// <summary>移動入力があった場合、入力ガードを即座に破棄して歩行を開始</summary>
+    public static void DismissInputGuard()
+    {
+        _inputGuardUntil = 0f;
+    }
+
     public bool IsModalBoardOpen()
     {
         // エンディング進行中は絶対に操作ロックしない（再表示バグ対策）

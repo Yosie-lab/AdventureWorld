@@ -204,6 +204,10 @@ public class AdventurePlayerController : MonoBehaviour
 
     void Update()
     {
+        // CharacterController の自動復旧（万が一無効化されたまま残るのを防止）
+        if (_cc != null && !_cc.enabled)
+            _cc.enabled = true;
+
         var kb = GetKeyboard();
 
         // オープニングボード表示中、または決定直後の入力ガード中（クリック・Space誤爆防止）は操作不可
@@ -212,15 +216,28 @@ public class AdventurePlayerController : MonoBehaviour
         {
             if (AdventureStoryFlow.ShouldSkipOpening)
                 opening.ForceDismissForGameplay();
+            else if (AdventureRustFloatOpening.IsInputGuarded && HasAnyMoveInput(kb))
+            {
+                // 移動キーが押されたら入力ガードを即座に破棄して歩行開始
+                AdventureRustFloatOpening.DismissInputGuard();
+            }
             else
                 return;
         }
 
-        // プロローグの遭難目覚め演出中は操作をロック（砂浜で倒れた状態から起き上がるまで）
+        // プロローグの遭難目覚め演出中：キー入力があれば演出を即座にスキップして起き上がる
         var prologue = AdventurePrologueDrama.Instance;
         if (prologue != null && prologue.IsAwakening)
         {
-            return;
+            if (HasAnyMoveInput(kb) || (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)) ||
+                Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return))
+            {
+                prologue.SkipAwakening();
+            }
+            else
+            {
+                return;
+            }
         }
 
         ReadInputFlags(kb);
@@ -737,9 +754,18 @@ public class AdventurePlayerController : MonoBehaviour
             camRight.Normalize();
         }
 
-        // ペット中は移動禁止
+        // ペット中は移動禁止（ただし移動キーを入力した場合は撫で演出を即中断して歩行優先）
         if (AdventurePettingAction.Instance != null && AdventurePettingAction.Instance.IsPetting)
-            input = Vector2.zero;
+        {
+            if (input.sqrMagnitude > 0.001f)
+            {
+                AdventurePettingAction.Instance.CancelPetting();
+            }
+            else
+            {
+                input = Vector2.zero;
+            }
+        }
 
         Vector3 wishWalk = input.sqrMagnitude > 0.0001f
             ? Vector3.ClampMagnitude(camRight * input.x + camForward * input.y, 1f) * speed
@@ -1771,6 +1797,36 @@ public class AdventurePlayerController : MonoBehaviour
             if (gp.dpad.right.isPressed) x = 1f;
         }
         return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
+    }
+
+    static bool HasAnyMoveInput(Keyboard kb)
+    {
+        try
+        {
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) return true;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) return true;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) return true;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) return true;
+            if (Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f) return true;
+        }
+        catch { }
+
+        if (kb != null)
+        {
+            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) return true;
+            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) return true;
+            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) return true;
+            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) return true;
+        }
+
+        var gp = Gamepad.current;
+        if (gp != null)
+        {
+            if (gp.leftStick.ReadValue().sqrMagnitude > 0.04f) return true;
+            if (gp.dpad.up.isPressed || gp.dpad.down.isPressed || gp.dpad.left.isPressed || gp.dpad.right.isPressed) return true;
+        }
+
+        return false;
     }
 
     /// <summary>AdventureRustDrone のシングルトンを取得（キャッシュなし）</summary>

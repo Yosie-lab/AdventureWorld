@@ -64,7 +64,8 @@ public class AdventureIslandBoundary : MonoBehaviour
 
     public bool IsWalkable(Vector3 pos)
     {
-        if (pos.x < walkMinX || pos.x > walkMaxX || pos.z < walkMinZ || pos.z > walkMaxZ)
+        // 極端なマップ外奈落（海のはるか沖合）以外は常に歩行可能とし、見えない壁による硬直を完全防止
+        if (pos.x < -300f || pos.x > 1300f || pos.z < -300f || pos.z > 1300f)
             return false;
 
         return true;
@@ -72,42 +73,14 @@ public class AdventureIslandBoundary : MonoBehaviour
 
     public Vector3 ClampWalkable(Vector3 pos)
     {
-        pos.x = Mathf.Clamp(pos.x, walkMinX, walkMaxX);
-        pos.z = Mathf.Clamp(pos.z, walkMinZ, walkMaxZ);
-
-        Vector2 flat = new Vector2(pos.x, pos.z);
-        Vector2 delta = flat - lakeCenter;
-        float dist = delta.magnitude;
-        if (dist < lakeRadius && dist > 0.001f)
-        {
-            Vector2 edge = lakeCenter + delta / dist * lakeRadius;
-            pos.x = edge.x;
-            pos.z = edge.y;
-        }
-
+        pos.x = Mathf.Clamp(pos.x, -300f, 1300f);
+        pos.z = Mathf.Clamp(pos.z, -300f, 1300f);
         return pos;
     }
 
     public Vector3 ClipMotion(Vector3 pos, Vector3 motion)
     {
-        if (motion.sqrMagnitude < 0.000001f)
-            return motion;
-
-        float nextX = pos.x + motion.x;
-        if (!IsWalkable(new Vector3(nextX, pos.y, pos.z)))
-            motion.x = ClampWalkable(new Vector3(nextX, pos.y, pos.z)).x - pos.x;
-
-        float nextZ = pos.z + motion.z;
-        if (!IsWalkable(new Vector3(pos.x + motion.x, pos.y, nextZ)))
-            motion.z = ClampWalkable(new Vector3(pos.x + motion.x, pos.y, nextZ)).z - pos.z;
-
-        Vector3 dest = pos + new Vector3(motion.x, 0f, motion.z);
-        if (!IsWalkable(dest))
-        {
-            motion.x = 0f;
-            motion.z = 0f;
-        }
-
+        // 移動量をゼロに削らず、そのままスムーズに通過させる
         return motion;
     }
 

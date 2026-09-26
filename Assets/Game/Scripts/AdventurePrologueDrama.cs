@@ -33,9 +33,19 @@ public class AdventurePrologueDrama : MonoBehaviour
     bool _dashBoardAdvance;
     float _dashBoardOpenTime;
     bool _secondGearDone;
+    bool _skipAwakening;
 
     public bool IsAwakening => _phase == Phase.Awakening;
     public bool IsShowingDashBoard => _showDashBoard && _phase == Phase.DashCelebrate;
+
+    /// <summary>キー入力などにより遭難目覚め演出を即座にスキップして起き上がる</summary>
+    public void SkipAwakening()
+    {
+        if (_phase == Phase.Awakening)
+        {
+            _skipAwakening = true;
+        }
+    }
 
     public bool IsBlockingSpeech =>
         _phase == Phase.Awakening
@@ -72,6 +82,50 @@ public class AdventurePrologueDrama : MonoBehaviour
         _instance = this;
     }
 
+    void Update()
+    {
+        if (_phase == Phase.Awakening && !_skipAwakening)
+        {
+            if (CheckWakeupInput())
+            {
+                SkipAwakening();
+            }
+        }
+    }
+
+    bool CheckWakeupInput()
+    {
+        try
+        {
+            if (Input.anyKeyDown) return true;
+            if (Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f) return true;
+        }
+        catch { }
+
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.wKey.isPressed || kb.sKey.isPressed || kb.aKey.isPressed || kb.dKey.isPressed ||
+                kb.upArrowKey.isPressed || kb.downArrowKey.isPressed || kb.leftArrowKey.isPressed || kb.rightArrowKey.isPressed ||
+                kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)
+                return true;
+        }
+
+        var m = UnityEngine.InputSystem.Mouse.current;
+        if (m != null && (m.leftButton.wasPressedThisFrame || m.rightButton.wasPressedThisFrame))
+            return true;
+
+        var gp = UnityEngine.InputSystem.Gamepad.current;
+        if (gp != null)
+        {
+            if (gp.leftStick.ReadValue().sqrMagnitude > 0.04f) return true;
+            if (gp.buttonSouth.wasPressedThisFrame || gp.buttonWest.wasPressedThisFrame) return true;
+            if (gp.dpad.up.isPressed || gp.dpad.down.isPressed || gp.dpad.left.isPressed || gp.dpad.right.isPressed) return true;
+        }
+
+        return false;
+    }
+
     /// <summary>オープニングPlay直後／ニューゲーム時に呼ぶ</summary>
     public void BeginAfterOpening()
     {
@@ -89,6 +143,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         _showOilPrompt = false;
         _showDashBoard = false;
         _secondGearDone = false;
+        _skipAwakening = false;
         StartCoroutine(PrologueRoutine());
     }
 
@@ -101,6 +156,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         _showDashBoard = false;
         _dashBoardAdvance = false;
         _secondGearDone = false;
+        _skipAwakening = false;
         var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
         drone?.EndPrologueDistress();
 
@@ -479,51 +535,100 @@ public class AdventurePrologueDrama : MonoBehaviour
             drone.transform.rotation = rustTiltRot;
         }
 
+        // 即座にスキップして起き上がるクリーンアップ関数
+        void QuickWakeupCleanup()
+        {
+            if (eyelidCanvasGo != null)
+                Destroy(eyelidCanvasGo);
+            if (waveSource != null)
+            {
+                waveSource.Stop();
+                Destroy(waveSource);
+            }
+            if (music != null)
+                music.SetSpotDucking(0f);
+            if (camFollow != null)
+            {
+                camFollow.enabled = true;
+                camFollow.SnapBehindTarget();
+            }
+            if (drone != null)
+            {
+                Vector3 rustGoalPos = playerPos + playerForward * 1.2f + Vector3.up * 1.2f;
+                drone.transform.position = rustGoalPos;
+                drone.transform.rotation = Quaternion.LookRotation(playerPos + Vector3.up * 1.2f - rustGoalPos);
+            }
+        }
+
+        IEnumerator WaitOrSkip(float duration)
+        {
+            float elapsed = 0f;
+            while (elapsed < duration && !_skipAwakening)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+        }
+
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+
         // --- シーン1: 暗闇の中で波の音と遠い意識 ---
         float fadeT = 0f;
-        while (fadeT < 1.6f)
+        while (fadeT < 1.6f && !_skipAwakening)
         {
             fadeT += Time.deltaTime;
             if (waveSource != null)
                 waveSource.volume = Mathf.Lerp(0f, 0.72f, fadeT / 1.6f);
             yield return null;
         }
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
-        yield return new WaitForSeconds(0.6f);
+        yield return WaitOrSkip(0.6f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
         yield return ShowSubtitle(subtitleText, subtitleCg, "……ザザァ……ザザァ……", 2.2f);
-        yield return new WaitForSeconds(0.5f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        yield return WaitOrSkip(0.5f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
         yield return ShowSubtitle(subtitleText, subtitleCg, "……遠くで、波の音が聴こえる。", 2.5f);
-        yield return new WaitForSeconds(0.8f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        yield return WaitOrSkip(0.8f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // Rustの遠い呼びかけ
         if (drone != null)
             drone.SpeakCustom("……Niko？　……Niko……？", 3.0f);
         yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「……Niko？　……Niko……？」", 2.6f);
-        yield return new WaitForSeconds(0.5f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        yield return WaitOrSkip(0.5f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // --- シーン2: 薄目を開けるが力尽きてまた閉じる ---
         float eyeT = 0f;
-        while (eyeT < 1.1f)
+        while (eyeT < 1.1f && !_skipAwakening)
         {
             eyeT += Time.deltaTime;
             float factor = Mathf.SmoothStep(0f, 0.28f, eyeT / 1.1f);
             SetEyelidsOpen(upperEyelid, lowerEyelid, factor);
             yield return null;
         }
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
-        yield return new WaitForSeconds(0.8f);
+        yield return WaitOrSkip(0.8f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // 再び意識が途切れ、まぶたが閉じる
         eyeT = 0f;
-        while (eyeT < 0.9f)
+        while (eyeT < 0.9f && !_skipAwakening)
         {
             eyeT += Time.deltaTime;
             float factor = Mathf.SmoothStep(0.28f, 0f, eyeT / 0.9f);
             SetEyelidsOpen(upperEyelid, lowerEyelid, factor);
             yield return null;
         }
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
-        yield return new WaitForSeconds(0.5f);
+        yield return WaitOrSkip(0.5f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // Rustがさらに顔に近づき必死に呼びかける
         if (drone != null)
@@ -533,7 +638,9 @@ public class AdventurePrologueDrama : MonoBehaviour
             drone.SpeakCustom("Niko……！　目を覚まして、Niko……！！", 3.2f);
         }
         yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「Niko……！　目を覚まして、Niko……！！」", 2.8f);
-        yield return new WaitForSeconds(0.4f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        yield return WaitOrSkip(0.4f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // --- シーン3: 完全開眼と起き上がりカメラワーク ---
         Vector3 targetCamPos = playerPos + Vector3.up * 1.55f - playerForward * 3.6f;
@@ -541,7 +648,7 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         float riseT = 0f;
         float riseDuration = 2.4f;
-        while (riseT < riseDuration)
+        while (riseT < riseDuration && !_skipAwakening)
         {
             riseT += Time.deltaTime;
             float u = Mathf.Clamp01(riseT / riseDuration);
@@ -567,6 +674,7 @@ public class AdventurePrologueDrama : MonoBehaviour
 
             yield return null;
         }
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // まぶたUIと字幕Canvasの破棄
         if (eyelidCanvasGo != null)
@@ -577,12 +685,14 @@ public class AdventurePrologueDrama : MonoBehaviour
         {
             drone.TriggerCelebration("ピピッ！……よかったぁぁ！！気がついた……！", 2.2f);
         }
-        yield return new WaitForSeconds(2.4f);
+        yield return WaitOrSkip(2.4f);
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         if (drone != null)
         {
             yield return SpeakRust(drone, "脱出ポッドが海に落ちて……ボクたち、この島に打ち上げられたんだ！", 4.5f);
         }
+        if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // BGMフェードイン＆波音フェードアウト
         StartCoroutine(FadeInBgmAndFadeOutWave(waveSource));
@@ -594,7 +704,7 @@ public class AdventurePrologueDrama : MonoBehaviour
             camFollow.SnapBehindTarget();
         }
 
-        yield return new WaitForSeconds(1.0f);
+        yield return WaitOrSkip(1.0f);
     }
 
     GameObject CreateAwakeningUI(out RectTransform upperEyelid, out RectTransform lowerEyelid, out Text subtitleText, out CanvasGroup subtitleCg)
@@ -655,6 +765,24 @@ public class AdventurePrologueDrama : MonoBehaviour
         outline.effectColor = new Color(0f, 0f, 0f, 0.85f);
         outline.effectDistance = new Vector2(2f, -2f);
 
+        // スキップ案内テキスト
+        var hintGo = new GameObject("AwakeningSkipHint");
+        hintGo.transform.SetParent(canvasGo.transform, false);
+        var hintRt = hintGo.AddComponent<RectTransform>();
+        hintRt.anchorMin = new Vector2(0.15f, 0.03f);
+        hintRt.anchorMax = new Vector2(0.85f, 0.08f);
+        hintRt.offsetMin = Vector2.zero;
+        hintRt.offsetMax = Vector2.zero;
+        var hintText = hintGo.AddComponent<Text>();
+        hintText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        hintText.fontSize = 24;
+        hintText.alignment = TextAnchor.MiddleCenter;
+        hintText.color = new Color(1f, 0.92f, 0.65f, 0.95f);
+        hintText.text = "【WASD / 矢印 / Space】で今すぐ起き上がる";
+        var hintOutline = hintGo.AddComponent<Outline>();
+        hintOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
+        hintOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
         return canvasGo;
     }
 
@@ -673,18 +801,25 @@ public class AdventurePrologueDrama : MonoBehaviour
         text.text = message;
 
         float t = 0f;
-        while (t < 0.35f)
+        while (t < 0.35f && !_skipAwakening)
         {
             t += Time.deltaTime;
             cg.alpha = Mathf.Lerp(0f, 1f, t / 0.35f);
             yield return null;
         }
+        if (_skipAwakening) yield break;
         cg.alpha = 1f;
 
-        yield return new WaitForSeconds(duration);
+        float waitElapsed = 0f;
+        while (waitElapsed < duration && !_skipAwakening)
+        {
+            waitElapsed += Time.deltaTime;
+            yield return null;
+        }
+        if (_skipAwakening) yield break;
 
         t = 0f;
-        while (t < 0.35f)
+        while (t < 0.35f && !_skipAwakening)
         {
             t += Time.deltaTime;
             cg.alpha = Mathf.Lerp(1f, 0f, t / 0.35f);
