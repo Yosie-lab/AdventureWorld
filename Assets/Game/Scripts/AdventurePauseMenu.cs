@@ -234,7 +234,7 @@ public class AdventurePauseMenu : MonoBehaviour
 
         if (AdventureSaveManager.Instance != null)
         {
-            AdventureSaveManager.Instance.ResetAllForNewGame();
+            AdventureSaveManager.Instance.ResetToNewGame();
         }
     }
 

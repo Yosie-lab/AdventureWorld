@@ -168,22 +168,30 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         {
             if (!_pianoAudioSource.isPlaying)
             {
-                _pianoAudioSource.volume = 0.38f;
                 _pianoAudioSource.Play();
             }
         }
 
-        // プレイヤー接近判定
+        // プレイヤー接近判定＆カピタのピアノ生演奏ダイナミック音量制御
         var player = AdventurePlayerController.Instance;
-        if (player != null)
+        if (player != null && _pianoAudioSource != null && !_isSilencedForEnding)
         {
             float dist = Vector3.Distance(transform.position, player.transform.position);
 
-            // BGMディレクターへのスポットダッキング連携（22m以内でほんのりBGMを控えめにしてピアノが優しく香る程度）
+            // カピタに近づくにつれてピアノの音がダイナミックに豊かに増大！
+            // 60m手前から森の奥にぽろん…と優しく聴こえ始め、近づく（20m -> 4m）につれて澄んだ大音量（最大0.95f）へ
+            float proximity = Mathf.Clamp01((60f - dist) / 55f);
+            float curve = proximity * proximity; // 接近時にグッと音が前に出る2次イージング
+            float baseVol = Mathf.Lerp(0.06f, 0.95f, curve);
+
+            float seScale = PlayerPrefs.GetFloat("Adventure_SeVolume", 1.0f);
+            _pianoAudioSource.volume = baseVol * seScale;
+
+            // BGMディレクターへのスポットダッキング連携（カピタに近づくほど島全体のアンビエントBGMを最大80%減衰させ、カピタの生演奏を主役にする）
             if (AdventureMusicDirector.Instance != null)
             {
-                float duck = Mathf.Clamp01((22f - dist) / 16f);
-                AdventureMusicDirector.Instance.SetSpotDucking(duck * 0.22f);
+                float duck = Mathf.Clamp01((35f - dist) / 28f);
+                AdventureMusicDirector.Instance.SetSpotDucking(duck * 0.80f);
             }
 
             // 1. 初回接近時（8.5m以内）の発見演出
@@ -456,12 +464,12 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         _pianoAudioSource = gameObject.GetComponent<AudioSource>();
         if (_pianoAudioSource == null) _pianoAudioSource = gameObject.AddComponent<AudioSource>();
 
-        // カピタのピアノから本当に聴こえてくる自然な3D定位
-        _pianoAudioSource.spatialBlend = 0.70f;
-        _pianoAudioSource.minDistance = 3.5f; // カピタのすぐそばで心地よく聴こえる
-        _pianoAudioSource.maxDistance = 28.0f; // 木陰から少し離れると自然に消え、島全体に響きすぎない
-        _pianoAudioSource.rolloffMode = AudioRolloffMode.Linear; // 安全なリニア減衰
-        _pianoAudioSource.volume = 0.38f; // 控えめで優しいボリューム
+        // カピタのピアノから本当に聴こえてくる自然な3D定位（音を頼りに森の奥のカピタを探せる）
+        _pianoAudioSource.spatialBlend = 0.90f;
+        _pianoAudioSource.minDistance = 4.5f;   // カピタの目の前で最も豊かに響く
+        _pianoAudioSource.maxDistance = 60.0f;  // 60m手前から木漏れ日の奥に音が漂い始める
+        _pianoAudioSource.rolloffMode = AudioRolloffMode.Linear;
+        _pianoAudioSource.volume = 0.08f;
         _pianoAudioSource.playOnAwake = false;
 
         _pianoPerformanceClip = CreateFeltPianoPerformanceClip();

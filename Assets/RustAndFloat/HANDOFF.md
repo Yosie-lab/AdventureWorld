@@ -616,10 +616,15 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
       - **自然なロール羽ばたき＆前後位相差**: 前後振動を廃止し、Z軸ロールによる上下羽ばたき（約60Hz）に修正。前翅と後翅で羽ばたきの位相をずらすことで、本物のトンボ特有の優雅で軽快なホバリング飛翔を実現。
       - 起動時に旧パーツを自動撤去・新パーツへ自動再構築するフェイルセーフを実装。
 
-18. **通常探索BGM（エンディング以外のアンビエントテーマ）音量の微調整（2026-09-25追加）**:
+18. **通常探索BGM（フェルトピアノ＆アンビエントテーマ）音量の微調整＆カピタのピアノ生演奏ダイナミック音響（2026-09-26再調整）**:
     - [AdventureMusicDirector.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureMusicDirector.cs)
-    - `AmbientThemeVolume`: `0.30f` → `0.20f`（約33%引き下げ）。
-    - エンディング（天蓋突破・クライマックス・エピローグ）の大音量演出は維持したまま、通常探索中の穏やかなフェルトピアノ＆アンビエントパッドの音量を少し抑え、波音・風音・蝉時雨・足音などの環境音と心地よく調和するように最適化。
+    - [AdventureAncientPianoRelic.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureAncientPianoRelic.cs)
+    - `AmbientThemeVolume`: `0.20f` → **`0.11f`**（約45%引き下げ）。
+    - ピアノメロディの生成ゲイン: `0.14f` → **`0.075f`**（約46%カット）。
+    - パッド和音ゲイン: `0.045f` → **`0.030f`**。
+    - **カピタのピアノ生演奏・ダイナミック接近音量連携**:
+      - 島の奥でピアノを弾いているカピタ（`AdventureAncientPianoRelic`）に近づくにつれて、3D音響のピアノ生演奏がダイナミックに増大（60m手前から聴こえ始め、目の前で最大0.95fの豊かな響きに）。
+      - カピタに近づくにつれて全体探索BGMがスムーズにダッキング（最大80%減衰）され、「島に流れるあのピアノ曲はカピタがここで奏でていた」という極上の情緒と生演奏への引き込みを演出。
 
 19. **エピローグ・映画字幕第3幕の2行分割と精密タイミング調整（2026-09-25追加）**:
     - [AdventureSanctuaryTowerManager.Epilogue.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureSanctuaryTowerManager.Epilogue.cs)

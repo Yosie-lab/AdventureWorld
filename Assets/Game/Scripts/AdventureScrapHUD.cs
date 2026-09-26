@@ -89,7 +89,7 @@ public class AdventureScrapHUD : MonoBehaviour
         AdventureScrapManager.OnProgressChanged -= OnScrapProgressUpdated;
     }
 
-    void OnStoryPhaseChanged(AdventureStoryFlow.StoryPhase phase)
+    void OnStoryPhaseChanged(AdventureStoryFlow.Phase prev, AdventureStoryFlow.Phase next)
     {
         RefreshQuestDisplay();
         RefreshOilDisplay(force: true);

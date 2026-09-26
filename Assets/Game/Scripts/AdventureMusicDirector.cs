@@ -27,7 +27,7 @@ public class AdventureMusicDirector : MonoBehaviour
     const float EndingThemeVolume = 1.00f;
     // AudioSource.volume は 1 で頭打ちになる。1 を超える分は生成波形で足す。
     float SkybreakSourceVolume => Mathf.Min(1f, EndingThemeVolume);
-    const float AmbientThemeVolume = 0.20f;
+    const float AmbientThemeVolume = 0.11f;
 
     /// <summary>外部（古代ピアノ等の環境スポット）からのダッキング要求度 (0.0 = 通常音量, 1.0 = 最大ダッキング)</summary>
     public float spotDuckingFactor = 0f;
@@ -403,7 +403,7 @@ public class AdventureMusicDirector : MonoBehaviour
             {
                 float freq = chord[k];
                 float s = Mathf.Sin(2f * Mathf.PI * freq * t) * 0.6f + Mathf.Sin(4f * Mathf.PI * freq * t) * 0.15f;
-                pad += s * (0.045f / chord.Length);
+                pad += s * (0.030f / chord.Length);
             }
             pad *= padEnv;
 
@@ -420,7 +420,7 @@ public class AdventureMusicDirector : MonoBehaviour
                     float wave = Mathf.Sin(2f * Mathf.PI * note.freq * noteT)
                                + 0.35f * Mathf.Sin(4f * Mathf.PI * note.freq * noteT)
                                + 0.12f * Mathf.Sin(6f * Mathf.PI * note.freq * noteT);
-                    mel += wave * env * 0.14f;
+                    mel += wave * env * 0.075f;
                 }
             }
 
