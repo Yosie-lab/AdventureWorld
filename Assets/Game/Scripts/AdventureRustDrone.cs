@@ -1402,7 +1402,7 @@ public partial class AdventureRustDrone : MonoBehaviour
     }
 
     /// <summary>Nikoとの直接対話または手当て（常備油により絶対に0にならず、いつでも手当て・全回復可能）</summary>
-    void InteractWithNiko()
+    public void InteractWithNiko()
     {
         bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
 

@@ -228,12 +228,21 @@ public class AdventureScrapHUD : MonoBehaviour
         _oilPanelRt.anchorMin = new Vector2(1f, 1f);
         _oilPanelRt.anchorMax = new Vector2(1f, 1f);
         _oilPanelRt.pivot = new Vector2(1f, 1f);
-        _oilPanelRt.anchoredPosition = new Vector2(-24f, -24f);
-        _oilPanelRt.sizeDelta = new Vector2(210f, 48f);
+        _oilPanelRt.anchoredPosition = new Vector2(-20f, -20f);
+        _oilPanelRt.sizeDelta = new Vector2(245f, 48f);
 
         var panelBg = panelGo.AddComponent<Image>();
         panelBg.color = new Color(0.06f, 0.04f, 0.02f, 0.90f);
-        panelBg.raycastTarget = false;
+        panelBg.raycastTarget = true;
+
+        var btn = panelGo.AddComponent<Button>();
+        btn.targetGraphic = panelBg;
+        var colors = btn.colors;
+        colors.normalColor = new Color(0.06f, 0.04f, 0.02f, 0.90f);
+        colors.highlightedColor = new Color(0.18f, 0.12f, 0.05f, 0.98f);
+        colors.pressedColor = new Color(0.28f, 0.18f, 0.08f, 1f);
+        btn.colors = colors;
+        btn.onClick.AddListener(OnOilPanelClicked);
 
         var accentGo = new GameObject("OilAccent");
         accentGo.transform.SetParent(panelGo.transform, false);
@@ -242,27 +251,27 @@ public class AdventureScrapHUD : MonoBehaviour
         accRt.anchorMax = new Vector2(0f, 1f);
         accRt.pivot = new Vector2(0f, 0.5f);
         accRt.anchoredPosition = Vector2.zero;
-        accRt.sizeDelta = new Vector2(3.5f, 0f);
+        accRt.sizeDelta = new Vector2(4.0f, 0f);
         var accImg = accentGo.AddComponent<Image>();
         accImg.color = new Color(1f, 0.78f, 0.28f, 1f);
         accImg.raycastTarget = false;
 
         _oilCg = panelGo.AddComponent<CanvasGroup>();
         _oilCg.alpha = 1f;
-        _oilCg.blocksRaycasts = false;
-        _oilCg.interactable = false;
+        _oilCg.blocksRaycasts = true;
+        _oilCg.interactable = true;
 
         var textGo = new GameObject("OilText");
         textGo.transform.SetParent(panelGo.transform, false);
         var tRt = textGo.AddComponent<RectTransform>();
         tRt.anchorMin = Vector2.zero;
         tRt.anchorMax = Vector2.one;
-        tRt.offsetMin = new Vector2(14f, 4f);
-        tRt.offsetMax = new Vector2(-10f, -4f);
+        tRt.offsetMin = new Vector2(14f, 2f);
+        tRt.offsetMax = new Vector2(-6f, -2f);
 
         _oilText = textGo.AddComponent<Text>();
         _oilText.font = _font;
-        _oilText.fontSize = 18;
+        _oilText.fontSize = 17;
         _oilText.fontStyle = FontStyle.Bold;
         _oilText.alignment = TextAnchor.MiddleLeft;
         _oilText.supportRichText = true;
@@ -293,6 +302,17 @@ public class AdventureScrapHUD : MonoBehaviour
             _isHidden = !_isHidden;
             if (_questCg != null)
                 _questCg.alpha = _isHidden ? 0f : 0.85f;
+        }
+
+        // 右上潤滑油パネルの直接クリック検知（カーソル表示時／uGUI補完）
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null && mouse.leftButton.wasPressedThisFrame && _oilPanelRt != null && _oilCg != null && _oilCg.alpha > 0.5f)
+        {
+            Vector2 mPos = mouse.position.ReadValue();
+            if (RectTransformUtility.RectangleContainsScreenPoint(_oilPanelRt, mPos, null))
+            {
+                OnOilPanelClicked();
+            }
         }
 
         RefreshOilDisplay(force: false);
@@ -338,6 +358,8 @@ public class AdventureScrapHUD : MonoBehaviour
         }
     }
 
+    string _lastFormattedOilText = "";
+
     void RefreshOilDisplay(bool force)
     {
         if (_oilText == null || _oilCg == null) return;
@@ -347,16 +369,37 @@ public class AdventureScrapHUD : MonoBehaviour
         _oilCg.alpha = cinematicHide ? 0f : 1f;
         if (cinematicHide) return;
 
-        var drone = AdventureRustDrone.Instance;
+        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
         int oil = drone != null ? Mathf.Max(0, drone.oilCount) : 0;
-        if (!force && oil == _lastOilShown) return;
-        _lastOilShown = oil;
 
         bool well = drone != null && Time.time < drone.wellOiledUntil;
-        string state = well
-            ? "<color=#A8FFB0>快調</color>"
-            : "<color=#FFB070>手当て可</color>";
-        _oilText.text = $"潤滑油  <color=#FFE066><b>{oil}</b></color>  {state}";
+        string state;
+        if (well)
+        {
+            int remSec = Mathf.CeilToInt(drone.wellOiledUntil - Time.time);
+            state = $"<color=#A8FFB0>快調({remSec}s)</color>";
+        }
+        else
+        {
+            state = "<color=#FFB070>【E / クリック】手当て</color>";
+        }
+
+        string formatted = $"潤滑油  <color=#FFE066><b>{oil}</b></color>  {state}";
+        if (!force && formatted == _lastFormattedOilText) return;
+        _lastFormattedOilText = formatted;
+        _oilText.text = formatted;
+    }
+
+    /// <summary>右上潤滑油パネルクリック時：ダイレクトにRustへ手当て＆全快調化</summary>
+    public void OnOilPanelClicked()
+    {
+        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        if (drone != null)
+        {
+            drone.InteractWithNiko();
+            RefreshOilDisplay(force: true);
+            AdventureNotificationToast.Show("✦ Rustに油をさして手当てしました！", 2.2f);
+        }
     }
 
     /// <summary>シネマティックストーリーボード表示時などにHUDバナーを即座に消去</summary>
