@@ -5,15 +5,15 @@ public class AdventureIslandBoundary : MonoBehaviour
 {
     public static AdventureIslandBoundary Instance { get; private set; }
 
-    public float walkMinX = 25f;
-    public float walkMaxX = 295f;
-    public float walkMinZ = 25f;
-    public float walkMaxZ = 295f;
+    public float walkMinX = 5f;
+    public float walkMaxX = 1019f;
+    public float walkMinZ = 5f;
+    public float walkMaxZ = 1019f;
     public float waterLevel = 5.5f; // Rust & Float の正規海面水位（5.5m）
-    public Vector2 lakeCenter = new Vector2(133f, 169f);
-    public float lakeRadius = 36f;
+    public Vector2 lakeCenter = Vector2.zero;
+    public float lakeRadius = 0f;
     public float rockSpacing = 14f;
-    public bool placeShoreRocks = true;
+    public bool placeShoreRocks = false; // 広大な1000m島で不要な岩壁生成を抑止
 
     Terrain _land;
     bool _built;
@@ -34,22 +34,19 @@ public class AdventureIslandBoundary : MonoBehaviour
             return;
         }
         Instance = this;
-        waterLevel = 5.5f; // Rust & Float 海面水位の絶対保証（旧プロジェクトの18m誤判定による空中浮遊を防止）
-        _land = Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude)
-            .FirstOrDefault(t => t.name == "LandTerrain" || t.name == "IslandTerrain");
+        waterLevel = 5.5f; // Rust & Float 海面水位の絶対保証
+
+        // アクティブTerrainを最優先で取得
+        _land = Terrain.activeTerrain ?? Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude).FirstOrDefault();
         if (_land != null && _land.terrainData != null)
         {
             Vector3 size = _land.terrainData.size;
             Vector3 origin = _land.transform.position;
-            walkMinX = origin.x + 10f;
-            walkMaxX = origin.x + size.x - 10f;
-            walkMinZ = origin.z + 10f;
-            walkMaxZ = origin.z + size.z - 10f;
-            if (size.x > 500f)
-            {
-                // Grand Island (1000m) の場合は旧256m島の進入禁止円を無効化
-                lakeRadius = 0f;
-            }
+            walkMinX = origin.x + 5f;
+            walkMaxX = origin.x + size.x - 5f;
+            walkMinZ = origin.z + 5f;
+            walkMaxZ = origin.z + size.z - 5f;
+            lakeRadius = 0f; // 1000m Grand Sanctuary では旧来の池侵入禁止円を完全無効化
         }
     }
 

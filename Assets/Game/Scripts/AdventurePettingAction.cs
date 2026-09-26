@@ -37,6 +37,24 @@ public class AdventurePettingAction : MonoBehaviour
         _anim = GetComponentInChildren<Animator>();
     }
 
+    void Update()
+    {
+        // コルーチン中断などによる万が一の永続ロックを自動解除
+        if (_isPetting && _petTimer > _petDuration + 1.2f)
+        {
+            CancelPetting();
+        }
+    }
+
+    /// <summary>撫でアクションの強制解除（移動再開・リセット時）</summary>
+    public void CancelPetting()
+    {
+        _isPetting = false;
+        _petTimer = 0f;
+        var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+        drone?.SetPettingState(false, 0f);
+    }
+
     /// <summary>Rustを愛おしく撫でるアクションを実行</summary>
     public void PetRust(string speechText = "よしよし、いつもありがとうね", float duration = 3.0f)
     {

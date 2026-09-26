@@ -427,6 +427,7 @@ public class AdventurePlayerController : MonoBehaviour
         // エンディング途中のRで保留クライマックスが再点火しないよう演出を止める
         AdventureSanctuaryTowerManager.Ensure();
         AdventureSanctuaryTowerManager.Instance?.AbortEndingForEmergencyReset();
+        AdventurePettingAction.Instance?.CancelPetting();
 
         ForceGroundReset();
         Teleport(spawnPosition);
