@@ -332,7 +332,7 @@ public class AdventureBeachEscapeManager : MonoBehaviour
             points[i] = p;
         }
 
-        // デッキ板（Plank）の配置（厚み80cmで地下へ伸ばし、すり抜け・隙間ハマりを完全防止）
+        // デッキ板（Plank）の配置（地下まで完全に埋め込み、下からの潜り込み・すり抜け・隙間挟まりを完全消滅）
         for (int i = 0; i < segments; i++)
         {
             Vector3 p0 = points[i];
@@ -345,13 +345,22 @@ public class AdventureBeachEscapeManager : MonoBehaviour
             Vector3 fwdNorm = forward.normalized;
             Vector3 right = Vector3.Cross(Vector3.up, fwdNorm).normalized;
 
+            // 地面高さを取得し、上面高さを保ったまま地下1.2m深くまで埋め込む
+            float groundUnder = center.y;
+            if (land != null)
+                groundUnder = land.SampleHeight(center) + land.transform.position.y;
+
+            float topY = center.y + 0.15f;
+            float bottomY = Mathf.Min(center.y - 1.2f, groundUnder - 1.2f);
+            float segHeight = Mathf.Max(1.5f, topY - bottomY);
+            float segCenterY = topY - segHeight * 0.5f;
+
             var plank = GameObject.CreatePrimitive(PrimitiveType.Cube);
             plank.name = $"Plank_{i}";
             plank.transform.SetParent(rampGo.transform, false);
-            // 上面高さを維持したまま、下方向へ厚みを持たせて配置
-            plank.transform.position = center - Vector3.up * 0.25f;
+            plank.transform.position = new Vector3(center.x, segCenterY, center.z);
             plank.transform.rotation = Quaternion.LookRotation(fwdNorm, Vector3.up);
-            plank.transform.localScale = new Vector3(width, 0.80f, length * 1.08f);
+            plank.transform.localScale = new Vector3(width, segHeight, length * 1.08f);
 
             var mr = plank.GetComponent<MeshRenderer>();
             if (mr != null) mr.material = _cachedWoodMat;

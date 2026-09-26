@@ -48,7 +48,7 @@ public partial class AdventureSanctuaryTowerManager
     // 関門5：映画字幕は1行ずつ・3幕（格調高い映画テロップ）
     static readonly FilmLine[] EpilogueFilmLines =
     {
-        new FilmLine("「わぁぁ……！見て、Niko！　世界はこんなに広かったんだ……！！」", 8.0f, 0,
+        new FilmLine("「わぁぁ……！見て、Niko！　世界はこんなにも広かったんだ……！！」", 8.0f, 0,
             new Color(0.55f, 0.95f, 1f, 1f)),
         new FilmLine("空が割れた。", 3.4f, 1, new Color(1f, 0.96f, 0.82f, 1f)),
         new FilmLine("箱庭の外には、凍えるほどリアルで、優しい風が吹いていた。", 4.8f, 1, new Color(1f, 0.96f, 0.82f, 1f)),

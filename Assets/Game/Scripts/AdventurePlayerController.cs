@@ -277,7 +277,10 @@ public class AdventurePlayerController : MonoBehaviour
         if (_skybreakPillarLock)
             EnforceSkybreakPillarHeight();
         else
+        {
             PreventGroundBurial();
+            UnstuckFromOverheadPlanks();
+        }
 
         FloatOnWater();
         KeepWalkable();
@@ -1249,6 +1252,32 @@ public class AdventurePlayerController : MonoBehaviour
         if (_hop < 0f) _hop = -0.85f;
         _grounded = true;
         _gliding = false;
+    }
+
+    /// <summary>木道スロープの板の下に潜り込んだり隙間に頭が挟まった場合の自動脱出（板の上面へスムーズに引き上げ）</summary>
+    void UnstuckFromOverheadPlanks()
+    {
+        if (_gliding || _autoGlide || _skybreakPillarLock) return;
+
+        Vector3 p = transform.position;
+        // 頭上（高さ0.8m〜1.9m）に板・コライダーが接触／圧迫しているか検知
+        if (Physics.Raycast(p + Vector3.up * 0.8f, Vector3.up, out RaycastHit hitUp, 1.1f, ~0, QueryTriggerInteraction.Ignore))
+        {
+            if (hitUp.collider != null && !(hitUp.collider is TerrainCollider))
+            {
+                // 板の上面高さを探す（hitUpの衝突点から少し上から下向きにレイキャスト）
+                Vector3 probeAbove = new Vector3(p.x, hitUp.point.y + 1.2f, p.z);
+                if (Physics.Raycast(probeAbove, Vector3.down, out RaycastHit hitSurface, 1.5f, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    float safeY = hitSurface.point.y + 0.05f;
+                    if (_cc != null) _cc.enabled = false;
+                    transform.position = new Vector3(p.x, safeY, p.z);
+                    if (_cc != null) _cc.enabled = true;
+                    _hop = -0.85f;
+                    _grounded = true;
+                }
+            }
+        }
     }
 
     void ClearLocomotionInertia()

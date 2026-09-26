@@ -125,12 +125,21 @@ public static class AdventureRebuildBoardwalkRamps
                 Vector3 fwdNorm = forward.normalized;
                 Vector3 right = Vector3.Cross(Vector3.up, fwdNorm).normalized;
 
+                float groundUnder = segCenter.y;
+                if (land != null)
+                    groundUnder = land.SampleHeight(segCenter) + land.transform.position.y;
+
+                float topY = segCenter.y + 0.15f;
+                float bottomY = Mathf.Min(segCenter.y - 1.2f, groundUnder - 1.2f);
+                float segHeight = Mathf.Max(1.5f, topY - bottomY);
+                float segCenterY = topY - segHeight * 0.5f;
+
                 var plank = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 plank.name = $"Plank_{s}";
                 plank.transform.SetParent(rampGo.transform, false);
-                plank.transform.position = segCenter - Vector3.up * 0.25f;
+                plank.transform.position = new Vector3(segCenter.x, segCenterY, segCenter.z);
                 plank.transform.rotation = Quaternion.LookRotation(fwdNorm, Vector3.up);
-                plank.transform.localScale = new Vector3(width, 0.80f, length * 1.08f);
+                plank.transform.localScale = new Vector3(width, segHeight, length * 1.08f);
 
                 var mr = plank.GetComponent<MeshRenderer>();
                 if (mr != null) mr.sharedMaterial = woodMat;
@@ -198,12 +207,21 @@ public static class AdventureRebuildBoardwalkRamps
             if (length < 0.01f) continue;
             Vector3 fwdNorm = forward.normalized;
             Vector3 right = Vector3.Cross(Vector3.up, fwdNorm).normalized;
+            float groundUnder = segCenter.y;
+            if (land != null)
+                groundUnder = land.SampleHeight(segCenter) + land.transform.position.y;
+
+            float topY = segCenter.y + 0.15f;
+            float bottomY = Mathf.Min(segCenter.y - 1.2f, groundUnder - 1.2f);
+            float segHeight = Mathf.Max(1.5f, topY - bottomY);
+            float segCenterY = topY - segHeight * 0.5f;
+
             var plank = GameObject.CreatePrimitive(PrimitiveType.Cube);
             plank.name = $"Plank_{s}";
             plank.transform.SetParent(rampGo.transform, false);
-            plank.transform.position = segCenter - Vector3.up * 0.25f;
+            plank.transform.position = new Vector3(segCenter.x, segCenterY, segCenter.z);
             plank.transform.rotation = Quaternion.LookRotation(fwdNorm, Vector3.up);
-            plank.transform.localScale = new Vector3(width, 0.80f, length * 1.08f);
+            plank.transform.localScale = new Vector3(width, segHeight, length * 1.08f);
             var mr = plank.GetComponent<MeshRenderer>();
             if (mr != null) mr.sharedMaterial = woodMat;
             if (s % 4 == 0 || s == segments - 1)
