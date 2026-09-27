@@ -132,10 +132,7 @@ public class AdventurePauseMenu : MonoBehaviour
         if (Time.unscaledTime - _lastToggleTime < 0.2f) return;
 
         var kb = Keyboard.current;
-        bool escPressed = false;
-        if (kb != null && kb.escapeKey.wasPressedThisFrame)
-            escPressed = true;
-        try { if (Input.GetKeyDown(KeyCode.Escape)) escPressed = true; } catch { }
+        bool escPressed = AdventureInputReader.EscapeDown;
 
         if (escPressed)
         {

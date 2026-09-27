@@ -396,12 +396,10 @@ public class AdventureCapytaBlessing : MonoBehaviour
 
         _promptVisible = true;
 
-        bool ePressed = player.InteractPressed;
-        var kb = Keyboard.current;
-        if (kb != null && kb.eKey.wasPressedThisFrame) ePressed = true;
-        try { if (Input.GetKeyDown(KeyCode.E)) ePressed = true; } catch { }
+        bool ePressed = player.InteractPressed || AdventureInputReader.InteractDown;
 
         bool qPressed = false;
+        var kb = AdventureInputReader.Keyboard;
         if (kb != null && kb.qKey.wasPressedThisFrame) qPressed = true;
         try { if (Input.GetKeyDown(KeyCode.Q)) qPressed = true; } catch { }
         var pad = Gamepad.current;

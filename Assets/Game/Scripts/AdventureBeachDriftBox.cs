@@ -343,14 +343,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
             float dist = Vector3.Distance(transform.position, player.transform.position);
             if (dist < VisualConfig.TriggerDistance)
             {
-                bool ePressed = false;
-                var kb = Keyboard.current;
-                if (kb != null && kb.eKey.wasPressedThisFrame) ePressed = true;
-                try
-                {
-                    if (Input.GetKeyDown(KeyCode.E)) ePressed = true;
-                }
-                catch { }
+                bool ePressed = AdventureInputReader.InteractDown;
 
                 if (ePressed)
                 {
@@ -1210,39 +1203,16 @@ public class DriftBoxModalInputHandler : MonoBehaviour
     {
         if (!AdventureBeachDriftBox.CanCloseModal) return;
 
-        bool closeTriggered = false;
-
-        // 1. 新Input System
-        var kb = Keyboard.current;
-        if (kb != null)
-        {
-            if (kb.spaceKey.wasPressedThisFrame ||
-                kb.enterKey.wasPressedThisFrame ||
-                kb.numpadEnterKey.wasPressedThisFrame ||
-                kb.escapeKey.wasPressedThisFrame ||
-                kb.eKey.wasPressedThisFrame)
-            {
-                closeTriggered = true;
-            }
-        }
+        // AdventureInputReader に統合（Space/Enter/Esc/E/マウス左の任意で閉じる）
+        bool closeTriggered = AdventureInputReader.SpaceDown
+            || AdventureInputReader.EnterDown
+            || AdventureInputReader.EscapeDown
+            || AdventureInputReader.InteractDown;
 
         var mouse = Mouse.current;
         if (mouse != null && mouse.leftButton.wasPressedThisFrame)
-        {
             closeTriggered = true;
-        }
-
-        // 2. 旧Input System（フォールバック）
-        try
-        {
-            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) ||
-                Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E) ||
-                Input.GetMouseButtonDown(0))
-            {
-                closeTriggered = true;
-            }
-        }
-        catch { }
+        try { if (Input.GetMouseButtonDown(0)) closeTriggered = true; } catch { }
 
         if (closeTriggered)
         {

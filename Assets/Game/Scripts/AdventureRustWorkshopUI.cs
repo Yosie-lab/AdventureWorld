@@ -98,13 +98,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
     void Update()
     {
-        var kb = Keyboard.current;
-
         // Bキーで工房トグル開閉
-        bool bPressed = (kb != null && kb.bKey.wasPressedThisFrame);
-        try { if (Input.GetKeyDown(KeyCode.B)) bPressed = true; } catch { }
-
-        if (bPressed)
+        if (AdventureInputReader.Keyboard?.bKey.wasPressedThisFrame == true)
         {
             // ポーズ中などでなければトグル
             if (!AdventurePauseMenu.IsOpen)
@@ -114,10 +109,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         }
 
         // ESCキーで閉じる
-        bool escPressed = (kb != null && kb.escapeKey.wasPressedThisFrame);
-        try { if (Input.GetKeyDown(KeyCode.Escape)) escPressed = true; } catch { }
-
-        if (escPressed && isVisible)
+        if (AdventureInputReader.EscapeDown && isVisible)
         {
             SetVisible(false);
         }
@@ -142,11 +134,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
         if (isNear)
         {
-            var kb = Keyboard.current;
-            bool ePressed = (kb != null && kb.eKey.wasPressedThisFrame);
-            try { if (Input.GetKeyDown(KeyCode.E)) ePressed = true; } catch { }
-
-            if (ePressed)
+            if (AdventureInputReader.InteractDown)
             {
                 SetVisible(true);
             }
