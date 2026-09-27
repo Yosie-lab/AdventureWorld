@@ -342,16 +342,8 @@ public partial class AdventureSanctuaryTowerManager
 
     static bool WasFilmSkipPressed()
     {
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame))
-            return true;
-        try
-        {
-            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return))
-                return true;
-        }
-        catch { }
-        return false;
+        // Space / Enter のどちらかがこのフレームで押された（AdventureInputReader 統合）
+        return AdventureInputReader.SpaceDown || AdventureInputReader.EnterDown;
     }
 
     static void KeepAutoGlide(AdventurePlayerController player)

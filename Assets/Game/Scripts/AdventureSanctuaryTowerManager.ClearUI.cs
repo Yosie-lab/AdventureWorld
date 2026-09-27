@@ -26,17 +26,13 @@ public partial class AdventureSanctuaryTowerManager
             Cursor.visible = true;
         }
 
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        bool spacePressed = kb != null && (kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame);
-        bool nPressed = kb != null && kb.nKey.wasPressedThisFrame;
-        bool closePressed = kb != null && (kb.eKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame);
-        try
-        {
-            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.J)) spacePressed = true;
-            if (Input.GetKeyDown(KeyCode.N)) nPressed = true;
-            if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Escape)) closePressed = true;
-        }
-        catch { }
+        // AdventureInputReader に委譲（新旧InputSystem統合）
+        bool spacePressed = AdventureInputReader.SpaceOrJDown;
+        bool nPressed = false;
+        var kb = AdventureInputReader.Keyboard;
+        if (kb != null && kb.nKey.wasPressedThisFrame) nPressed = true;
+        try { if (Input.GetKeyDown(KeyCode.N)) nPressed = true; } catch { }
+        bool closePressed = AdventureInputReader.InteractDown || AdventureInputReader.EscapeDown;
 
         if (spacePressed)
             RelaunchIntoSky();

@@ -36,7 +36,8 @@ public static class AdventureRustFloatFeel
     public const float KeyPitchRate = 180f;
     public const float PadLookMul = 280f;
 
-    public static bool IsActiveScene => AdventurePlayerController.IsRustFloatScene();
+    /// <summary>AdventureSceneContext.IsRustFloat の後方互換ラッパー</summary>
+    public static bool IsActiveScene => AdventureSceneContext.IsRustFloat;
 
     public static void ApplyLocomotionSpeeds(AdventurePlayerController player)
     {

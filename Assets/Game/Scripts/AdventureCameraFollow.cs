@@ -280,7 +280,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void UpdateLookInputOnly()
     {
-        var kb = Keyboard.current;
+        var kb = AdventureInputReader.Keyboard;
         var mouse = Mouse.current;
 
         // ポーズ中はカメラ回転入力を受け付けない
@@ -377,7 +377,7 @@ public class AdventureCameraFollow : MonoBehaviour
             Vector2 rStick = pad.rightStick.ReadValue();
             if (rStick.sqrMagnitude > 0.04f)
             {
-                float padMul = AdventureRustFloatFeel.IsActiveScene ? AdventureRustFloatFeel.PadLookMul : 160f;
+                float padMul = AdventureSceneContext.IsRustFloat ? AdventureRustFloatFeel.PadLookMul : 160f;
                 _targetYaw += rStick.x * padMul * Mathf.Max(0.35f, sensitivity) * Time.deltaTime;
                 _targetPitch = Mathf.Clamp(_targetPitch - rStick.y * (padMul * 0.75f) * Mathf.Max(0.35f, sensitivity) * Time.deltaTime, pitchMin, pitchMax);
                 _lastMouseInputTime = Time.time;
@@ -425,19 +425,20 @@ public class AdventureCameraFollow : MonoBehaviour
         if ((isGliding || isAutoGlide) && (Time.time - _lastMouseInputTime > followIdle))
         {
             float targetHeading = target.eulerAngles.y;
+            float dt = Time.unscaledDeltaTime;
             // エピローグのシネマ中：映画的な斜めアングル＋微細ドリフト（ドローンショット）
             if (isAutoGlide && cine > 0.3f)
             {
                 float driftYaw = 14f + Mathf.Sin(Time.unscaledTime * 0.16f) * 8f;
                 float driftPitch = WalkPitch + 3.4f + Mathf.Sin(Time.unscaledTime * 0.11f) * 1.6f;
-                _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading + driftYaw, followRate * 0.85f * Time.deltaTime);
-                _targetPitch = Mathf.MoveTowards(_targetPitch, driftPitch, 14f * Time.deltaTime);
+                _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading + driftYaw, followRate * 0.85f * dt);
+                _targetPitch = Mathf.MoveTowards(_targetPitch, driftPitch, 14f * dt);
             }
             else
             {
-                _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading, followRate * Time.deltaTime);
+                _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading, followRate * dt);
                 if (cine > 0.01f)
-                    _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, 24f * Time.deltaTime);
+                    _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, 24f * dt);
             }
         }
         else if (walkingGround)
@@ -532,11 +533,21 @@ public class AdventureCameraFollow : MonoBehaviour
 
         float cineDist = (isAutoGlide && cine > 0.3f) ? 7.8f : CinematicDistance;
         float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.0f) : distance, cineDist, cine);
-        float safeTargetDist = CalculateSafeDistance(_currentPivot, currentRot, desiredDist);
-        if (cine > 0.2f)
-            safeTargetDist = Mathf.Max(safeTargetDist, Mathf.Lerp(0.9f, 3.2f, cine));
-        if (walkingGround)
-            safeTargetDist = Mathf.Max(safeTargetDist, WalkMinDistance);
+        
+        // 上空（高度80m以上またはオートグライド中）は障害物がないため、天蓋破片等の誤遮蔽SphereCastをバイパスして安定追従
+        float safeTargetDist;
+        if (isAutoGlide || (target != null && target.position.y > 80f))
+        {
+            safeTargetDist = desiredDist;
+        }
+        else
+        {
+            safeTargetDist = CalculateSafeDistance(_currentPivot, currentRot, desiredDist);
+            if (cine > 0.2f)
+                safeTargetDist = Mathf.Max(safeTargetDist, Mathf.Lerp(0.9f, 3.2f, cine));
+            if (walkingGround)
+                safeTargetDist = Mathf.Max(safeTargetDist, WalkMinDistance);
+        }
 
         if (walkingGround)
         {
@@ -545,7 +556,8 @@ public class AdventureCameraFollow : MonoBehaviour
         }
         else
         {
-            _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, cine > 0.2f ? 0.12f : 0.08f);
+            float distSmooth = cine > 0.2f ? 0.12f : 0.08f;
+            _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, distSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
         }
 
         Vector3 targetPos = _currentPivot + currentRot * new Vector3(0f, 0f, -_currentDistance);

@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(CharacterController))]
 [DefaultExecutionOrder(-50)] // 入力処理直後に移動（反応遅延を最小化）
-public class AdventurePlayerController : MonoBehaviour
+public partial class AdventurePlayerController : MonoBehaviour
 {
     #region Inspector Fields
     [Header("Walk / Run")]
@@ -178,11 +178,8 @@ public class AdventurePlayerController : MonoBehaviour
     public static float ActiveTurnSpeed => IsRustFloatScene() ? AdventureRustFloatFeel.TurnSpeed : BaseTurnSpeed;
     public static float ActiveDashTurnSpeed => IsRustFloatScene() ? AdventureRustFloatFeel.DashTurnSpeed : DashTurnSpeed;
 
-    public static bool IsRustFloatScene()
-    {
-        string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        return scene == "RustAndFloat" || scene == "RustAndFlat";
-    }
+    /// <summary>AdventureSceneContext.IsRustFloat の後方互換ラッパー</summary>
+    public static bool IsRustFloatScene() => AdventureSceneContext.IsRustFloat;
 
     void OnEnable()
     {
@@ -208,7 +205,6 @@ public class AdventurePlayerController : MonoBehaviour
         if (_cc != null && !_cc.enabled)
             _cc.enabled = true;
 
-        var kb = GetKeyboard();
 
         // オープニングボード表示中、または決定直後の入力ガード中（クリック・Space誤爆防止）は操作不可
         var opening = AdventureRustFloatOpening.Instance;
@@ -216,7 +212,7 @@ public class AdventurePlayerController : MonoBehaviour
         {
             if (AdventureStoryFlow.ShouldSkipOpening)
                 opening.ForceDismissForGameplay();
-            else if (AdventureRustFloatOpening.IsInputGuarded && HasAnyMoveInput(kb))
+            else if (AdventureRustFloatOpening.IsInputGuarded && AdventureInputReader.HasAnyMove)
             {
                 // 移動キーが押されたら入力ガードを即座に破棄して歩行開始
                 AdventureRustFloatOpening.DismissInputGuard();
@@ -229,8 +225,7 @@ public class AdventurePlayerController : MonoBehaviour
         var prologue = AdventurePrologueDrama.Instance;
         if (prologue != null && prologue.IsAwakening)
         {
-            if (HasAnyMoveInput(kb) || (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)) ||
-                Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return))
+            if (AdventureInputReader.HasAnyMove || AdventureInputReader.SpaceDown || AdventureInputReader.EnterDown)
             {
                 prologue.SkipAwakening();
             }
@@ -240,10 +235,10 @@ public class AdventurePlayerController : MonoBehaviour
             }
         }
 
-        ReadInputFlags(kb);
+        ReadInputFlags();
 
-        if (TryHandleResetKey(kb)) return;
-        TryHandleSaveKey(kb);
+        if (TryHandleResetKey()) return;
+        TryHandleSaveKey();
 
         // ポーズメニュー表示中は操作を停止
         if (AdventurePauseMenu.IsOpen)
@@ -269,8 +264,8 @@ public class AdventurePlayerController : MonoBehaviour
             return;
         }
 
-        Vector2 input   = ReadMove(kb);
-        bool    sprinting = IsRunning(kb);
+        Vector2 input     = AdventureInputReader.MoveAxis;
+        bool    sprinting = AdventureInputReader.ShiftHeld;
         // WASD＝歩き、Shift＝ダッシュ（アニメも連動）
         float   speed     = (sprinting ? runSpeed : walkSpeed) * moveSpeedMultiplier;
         bool    running   = sprinting;
@@ -278,28 +273,24 @@ public class AdventurePlayerController : MonoBehaviour
         HasMoveInput = hasMove;
         bool    justStarted = hasMove && !_wasMoveInput;
         // RustAndFloat：立ち止まり→移動の出だしだけ一瞬速めて「重い助走」を消す
-        if (IsRustFloatScene())
+        if (AdventureSceneContext.IsRustFloat)
             speed = AdventureRustFloatFeel.ApplyStartupBoost(ref _startupBoostTimer, justStarted, hasMove, speed);
         _wasMoveInput = hasMove;
 
-        bool    spaceHeld = kb != null && kb.spaceKey.isPressed;
-        try { if (Input.GetKey(KeyCode.Space)) spaceHeld = true; } catch { }
-        bool    holdGlide = canGlide && spaceHeld;
+        bool holdGlide = canGlide && AdventureInputReader.SpaceHeld;
 
         TickSkybreakPillarLock();
         UpdateGroundedState();
         _cc.stepOffset = StepOffsetGround; // 常時0.45mの段差乗り上げ判定を有効化
 
-        HandleJump(kb);
+        HandleJump();
         UpdateGlidingState(holdGlide || _skybreakPillarLock || _autoGlide);
         NotifyGlideStart();
 
         Vector3 horizontal = ComputeHorizontal(input, speed, running);
 
         ApplyMotion(horizontal);
-        if (_skybreakPillarLock)
-            EnforceSkybreakPillarHeight();
-        else
+        if (!_skybreakPillarLock)
         {
             PreventGroundBurial();
             UnstuckFromOverheadPlanks();
@@ -424,22 +415,16 @@ public class AdventurePlayerController : MonoBehaviour
 
     #region Input Handling
     /// <summary>インタラクトボタンの押下フラグを更新する</summary>
-    void ReadInputFlags(Keyboard kb)
+    void ReadInputFlags()
     {
-        InteractPressed = kb != null && kb.eKey.wasPressedThisFrame;
-        try { if (Input.GetKeyDown(KeyCode.E)) InteractPressed = true; } catch { }
-        var pad = Gamepad.current;
-        // buttonSouth はジャンプ。調べる／話すは E / West のみ。
-        if (pad != null && pad.buttonWest.wasPressedThisFrame)
-            InteractPressed = true;
+        // AdventureInputReader に委譲（Gamepad対応込み）
+        InteractPressed = AdventureInputReader.InteractDown;
     }
 
     /// <summary>Rキー押下でスポーン地点へリセット。trueを返したらUpdateを早期リターン。</summary>
-    bool TryHandleResetKey(Keyboard kb)
+    bool TryHandleResetKey()
     {
-        bool resetPressed = kb != null && kb.rKey.wasPressedThisFrame;
-        try { if (Input.GetKeyDown(KeyCode.R)) resetPressed = true; } catch { }
-        if (!resetPressed) return false;
+        if (!AdventureInputReader.ResetDown) return false;
 
         // エンディング途中のRで保留クライマックスが再点火しないよう演出を止める
         AdventureSanctuaryTowerManager.Ensure();
@@ -452,19 +437,10 @@ public class AdventurePlayerController : MonoBehaviour
     }
 
     /// <summary>K/F5キーで手動クイックセーブ</summary>
-    void TryHandleSaveKey(Keyboard kb)
+    void TryHandleSaveKey()
     {
-        bool savePressed = kb != null && (kb.kKey.wasPressedThisFrame || kb.f5Key.wasPressedThisFrame);
-        try { if (Input.GetKeyDown(KeyCode.K) || Input.GetKeyDown(KeyCode.F5)) savePressed = true; } catch { }
-        if (savePressed)
+        if (AdventureInputReader.QuickSaveDown)
             AdventureSaveManager.Instance?.SaveGame("SAVEしました");
-    }
-
-    static bool IsRunning(Keyboard kb)
-    {
-        try { if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) return true; } catch { }
-        if (kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed)) return true;
-        return false;
     }
 
     bool IsNearWalkableSurface()
@@ -558,7 +534,7 @@ public class AdventurePlayerController : MonoBehaviour
 
     #region Jump & Boost Mechanics
     /// <summary>ジャンプ処理（湖脱出・砂浜サーマル・崖カタパルト・通常・二段ジャンプ）</summary>
-    void HandleJump(Keyboard kb)
+    void HandleJump()
     {
         // 天蓋レバー操作中／台本ボード表示中は Space をジャンプに使わず、台本送りへ回す
         var tower = AdventureSanctuaryTowerManager.Instance;
@@ -566,40 +542,22 @@ public class AdventurePlayerController : MonoBehaviour
         {
             if (tower.IsClimaxOilPromptActive)
             {
-                bool held = kb != null && (kb.spaceKey.isPressed || kb.jKey.isPressed || kb.eKey.isPressed || kb.enterKey.isPressed);
-                try
-                {
-                    if (Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.J) || Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Return))
-                        held = true;
-                }
-                catch { }
-                if (held)
+                if (AdventureInputReader.OilHoldButtons)
                     tower.NotifyOilHold(Time.unscaledDeltaTime);
                 return;
             }
             if (tower.IsSkybreakModalActive)
             {
-                bool spaceDown = kb != null && (kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame);
-                bool spaceHeld = kb != null && (kb.spaceKey.isPressed || kb.jKey.isPressed);
-                try
-                {
-                    if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.J)) spaceDown = true;
-                    if (Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.J)) spaceHeld = true;
-                }
-                catch { }
                 // 全台本：タップ or 押しっぱなしで送り
-                if (spaceDown || spaceHeld)
+                if (AdventureInputReader.SpaceOrJDown || AdventureInputReader.SpaceOrJHeld)
                     tower.NotifyScriptBoardAdvance();
                 return;
             }
             if (tower.IsPlayerNearLever && tower.IsLeverReadyToOpen) return;
         }
 
-        bool spaceJumpPressed = kb != null && kb.spaceKey.wasPressedThisFrame;
-        try { if (Input.GetKeyDown(KeyCode.Space)) spaceJumpPressed = true; } catch { }
-
-        bool shortJumpPressed = kb != null && kb.jKey.wasPressedThisFrame;
-        try { if (Input.GetKeyDown(KeyCode.J)) shortJumpPressed = true; } catch { }
+        bool spaceJumpPressed = AdventureInputReader.SpaceDown;
+        bool shortJumpPressed = AdventureInputReader.JDown;
 
         if (!spaceJumpPressed && !shortJumpPressed) return;
 
@@ -799,7 +757,7 @@ public class AdventurePlayerController : MonoBehaviour
             ClearLocomotionInertia();
 
             Vector3 euler = transform.eulerAngles;
-            if (IsRustFloatScene())
+            if (AdventureSceneContext.IsRustFloat)
                 FaceCameraForward();
             else if (Mathf.Abs(Mathf.DeltaAngle(euler.x, 0f)) > 0.1f ||
                      Mathf.Abs(Mathf.DeltaAngle(euler.z, 0f)) > 0.1f)
@@ -844,7 +802,7 @@ public class AdventurePlayerController : MonoBehaviour
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, 720f * Time.deltaTime);
             }
         }
-        else if (IsRustFloatScene())
+        else if (AdventureSceneContext.IsRustFloat)
         {
             FaceCameraForward();
         }
@@ -1060,6 +1018,26 @@ public class AdventurePlayerController : MonoBehaviour
     #region Motion Application & Water Physics
     void ApplyMotion(Vector3 horizontal)
     {
+        // 光の柱上昇：CharacterController.Move で物理補間を維持して滑らかに上昇（毎フレームのテレポート・ジッターを完全排除）
+        if (_skybreakPillarLock)
+        {
+            Vector3 pos = transform.position;
+            Vector3 toCenter = new Vector3(_skybreakPillarCenter.x - pos.x, 0f, _skybreakPillarCenter.z - pos.z);
+            Vector3 pull = toCenter * Mathf.Clamp01(5.0f * Time.deltaTime);
+
+            float targetY = Mathf.Min(pos.y + _skybreakPillarLift * Time.deltaTime, _skybreakPillarTargetY + 0.25f);
+            float deltaY = Mathf.Max(0f, targetY - pos.y);
+
+            Vector3 pillarMotion = new Vector3(pull.x, deltaY, pull.z);
+            _cc.Move(pillarMotion);
+
+            _hop = _skybreakPillarLift;
+            _grounded = false;
+            _gliding = true;
+            _skybreakLastY = transform.position.y;
+            return;
+        }
+
         Vector3 motion = ClipMotion(horizontal * Time.deltaTime);
 
         // 接地吸着：
@@ -1067,7 +1045,7 @@ public class AdventurePlayerController : MonoBehaviour
         if (_grounded && _hop <= 0.05f && !_gliding && !_autoGlide)
         {
             bool moving = horizontal.magnitude > 0.01f;
-            float stickSpeed = IsRustFloatScene()
+            float stickSpeed = AdventureSceneContext.IsRustFloat
                 ? AdventureRustFloatFeel.GroundStickSpeed(moving)
                 : (moving ? 3.2f : 2.0f);
 
@@ -1408,17 +1386,23 @@ public class AdventurePlayerController : MonoBehaviour
         float currentYaw = transform.eulerAngles.y + AutoGlideYawRate * Time.deltaTime;
         transform.rotation = Quaternion.Euler(2f, currentYaw, -8f);
 
-        Vector3 forward = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+        Vector3 forward = transform.forward.SetY(0f);
         if (forward.sqrMagnitude < 0.001f)
             forward = Vector3.forward;
         forward.Normalize();
 
         float cruise = AutoGlideCruiseSpeed * moveSpeedMultiplier;
-        _airMomentum = Vector3.MoveTowards(_airMomentum, forward * cruise, 6f * Time.deltaTime);
+        _airMomentum = Vector3.MoveTowards(_airMomentum, forward * cruise, 8f * Time.deltaTime);
 
+        // 高度維持の急激なハンチング（上下振動）を防止し、穏やかに吸着
         float dy = _autoGlideAltitude - transform.position.y;
-        float targetFall = Mathf.Clamp(dy * 2.8f, -1.2f, 3.8f);
-        _hop = Mathf.MoveTowards(_hop, targetFall, 10f * Time.deltaTime);
+        float targetHop = Mathf.Clamp(dy * 1.6f, -1.8f, 2.8f);
+        _hop = Mathf.MoveTowards(_hop, targetHop, 3.5f * Time.deltaTime);
+
+        _grounded = false;
+        _gliding = true;
+        _airborneTime = 1f;
+
         return _airMomentum;
     }
 
@@ -1736,7 +1720,7 @@ public class AdventurePlayerController : MonoBehaviour
         if (next != _clip)
         {
             _clip = next;
-            float startNorm = IsRustFloatScene()
+            float startNorm = AdventureSceneContext.IsRustFloat
                 ? AdventureRustFloatFeel.LocomotionAnimStartNorm(fromIdleStartup, idle)
                 : (fromIdleStartup && !idle ? 0.12f : 0f);
             _anim.Play(next, 0, startNorm);
@@ -1746,7 +1730,7 @@ public class AdventurePlayerController : MonoBehaviour
         // クリップは Base* 想定で作られている。Active* を分母にすると
         // RFで世界速度を上げても anim.speed が常に1.0のまま＝足が鈍く見える。
         float animRef = running ? BaseRunSpeed : BaseWalkSpeed;
-        if (IsRustFloatScene())
+        if (AdventureSceneContext.IsRustFloat)
             _anim.speed = AdventureRustFloatFeel.LocomotionAnimSpeed(speed, animRef, idle);
         else
             _anim.speed = idle ? 1f : Mathf.Clamp(speed / Mathf.Max(0.01f, animRef), 1.0f, 1.55f);
@@ -1776,100 +1760,10 @@ public class AdventurePlayerController : MonoBehaviour
         }
     }
 
-    static Keyboard GetKeyboard()
-    {
-        var kb = Keyboard.current;
-        if (kb != null) return kb;
-        foreach (var device in InputSystem.devices)
-            if (device is Keyboard found) return found;
-        return null;
-    }
-
-    static Vector2 ReadMove(Keyboard kb)
-    {
-        // 全経路を OR 合成（どちらかが同フレームで立てば即反応）
-        float x = 0f, y = 0f;
-        try
-        {
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) y = 1f;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) y = -1f;
-            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) x = -1f;
-            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) x = 1f;
-        }
-        catch { }
-
-        if (kb != null)
-        {
-            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) y = 1f;
-            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) y = -1f;
-            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) x = -1f;
-            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) x = 1f;
-        }
-
-        try
-        {
-            float h = Input.GetAxisRaw("Horizontal");
-            float v = Input.GetAxisRaw("Vertical");
-            if (v > 0.01f) y = 1f;
-            if (v < -0.01f) y = -1f;
-            if (h > 0.01f) x = 1f;
-            if (h < -0.01f) x = -1f;
-        }
-        catch { }
-
-        var gp = Gamepad.current;
-        if (gp != null)
-        {
-            Vector2 stick = gp.leftStick.ReadValue();
-            if (stick.sqrMagnitude > 0.04f)
-                return Vector2.ClampMagnitude(stick, 1f);
-            if (gp.dpad.up.isPressed) y = 1f;
-            if (gp.dpad.down.isPressed) y = -1f;
-            if (gp.dpad.left.isPressed) x = -1f;
-            if (gp.dpad.right.isPressed) x = 1f;
-        }
-        return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
-    }
-
-    static bool HasAnyMoveInput(Keyboard kb)
-    {
-        try
-        {
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) return true;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) return true;
-            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) return true;
-            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) return true;
-            if (Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f) return true;
-        }
-        catch { }
-
-        if (kb != null)
-        {
-            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) return true;
-            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) return true;
-            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) return true;
-            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) return true;
-        }
-
-        var gp = Gamepad.current;
-        if (gp != null)
-        {
-            if (gp.leftStick.ReadValue().sqrMagnitude > 0.04f) return true;
-            if (gp.dpad.up.isPressed || gp.dpad.down.isPressed || gp.dpad.left.isPressed || gp.dpad.right.isPressed) return true;
-        }
-
-        return false;
-    }
-
     /// <summary>AdventureRustDrone のシングルトンを取得（キャッシュなし）</summary>
     static AdventureRustDrone GetDrone()
         => AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
     #endregion
 }
 
-// ─── Vector3 拡張：Y 成分セット（コードを簡潔にするためファイル末尾に定義）──
-internal static class Vector3Ext
-{
-    /// <summary>Y成分を置き換えた新しいVector3を返す</summary>
-    public static Vector3 SetY(this Vector3 v, float y) => new Vector3(v.x, y, v.z);
-}
+// ─── Vector3 拡張：Y 成分セット（AdventureVector3Extensions.cs に移動済み）──

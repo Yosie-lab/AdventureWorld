@@ -845,18 +845,16 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     bool WasInteractEdge()
     {
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && kb.eKey.wasPressedThisFrame) return true;
-        try { if (Input.GetKeyDown(KeyCode.E)) return true; } catch { }
-        var pad = UnityEngine.InputSystem.Gamepad.current;
-        return pad != null && pad.buttonWest.wasPressedThisFrame;
+        // AdventureInputReader に委譲（新旧InputSystem + Gamepad 統合）
+        return AdventureInputReader.InteractDown;
     }
 
     bool IsLeverHoldInput()
     {
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && (kb.eKey.isPressed || kb.enterKey.isPressed))
-            return true;
+        // E / Enter を押し続けている（レバー回転アニメーション持続）
+        if (AdventureInputReader.InteractDown) return true;
+        var kb = AdventureInputReader.Keyboard;
+        if (kb != null && (kb.eKey.isPressed || kb.enterKey.isPressed)) return true;
         var mouse = UnityEngine.InputSystem.Mouse.current;
         if (mouse != null && mouse.leftButton.isPressed) return true;
         var pad = UnityEngine.InputSystem.Gamepad.current;
@@ -893,25 +891,13 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     bool CheckLeverInputTriggered()
     {
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null)
-        {
-            if (kb.eKey.wasPressedThisFrame) return true;
-            if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)
-                return true;
-        }
-
+        // E / Enter / マウス / Gamepad West（新旧InputSystem統合）
+        if (AdventureInputReader.InteractDown || AdventureInputReader.EnterDown) return true;
         var mouse = UnityEngine.InputSystem.Mouse.current;
         if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
             return true;
-
-        var pad = UnityEngine.InputSystem.Gamepad.current;
-        if (pad != null && pad.buttonWest.wasPressedThisFrame) return true;
-
         try
         {
-            if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Return))
-                return true;
             if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)) return true;
         }
         catch { }
