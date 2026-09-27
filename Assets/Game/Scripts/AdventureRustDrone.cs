@@ -503,7 +503,12 @@ public partial class AdventureRustDrone : MonoBehaviour
         else // Follow
         {
             goal = FollowPoint();
-            if (!wellOiled && !hitching && Time.time >= _nextHitch && FlatDistance(goal) > 2.4f)
+            bool isEpilogue = AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.EpilogueTriggered;
+            var playerCtrl = AdventurePlayerController.Instance;
+            if (playerCtrl != null && (playerCtrl.IsAutoGliding || playerCtrl.transform.position.y > 85f))
+                isEpilogue = true;
+
+            if (!isEpilogue && !wellOiled && !hitching && Time.time >= _nextHitch && FlatDistance(goal) > 2.4f)
             {
                 _hitchUntil = Time.time + Random.Range(0.22f, 0.5f);
                 _nextHitch = Time.time + Random.Range(3.5f, 6.5f);
@@ -785,11 +790,10 @@ public partial class AdventureRustDrone : MonoBehaviour
             _aimedScrap = aimed;
         }
 
-        // Fキー（New Input Systemによる安全な検知）
+        // Fキー（AdventureInputReader 経由で新旧InputSystem統合）
         bool fPressed = false;
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null)
-            fPressed = kb.fKey.wasPressedThisFrame;
+        var kb = AdventureInputReader.Keyboard;
+        if (kb != null) fPressed = kb.fKey.wasPressedThisFrame;
         try { if (Input.GetKeyDown(KeyCode.F)) fPressed = true; } catch { }
 
         if (fPressed && CurrentState == RustState.Follow)
@@ -1378,12 +1382,8 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (ShouldHideInteractionPrompt(towerMgr))
             return;
 
-        // 押しっぱなし連打を防ぐ（wasPressed のみ）
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        var pad = UnityEngine.InputSystem.Gamepad.current;
-        bool ePressed = (kb != null && kb.eKey.wasPressedThisFrame)
-                     || (pad != null && pad.buttonWest.wasPressedThisFrame);
-        try { if (Input.GetKeyDown(KeyCode.E)) ePressed = true; } catch { }
+        // 押しっぱなし連打を防ぐ（wasPressed のみ / AdventureInputReader 統合）
+        bool ePressed = AdventureInputReader.InteractDown;
         // PlayerController の InteractPressed は押しっぱなしでも立つため、ここでは使わない
 
         // レバーの近くにいる場合はレバー操作を最優先
@@ -1833,46 +1833,14 @@ public partial class AdventureRustDrone : MonoBehaviour
     /// <summary>プレイヤーが次の行動を起こしたか判定（キー入力・コントローラー・移動検知）</summary>
     bool CheckPlayerActionInput()
     {
-        // 1. 移動・ジャンプ等のキー入力検知 (新旧Input両対応)
-#if ENABLE_INPUT_SYSTEM
-        if (UnityEngine.InputSystem.Keyboard.current != null)
-        {
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb.wKey.isPressed || kb.aKey.isPressed || kb.sKey.isPressed || kb.dKey.isPressed ||
-                kb.upArrowKey.isPressed || kb.leftArrowKey.isPressed || kb.downArrowKey.isPressed || kb.rightArrowKey.isPressed ||
-                kb.spaceKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)
-            {
-                return true;
-            }
-        }
-        if (UnityEngine.InputSystem.Gamepad.current != null)
-        {
-            var pad = UnityEngine.InputSystem.Gamepad.current;
-            if (pad.leftStick.ReadValue().sqrMagnitude > 0.04f || pad.buttonSouth.wasPressedThisFrame)
-            {
-                return true;
-            }
-        }
-#endif
+        // AdventureInputReader に統合（新旧InputSystem + Gamepad 両対応）
+        if (AdventureInputReader.HasAnyMove || AdventureInputReader.SpaceDown || AdventureInputReader.InteractDown)
+            return true;
 
-        // 2. 旧Inputの安全なフォールバック（New Input System環境での例外を抑止）
-        try
-        {
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.D) ||
-                Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.RightArrow) ||
-                Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.E))
-            {
-                return true;
-            }
-        }
-        catch { }
-
-        // 2. プレイヤーの移動距離検知 (キー入力以外でも歩行移動していれば確実に行動検知)
+        // プレイヤーの移動距離検知（キー入力以外でも歩行移動していれば確実に行動検知）
         var player = AdventurePlayerController.Instance;
         if (player != null && Vector3.Distance(player.transform.position, _speechPlayerStartPos) > 0.8f)
-        {
             return true;
-        }
 
         return false;
     }
