@@ -22,3 +22,7 @@
 *.opendb
 *.VC.db
 .DS_Store
+/Build_WebGL/
+Assets/Screenshots*
+Assets/_Recovery*
+.cursor*

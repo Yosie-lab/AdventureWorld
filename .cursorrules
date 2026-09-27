@@ -1,0 +1,51 @@
+# Cursor Rules for RustAndFloat (AdventureWorld Project)
+
+## プロジェクト概要と最重要ルール
+- このリポジトリは Unity 6 (URP) アドベンチャーゲームです。
+- 対象プロダクト: **RustAndFloat**（フォルダ: `Assets/RustAndFloat/` および `Assets/Game/Scripts/`）
+- **絶対変更禁止**:
+  - `Assets/Scenes/AdventureWorld.unity`（元ゲーム本編シーン）
+  - `Assets/Idyllic Fantasy Nature/Demo/Settings/Land_Terrain.asset`
+  - シーンファイル（`RustAndFloat.unity` 等）はGit LFS/100MB制限があるためGitコミット・プッシュしない（スクリプト編集のみで実装する）。
+  - Build Settings を Demo/Loader に差し替えないこと。
+- **ユーザーとのコミュニケーション**:
+  - 日本語、結論ファースト、1ステップずつ、確認質問は1つ。
+  - シーンやPrefabを保存・編集する前はUnityのPlay Modeを停止すること。
+
+---
+
+## 直近の完了作業（Cursor → Antigravity 2026-09-25）
+詳細は `Assets/RustAndFloat/HANDOFF.md` 先頭の「Antigravity への引き継ぎ」を読む。
+
+- 空は `b71b6db` の ClearBlueSky に戻した。写真パノラマは却下。`Assets/Resources/Skybreak/` を空に繋がない。
+- `AdventureSkybreakPanorama.cs` と `SkybreakPanorama.shader` は削除済み。作り直さない。
+
+- **タワー台座・階段・レバーステップのスムーズ登頂化（コミット `8585448`）**:
+  - `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`:
+    - `BuildPodiumEntryRamps`: テラス外周3方向（北・東・西）に緩斜面BoxColliderを追加し、地面（62m）→テラス（63m）の段差を解消。
+    - `BuildLeverApproachSteps`: レバー台座（64.02m）へ南側から登れる大理石ステップ3段＋傾斜BoxColliderを追加。
+    - `AddStairsRampColliders`: オアシス湧水池から台地への古代アプローチ階段全5区間を傾斜BoxColliderで覆い、1段0.7mの引っ掛かりを完全解消。
+    - `GetTerraceSurfaceY`: スロープおよびレバーステップの補間Y値計算を拡張し、歩行時の接地・吸着を安定化。
+
+---
+
+## 現在の優先タスク（Cursorへの引き継ぎ項目）
+
+### 1. 天蓋の外の絵は触らない
+- 2026-09-25、写真は場面と合わないため却下。空は昨日の ClearBlueSky のまま維持する。
+
+### 2. セリフ & 字幕の整理（映画字幕の3幕構成）
+- **対象**: `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs`
+- **内容**:
+  - クライマックス〜エピローグ中は通常の探索HUD（コンパス・キーガイド等）を完全非表示化し、上下レターボックスの映画モードへ。
+  - エピローグ字幕を一括表示から **1フレーズずつじっくり味わえる3幕構成** に刷新。
+
+### 3. 【任意】階段下部の岩コライダー干渉解消
+- `SanctuaryApproachStairs` 最下部（`StairRamp_0〜1` 付近）で池の岩（`SanctuarySpringPond_Rocks` 内の `Rock_Medium_01` 等）とコライダーが重なっているため、必要に応じて岩コライダーの `isTrigger = true` 化などを実施。
+
+---
+
+## 開発・検証用ショートカット
+- **F9 キー**: Play中に押すとタワー台地へ即座にワープし、天蓋開放シークエンスをテスト可能。
+- **メニュー**: `Adventure → ▶ Jump to Canopy Opening (天蓋開放から確認)` で即テスト。
+- **F8 キー**: セーブデータ初期化（ニューゲーム）。

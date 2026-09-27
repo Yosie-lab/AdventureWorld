@@ -21,14 +21,14 @@ namespace IdyllicFantasyNature
             _animator = GetComponent<Animator>();
             _area = GetComponentInParent<ButterflySpawnArea>();
 
-            // sets the animator off to not play the animation before the cooldown reaches 0
-            _animator.enabled = false;
+            if (_animator != null)
+                _animator.enabled = false;
 
-            // get the set cooldown
-            _cooldown = Random.Range(_area.MinCooldown, _area.MaxCooldown);
+            if (_area != null)
+                _cooldown = Random.Range(_area.MinCooldown, _area.MaxCooldown);
 
-            // makes the butterfly invisible until the animation starts playing
-            _butterflyChild.SetActive(false);
+            if (_butterflyChild != null)
+                _butterflyChild.SetActive(false);
         }
 
         // Update is called once per frame
@@ -47,6 +47,9 @@ namespace IdyllicFantasyNature
             {
                 if (_cooldown <= 0)
                 {
+                    if (_area == null || _area.Collider == null || _butterflyChild == null || _animator == null)
+                        return;
+
                     // activates the animator to play the animation
                     _animator.enabled = true;
                     // resets the cooldown for the respawn
@@ -54,7 +57,11 @@ namespace IdyllicFantasyNature
                     // makes the butterfly visible
                     _butterflyChild.SetActive(true);
                     // determines a random position for the butterfly in the spawn area
-                    transform.position = new Vector3(Random.Range(_area.Collider.bounds.min.x, _area.Collider.bounds.max.x), Random.Range(_area.Collider.bounds.min.y, _area.Collider.bounds.max.y), Random.Range(_area.Collider.bounds.min.z, _area.Collider.bounds.max.z));
+                    var b = _area.Collider.bounds;
+                    transform.position = new Vector3(
+                        Random.Range(b.min.x, b.max.x),
+                        Random.Range(b.min.y, b.max.y),
+                        Random.Range(b.min.z, b.max.z));
 
                     _isPlaying = true;
 
@@ -73,8 +80,10 @@ namespace IdyllicFantasyNature
         public void AnimationEnded()
         {
             _isPlaying = false;
-            _animator.enabled = false;
-            _butterflyChild.SetActive(false);
+            if (_animator != null)
+                _animator.enabled = false;
+            if (_butterflyChild != null)
+                _butterflyChild.SetActive(false);
         }
     }
 }
