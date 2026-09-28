@@ -129,7 +129,7 @@ public partial class AdventurePlayerController : MonoBehaviour
     public static AdventurePlayerController Resolve()
     {
         if (Instance != null) return Instance;
-        Instance = Object.FindFirstObjectByType<AdventurePlayerController>();
+        Instance = Object.FindAnyObjectByType<AdventurePlayerController>();
         return Instance;
     }
 
@@ -1756,7 +1756,7 @@ public partial class AdventurePlayerController : MonoBehaviour
 
     /// <summary>AdventureRustDrone のシングルトンを取得（キャッシュなし）</summary>
     static AdventureRustDrone GetDrone()
-        => AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        => AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
     #endregion
 }
 

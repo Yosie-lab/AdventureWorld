@@ -124,7 +124,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             return;
 
         // 重複Rustを一掃してから1体だけ残す
-        var all = Object.FindObjectsByType<AdventureRustDrone>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var all = Object.FindObjectsByType<AdventureRustDrone>(FindObjectsInactive.Include);
         AdventureRustDrone keep = Instance;
         if (keep == null)
         {
