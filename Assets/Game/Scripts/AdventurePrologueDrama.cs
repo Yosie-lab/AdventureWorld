@@ -28,7 +28,6 @@ public class AdventurePrologueDrama : MonoBehaviour
 
     Phase _phase = Phase.Idle;
     bool _oilReceived;
-    bool _showOilPrompt;
     bool _showDashBoard;
     bool _dashBoardAdvance;
     float _dashBoardOpenTime;
@@ -140,7 +139,6 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         StopAllCoroutines();
         _oilReceived = false;
-        _showOilPrompt = false;
         _showDashBoard = false;
         _secondGearDone = false;
         _skipAwakening = false;
@@ -152,7 +150,6 @@ public class AdventurePrologueDrama : MonoBehaviour
         StopAllCoroutines();
         _phase = Phase.Idle;
         _oilReceived = false;
-        _showOilPrompt = false;
         _showDashBoard = false;
         _dashBoardAdvance = false;
         _secondGearDone = false;
@@ -234,7 +231,6 @@ public class AdventurePrologueDrama : MonoBehaviour
             "……お願い……【E】で油をさして……Nikoの手、必要……", 5.2f);
 
         _phase = Phase.WaitOil;
-        _showOilPrompt = false;
 
         float timeout = 90f;
         float nextRemind = 22f;
@@ -257,7 +253,6 @@ public class AdventurePrologueDrama : MonoBehaviour
             yield return null;
         }
 
-        _showOilPrompt = false;
         if (!_oilReceived)
         {
             drone.CompletePrologueOil();
