@@ -52,7 +52,7 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
     public static void Ensure()
     {
         if (Instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureBeachVisualEnhancer>();
+        var existing = Object.FindAnyObjectByType<AdventureBeachVisualEnhancer>();
         if (existing != null)
         {
             Instance = existing;

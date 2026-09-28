@@ -28,7 +28,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
 
     public static void Ensure()
     {
-        var existing = FindObjectsByType<AdventureBeachDriftBoxManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var existing = FindObjectsByType<AdventureBeachDriftBoxManager>(FindObjectsInactive.Include);
         foreach (var ex in existing)
         {
             if (ex != null && ex.gameObject != null)
@@ -289,7 +289,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
     [MenuItem("Adventure/Beach/Spawn All Drift Boxes")]
     public static void EditorSpawnAllBoxes()
     {
-        var manager = FindFirstObjectByType<AdventureBeachDriftBoxManager>();
+        var manager = FindAnyObjectByType<AdventureBeachDriftBoxManager>();
         if (manager == null)
         {
             var go = new GameObject("AdventureBeachDriftBoxManager");

@@ -21,7 +21,7 @@ public class AdventureBeachEcosystem : MonoBehaviour
     public static void Ensure()
     {
         if (Instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureBeachEcosystem>();
+        var existing = Object.FindAnyObjectByType<AdventureBeachEcosystem>();
         if (existing != null)
         {
             Instance = existing;

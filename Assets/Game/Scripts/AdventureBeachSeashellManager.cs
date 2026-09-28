@@ -113,7 +113,7 @@ public class AdventureBeachSeashellManager : MonoBehaviour
     public static void Ensure()
     {
         if (Instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureBeachSeashellManager>();
+        var existing = Object.FindAnyObjectByType<AdventureBeachSeashellManager>();
         if (existing != null)
         {
             Instance = existing;

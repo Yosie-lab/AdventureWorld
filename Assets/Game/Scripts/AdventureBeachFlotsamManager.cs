@@ -63,7 +63,7 @@ public class AdventureBeachFlotsamManager : MonoBehaviour
     void SpawnFlotsamItems()
     {
         // 既存の漂着ゴミがある場合は重複生成を回避
-        if (Object.FindObjectsByType<AdventureBeachFlotsam>(FindObjectsSortMode.None).Length > 0)
+        if (Object.FindObjectsByType<AdventureBeachFlotsam>().Length > 0)
             return;
 
         Terrain terrain = Object.FindAnyObjectByType<Terrain>();

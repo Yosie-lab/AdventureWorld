@@ -167,7 +167,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
     /// <summary>セーブ復元後など、PlayerPrefs の開封状態を見た目へ再同期</summary>
     public static void SyncAllOpenedVisualsFromPrefs()
     {
-        var boxes = Object.FindObjectsByType<AdventureBeachDriftBox>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var boxes = Object.FindObjectsByType<AdventureBeachDriftBox>(FindObjectsInactive.Include);
         for (int i = 0; i < boxes.Length; i++)
         {
             var b = boxes[i];
@@ -793,7 +793,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         }
         PlayerPrefs.Save();
 
-        var boxes = Object.FindObjectsByType<AdventureBeachDriftBox>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var boxes = Object.FindObjectsByType<AdventureBeachDriftBox>(FindObjectsInactive.Include);
         foreach (var b in boxes)
         {
             if (b != null)
@@ -811,7 +811,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
         if (showBanner)
         {
-            var hud = AdventureScrapHUD.Instance ?? Object.FindFirstObjectByType<AdventureScrapHUD>();
+            var hud = AdventureScrapHUD.Instance ?? Object.FindAnyObjectByType<AdventureScrapHUD>();
             if (hud != null)
             {
                 int pts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
@@ -956,7 +956,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         if (_modalCanvas != null && _modalPanel != null) return;
 
         // 孤児化した古いCanvasがあれば掃除
-        var oldCanvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var oldCanvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include);
         foreach (var c in oldCanvases)
         {
             if (c != null && c.name == "DriftBoxModalCanvas")

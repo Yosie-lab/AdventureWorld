@@ -21,7 +21,7 @@ public class AdventureBeachEscapeManager : MonoBehaviour
 
     public static void Ensure()
     {
-        var existing = Object.FindObjectsByType<AdventureBeachEscapeManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var existing = Object.FindObjectsByType<AdventureBeachEscapeManager>(FindObjectsInactive.Include);
         foreach (var ex in existing)
         {
             if (ex != null && ex.gameObject != null)
