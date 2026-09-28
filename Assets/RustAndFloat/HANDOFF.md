@@ -9,8 +9,11 @@ created: 2026-09-11
 
 ## Antigravity への引き継ぎ（2026-09-28）
 
-- **初代の映画的な大気・空・ポストプロセスの完全復元**:
-  - `AdventureClassicSkyRuntime.cs` / `AdventureRestoreClassicSkyTool.cs`: 初代の映画的ブルーム・ACESトーンマッピング・シアン大気フォグを復元。太陽光 1.28、環境光 1.15、露出ブースト +0.14 に微調整済み。
+- **初代の映画的な大気・空・ポストプロセスの完全復元と眩しさ微調整**:
+  - `AdventureClassicSkyRuntime.cs` / `AdventureRestoreClassicSkyTool.cs`: 初代の映画的ブルーム・ACESトーンマッピング・シアン大気フォグを復元。太陽光 1.00、環境光 0.96、露出 -0.08、Bloom 0.58 / threshold 1.18 に微調整し、白飛びやギラつきのない目に優しい上品なシネマトーンを実現。
+- **オープニング目覚め演出の停止解消・快適操作化**:
+  - `AdventurePrologueDrama.cs`: マウスクリック（左クリック）やキー入力（Space/Enter/E/WASD）によるセリフ送り機能（`_advanceSubtitle`）を実装。自動進行時間も短縮し、`Time.unscaledDeltaTime` 化によりフリーズ・遅延を根絶。
+  - `AdventureInputReader.cs` & `AdventurePlayerController.cs`: マウス左クリック検知（`MouseLeftDown`）と `DialogAdvanceDown` を統合し、プレイヤー側からもクリック操作で即時起床可能に。
 - **黒い四角形・ピンク色水しぶきバグの完全根絶**:
   - **浅瀬の熱帯魚**: 正体は浅瀬の熱帯魚逃走AI（キイロハギ・ナンヨウハギ・ツノダシ）。厚み1.4cmの極薄板ポリゴン＋水面突き破り（Z-Fighting）だった問題を、Sphereベースの滑らかな3D魚体・背びれ・尾びれ・つぶらな目玉・鮮やかなURP Unlit発色へフルリニューアル。遊泳深度を `MaxFishSurfaceY = 5.15f`（海面下35cm）にクランプしてチカチカを根絶。
   - **海面の黒い四角**: `OceanSunGlitter.mat` の `_DstBlend: 1`（加算ブレンド）および `SunGlitterSparkle.png.meta` の `grayScaleToAlpha: 1` 修正により解消。

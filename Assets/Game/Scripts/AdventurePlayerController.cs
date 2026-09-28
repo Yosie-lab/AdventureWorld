@@ -220,11 +220,11 @@ public partial class AdventurePlayerController : MonoBehaviour
                 return;
         }
 
-        // プロローグの遭難目覚め演出中：キー入力があれば演出を即座にスキップして起き上がる
+        // プロローグの遭難目覚め演出中：キー入力やクリックがあれば演出を即座にスキップして起き上がる
         var prologue = AdventurePrologueDrama.Instance;
         if (prologue != null && prologue.IsAwakening)
         {
-            if (AdventureInputReader.HasAnyMove || AdventureInputReader.SpaceDown || AdventureInputReader.EnterDown)
+            if (AdventureInputReader.HasAnyMove || AdventureInputReader.DialogAdvanceDown)
             {
                 prologue.SkipAwakening();
             }

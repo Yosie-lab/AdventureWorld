@@ -272,9 +272,20 @@ public static class AdventureInputReader
         }
     }
 
-    /// <summary>ダイアログ送りボタン群（Space / J / E / Enter）がこのフレームに押された</summary>
+    /// <summary>マウス左クリックがこのフレームに押された</summary>
+    public static bool MouseLeftDown
+    {
+        get
+        {
+            try { if (Input.GetMouseButtonDown(0)) return true; } catch { }
+            var mouse = Mouse.current;
+            return mouse != null && mouse.leftButton.wasPressedThisFrame;
+        }
+    }
+
+    /// <summary>ダイアログ送りボタン群（左クリック / Space / J / E / Enter）がこのフレームに押された</summary>
     public static bool DialogAdvanceDown
-        => SpaceDown || JDown || InteractDown || EnterDown;
+        => MouseLeftDown || SpaceDown || JDown || InteractDown || EnterDown;
 
     // ─── 内部ヘルパー ────────────────────────────────────────────────────
 

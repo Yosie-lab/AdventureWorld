@@ -33,9 +33,10 @@ public class AdventurePrologueDrama : MonoBehaviour
     float _dashBoardOpenTime;
     bool _secondGearDone;
     bool _skipAwakening;
+    bool _advanceSubtitle; // クリックやキー入力によるセリフ送り
 
     float _awakeningStartTime = 0f;
-    const float WAKEUP_INPUT_GUARD_SEC = 2.0f; // 開始から2秒間はクリック余韻等の誤爆スキップを完全ガード
+    const float WAKEUP_INPUT_GUARD_SEC = 0.35f; // 開始直後の余韻ガードを0.35秒に短縮し、すぐにキー入力を受け付ける
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics()
@@ -52,6 +53,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (_phase == Phase.Awakening)
         {
             _skipAwakening = true;
+            _advanceSubtitle = true;
         }
     }
 
@@ -92,11 +94,14 @@ public class AdventurePrologueDrama : MonoBehaviour
 
     void Update()
     {
-        if (_phase == Phase.Awakening && !_skipAwakening)
+        if (_phase == Phase.Awakening)
         {
-            // 開始直後（オープニングPLAYクリック直後の余韻や入力ドリフト）による即時スキップをガード
             if (Time.unscaledTime - _awakeningStartTime >= WAKEUP_INPUT_GUARD_SEC)
             {
+                if (CheckAdvanceInput())
+                {
+                    _advanceSubtitle = true;
+                }
                 if (CheckWakeupInput())
                 {
                     SkipAwakening();
@@ -105,26 +110,56 @@ public class AdventurePrologueDrama : MonoBehaviour
         }
     }
 
-    bool CheckWakeupInput()
+    /// <summary>セリフ送り入力（クリック・Space・Enter・Eキー）</summary>
+    bool CheckAdvanceInput()
     {
-        // 誤爆しやすい anyKeyDown や微細なスティック傾きではなく、明確なスキップ操作のみで起き上がる
+        // 1. マウスクリック（左クリック）
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+            return true;
+
+        // 2. キーボード入力
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null)
         {
-            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
+            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame ||
+                kb.eKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame ||
+                kb.aKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame)
                 return true;
         }
 
+        // 3. ゲームパッド
         var gp = UnityEngine.InputSystem.Gamepad.current;
-        if (gp != null)
+        if (gp != null && (gp.buttonSouth.wasPressedThisFrame || gp.startButton.wasPressedThisFrame))
+            return true;
+
+        // 4. レガシーInputフォールバック
+        try
         {
-            if (gp.buttonSouth.wasPressedThisFrame || gp.startButton.wasPressedThisFrame)
+            if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) ||
+                Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.A) ||
+                Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.D))
                 return true;
         }
+        catch { }
+
+        return false;
+    }
+
+    /// <summary>即時スキップ操作（Escapeキーやダブルクリック・長押し）</summary>
+    bool CheckWakeupInput()
+    {
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null && (kb.escapeKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame))
+            return true;
+
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null && mouse.rightButton.wasPressedThisFrame)
+            return true;
 
         try
         {
-            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Escape))
+            if (Input.GetKeyDown(KeyCode.Escape))
                 return true;
         }
         catch { }
@@ -573,71 +608,75 @@ public class AdventurePrologueDrama : MonoBehaviour
         IEnumerator WaitOrSkip(float duration)
         {
             float elapsed = 0f;
-            while (elapsed < duration && !_skipAwakening)
+            while (elapsed < duration && !_skipAwakening && !_advanceSubtitle)
             {
-                elapsed += Time.deltaTime;
+                elapsed += Time.unscaledDeltaTime;
                 yield return null;
             }
+            _advanceSubtitle = false;
         }
 
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // --- シーン1: 暗闇の中で波の音と遠い意識 ---
         float fadeT = 0f;
-        while (fadeT < 1.6f && !_skipAwakening)
+        while (fadeT < 1.2f && !_skipAwakening && !_advanceSubtitle)
         {
-            fadeT += Time.deltaTime;
+            fadeT += Time.unscaledDeltaTime;
             if (waveSource != null)
-                waveSource.volume = Mathf.Lerp(0f, 0.72f, fadeT / 1.6f);
+                waveSource.volume = Mathf.Lerp(0f, 0.72f, fadeT / 1.2f);
             yield return null;
         }
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        _advanceSubtitle = false;
 
-        yield return WaitOrSkip(0.6f);
+        yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
-        yield return ShowSubtitle(subtitleText, subtitleCg, "……ザザァ……ザザァ……", 2.2f);
+        yield return ShowSubtitle(subtitleText, subtitleCg, "……ザザァ……ザザァ……", 1.6f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
-        yield return WaitOrSkip(0.5f);
+        yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
-        yield return ShowSubtitle(subtitleText, subtitleCg, "……遠くで、波の音が聴こえる。", 2.5f);
+        yield return ShowSubtitle(subtitleText, subtitleCg, "……遠くで、波の音が聴こえる。", 1.8f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
-        yield return WaitOrSkip(0.8f);
+        yield return WaitOrSkip(0.4f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // Rustの遠い呼びかけ
         if (drone != null)
-            drone.SpeakCustom("……Niko？　……Niko……？", 3.0f);
-        yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「……Niko？　……Niko……？」", 2.6f);
+            drone.SpeakCustom("……Niko？　……Niko……？", 2.5f);
+        yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「……Niko？　……Niko……？」", 1.8f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
-        yield return WaitOrSkip(0.5f);
+        yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // --- シーン2: 薄目を開けるが力尽きてまた閉じる ---
         float eyeT = 0f;
-        while (eyeT < 1.1f && !_skipAwakening)
+        while (eyeT < 0.8f && !_skipAwakening && !_advanceSubtitle)
         {
-            eyeT += Time.deltaTime;
-            float factor = Mathf.SmoothStep(0f, 0.28f, eyeT / 1.1f);
+            eyeT += Time.unscaledDeltaTime;
+            float factor = Mathf.SmoothStep(0f, 0.35f, eyeT / 0.8f);
             SetEyelidsOpen(upperEyelid, lowerEyelid, factor);
             yield return null;
         }
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        _advanceSubtitle = false;
 
-        yield return WaitOrSkip(0.8f);
+        yield return WaitOrSkip(0.5f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // 再び意識が途切れ、まぶたが閉じる
         eyeT = 0f;
-        while (eyeT < 0.9f && !_skipAwakening)
+        while (eyeT < 0.6f && !_skipAwakening && !_advanceSubtitle)
         {
-            eyeT += Time.deltaTime;
-            float factor = Mathf.SmoothStep(0.28f, 0f, eyeT / 0.9f);
+            eyeT += Time.unscaledDeltaTime;
+            float factor = Mathf.SmoothStep(0.35f, 0f, eyeT / 0.6f);
             SetEyelidsOpen(upperEyelid, lowerEyelid, factor);
             yield return null;
         }
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        _advanceSubtitle = false;
 
-        yield return WaitOrSkip(0.5f);
+        yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // Rustがさらに顔に近づき必死に呼びかける
@@ -645,11 +684,11 @@ public class AdventurePrologueDrama : MonoBehaviour
         {
             Vector3 rustCloserPos = playerPos + Vector3.up * 0.65f + playerForward * 0.18f;
             drone.transform.position = rustCloserPos;
-            drone.SpeakCustom("Niko……！　目を覚まして、Niko……！！", 3.2f);
+            drone.SpeakCustom("Niko……！　目を覚まして、Niko……！！", 2.8f);
         }
-        yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「Niko……！　目を覚まして、Niko……！！」", 2.8f);
+        yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「Niko……！　目を覚まして、Niko……！！」", 2.0f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
-        yield return WaitOrSkip(0.4f);
+        yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
         // --- シーン3: 完全開眼と起き上がりカメラワーク ---
@@ -657,10 +696,10 @@ public class AdventurePrologueDrama : MonoBehaviour
         Quaternion targetCamRot = Quaternion.Euler(6f, playerTransform.eulerAngles.y, 0f);
 
         float riseT = 0f;
-        float riseDuration = 2.4f;
+        float riseDuration = 1.8f;
         while (riseT < riseDuration && !_skipAwakening)
         {
-            riseT += Time.deltaTime;
+            riseT += Time.unscaledDeltaTime;
             float u = Mathf.Clamp01(riseT / riseDuration);
             float smoothU = Mathf.SmoothStep(0f, 1f, u);
 
@@ -678,8 +717,8 @@ public class AdventurePrologueDrama : MonoBehaviour
             if (drone != null)
             {
                 Vector3 rustGoalPos = playerPos + playerForward * 1.2f + Vector3.up * 1.2f;
-                drone.transform.position = Vector3.Lerp(drone.transform.position, rustGoalPos, Time.deltaTime * 3f);
-                drone.transform.rotation = Quaternion.Slerp(drone.transform.rotation, Quaternion.LookRotation(playerPos + Vector3.up * 1.2f - drone.transform.position), Time.deltaTime * 4f);
+                drone.transform.position = Vector3.Lerp(drone.transform.position, rustGoalPos, Time.unscaledDeltaTime * 4f);
+                drone.transform.rotation = Quaternion.Slerp(drone.transform.rotation, Quaternion.LookRotation(playerPos + Vector3.up * 1.2f - drone.transform.position), Time.unscaledDeltaTime * 5f);
             }
 
             yield return null;
@@ -788,7 +827,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         hintText.fontSize = 24;
         hintText.alignment = TextAnchor.MiddleCenter;
         hintText.color = new Color(1f, 0.92f, 0.65f, 0.95f);
-        hintText.text = "【WASD / 矢印 / Space】で今すぐ起き上がる";
+        hintText.text = "【クリック / Space / Enter】で進む　【長押し / Escape】でスキップ";
         var hintOutline = hintGo.AddComponent<Outline>();
         hintOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
         hintOutline.effectDistance = new Vector2(1.5f, -1.5f);
@@ -810,29 +849,33 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (text == null || cg == null) yield break;
         text.text = message;
 
+        // フェードイン
         float t = 0f;
-        while (t < 0.35f && !_skipAwakening)
+        while (t < 0.20f && !_skipAwakening && !_advanceSubtitle)
         {
-            t += Time.deltaTime;
-            cg.alpha = Mathf.Lerp(0f, 1f, t / 0.35f);
+            t += Time.unscaledDeltaTime;
+            cg.alpha = Mathf.Lerp(0f, 1f, t / 0.20f);
             yield return null;
         }
         if (_skipAwakening) yield break;
         cg.alpha = 1f;
 
+        // 表示待機（クリックやキー入力があれば即時完了して次へ）
         float waitElapsed = 0f;
-        while (waitElapsed < duration && !_skipAwakening)
+        while (waitElapsed < duration && !_skipAwakening && !_advanceSubtitle)
         {
-            waitElapsed += Time.deltaTime;
+            waitElapsed += Time.unscaledDeltaTime;
             yield return null;
         }
+        _advanceSubtitle = false;
         if (_skipAwakening) yield break;
 
+        // フェードアウト
         t = 0f;
-        while (t < 0.35f && !_skipAwakening)
+        while (t < 0.20f && !_skipAwakening)
         {
-            t += Time.deltaTime;
-            cg.alpha = Mathf.Lerp(1f, 0f, t / 0.35f);
+            t += Time.unscaledDeltaTime;
+            cg.alpha = Mathf.Lerp(1f, 0f, t / 0.20f);
             yield return null;
         }
         cg.alpha = 0f;
