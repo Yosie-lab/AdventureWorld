@@ -45,7 +45,7 @@ public class AdventureScrapHUD : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureScrapHUD>();
+        var existing = Object.FindAnyObjectByType<AdventureScrapHUD>();
         if (existing != null)
         {
             _instance = existing;
@@ -367,7 +367,7 @@ public class AdventureScrapHUD : MonoBehaviour
         _oilCg.alpha = cinematicHide ? 0f : 1f;
         if (cinematicHide) return;
 
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         int oil = drone != null ? Mathf.Max(0, drone.oilCount) : 0;
 
         bool well = drone != null && Time.time < drone.wellOiledUntil;
@@ -391,7 +391,7 @@ public class AdventureScrapHUD : MonoBehaviour
     /// <summary>右上潤滑油パネルクリック時：ダイレクトにRustへ手当て＆全快調化</summary>
     public void OnOilPanelClicked()
     {
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
             drone.InteractWithNiko();

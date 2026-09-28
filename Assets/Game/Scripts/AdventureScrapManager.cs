@@ -13,7 +13,7 @@ public class AdventureScrapManager : MonoBehaviour
         get
         {
             if (_instance != null) return _instance;
-            _instance = Object.FindFirstObjectByType<AdventureScrapManager>();
+            _instance = Object.FindAnyObjectByType<AdventureScrapManager>();
             if (_instance == null) Ensure();
             return _instance;
         }
@@ -236,7 +236,7 @@ public class AdventureScrapManager : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureScrapManager>();
+        var existing = Object.FindAnyObjectByType<AdventureScrapManager>();
         if (existing != null)
         {
             _instance = existing;
@@ -587,7 +587,7 @@ public class AdventureScrapManager : MonoBehaviour
         }
 
         // 相棒Rustにリアクションさせる
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
             drone.OnNikoFoundScrap(CollectedCount);
@@ -612,14 +612,14 @@ public class AdventureScrapManager : MonoBehaviour
     [ContextMenu("Debug: 20pt達成・タワー誘導開始（その場）")]
     public void DebugSetup20PointsCurrentPos()
     {
-        var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
+        var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindAnyObjectByType<AdventureSanctuaryTowerManager>();
         if (tower != null) tower.DebugSetup20PointsState(false);
     }
 
     [ContextMenu("Debug: 20pt達成・レバー前へワープ")]
     public void DebugSetup20PointsWarpToLever()
     {
-        var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
+        var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindAnyObjectByType<AdventureSanctuaryTowerManager>();
         if (tower != null) tower.DebugSetup20PointsState(true);
     }
 
@@ -629,7 +629,7 @@ public class AdventureScrapManager : MonoBehaviour
         if (TotalProgressPoints >= RequiredPointsForCanopy)
         {
             var tower = AdventureSanctuaryTowerManager.Instance
-                        ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
+                        ?? Object.FindAnyObjectByType<AdventureSanctuaryTowerManager>();
             tower?.OnLeverUnlockedByPoints();
 
             bool alreadyNotified = PlayerPrefs.GetInt(PrefKeyLeverUnlockedNotified, 0) == 1;
@@ -981,7 +981,7 @@ public class AdventureScrapManager : MonoBehaviour
         AdventureFieldLesson.ClearForNewGame();
 
         // 5. タワーレバーの状態をロック中へ再同期
-        var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
+        var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindAnyObjectByType<AdventureSanctuaryTowerManager>();
         tower?.OnLeverUnlockedByPoints();
 
         // 6. HUD表示を0個・0ptへ即時反映
@@ -1002,7 +1002,7 @@ public class AdventureScrapManager : MonoBehaviour
     [UnityEditor.MenuItem("Adventure/🔄 全探索ポイントを0に完全リセット (パーツ・ボックス・遺物)")]
     public static void EditorResetAllPointsTo0()
     {
-        var sm = Instance ?? Object.FindFirstObjectByType<AdventureScrapManager>();
+        var sm = Instance ?? Object.FindAnyObjectByType<AdventureScrapManager>();
         if (sm != null)
         {
             sm.ResetAllPointsAndScrapsForNewGame();
