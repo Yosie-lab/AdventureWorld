@@ -6,7 +6,7 @@ public static class AdventureRebuildBoardwalkRamps
     [MenuItem("Adventure/Beach/Rebuild Smooth Boardwalk Ramps")]
     public static void RebuildRamps()
     {
-        Terrain land = Terrain.activeTerrain ?? Object.FindFirstObjectByType<Terrain>();
+        Terrain land = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
         if (land == null)
         {
             Debug.LogError("No terrain found!");
@@ -20,7 +20,7 @@ public static class AdventureRebuildBoardwalkRamps
             Undo.DestroyObjectImmediate(existingStructures);
         }
 
-        var oldManagers = Object.FindObjectsByType<AdventureBeachEscapeManager>(FindObjectsSortMode.None);
+        var oldManagers = Object.FindObjectsByType<AdventureBeachEscapeManager>();
         foreach (var m in oldManagers)
         {
             Undo.DestroyObjectImmediate(m.gameObject);

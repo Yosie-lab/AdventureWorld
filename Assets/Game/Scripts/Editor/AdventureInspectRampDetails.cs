@@ -13,7 +13,7 @@ public static class AdventureInspectRampDetails
             return;
         }
 
-        Terrain land = Terrain.activeTerrain ?? Object.FindFirstObjectByType<Terrain>();
+        Terrain land = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
 
         Debug.Log($"=== BoardwalkRamp_212deg Info (Total Children: {ramp.transform.childCount}) ===");
         for (int i = 0; i < ramp.transform.childCount; i++)

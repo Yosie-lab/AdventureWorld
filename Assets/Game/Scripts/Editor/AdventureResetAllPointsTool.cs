@@ -32,13 +32,13 @@ public static class AdventureResetAllPointsTool
         AdventureBeachDriftBox.ResetAllBoxesStatic();
         AdventureAncientPianoRelic.ResetAllPianoRelicsStatic();
 
-        var sm = AdventureScrapManager.Instance ?? Object.FindFirstObjectByType<AdventureScrapManager>();
+        var sm = AdventureScrapManager.Instance ?? Object.FindAnyObjectByType<AdventureScrapManager>();
         if (sm != null)
         {
             sm.ResetAllPointsAndScrapsForNewGame();
         }
 
-        var hud = AdventureScrapHUD.Instance ?? Object.FindFirstObjectByType<AdventureScrapHUD>();
+        var hud = AdventureScrapHUD.Instance ?? Object.FindAnyObjectByType<AdventureScrapHUD>();
         if (hud != null)
         {
             hud.ResetForNewGame();

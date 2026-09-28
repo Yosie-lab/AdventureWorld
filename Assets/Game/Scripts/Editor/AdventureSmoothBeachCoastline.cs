@@ -238,7 +238,7 @@ public static class AdventureSmoothBeachCoastline
             return;
         }
 
-        var allGos = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+        var allGos = Object.FindObjectsByType<GameObject>();
         int snappedCount = 0;
         int disabledUnderwaterCount = 0;
 

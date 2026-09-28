@@ -48,13 +48,13 @@ public static class AdventureGrant20PointsAndUnlockLever
         }
 
         // 3. Playモード中であれば、AdventureSanctuaryTowerManagerのセットアップ処理を実行
-        var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
+        var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindAnyObjectByType<AdventureSanctuaryTowerManager>();
         if (tower != null)
         {
             tower.DebugSetup20PointsState(warpToLever: true);
         }
 
-        var hud = AdventureScrapHUD.Instance ?? Object.FindFirstObjectByType<AdventureScrapHUD>();
+        var hud = AdventureScrapHUD.Instance ?? Object.FindAnyObjectByType<AdventureScrapHUD>();
         if (hud != null)
         {
             hud.RefreshQuestDisplay();

@@ -53,7 +53,7 @@ public static class AdventureDebugCanopyOpening
     {
         AdventureSanctuaryTowerManager.Ensure();
         var tower = AdventureSanctuaryTowerManager.Instance
-                    ?? Object.FindFirstObjectByType<AdventureSanctuaryTowerManager>();
+                    ?? Object.FindAnyObjectByType<AdventureSanctuaryTowerManager>();
         if (tower == null)
         {
             Debug.LogWarning("[RustAndFloat] AdventureSanctuaryTowerManager がまだありません。数秒待って F9 を押してください。");

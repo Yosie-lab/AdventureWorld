@@ -6,7 +6,7 @@ public static class AdventureInspectBeachObjects
     [MenuItem("Adventure/Debug/Inspect Beach Objects")]
     public static void InspectObjects()
     {
-        var allRenderers = Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None);
+        var allRenderers = Object.FindObjectsByType<MeshRenderer>();
         Debug.Log($"Total MeshRenderers in scene: {allRenderers.Length}");
 
         foreach (var r in allRenderers)

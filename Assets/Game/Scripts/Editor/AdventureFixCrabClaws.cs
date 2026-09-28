@@ -6,7 +6,7 @@ public static class AdventureFixCrabClaws
     [MenuItem("Adventure/Crabs/Fix All Crab Claws")]
     public static void FixClaws()
     {
-        var crabs = Object.FindObjectsByType<CrabWander>(FindObjectsSortMode.None);
+        var crabs = Object.FindObjectsByType<CrabWander>();
         int count = 0;
 
         foreach (var crab in crabs)

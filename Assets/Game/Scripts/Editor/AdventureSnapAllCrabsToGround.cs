@@ -6,11 +6,11 @@ public static class AdventureSnapAllCrabsToGround
     [MenuItem("Adventure/Crabs/Snap All Crabs To Ground")]
     public static void SnapAllCrabs()
     {
-        var crabs = Object.FindObjectsByType<CrabWander>(FindObjectsSortMode.None);
+        var crabs = Object.FindObjectsByType<CrabWander>();
         Terrain terrain = Terrain.activeTerrain;
         if (terrain == null)
         {
-            terrain = Object.FindFirstObjectByType<Terrain>();
+            terrain = Object.FindAnyObjectByType<Terrain>();
         }
 
         if (terrain == null)
