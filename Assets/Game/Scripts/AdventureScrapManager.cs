@@ -999,7 +999,6 @@ public class AdventureScrapManager : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    [UnityEditor.MenuItem("Adventure/🔄 全探索ポイントを0に完全リセット (パーツ・ボックス・遺物)")]
     public static void EditorResetAllPointsTo0()
     {
         var sm = Instance ?? Object.FindAnyObjectByType<AdventureScrapManager>();
