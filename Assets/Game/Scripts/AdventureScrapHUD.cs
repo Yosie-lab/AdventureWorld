@@ -37,7 +37,6 @@ public class AdventureScrapHUD : MonoBehaviour
     RectTransform _oilPanelRt;
     CanvasGroup _oilCg;
     Text _oilText;
-    int _lastOilShown = int.MinValue;
 
     bool _isHidden = false;
     float _radarUpdateTimer = 0f;
@@ -62,7 +61,6 @@ public class AdventureScrapHUD : MonoBehaviour
     public void ResetForNewGame()
     {
         _lastKnownCount = 0;
-        _lastOilShown = int.MinValue;
         OnCollect("", 0, AdventureScrapManager.TotalScrapCount);
     }
 
