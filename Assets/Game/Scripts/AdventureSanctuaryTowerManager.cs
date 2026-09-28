@@ -532,7 +532,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     float _leverHoldTimer;
     const float LeverHoldSeconds = 0.28f;
-    float _endingStuckTimer;
     float _leverPullLockUntil;
     GameObject _leverUiRoot;
     UnityEngine.UI.Text _leverUiLabel;
@@ -633,7 +632,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
                 _suppressClimax = false;
             }
         }
-        _endingStuckTimer = 0f;
 
         // 台本／危機／エピローグ／柱上昇待ち／天蓋開放後はレバー入力を止める
         // （ダイブ後の Space 長押しがレバー再作動→台本最初へ巻き戻るのを防ぐ）
