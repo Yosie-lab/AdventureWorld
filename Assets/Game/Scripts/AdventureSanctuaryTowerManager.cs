@@ -201,8 +201,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     bool _scriptRequireInputRelease = false;
     int _climaxBeatIndex = -1; // -1=非アクティブ / 0..=台本 / OilPhaseIndex=注油待ち後の再開用
     float _climaxOverdriveCinematicUntil = 0f;
-    int _climaxPostOilPhase = 0; // 0=なし / 1=蘇生セリフ待ち / 2=全出力セリフ待ち
-    float _climaxPostOilUntil = 0f;
     /// <summary>F9／天蓋台本中はクライマックス（警告・注油）を絶対に開始・表示しない</summary>
     bool _suppressClimax = false;
     /// <summary>天蓋台本完了後、柱上昇を待ってクライマックスへ必ず接続する</summary>
@@ -346,8 +344,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _scriptRequireInputRelease = false;
         _climaxBeatIndex = -1;
         _climaxOverdriveCinematicUntil = 0f;
-        _climaxPostOilPhase = 0;
-        _climaxPostOilUntil = 0f;
         _epilogueTriggered = false;
         _epilogueAlpha = 0f;
         _epilogueAct = 0;
@@ -820,8 +816,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             _climaxOilWaiting = false;
             _climaxBeatIndex = -1;
             _climaxOverdriveCinematicUntil = 0f;
-            _climaxPostOilPhase = 0;
-            _climaxPostOilUntil = 0f;
             _scriptBoardVisible = false;
             _epilogueTriggered = false;
         }

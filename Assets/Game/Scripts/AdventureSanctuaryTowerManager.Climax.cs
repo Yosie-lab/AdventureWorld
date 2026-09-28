@@ -339,8 +339,6 @@ public partial class AdventureSanctuaryTowerManager
         SoftenSkybreakColdAtmosphere();
 
         _climaxBeatIndex = ClimaxOilSlot;
-        _climaxPostOilPhase = 0;
-        _climaxPostOilUntil = 0f;
         _scriptBoardAdvance = false;
         _scriptHoldTimer = 0f;
         // 注油ゲージを満たした押しっぱなしが、そのまま台本送りにならないようにする
@@ -550,8 +548,6 @@ public partial class AdventureSanctuaryTowerManager
 
         _climaxBeatIndex = -1;
         _climaxOverdriveCinematicUntil = 0f;
-        _climaxPostOilPhase = 0;
-        _climaxPostOilUntil = 0f;
         _scriptRequireInputRelease = false;
         HideScriptBoardCompletely();
         TeardownScriptBoardUi();
