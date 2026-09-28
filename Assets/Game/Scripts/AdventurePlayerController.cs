@@ -259,7 +259,7 @@ public partial class AdventurePlayerController : MonoBehaviour
             && !_skybreakPillarLock
             && !_autoGlide)
         {
-            HandleJump(kb); // Space送りのみ
+            HandleJump(); // Space送りのみ
             return;
         }
 
