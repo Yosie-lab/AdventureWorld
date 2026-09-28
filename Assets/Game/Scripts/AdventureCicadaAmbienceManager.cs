@@ -180,7 +180,7 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
 
     static void SoftenWorldCicadasNearPlayer(Vector3 playerPos, float volume)
     {
-        var sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude);
         for (int i = 0; i < sources.Length; i++)
         {
             var src = sources[i];
@@ -235,7 +235,7 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
 
     static void MuteWorldCicadaSources()
     {
-        var sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude);
         for (int i = 0; i < sources.Length; i++)
         {
             var src = sources[i];

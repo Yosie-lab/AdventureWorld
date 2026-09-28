@@ -54,7 +54,7 @@ public class AdventureSanctuaryGridGlow : MonoBehaviour
         // プレイヤー自動検出
         if (playerTransform == null)
         {
-            var pc = Object.FindFirstObjectByType<AdventurePlayerController>();
+            var pc = Object.FindAnyObjectByType<AdventurePlayerController>();
             if (pc != null) playerTransform = pc.transform;
         }
 

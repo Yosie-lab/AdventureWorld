@@ -273,7 +273,7 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
 
         if (_cachedPlayer == null || !_cachedPlayer.gameObject.activeInHierarchy)
         {
-            _cachedPlayer = AdventurePlayerController.Instance ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+            _cachedPlayer = AdventurePlayerController.Instance ?? Object.FindAnyObjectByType<AdventurePlayerController>();
         }
 
         if (_cachedPlayer != null)

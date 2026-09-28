@@ -67,7 +67,7 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
     public static void Ensure()
     {
         if (Instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureBiomeAmbienceManager>();
+        var existing = Object.FindAnyObjectByType<AdventureBiomeAmbienceManager>();
         if (existing != null)
         {
             Instance = existing;

@@ -64,7 +64,7 @@ public class AdventureMusicDirector : MonoBehaviour
     public static void Ensure()
     {
         if (Instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureMusicDirector>();
+        var existing = Object.FindAnyObjectByType<AdventureMusicDirector>();
         if (existing != null)
         {
             Instance = existing;

@@ -12,7 +12,7 @@ public class AdventureFlightManager : MonoBehaviour
 
     public static void Ensure()
     {
-        var existingList = FindObjectsByType<AdventureFlightManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var existingList = FindObjectsByType<AdventureFlightManager>(FindObjectsInactive.Include);
         foreach (var ex in existingList)
         {
             if (ex != null && ex.gameObject != null)

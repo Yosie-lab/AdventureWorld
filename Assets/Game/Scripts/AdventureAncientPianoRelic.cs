@@ -1069,7 +1069,7 @@ public class AdventureAncientPianoRelic : MonoBehaviour
     [MenuItem("Adventure/Spawn Ancient Piano Relic (古びたピアノと光る遺物)")]
     public static void EditorSpawnPianoRelic()
     {
-        var existing = FindFirstObjectByType<AdventureAncientPianoRelic>();
+        var existing = FindAnyObjectByType<AdventureAncientPianoRelic>();
         if (existing == null)
         {
             var go = new GameObject("AdventureAncientPianoRelic");

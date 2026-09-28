@@ -86,7 +86,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureCapytaBlessing>();
+        var existing = Object.FindAnyObjectByType<AdventureCapytaBlessing>();
         if (existing != null)
         {
             _instance = existing;
@@ -277,7 +277,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
 
         if (silent) return;
 
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         if (!already)
         {
             drone?.SpeakCustom(RustFirst[0], 5.5f);
@@ -327,7 +327,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
     /// <summary>カピタ会話で潤滑油を渡す（機嫌で量変動）</summary>
     void GrantOilFromCapyta(bool showSpeech = true)
     {
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         if (drone == null) return;
 
         RollMood(out Mood mood, out int amount);
@@ -427,7 +427,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
         TryPlayCapytaReaction(capy);
         SpawnHeartSparkleFx(capy.position + Vector3.up * 0.85f);
 
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         bool firstJump = !player.hasCapytaSuperJump;
 
         if (firstJump)

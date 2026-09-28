@@ -24,7 +24,7 @@ public class CrabWander : MonoBehaviour
         _terrain = Terrain.activeTerrain;
         if (_terrain == null)
         {
-            _terrain = FindFirstObjectByType<Terrain>();
+            _terrain = FindAnyObjectByType<Terrain>();
         }
 
         _startPos = transform.position;

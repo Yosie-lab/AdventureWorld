@@ -33,7 +33,7 @@ public class AdventureFireflies : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureFireflies>();
+        var existing = Object.FindAnyObjectByType<AdventureFireflies>();
         if (existing != null)
         {
             _instance = existing;

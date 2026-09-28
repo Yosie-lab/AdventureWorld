@@ -20,7 +20,7 @@ public class AdventureStarrySky : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureStarrySky>();
+        var existing = Object.FindAnyObjectByType<AdventureStarrySky>();
         if (existing != null)
         {
             _instance = existing;

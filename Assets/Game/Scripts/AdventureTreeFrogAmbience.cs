@@ -28,7 +28,7 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = FindFirstObjectByType<AdventureTreeFrogAmbience>();
+        var existing = FindAnyObjectByType<AdventureTreeFrogAmbience>();
         if (existing != null)
         {
             _instance = existing;
@@ -67,7 +67,7 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
 
     static AudioClip FindClipByNameHint(string hint)
     {
-        var sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Include);
         for (int i = 0; i < sources.Length; i++)
         {
             var c = sources[i] != null ? sources[i].clip : null;
@@ -82,7 +82,7 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
         if (_muted || _beds.Count == 0) return;
         if (_player == null)
         {
-            var player = FindFirstObjectByType<AdventurePlayerController>();
+            var player = FindAnyObjectByType<AdventurePlayerController>();
             if (player == null) return;
             _player = player.transform;
         }

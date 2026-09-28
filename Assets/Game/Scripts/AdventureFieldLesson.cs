@@ -248,7 +248,7 @@ public class AdventureFieldLesson : MonoBehaviour
         RefreshLearnedLook();
 
         string next = NextNeed();
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         drone?.SpeakCustom(first ? skillLine + " " + next : next, 6.2f);
 
         if (AdventureScrapHUD.Instance != null)
