@@ -7,6 +7,19 @@ created: 2026-09-11
 
 次のエージェント（Antigravity 含む）は、このファイルを最初に読む。作業対象は **RustAndFloat**。元ゲーム **AdventureWorld は壊さない**。
 
+## Antigravity への引き継ぎ（2026-09-28）
+
+- **初代の映画的な大気・空・ポストプロセスの完全復元**:
+  - `AdventureClassicSkyRuntime.cs` / `AdventureRestoreClassicSkyTool.cs`: 初代の映画的ブルーム・ACESトーンマッピング・シアン大気フォグを復元。太陽光 1.28、環境光 1.15、露出ブースト +0.14 に微調整済み。
+- **黒い四角形・ピンク色水しぶきバグの完全根絶**:
+  - **浅瀬の熱帯魚**: 正体は浅瀬の熱帯魚逃走AI（キイロハギ・ナンヨウハギ・ツノダシ）。厚み1.4cmの極薄板ポリゴン＋水面突き破り（Z-Fighting）だった問題を、Sphereベースの滑らかな3D魚体・背びれ・尾びれ・つぶらな目玉・鮮やかなURP Unlit発色へフルリニューアル。遊泳深度を `MaxFishSurfaceY = 5.15f`（海面下35cm）にクランプしてチカチカを根絶。
+  - **海面の黒い四角**: `OceanSunGlitter.mat` の `_DstBlend: 1`（加算ブレンド）および `SunGlitterSparkle.png.meta` の `grayScaleToAlpha: 1` 修正により解消。
+  - **足元のピンクQuad**: `AdventureNikoFootsteps.cs` の水しぶきマテリアルインスタンス化漏れ（Missing Material）を修正。
+  - **パーティクルマテリアルの安全化**: `AdventureFireflies.cs`, `AdventureBeachSeashellItem.cs`, `AdventureBeachDriftBox.cs` で URP 加算 Unlit マテリアルと影OFFを徹底。
+- **リファクタリング**:
+  - `AdventureSchoolingFish.cs` の不要な旧メッシュ生成コードを削除。
+  - `AdventureRustFloatFeel.SeaLevel` 定数および `MaxFishSurfaceY` 定数を新設・統合。
+
 ## Antigravity への引き継ぎ（2026-09-25）
 
 **いまの正は `main` の `b71b6db`（2026-09-24、PR #14 マージ）と同じ。** 空の実験は戻してある。未コミットの空用スクリプトは残っていない。

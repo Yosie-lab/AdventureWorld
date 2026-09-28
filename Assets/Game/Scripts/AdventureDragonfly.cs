@@ -163,5 +163,31 @@ public class AdventureDragonfly : MonoBehaviour
 
         _leftWings = transform.Find("LeftWings");
         _rightWings = transform.Find("RightWings");
+
+        if (_sharedWingMat == null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            _sharedWingMat = new Material(shader) { name = "DragonflyWing_Clean" };
+            _sharedWingMat.SetFloat("_Surface", 1f);
+            _sharedWingMat.SetFloat("_Blend", 0f);
+            _sharedWingMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            _sharedWingMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            _sharedWingMat.SetInt("_ZWrite", 0);
+            _sharedWingMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            _sharedWingMat.SetColor("_BaseColor", new Color(0.9f, 0.98f, 1.0f, 0.35f));
+            if (_sharedWingMat.HasProperty("_Smoothness")) _sharedWingMat.SetFloat("_Smoothness", 0.95f);
+        }
+
+        // トンボ全身の余計な影落とし（地面に黒い四角形が落ちる現象）を防止
+        var renderers = GetComponentsInChildren<Renderer>(true);
+        foreach (var rend in renderers)
+        {
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rend.receiveShadows = false;
+            if (rend.transform.parent == _leftWings || rend.transform.parent == _rightWings)
+            {
+                rend.sharedMaterial = _sharedWingMat;
+            }
+        }
     }
 }

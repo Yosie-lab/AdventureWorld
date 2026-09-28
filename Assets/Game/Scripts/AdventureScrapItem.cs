@@ -174,7 +174,18 @@ public class AdventureScrapItem : MonoBehaviour
             var mat = new Material(particleShader);
             mat.SetTexture("_BaseMap", smokeTex);
             mat.SetColor("_BaseColor", itemColor * 2.5f);
+            mat.mainTexture = smokeTex;
+            mat.color = itemColor * 2.5f;
+            mat.SetFloat("_Surface", 1f); // Transparent
+            mat.SetFloat("_Blend", 1f);   // Additive
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            mat.SetInt("_ZWrite", 0);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = 3150;
             rend.material = mat;
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rend.receiveShadows = false;
         }
 
         // 2. 天に向かって垂直に昇る光の粒子ビーム
@@ -206,7 +217,16 @@ public class AdventureScrapItem : MonoBehaviour
             var mat = new Material(particleShader);
             mat.SetTexture("_BaseMap", smokeTex);
             mat.SetColor("_BaseColor", itemColor * 2.8f);
+            mat.SetFloat("_Surface", 1f); // Transparent
+            mat.SetFloat("_Blend", 1f);   // Additive
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            mat.SetInt("_ZWrite", 0);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = 3150;
             rendBeam.material = mat;
+            rendBeam.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rendBeam.receiveShadows = false;
         }
     }
 

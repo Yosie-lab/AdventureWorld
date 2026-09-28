@@ -82,13 +82,28 @@ public class AdventureFireflies : MonoBehaviour
 
         var rend = psGo.GetComponent<ParticleSystemRenderer>();
         var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                  ?? Shader.Find("Particles/Standard Unlit")
+                  ?? Shader.Find("Universal Render Pipeline/Unlit")
                   ?? Shader.Find("Mobile/Particles/Additive")
-                  ?? Shader.Find("Unlit/Color");
+                  ?? Shader.Find("Particles/Standard Unlit");
 
-        _fireflyMat = new Material(shader);
-        _fireflyMat.color = new Color(0.75f, 1.0f, 0.35f, 0.85f);
+        _fireflyMat = new Material(shader) { name = "Firefly_Additive_Mat" };
+        var smokeTex = AdventureRustDrone.GetSoftSmokeTexture();
+        _fireflyMat.SetTexture("_BaseMap", smokeTex);
+        _fireflyMat.mainTexture = smokeTex;
+        var initCol = new Color(0.75f, 1.0f, 0.35f, 0.85f);
+        _fireflyMat.SetColor("_BaseColor", initCol);
+        _fireflyMat.color = initCol;
+        if (_fireflyMat.HasProperty("_Surface")) _fireflyMat.SetFloat("_Surface", 1f); // Transparent
+        if (_fireflyMat.HasProperty("_Blend")) _fireflyMat.SetFloat("_Blend", 1f); // Additive
+        _fireflyMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        _fireflyMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        _fireflyMat.SetInt("_ZWrite", 0);
+        _fireflyMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        _fireflyMat.renderQueue = 3150;
+
         rend.sharedMaterial = _fireflyMat;
+        rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        rend.receiveShadows = false;
 
         _particles = new ParticleSystem.Particle[MaxFireflies];
         _particleVelocities = new Vector3[MaxFireflies];
@@ -135,6 +150,7 @@ public class AdventureFireflies : MonoBehaviour
             Color c = _fireflyMat.color;
             c.a = activity * 0.85f;
             _fireflyMat.color = c;
+            _fireflyMat.SetColor("_BaseColor", c);
         }
 
         if (activity < 0.05f) return;

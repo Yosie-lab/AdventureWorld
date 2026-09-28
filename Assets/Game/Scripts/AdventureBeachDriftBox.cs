@@ -357,8 +357,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     private static Shader GetSafeUnlitShader()
     {
-        return Shader.Find("Universal Render Pipeline/Particles/Unlit")
-            ?? Shader.Find("Universal Render Pipeline/Unlit")
+        return Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Particles/Unlit")
             ?? Shader.Find("RustAndFloat/WhiteSmoke")
             ?? Shader.Find("Sprites/Default");
     }
@@ -368,6 +368,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var mat = new Material(shader);
         mat.SetTexture("_BaseMap", tex);
         mat.SetColor("_BaseColor", color);
+        mat.mainTexture = tex;
+        mat.color = color;
 
         // URP 半透明・加算ブレンド・両面描画設定
         if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f); // Transparent
@@ -375,10 +377,9 @@ public class AdventureBeachDriftBox : MonoBehaviour
         if (mat.HasProperty("_Cull")) mat.SetFloat("_Cull", 0f); // Double-sided (Cull Off)
         if (mat.HasProperty("_ZWrite")) mat.SetFloat("_ZWrite", 0f);
 
-        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
         mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
         mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-        mat.EnableKeyword("_ALPHAPREMULTIPLY_ON");
         mat.renderQueue = renderQueue;
         return mat;
     }
@@ -440,6 +441,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
         {
             _boxAuraMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, VisualConfig.SoftAuraColor, 3120);
             auraRend.material = _boxAuraMat;
+            auraRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            auraRend.receiveShadows = false;
         }
         _boxBodyAura = auraQuad.transform;
 
@@ -457,6 +460,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
         {
             _groundGlowMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f * 2.4f, 0.85f * 2.4f, 0.32f * 2.4f, 0.65f), 3125);
             groundRend.material = _groundGlowMat;
+            groundRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            groundRend.receiveShadows = false;
         }
         _groundGlow = groundQuad.transform;
 
@@ -473,6 +478,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
         {
             _seamMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, VisualConfig.SeamLightColor, 3130);
             seamRend.material = _seamMat;
+            seamRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            seamRend.receiveShadows = false;
         }
         _seamGlow = seamQuad.transform;
 
@@ -489,11 +496,17 @@ public class AdventureBeachDriftBox : MonoBehaviour
         {
             _lampGlowMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f * 3.5f, 0.92f * 3.5f, 0.50f * 3.5f, 0.95f), 3140);
             lampRend.material = _lampGlowMat;
+            lampRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            lampRend.receiveShadows = false;
         }
         _lampGlow = lampQuad.transform;
 
+        var particleShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                          ?? Shader.Find("Universal Render Pipeline/Unlit")
+                          ?? Shader.Find("Mobile/Particles/Additive");
+
         // 5. ボックスの周りを優雅に漂う星屑・光の蛍（Magical Dust Particles）
-        _particleMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f * 2.2f, 0.88f * 2.2f, 0.40f * 2.2f, 0.90f), 3150);
+        _particleMat = CreateTransparentAdditiveMaterial(particleShader, smokeTex, new Color(1.0f * 2.2f, 0.88f * 2.2f, 0.40f * 2.2f, 0.90f), 3150);
 
         var dustGo = new GameObject("MagicalDustParticles");
         dustGo.transform.SetParent(transform, false);
@@ -517,11 +530,16 @@ public class AdventureBeachDriftBox : MonoBehaviour
         shapeDust.rotation = new Vector3(-90f, 0f, 0f); // 上向きに放出
 
         var rendDust = dustGo.GetComponent<ParticleSystemRenderer>();
-        if (rendDust != null) rendDust.material = _particleMat;
+        if (rendDust != null)
+        {
+            rendDust.material = _particleMat;
+            rendDust.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rendDust.receiveShadows = false;
+        }
 
         // 6. ボックスの上で時折キラリと瞬くダイヤモンドスター（Twinkle Stars）
         var starTex = CreateStarTwinkleTexture();
-        _twinkleMat = CreateTransparentAdditiveMaterial(unlitShader, starTex, new Color(1.0f * 3.0f, 0.96f * 3.0f, 0.70f * 3.0f, 0.95f), 3160);
+        _twinkleMat = CreateTransparentAdditiveMaterial(particleShader, starTex, new Color(1.0f * 3.0f, 0.96f * 3.0f, 0.70f * 3.0f, 0.95f), 3160);
 
         var starGo = new GameObject("TwinkleStars");
         starGo.transform.SetParent(transform, false);
@@ -544,7 +562,12 @@ public class AdventureBeachDriftBox : MonoBehaviour
         shapeStar.radius = 0.75f;
 
         var rendStar = starGo.GetComponent<ParticleSystemRenderer>();
-        if (rendStar != null) rendStar.material = _twinkleMat;
+        if (rendStar != null)
+        {
+            rendStar.material = _twinkleMat;
+            rendStar.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rendStar.receiveShadows = false;
+        }
 
         // 7. 遠景ビーコン（二重多層光柱: 高さ約110m、天空へ届く高輝度光柱）
         // 7-A. 高輝度中心コア光柱（超高輝度ホワイトゴールド光芒）
@@ -560,6 +583,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
         {
             _beaconMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f * 4.2f, 0.94f * 4.2f, 0.65f * 4.2f, 0.95f), 3146);
             beaconRend.material = _beaconMat;
+            beaconRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            beaconRend.receiveShadows = false;
         }
         _beaconPillar = beacon.transform;
 
@@ -576,6 +601,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
         {
             _beaconOuterMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f * 2.6f, 0.82f * 2.6f, 0.28f * 2.6f, 0.50f), 3144);
             beaconOuterRend.material = _beaconOuterMat;
+            beaconOuterRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            beaconOuterRend.receiveShadows = false;
         }
         _beaconOuterPillar = beaconOuter.transform;
 
@@ -605,8 +632,10 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var rendBeam = beamGo.GetComponent<ParticleSystemRenderer>();
         if (rendBeam != null)
         {
-            _verticalBeamMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f * 3.0f, 0.88f * 3.0f, 0.40f * 3.0f, 1.0f), 3155);
+            _verticalBeamMat = CreateTransparentAdditiveMaterial(particleShader, smokeTex, new Color(1.0f * 3.0f, 0.88f * 3.0f, 0.40f * 3.0f, 1.0f), 3155);
             rendBeam.material = _verticalBeamMat;
+            rendBeam.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rendBeam.receiveShadows = false;
         }
     }
 

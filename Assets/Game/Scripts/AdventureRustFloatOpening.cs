@@ -19,6 +19,14 @@ public class AdventureRustFloatOpening : MonoBehaviour
     }
     static bool _isGameStarted = false;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        _isGameStarted = false;
+        _inputGuardUntil = 0f;
+        _instance = null;
+    }
+
     const string TitleText = "✦ Rust & Float ✦";
     const string SubTitleText = "〜 2050 静かなる脱出 〜";
     const string StoryText =

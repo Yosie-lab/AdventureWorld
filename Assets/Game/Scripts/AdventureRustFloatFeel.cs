@@ -6,6 +6,9 @@ using UnityEngine;
 /// </summary>
 public static class AdventureRustFloatFeel
 {
+    // ── 環境・海面 ──
+    public const float SeaLevel = 5.50f;
+
     // ── 地上移動 ──
     public const float WalkSpeed = 10.2f;
     public const float RunSpeed = 16.0f;
@@ -24,14 +27,14 @@ public static class AdventureRustFloatFeel
     public const float AnimSpeedMul = 1.4f;
     public const float AnimSpeedMax = 2.35f;
 
-    // ── カメラ（寄りすぎ＝頭切れ、引きすぎ＝鈍く見える） ──
-    public const float CameraDistance = 7.4f;
-    public const float CameraDistanceMin = 6.8f;
-    public const float WalkMinDistance = 5.6f;
-    public const float Sensitivity = 0.28f; // キビキビと軽快に追従する適正感度（0.12fから大幅改善）
+    // ── カメラ（昔の小さな島のような広々とした遠目・見晴らしの良いパノラマ視界） ──
+    public const float CameraDistance = 8.5f;
+    public const float CameraDistanceMin = 7.8f;
+    public const float WalkMinDistance = 7.2f;
+    public const float Sensitivity = 0.28f; // キビキビと軽快に追従する適正感度
     public const float PositionSmoothTime = 0.01f;
     public const float LookSmoothTime = 0.003f; // 遅延のないキビキビした視点レスポンス
-    public const float WalkFov = 64f;
+    public const float WalkFov = 68f;
     public const float KeyYawRate = 240f;
     public const float KeyPitchRate = 180f;
     public const float PadLookMul = 280f;

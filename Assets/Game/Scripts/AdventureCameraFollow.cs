@@ -9,8 +9,8 @@ using UnityEngine.InputSystem;
 public class AdventureCameraFollow : MonoBehaviour
 {
     public Transform target;
-    public float height = 1.25f;
-    public float distance = 7.8f;
+    public float height = 1.65f;
+    public float distance = 8.5f;
     public float sensitivity = 0.12f;
     public float pitchMin = -42f; // 足元・砂浜・貝殻を自然に見下ろせる
     public float pitchMax = 58f;  // ヤシの木・大空・ウミネコを気持ちよく見上げられる
@@ -27,14 +27,14 @@ public class AdventureCameraFollow : MonoBehaviour
     /// <summary>歩行・移動計算用：マウス意図ヨー（スムーズなし）</summary>
     public float TargetYaw => _targetYaw;
 
-    /// <summary>歩行：完全水平</summary>
-    const float WalkPitch = 0f;
-    /// <summary>歩行時の注視点（腰〜胸）</summary>
-    const float WalkFocusHeight = 1.05f;
-    const float WalkPivotHeight = 1.35f;
+    /// <summary>歩行：昔の小さな島と同じ心地よい見下ろし俯瞰</summary>
+    const float WalkPitch = 11.0f;
+    /// <summary>歩行時の注視点（頭上〜全身が見晴らせる高さ）</summary>
+    const float WalkFocusHeight = 1.25f;
+    const float WalkPivotHeight = 1.65f;
     float WalkMinDistance => AdventureRustFloatFeel.IsActiveScene
         ? AdventureRustFloatFeel.WalkMinDistance
-        : 5.2f;
+        : 6.8f;
 
     float _yaw;
     float _pitch = WalkPitch;
@@ -526,13 +526,15 @@ public class AdventureCameraFollow : MonoBehaviour
             _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, pivotSmooth);
         }
 
-        float cineFov = (isAutoGlide && cine > 0.3f) ? 76f : CinematicFov;
-        float targetFov = Mathf.Lerp(isGliding ? 68f : 64f, cineFov, cine);
+        float walkBaseFov = AdventureRustFloatFeel.IsActiveScene ? AdventureRustFloatFeel.WalkFov : 64f;
+        float glideBaseFov = walkBaseFov + 4f;
+        float cineFov = (isAutoGlide && cine > 0.3f) ? 78f : CinematicFov;
+        float targetFov = Mathf.Lerp(isGliding ? glideBaseFov : walkBaseFov, cineFov, cine);
         if (_cam != null)
             _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, targetFov, (cine > 0.01f ? 18f : 8f) * Time.deltaTime);
 
-        float cineDist = (isAutoGlide && cine > 0.3f) ? 7.8f : CinematicDistance;
-        float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.0f) : distance, cineDist, cine);
+        float cineDist = (isAutoGlide && cine > 0.3f) ? 8.5f : CinematicDistance;
+        float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.2f) : distance, cineDist, cine);
         
         // 上空（高度80m以上またはオートグライド中）は障害物がないため、天蓋破片等の誤遮蔽SphereCastをバイパスして安定追従
         float safeTargetDist;

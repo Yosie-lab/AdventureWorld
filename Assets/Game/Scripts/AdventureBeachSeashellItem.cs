@@ -204,6 +204,8 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         Destroy(cap.GetComponent<Collider>());
     }
 
+    static Material _sharedSparkleMat;
+
     void CreateSparkleFx()
     {
         var psGo = new GameObject("Sparkles");
@@ -233,6 +235,34 @@ public class AdventureBeachSeashellItem : MonoBehaviour
             new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.85f, 0.4f), new GradientAlphaKey(0f, 1f) }
         );
         colOverLifetime.color = grad;
+
+        var psRend = psGo.GetComponent<ParticleSystemRenderer>();
+        if (psRend != null)
+        {
+            if (_sharedSparkleMat == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                          ?? Shader.Find("Universal Render Pipeline/Unlit")
+                          ?? Shader.Find("Mobile/Particles/Additive")
+                          ?? Shader.Find("Particles/Standard Unlit");
+                _sharedSparkleMat = new Material(shader) { name = "SeashellSparkle_Mat" };
+                var tex = AdventureRustDrone.GetSoftSmokeTexture();
+                _sharedSparkleMat.SetTexture("_BaseMap", tex);
+                _sharedSparkleMat.mainTexture = tex;
+                _sharedSparkleMat.SetColor("_BaseColor", Color.white);
+                _sharedSparkleMat.color = Color.white;
+                _sharedSparkleMat.SetFloat("_Surface", 1f);
+                _sharedSparkleMat.SetFloat("_Blend", 1f); // Additive
+                _sharedSparkleMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                _sharedSparkleMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+                _sharedSparkleMat.SetInt("_ZWrite", 0);
+                _sharedSparkleMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                _sharedSparkleMat.renderQueue = 3100;
+            }
+            psRend.sharedMaterial = _sharedSparkleMat;
+            psRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            psRend.receiveShadows = false;
+        }
     }
 
     void Update()

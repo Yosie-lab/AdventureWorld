@@ -208,6 +208,32 @@ public class AdventureNikoFootsteps : MonoBehaviour
         }
     }
 
+    static Material _splashMat;
+    static Material GetSplashMaterial()
+    {
+        if (_splashMat == null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") 
+                         ?? Shader.Find("Universal Render Pipeline/Unlit") 
+                         ?? Shader.Find("Mobile/Particles/Additive")
+                         ?? Shader.Find("Particles/Standard Unlit");
+            _splashMat = new Material(shader) { name = "FootstepSplash_Mat" };
+            var tex = AdventureRustDrone.GetSoftSmokeTexture();
+            _splashMat.SetTexture("_BaseMap", tex);
+            _splashMat.mainTexture = tex;
+            _splashMat.SetFloat("_Surface", 1f); // Transparent
+            _splashMat.SetFloat("_Blend", 1f); // Additive
+            _splashMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            _splashMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            _splashMat.SetInt("_ZWrite", 0);
+            _splashMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            _splashMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            _splashMat.SetColor("_BaseColor", new Color(0.9f, 0.96f, 1f, 0.8f));
+            _splashMat.color = new Color(0.9f, 0.96f, 1f, 0.8f);
+        }
+        return _splashMat;
+    }
+
     /// <summary>足元の水しぶき・波紋パーティクルエフェクト</summary>
     void SpawnFootstepSplashFx(Vector3 pos, bool isLeft, bool bigSplash)
     {
@@ -218,6 +244,14 @@ public class AdventureNikoFootsteps : MonoBehaviour
         fxGo.transform.position = spawnPos;
 
         var ps = fxGo.AddComponent<ParticleSystem>();
+        var psr = fxGo.GetComponent<ParticleSystemRenderer>();
+        if (psr != null)
+        {
+            psr.sharedMaterial = GetSplashMaterial();
+            psr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            psr.receiveShadows = false;
+        }
+
         var main = ps.main;
         main.startLifetime = bigSplash ? 0.45f : 0.28f;
         main.startSpeed = bigSplash ? 3.2f : 1.6f;

@@ -34,6 +34,15 @@ public class AdventurePrologueDrama : MonoBehaviour
     bool _secondGearDone;
     bool _skipAwakening;
 
+    float _awakeningStartTime = 0f;
+    const float WAKEUP_INPUT_GUARD_SEC = 2.0f; // 開始から2秒間はクリック余韻等の誤爆スキップを完全ガード
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        _instance = null;
+    }
+
     public bool IsAwakening => _phase == Phase.Awakening;
     public bool IsShowingDashBoard => _showDashBoard && _phase == Phase.DashCelebrate;
 
@@ -85,42 +94,40 @@ public class AdventurePrologueDrama : MonoBehaviour
     {
         if (_phase == Phase.Awakening && !_skipAwakening)
         {
-            if (CheckWakeupInput())
+            // 開始直後（オープニングPLAYクリック直後の余韻や入力ドリフト）による即時スキップをガード
+            if (Time.unscaledTime - _awakeningStartTime >= WAKEUP_INPUT_GUARD_SEC)
             {
-                SkipAwakening();
+                if (CheckWakeupInput())
+                {
+                    SkipAwakening();
+                }
             }
         }
     }
 
     bool CheckWakeupInput()
     {
-        try
-        {
-            if (Input.anyKeyDown) return true;
-            if (Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f) return true;
-        }
-        catch { }
-
+        // 誤爆しやすい anyKeyDown や微細なスティック傾きではなく、明確なスキップ操作のみで起き上がる
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null)
         {
-            if (kb.wKey.isPressed || kb.sKey.isPressed || kb.aKey.isPressed || kb.dKey.isPressed ||
-                kb.upArrowKey.isPressed || kb.downArrowKey.isPressed || kb.leftArrowKey.isPressed || kb.rightArrowKey.isPressed ||
-                kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)
+            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
                 return true;
         }
-
-        var m = UnityEngine.InputSystem.Mouse.current;
-        if (m != null && (m.leftButton.wasPressedThisFrame || m.rightButton.wasPressedThisFrame))
-            return true;
 
         var gp = UnityEngine.InputSystem.Gamepad.current;
         if (gp != null)
         {
-            if (gp.leftStick.ReadValue().sqrMagnitude > 0.04f) return true;
-            if (gp.buttonSouth.wasPressedThisFrame || gp.buttonWest.wasPressedThisFrame) return true;
-            if (gp.dpad.up.isPressed || gp.dpad.down.isPressed || gp.dpad.left.isPressed || gp.dpad.right.isPressed) return true;
+            if (gp.buttonSouth.wasPressedThisFrame || gp.startButton.wasPressedThisFrame)
+                return true;
         }
+
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Escape))
+                return true;
+        }
+        catch { }
 
         return false;
     }
@@ -137,11 +144,19 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (_phase != Phase.Idle && _phase != Phase.Complete)
             return;
 
+        PlayAwakeningIntro(force: false);
+    }
+
+    /// <summary>遭難目覚ましイントロ演出を開始（force=trueで進行状況問わず強制再生）</summary>
+    public void PlayAwakeningIntro(bool force = true)
+    {
         StopAllCoroutines();
+        _phase = Phase.Idle;
         _oilReceived = false;
         _showDashBoard = false;
         _secondGearDone = false;
         _skipAwakening = false;
+        _awakeningStartTime = Time.unscaledTime;
         StartCoroutine(PrologueRoutine());
     }
 

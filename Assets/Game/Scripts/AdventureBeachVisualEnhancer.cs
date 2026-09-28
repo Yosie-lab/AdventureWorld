@@ -90,44 +90,58 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
 
     void SetupMaterials()
     {
-        var unlitShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                       ?? Shader.Find("Universal Render Pipeline/Unlit")
+        var unlitShader = Shader.Find("Universal Render Pipeline/Unlit")
+                       ?? Shader.Find("Universal Render Pipeline/Particles/Unlit")
                        ?? Shader.Find("Particles/Standard Unlit")
                        ?? Shader.Find("Mobile/Particles/Alpha Blended");
 
         // 1. コースティクスマテリアル（加算ブレンドで白砂に透き通る太陽光の網目を投影）
         _causticsMat = new Material(unlitShader);
         _causticsMat.name = "Beach_Caustics_Mat";
-        _causticsMat.mainTexture = GenerateCausticsTexture(256);
-        _causticsMat.color = new Color(0.65f, 0.95f, 1.0f, 0.42f);
-        // 加算半透明ブレンド
+        var causticsTex = GenerateCausticsTexture(256);
+        var causticsColor = new Color(0.65f, 0.95f, 1.0f, 0.42f);
+        _causticsMat.SetTexture("_BaseMap", causticsTex);
+        _causticsMat.SetColor("_BaseColor", causticsColor);
+        _causticsMat.mainTexture = causticsTex;
+        _causticsMat.color = causticsColor;
         _causticsMat.SetFloat("_Surface", 1f); // Transparent
         _causticsMat.SetFloat("_Blend", 1f);   // Additive
         _causticsMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
         _causticsMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
         _causticsMat.SetInt("_ZWrite", 0);
+        _causticsMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
         _causticsMat.renderQueue = 3050; // 水面(3000)より直上、地形より前面
 
         // 2. 波打ち際白波マテリアル（半透明アルファブレンド）
         _shoreWaveMat = new Material(unlitShader);
         _shoreWaveMat.name = "Beach_ShoreWave_Mat";
-        _shoreWaveMat.mainTexture = GenerateShoreFoamTexture(256);
-        _shoreWaveMat.color = new Color(1f, 1f, 1f, 0.75f);
+        var shoreTex = GenerateShoreFoamTexture(256);
+        var shoreColor = new Color(1f, 1f, 1f, 0.75f);
+        _shoreWaveMat.SetTexture("_BaseMap", shoreTex);
+        _shoreWaveMat.SetColor("_BaseColor", shoreColor);
+        _shoreWaveMat.mainTexture = shoreTex;
+        _shoreWaveMat.color = shoreColor;
         _shoreWaveMat.SetFloat("_Surface", 1f);
         _shoreWaveMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
         _shoreWaveMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
         _shoreWaveMat.SetInt("_ZWrite", 0);
+        _shoreWaveMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
         _shoreWaveMat.renderQueue = 3060;
 
         // 3. 足跡マテリアル（砂のくぼみ・影の乗算風半透明）
         _footprintMat = new Material(unlitShader);
         _footprintMat.name = "Beach_Footprint_Mat";
-        _footprintMat.mainTexture = GenerateFootprintTexture(128);
-        _footprintMat.color = new Color(0.38f, 0.32f, 0.22f, 0.45f);
+        var fpTex = GenerateFootprintTexture(128);
+        var fpColor = new Color(0.38f, 0.32f, 0.22f, 0.45f);
+        _footprintMat.SetTexture("_BaseMap", fpTex);
+        _footprintMat.SetColor("_BaseColor", fpColor);
+        _footprintMat.mainTexture = fpTex;
+        _footprintMat.color = fpColor;
         _footprintMat.SetFloat("_Surface", 1f);
         _footprintMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
         _footprintMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
         _footprintMat.SetInt("_ZWrite", 0);
+        _footprintMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
         _footprintMat.renderQueue = 2950; // 地形直上、水面より下
     }
 
@@ -197,6 +211,8 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
         var mf = _causticsRoot.AddComponent<MeshFilter>();
         var mr = _causticsRoot.AddComponent<MeshRenderer>();
         mr.sharedMaterial = _causticsMat;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
 
         _causticsMesh = new Mesh();
         _causticsMesh.name = "Beach_Caustics_Mesh";
@@ -256,6 +272,8 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
         var mf = _shoreWaveRoot.AddComponent<MeshFilter>();
         var mr = _shoreWaveRoot.AddComponent<MeshRenderer>();
         mr.sharedMaterial = _shoreWaveMat;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
 
         _shoreWaveMesh = new Mesh();
         _shoreWaveMesh.name = "Beach_ShoreWave_Mesh";
@@ -457,6 +475,8 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
         var mr = fpGo.AddComponent<MeshRenderer>();
         var instMat = new Material(_footprintMat);
         mr.sharedMaterial = instMat;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
 
         // 波打ち際に近いほど波ですぐ消える（約3〜7秒）
         float distToWater = Mathf.Max(0f, footPos.y - WaterLevelY);
@@ -517,9 +537,26 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
 
         var rend = bioGo.GetComponent<ParticleSystemRenderer>();
         var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                  ?? Shader.Find("Particles/Standard Unlit")
-                  ?? Shader.Find("Unlit/Color");
-        rend.sharedMaterial = new Material(shader) { color = new Color(0.25f, 0.98f, 1.0f, 0.9f) };
+                  ?? Shader.Find("Universal Render Pipeline/Unlit")
+                  ?? Shader.Find("Mobile/Particles/Additive");
+        var bioMat = new Material(shader) { name = "BioStep_Mat" };
+        var smokeTex = AdventureRustDrone.GetSoftSmokeTexture();
+        bioMat.SetTexture("_BaseMap", smokeTex);
+        bioMat.mainTexture = smokeTex;
+        var bioCol = new Color(0.25f, 0.98f, 1.0f, 0.9f);
+        bioMat.SetColor("_BaseColor", bioCol);
+        bioMat.color = bioCol;
+        if (bioMat.HasProperty("_Surface")) bioMat.SetFloat("_Surface", 1f);
+        if (bioMat.HasProperty("_Blend")) bioMat.SetFloat("_Blend", 1f);
+        bioMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        bioMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        bioMat.SetInt("_ZWrite", 0);
+        bioMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        bioMat.renderQueue = 3150;
+
+        rend.sharedMaterial = bioMat;
+        rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        rend.receiveShadows = false;
 
         Destroy(bioGo, 2.2f);
     }

@@ -151,7 +151,7 @@ public class AdventureBeachEcosystem : MonoBehaviour
         for (int r = 0; r < reefCenters.Length; r++)
         {
             Vector3 center = reefCenters[r];
-            center.y = Mathf.Clamp(center.y + 0.65f, 4.8f, 5.65f);
+            center.y = Mathf.Clamp(center.y + 0.35f, 4.5f, 5.10f); // 海面(5.50m)より下で美しく群れ泳ぐ深度
 
             for (int t = 0; t < 2; t++)
             {

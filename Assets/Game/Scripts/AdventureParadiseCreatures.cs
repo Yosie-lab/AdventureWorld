@@ -234,6 +234,12 @@ public class DragonflyFlight : MonoBehaviour
         _home = transform.position;
         _target = _home + Random.insideUnitSphere * 4f;
         _target.y = _home.y + Random.Range(-0.4f, 0.9f);
+
+        // シーン初期配置の旧オブジェクト対応：確実に最新ビジュアルへ更新
+        if (transform.Find("ModelRoot") == null)
+        {
+            RebuildDragonflyVisuals();
+        }
     }
 
     void Update()
@@ -407,6 +413,14 @@ public class DragonflyFlight : MonoBehaviour
         rhMesh.GetComponent<Renderer>().sharedMaterial = _sharedWingMat;
         DestroyImmediate(rhMesh.GetComponent<Collider>());
         _rightHindWing = rhPivot.transform;
+
+        // 全身および翅の影落とし（地面や砂浜に黒い四角形が落ちる現象）を完全防止
+        var renderers = modelRoot.GetComponentsInChildren<Renderer>(true);
+        foreach (var rend in renderers)
+        {
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rend.receiveShadows = false;
+        }
     }
 
     static Material CreateWingMaterial()
@@ -415,12 +429,15 @@ public class DragonflyFlight : MonoBehaviour
         var mat = new Material(shader);
         mat.name = "DragonflyWing_Trans";
         mat.SetFloat("_Surface", 1f); // Transparent
-        mat.SetFloat("_Blend", 0f);
+        mat.SetFloat("_Blend", 0f); // Alpha blend
         mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
         mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
         mat.SetInt("_ZWrite", 0);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
         mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-        mat.color = new Color(0.85f, 0.95f, 1.0f, 0.32f);
+        var wingCol = new Color(0.85f, 0.95f, 1.0f, 0.32f);
+        mat.SetColor("_BaseColor", wingCol);
+        mat.color = wingCol;
         if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.95f);
         if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.15f);
         return mat;
@@ -431,7 +448,9 @@ public class DragonflyFlight : MonoBehaviour
         var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
         var mat = new Material(shader);
         mat.name = "DragonflyEye_Gloss";
-        mat.color = new Color(0.06f, 0.16f, 0.10f); // 深いエメラルドブラック
+        var eyeCol = new Color(0.06f, 0.16f, 0.10f); // 深いエメラルドブラック
+        mat.SetColor("_BaseColor", eyeCol);
+        mat.color = eyeCol;
         if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.98f);
         if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.4f);
         return mat;
@@ -442,7 +461,9 @@ public class DragonflyFlight : MonoBehaviour
         var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
         var mat = new Material(shader);
         mat.name = "DragonflyBody_Red";
-        mat.color = new Color(0.85f, 0.18f, 0.14f); // 鮮やかな赤とんぼ
+        var bodyCol = new Color(0.85f, 0.18f, 0.14f); // 鮮やかな赤とんぼ
+        mat.SetColor("_BaseColor", bodyCol);
+        mat.color = bodyCol;
         if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.85f);
         if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.3f);
         return mat;
