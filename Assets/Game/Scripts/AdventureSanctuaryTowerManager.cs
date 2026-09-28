@@ -120,8 +120,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     bool _scriptBoardVisible = false;
     bool _scriptBoardAdvance = false;
     bool _scriptAdvanceArmed = false; // キー／ボタンを一度離してから次入力を受け付ける
-    bool _scriptPrevPointerDown = false;
-    bool _scriptPrevKeyDown = false;
     string _scriptBoardTitle = "";
     string _scriptBoardSpeaker = "";
     string _scriptBoardBody = "";
