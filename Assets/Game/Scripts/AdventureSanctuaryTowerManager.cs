@@ -119,7 +119,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     // ── 台本ボード（1枚ずつ確実に表示）※uGUI：OnGUIだと日本語が空になるため ──
     bool _scriptBoardVisible = false;
     bool _scriptBoardAdvance = false;
-    bool _scriptAdvanceArmed = false; // キー／ボタンを一度離してから次入力を受け付ける
     string _scriptBoardTitle = "";
     string _scriptBoardSpeaker = "";
     string _scriptBoardBody = "";
