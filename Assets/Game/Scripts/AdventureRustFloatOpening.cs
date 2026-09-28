@@ -388,14 +388,14 @@ public class AdventureRustFloatOpening : MonoBehaviour
             return;
 
         // 孤児化した旧HUDがあれば掃除（再コンパイル／二重生成対策）
-        foreach (var orphanCanvas in FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        foreach (var orphanCanvas in FindObjectsByType<Canvas>(FindObjectsInactive.Include))
         {
             if (orphanCanvas != null && orphanCanvas.gameObject.name == "RustFloatHUD")
                 Destroy(orphanCanvas.gameObject);
         }
 
         // EventSystemの自動確保（シーンにEventSystemがない場合でもuGUIボタンと入力モジュールを確実に動作させる）
-        if (FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+        if (FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
         {
             var esGo = new GameObject("EventSystem");
             esGo.AddComponent<UnityEngine.EventSystems.EventSystem>();

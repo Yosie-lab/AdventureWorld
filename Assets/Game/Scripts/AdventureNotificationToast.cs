@@ -27,7 +27,7 @@ public class AdventureNotificationToast : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureNotificationToast>();
+        var existing = Object.FindAnyObjectByType<AdventureNotificationToast>();
         if (existing != null)
         {
             _instance = existing;

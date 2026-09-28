@@ -21,7 +21,7 @@ public class AdventureRustSpeechUI : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureRustSpeechUI>();
+        var existing = Object.FindAnyObjectByType<AdventureRustSpeechUI>();
         if (existing != null)
         {
             _instance = existing;
@@ -133,7 +133,7 @@ public class AdventureRustSpeechUI : MonoBehaviour
 
         bool hide = AdventureStoryFlow.HidesRustSpeech;
 
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         bool show = !hide && drone != null && drone.HasActiveSpeech;
 
         if (show)

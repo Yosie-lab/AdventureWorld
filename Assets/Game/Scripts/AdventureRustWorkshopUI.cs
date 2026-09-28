@@ -61,7 +61,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
     public static void Ensure()
     {
         if (Instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureRustWorkshopUI>();
+        var existing = Object.FindAnyObjectByType<AdventureRustWorkshopUI>();
         if (existing != null)
         {
             Instance = existing;

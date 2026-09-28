@@ -116,7 +116,7 @@ public class AdventureRustCosmetics : MonoBehaviour
     public static void Ensure()
     {
         if (Instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventureRustCosmetics>();
+        var existing = Object.FindAnyObjectByType<AdventureRustCosmetics>();
         if (existing != null)
         {
             Instance = existing;

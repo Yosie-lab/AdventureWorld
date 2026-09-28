@@ -61,7 +61,7 @@ public class AdventurePrologueDrama : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventurePrologueDrama>();
+        var existing = Object.FindAnyObjectByType<AdventurePrologueDrama>();
         if (existing != null)
         {
             _instance = existing;
@@ -128,7 +128,7 @@ public class AdventurePrologueDrama : MonoBehaviour
     /// <summary>オープニングPlay直後／ニューゲーム時に呼ぶ</summary>
     public void BeginAfterOpening()
     {
-        var scraps = AdventureScrapManager.Instance ?? Object.FindFirstObjectByType<AdventureScrapManager>();
+        var scraps = AdventureScrapManager.Instance ?? Object.FindAnyObjectByType<AdventureScrapManager>();
         if (scraps != null && scraps.CollectedCount > 0)
         {
             _phase = Phase.Complete;
@@ -154,7 +154,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         _dashBoardAdvance = false;
         _secondGearDone = false;
         _skipAwakening = false;
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         drone?.EndPrologueDistress();
 
         var eyelidCanvas = GameObject.Find("AwakeningEyelidCanvas");
@@ -208,7 +208,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         _phase = Phase.Act1Distress;
         yield return null;
 
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         if (drone == null)
         {
             _phase = Phase.Complete;
@@ -308,7 +308,7 @@ public class AdventurePrologueDrama : MonoBehaviour
     IEnumerator FirstGearRebirthRoutine()
     {
         _phase = Phase.FirstGearDone;
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
             drone.CelebratePrologueFirstGear();
@@ -332,7 +332,7 @@ public class AdventurePrologueDrama : MonoBehaviour
     {
         _secondGearDone = true;
         _phase = Phase.SecondGearBond;
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
             yield return new WaitForSeconds(0.2f);
@@ -362,7 +362,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         _dashBoardOpenTime = Time.unscaledTime;
 
         AdventureScrapHUD.Instance?.HideBannerImmediately();
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         drone?.ClearSpeech();
         drone?.CelebratePrologueDashUnlock();
 
@@ -477,7 +477,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         _phase = Phase.Awakening;
 
         var player = AdventurePlayerController.Resolve();
-        var drone = AdventureRustDrone.Instance ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         var camFollow = AdventureCameraFollow.InstanceOrFind();
         Camera mainCam = Camera.main;
 

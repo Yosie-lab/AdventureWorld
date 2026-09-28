@@ -43,7 +43,7 @@ public class AdventurePauseMenu : MonoBehaviour
     public static void Ensure()
     {
         if (Instance != null) return;
-        var existing = Object.FindFirstObjectByType<AdventurePauseMenu>();
+        var existing = Object.FindAnyObjectByType<AdventurePauseMenu>();
         if (existing != null)
         {
             Instance = existing;
