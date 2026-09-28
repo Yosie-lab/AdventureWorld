@@ -89,7 +89,7 @@ public class AdventureMagicBox : MonoBehaviour
         if (_opened)
             return;
 
-        var player = FindObjectOfType<AdventurePlayerController>();
+        var player = FindAnyObjectByType<AdventurePlayerController>();
         if (player == null)
             return;
 
