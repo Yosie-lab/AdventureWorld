@@ -547,7 +547,6 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         _climaxBeatIndex = -1;
-        _climaxOverdriveCinematicUntil = 0f;
         _scriptRequireInputRelease = false;
         HideScriptBoardCompletely();
         TeardownScriptBoardUi();
