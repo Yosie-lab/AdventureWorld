@@ -33,7 +33,7 @@ public class AdventureBeachWavesManager : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = FindObjectOfType<AdventureBeachWavesManager>();
+        var existing = FindAnyObjectByType<AdventureBeachWavesManager>();
         if (existing != null)
         {
             _instance = existing;
@@ -113,7 +113,7 @@ public class AdventureBeachWavesManager : MonoBehaviour
     {
         if (_playerTransform == null)
         {
-            var player = FindObjectOfType<AdventurePlayerController>();
+            var player = FindAnyObjectByType<AdventurePlayerController>();
             if (player != null)
                 _playerTransform = player.transform;
             else

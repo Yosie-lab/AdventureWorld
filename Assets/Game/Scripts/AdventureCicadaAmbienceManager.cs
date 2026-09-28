@@ -34,7 +34,7 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
     public static void Ensure()
     {
         if (_instance != null) return;
-        var existing = FindObjectOfType<AdventureCicadaAmbienceManager>();
+        var existing = FindAnyObjectByType<AdventureCicadaAmbienceManager>();
         if (existing != null)
         {
             _instance = existing;
@@ -118,7 +118,7 @@ public class AdventureCicadaAmbienceManager : MonoBehaviour
 
         if (_playerTransform == null)
         {
-            var player = FindObjectOfType<AdventurePlayerController>();
+            var player = FindAnyObjectByType<AdventurePlayerController>();
             if (player != null)
                 _playerTransform = player.transform;
             else
