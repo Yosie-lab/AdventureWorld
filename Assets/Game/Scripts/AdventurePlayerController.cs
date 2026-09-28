@@ -59,7 +59,6 @@ public partial class AdventurePlayerController : MonoBehaviour
     Vector3 _skybreakPillarCenter = new Vector3(512f, 0f, 512f);
     float   _skybreakPillarEndAt;
     float   _skybreakLastY;
-    float   _skybreakStuckTimer;
 
     CharacterController _cc;
     Animator            _anim;
@@ -1220,7 +1219,6 @@ public partial class AdventurePlayerController : MonoBehaviour
     {
         _skybreakPillarLock  = false;
         _skybreakPillarDone  = false;
-        _skybreakStuckTimer  = 0f;
         _skybreakPillarEndAt = 0f;
         _hop                 = -0.85f;
         _grounded            = true;
@@ -1450,7 +1448,6 @@ public partial class AdventurePlayerController : MonoBehaviour
     {
         _skybreakPillarLock = false;
         _skybreakPillarDone = true;
-        _skybreakStuckTimer = 0f;
         _skybreakPillarEndAt = 0f;
 
         if (_cc == null) _cc = GetComponent<CharacterController>();
@@ -1472,7 +1469,6 @@ public partial class AdventurePlayerController : MonoBehaviour
         _skybreakPillarDone = false;
         _skybreakPillarLock = false;
         _skybreakPillarEndAt = 0f;
-        _skybreakStuckTimer = 0f;
         _autoGlide = false;
     }
     #endregion
@@ -1492,7 +1488,6 @@ public partial class AdventurePlayerController : MonoBehaviour
         _skybreakPillarTargetY = Mathf.Clamp(releaseY, 148f, 155f);
         _skybreakPillarCenter = new Vector3(pillarCenter.x, 0f, pillarCenter.z);
         _skybreakPillarEndAt = Time.unscaledTime + 6.5f;
-        _skybreakStuckTimer = 0f;
         _skybreakLastY = transform.position.y;
         _autoGlide = false;
         ApplyLaunchUpdraft(_skybreakPillarLift, _skybreakPillarLift);
@@ -1508,7 +1503,6 @@ public partial class AdventurePlayerController : MonoBehaviour
     {
         _skybreakPillarLock = false;
         _skybreakPillarDone = true;
-        _skybreakStuckTimer = 0f;
     }
 
     public bool IsSkybreakPillarAscending => _skybreakPillarLock;
