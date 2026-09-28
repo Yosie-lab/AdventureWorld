@@ -104,7 +104,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         if (_cachedPlayer == null)
             _cachedPlayer = AdventurePlayerController.Instance
-                            ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+                            ?? Object.FindAnyObjectByType<AdventurePlayerController>();
         return _cachedPlayer;
     }
 
@@ -112,7 +112,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         if (_cachedDrone == null)
             _cachedDrone = AdventureRustDrone.Instance
-                           ?? Object.FindFirstObjectByType<AdventureRustDrone>();
+                           ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         return _cachedDrone;
     }
 
@@ -233,7 +233,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         if (_instance != null && _instance.gameObject != null)
             return;
 
-        var existing = Object.FindObjectsByType<AdventureSanctuaryTowerManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var existing = Object.FindObjectsByType<AdventureSanctuaryTowerManager>(FindObjectsInactive.Include);
 
         if (_instance == null || _instance.gameObject == null)
         {
@@ -522,7 +522,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         get
         {
-            var scrapMgr = AdventureScrapManager.Instance ?? Object.FindFirstObjectByType<AdventureScrapManager>();
+            var scrapMgr = AdventureScrapManager.Instance ?? Object.FindAnyObjectByType<AdventureScrapManager>();
             return scrapMgr != null && scrapMgr.IsLeverUnlocked;
         }
     }
@@ -816,7 +816,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         ClearBoardsBlockingLever();
 
         var player = AdventurePlayerController.Instance
-                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
         if (player != null)
             UpdateLeverProximity(player);
 
@@ -870,7 +870,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
         // AdventureRustFloatOpening はシーン開始後は変わらないのでキャッシュで十分
         var opening = AdventureRustFloatOpening.Instance
-                      ?? Object.FindFirstObjectByType<AdventureRustFloatOpening>();
+                      ?? Object.FindAnyObjectByType<AdventureRustFloatOpening>();
         if (opening != null && opening.IsModalBoardOpen())
             opening.ForceDismissForGameplay();
     }
@@ -902,7 +902,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
                 return;
 
             var ascending = AdventurePlayerController.Instance
-                            ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+                            ?? Object.FindAnyObjectByType<AdventurePlayerController>();
             if (ascending != null && (ascending.IsSkybreakPillarAscending || ascending.IsAutoGliding))
                 return;
         }
@@ -951,7 +951,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     /// </summary>
     public void DebugSetup20PointsState(bool warpToLever)
     {
-        var others = Object.FindObjectsByType<AdventureSanctuaryTowerManager>(FindObjectsSortMode.None);
+        var others = Object.FindObjectsByType<AdventureSanctuaryTowerManager>();
         for (int i = 0; i < others.Length; i++)
         {
             if (others[i] != null && others[i] != this)
@@ -992,7 +992,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
         // プレイヤーの移動
         var player = AdventurePlayerController.Instance
-                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
         if (player != null)
         {
             player.SetAutoGlideMode(false);
@@ -1051,7 +1051,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     /// </summary>
     public void DebugJumpToCanopyOpening()
     {
-        var others = Object.FindObjectsByType<AdventureSanctuaryTowerManager>(FindObjectsSortMode.None);
+        var others = Object.FindObjectsByType<AdventureSanctuaryTowerManager>();
         for (int i = 0; i < others.Length; i++)
         {
             if (others[i] != null && others[i] != this)
@@ -1088,7 +1088,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         ClearBoardsBlockingLever();
 
         var player = AdventurePlayerController.Instance
-                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
         if (player != null)
         {
             player.SetAutoGlideMode(false);
@@ -1270,7 +1270,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         AdventureTreeFrogAmbience.Instance?.MuteForEndingSequence();
 
         var player = AdventurePlayerController.Instance
-                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
         if (player != null)
             player.ForceGroundReset();
 
@@ -1293,7 +1293,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     System.Collections.IEnumerator AnimateLeverPullRoutine()
     {
         // レバー作動時、南正面のメインレバー構造以外に重複している古いレバーがあれば完全一掃
-        var allStructures = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var allStructures = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include);
         GameObject activeMainRoot = (_leverHandle != null && _leverHandle.parent != null) ? _leverHandle.parent.gameObject : null;
         foreach (var go in allStructures)
         {

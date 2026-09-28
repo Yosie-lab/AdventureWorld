@@ -176,7 +176,7 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         // 2. シーン内にあるすべての古いレバーオブジェクトを根こそぎ即時完全消去
-        var allObjects = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var allObjects = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include);
         foreach (var go in allObjects)
         {
             if (go == null) continue;
@@ -640,7 +640,7 @@ public partial class AdventureSanctuaryTowerManager
     /// </summary>
     static void SoftenRocksNearStairFoot(Vector3 stairStart)
     {
-        var all = Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var all = Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude);
         for (int i = 0; i < all.Length; i++)
         {
             var col = all[i];
@@ -663,7 +663,7 @@ public partial class AdventureSanctuaryTowerManager
 
     static void SoftenLooseRocksNearCorridor(Vector3 startP, Vector3 endP, Vector3 oasis)
     {
-        var all = Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var all = Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude);
         for (int i = 0; i < all.Length; i++)
         {
             var col = all[i];

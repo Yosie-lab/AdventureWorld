@@ -19,7 +19,7 @@ public partial class AdventureSanctuaryTowerManager
         ClearPendingClimax();
 
         var player = AdventurePlayerController.Instance
-                     ?? Object.FindFirstObjectByType<AdventurePlayerController>();
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
         if (player != null && player.transform.position.y < 90f)
             player.ForceGroundReset();
 
@@ -33,7 +33,7 @@ public partial class AdventureSanctuaryTowerManager
         ApplySkybreakColdAtmosphere();
 
         // ピアノが鳴っていたら2秒かけてフェードアウト＆ダッキング解除
-        var piano = AdventureAncientPianoRelic.Instance ?? Object.FindFirstObjectByType<AdventureAncientPianoRelic>();
+        var piano = AdventureAncientPianoRelic.Instance ?? Object.FindAnyObjectByType<AdventureAncientPianoRelic>();
         if (piano != null)
             piano.FadeOutPiano(2.0f);
 

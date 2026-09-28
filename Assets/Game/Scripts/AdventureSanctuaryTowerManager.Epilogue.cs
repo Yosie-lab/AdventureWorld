@@ -358,12 +358,12 @@ public partial class AdventureSanctuaryTowerManager
             AdventureCompassHUD.Ensure();
 
         var compass = AdventureCompassHUD.Instance
-                      ?? Object.FindFirstObjectByType<AdventureCompassHUD>(FindObjectsInactive.Include);
+                      ?? Object.FindAnyObjectByType<AdventureCompassHUD>(FindObjectsInactive.Include);
         if (compass != null)
             compass.gameObject.SetActive(visible);
 
         var scrap = AdventureScrapHUD.Instance
-                    ?? Object.FindFirstObjectByType<AdventureScrapHUD>(FindObjectsInactive.Include);
+                    ?? Object.FindAnyObjectByType<AdventureScrapHUD>(FindObjectsInactive.Include);
         if (scrap != null)
             scrap.gameObject.SetActive(visible);
 
