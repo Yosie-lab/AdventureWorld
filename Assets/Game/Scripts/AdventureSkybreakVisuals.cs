@@ -6,8 +6,15 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 /// <summary>
-/// 天蓋突破の外の世界パノラマ・光芒・フラッシュ・極寒霧。
-/// 進行は AdventureSanctuaryTowerManager、絵だけをここに分離する。
+/// 天蓋突破の外の世界パノラマ・光芒・フラッシュ・極寒霧・ダイヤモンドダスト・落雷・解凍シネマ。
+/// 進行は AdventureSanctuaryTowerManager、絵と演出効果だけをここに集約する。
+///
+/// ── 論理ブロック ──────────────────────────────
+/// [1] Wilderness Panorama (SpawnWildernessPanorama, SpawnSkybreakGodRays, ...)
+/// [2] Sky Tear Opening    (PlaySkyTearOpenRoutine, PlaySkyTearMiniPulseRoutine)
+/// [3] Lightning Utilities  (CreateLightningBolt, BuildLightningPath, ...)
+/// [4] Cold Atmosphere      (ApplyColdAtmosphere, SoftenColdAtmosphere, ClearColdAtmosphere)
+/// [5] Cold Atmosphere Driver (nested MonoBehaviour: ダイヤモンドダスト追従・落雷ループ・解凍シネマ)
 /// </summary>
 public static class AdventureSkybreakVisuals
 {
@@ -27,6 +34,7 @@ public static class AdventureSkybreakVisuals
     static Image _frostVignetteImage;
     static Coroutine _warmthFadeCoroutine;
 
+    #region [1] Wilderness Panorama ─ 外の世界パノラマ・光芒・フラッシュ
     public static void DestroyNamed(string objectName)
     {
         var all = Resources.FindObjectsOfTypeAll<Transform>();
@@ -805,10 +813,13 @@ public static class AdventureSkybreakVisuals
             });
         dColorOver.color = dGrad;
 
-        // 結晶の回転によるキラメキ効果
+        // 結晶の回転によるキラメキ効果（ランダム角速度でキラキラ瞬き）
         var rot = dustPs.rotationOverLifetime;
         rot.enabled = true;
-        rot.z = new ParticleSystem.MinMaxCurve(-180f * Mathf.Deg2Rad, 180f * Mathf.Deg2Rad);
+        // TwoConstants: (-π, +π) rad/s でランダムスピン（Velocity curve警告なし）
+        rot.z = new ParticleSystem.MinMaxCurve(1f,
+            AnimationCurve.Constant(0f, 1f, -180f * Mathf.Deg2Rad),
+            AnimationCurve.Constant(0f, 1f,  180f * Mathf.Deg2Rad));
 
         var dRend = dustGo.GetComponent<ParticleSystemRenderer>();
         if (dRend != null)
@@ -836,6 +847,9 @@ public static class AdventureSkybreakVisuals
         }
     }
 
+    #endregion
+
+    #region [4] Cold Atmosphere ─ 極寒環境の適用・解凍・クリア
     public static void ApplyColdAtmosphere()
     {
         if (!_coldAtmosphereActive)
@@ -1025,6 +1039,9 @@ public static class AdventureSkybreakVisuals
         }
     }
 
+    #endregion
+
+    #region [5] Cold Atmosphere Driver ─ 落雷ループ・ダイヤモンドダスト追従・解凍シネマ
     /// <summary>
     /// 冷気のリアルタイム落雷・ダイヤモンドダスト追従、および注油時の暖かな日光・豊かな緑と色彩シネマ制御
     /// </summary>
@@ -1396,6 +1413,9 @@ public static class AdventureSkybreakVisuals
         }
     }
 
+    #endregion
+
+    #region [2] Sky Tear Opening ─ 空の崩壊シネマ・稲妻・衝撃波
     /// <summary>
     /// 「空が……割れるよ」：リアル寄りの稲妻＋フラッシュ＋破片＋地面揺れ。
     /// （中心交差の放射帯は使わない）
@@ -1890,6 +1910,9 @@ public static class AdventureSkybreakVisuals
             Object.Destroy(flashGo);
     }
 
+    #endregion
+
+    #region [3] Lightning Utilities ─ 稲妻生成・描画・パス計算
     struct LightningBolt
     {
         public GameObject Root;
@@ -2109,4 +2132,5 @@ public static class AdventureSkybreakVisuals
         }
         ps.Play();
     }
+    #endregion
 }
