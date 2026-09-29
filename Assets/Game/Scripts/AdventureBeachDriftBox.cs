@@ -42,6 +42,9 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
         public const float BoxAuraBaseScale = 1.85f;
         public const float BoxAuraPulseScale = 0.25f;
+
+        public const bool EnableBeaconPillar = false; // 天空へ伸びる光る円柱ビーコン（無効化）
+        public const bool EnableVerticalBeam = true;  // 天空へ昇る垂直光粒子ビーム（有効）
     }
 
     private Transform _lid;
@@ -413,6 +416,20 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     private void SetupGlowEffects(Transform lamp)
     {
+        // 既存の光る円柱ビーコンや垂直ビームの確実なクリーンアップ
+        if (!VisualConfig.EnableBeaconPillar)
+        {
+            var oldCore = transform.Find("BeaconPillarCore");
+            if (oldCore != null) Destroy(oldCore.gameObject);
+            var oldCorona = transform.Find("BeaconPillarCorona");
+            if (oldCorona != null) Destroy(oldCorona.gameObject);
+        }
+        if (!VisualConfig.EnableVerticalBeam)
+        {
+            var oldBeam = transform.Find("VerticalBeamSparkles");
+            if (oldBeam != null) Destroy(oldBeam.gameObject);
+        }
+
         Vector3 lampLocalPos = lamp != null ? lamp.localPosition : new Vector3(0.38f, 0.94f, 0.22f);
         var smokeTex = AdventureRustDrone.GetSoftSmokeTexture();
         var unlitShader = GetSafeUnlitShader();
@@ -570,72 +587,78 @@ public class AdventureBeachDriftBox : MonoBehaviour
         }
 
         // 7. 遠景ビーコン（二重多層光柱: 高さ約110m、天空へ届く高輝度光柱）
-        // 7-A. 高輝度中心コア光柱（超高輝度ホワイトゴールド光芒）
-        var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        beacon.name = "BeaconPillarCore";
-        beacon.transform.SetParent(transform, false);
-        beacon.transform.localPosition = new Vector3(0f, 55f, 0f);
-        beacon.transform.localScale = new Vector3(0.65f, 55f, 0.65f);
-        Destroy(beacon.GetComponent<Collider>());
-
-        var beaconRend = beacon.GetComponent<Renderer>();
-        if (beaconRend != null)
+        if (VisualConfig.EnableBeaconPillar)
         {
-            _beaconMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f * 4.2f, 0.94f * 4.2f, 0.65f * 4.2f, 0.95f), 3146);
-            beaconRend.material = _beaconMat;
-            beaconRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            beaconRend.receiveShadows = false;
-        }
-        _beaconPillar = beacon.transform;
+            // 7-A. 高輝度中心コア光柱（超高輝度ホワイトゴールド光芒）
+            var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            beacon.name = "BeaconPillarCore";
+            beacon.transform.SetParent(transform, false);
+            beacon.transform.localPosition = new Vector3(0f, 55f, 0f);
+            beacon.transform.localScale = new Vector3(0.65f, 55f, 0.65f);
+            Destroy(beacon.GetComponent<Collider>());
 
-        // 7-B. 外周オーラ光芒柱（遠景・上空からの視認性を劇的に向上させる広域光柱）
-        var beaconOuter = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        beaconOuter.name = "BeaconPillarCorona";
-        beaconOuter.transform.SetParent(transform, false);
-        beaconOuter.transform.localPosition = new Vector3(0f, 55f, 0f);
-        beaconOuter.transform.localScale = new Vector3(2.2f, 55f, 2.2f);
-        Destroy(beaconOuter.GetComponent<Collider>());
+            var beaconRend = beacon.GetComponent<Renderer>();
+            if (beaconRend != null)
+            {
+                _beaconMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f * 4.2f, 0.94f * 4.2f, 0.65f * 4.2f, 0.95f), 3146);
+                beaconRend.material = _beaconMat;
+                beaconRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                beaconRend.receiveShadows = false;
+            }
+            _beaconPillar = beacon.transform;
 
-        var beaconOuterRend = beaconOuter.GetComponent<Renderer>();
-        if (beaconOuterRend != null)
-        {
-            _beaconOuterMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f * 2.6f, 0.82f * 2.6f, 0.28f * 2.6f, 0.50f), 3144);
-            beaconOuterRend.material = _beaconOuterMat;
-            beaconOuterRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            beaconOuterRend.receiveShadows = false;
+            // 7-B. 外周オーラ光芒柱（遠景・上空からの視認性を劇的に向上させる広域光柱）
+            var beaconOuter = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            beaconOuter.name = "BeaconPillarCorona";
+            beaconOuter.transform.SetParent(transform, false);
+            beaconOuter.transform.localPosition = new Vector3(0f, 55f, 0f);
+            beaconOuter.transform.localScale = new Vector3(2.2f, 55f, 2.2f);
+            Destroy(beaconOuter.GetComponent<Collider>());
+
+            var beaconOuterRend = beaconOuter.GetComponent<Renderer>();
+            if (beaconOuterRend != null)
+            {
+                _beaconOuterMat = CreateTransparentAdditiveMaterial(unlitShader, smokeTex, new Color(1.0f * 2.6f, 0.82f * 2.6f, 0.28f * 2.6f, 0.50f), 3144);
+                beaconOuterRend.material = _beaconOuterMat;
+                beaconOuterRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                beaconOuterRend.receiveShadows = false;
+            }
+            _beaconOuterPillar = beaconOuter.transform;
         }
-        _beaconOuterPillar = beaconOuter.transform;
 
         // 8. 天に向かって垂直に昇る光の粒子ビーム（高輝度・高速上昇・全高約110m到達）
-        var beamGo = new GameObject("VerticalBeamSparkles");
-        beamGo.transform.SetParent(transform, false);
-        beamGo.transform.localPosition = new Vector3(0f, 0.35f, 0f);
-        _verticalBeam = beamGo.AddComponent<ParticleSystem>();
-
-        var mainBeam = _verticalBeam.main;
-        mainBeam.loop = true;
-        mainBeam.startLifetime = 4.2f;
-        mainBeam.startSpeed = 26.0f;
-        mainBeam.startSize = 0.75f;
-        mainBeam.startColor = new Color(1.0f * 3.6f, 0.90f * 3.6f, 0.45f * 3.6f, 1.0f);
-        mainBeam.simulationSpace = ParticleSystemSimulationSpace.World;
-
-        var emissionBeam = _verticalBeam.emission;
-        emissionBeam.rateOverTime = 30f;
-
-        var shapeBeam = _verticalBeam.shape;
-        shapeBeam.shapeType = ParticleSystemShapeType.Cone;
-        shapeBeam.angle = 0.8f;
-        shapeBeam.radius = 0.50f;
-        shapeBeam.rotation = new Vector3(-90f, 0f, 0f);
-
-        var rendBeam = beamGo.GetComponent<ParticleSystemRenderer>();
-        if (rendBeam != null)
+        if (VisualConfig.EnableVerticalBeam)
         {
-            _verticalBeamMat = CreateTransparentAdditiveMaterial(particleShader, smokeTex, new Color(1.0f * 3.0f, 0.88f * 3.0f, 0.40f * 3.0f, 1.0f), 3155);
-            rendBeam.material = _verticalBeamMat;
-            rendBeam.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            rendBeam.receiveShadows = false;
+            var beamGo = new GameObject("VerticalBeamSparkles");
+            beamGo.transform.SetParent(transform, false);
+            beamGo.transform.localPosition = new Vector3(0f, 0.35f, 0f);
+            _verticalBeam = beamGo.AddComponent<ParticleSystem>();
+
+            var mainBeam = _verticalBeam.main;
+            mainBeam.loop = true;
+            mainBeam.startLifetime = 4.2f;
+            mainBeam.startSpeed = 26.0f;
+            mainBeam.startSize = 0.75f;
+            mainBeam.startColor = new Color(1.0f * 3.6f, 0.90f * 3.6f, 0.45f * 3.6f, 1.0f);
+            mainBeam.simulationSpace = ParticleSystemSimulationSpace.World;
+
+            var emissionBeam = _verticalBeam.emission;
+            emissionBeam.rateOverTime = 30f;
+
+            var shapeBeam = _verticalBeam.shape;
+            shapeBeam.shapeType = ParticleSystemShapeType.Cone;
+            shapeBeam.angle = 0.8f;
+            shapeBeam.radius = 0.50f;
+            shapeBeam.rotation = new Vector3(-90f, 0f, 0f);
+
+            var rendBeam = beamGo.GetComponent<ParticleSystemRenderer>();
+            if (rendBeam != null)
+            {
+                _verticalBeamMat = CreateTransparentAdditiveMaterial(particleShader, smokeTex, new Color(1.0f * 3.0f, 0.88f * 3.0f, 0.40f * 3.0f, 1.0f), 3155);
+                rendBeam.material = _verticalBeamMat;
+                rendBeam.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                rendBeam.receiveShadows = false;
+            }
         }
     }
 

@@ -1782,25 +1782,32 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         crackGo.transform.position = skyCenter;
         var ps = crackGo.AddComponent<ParticleSystem>();
         var main = ps.main;
-        main.startSpeed = 22f;
-        main.startLifetime = 4.5f;
-        main.startSize = 1.8f;
-        main.startColor = new Color(0.35f, 0.95f, 1.0f, 0.85f); // シアンと黄金のガラス片破片
+        main.startSpeed = new ParticleSystem.MinMaxCurve(12f, 38f);
+        main.startLifetime = new ParticleSystem.MinMaxCurve(3.5f, 6.0f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.8f, 3.2f);
+        main.startColor = new ParticleSystem.MinMaxGradient(
+            new Color(0.65f, 0.95f, 1.0f, 0.95f),   // 発光クリスタルシアン
+            new Color(1.0f, 0.98f, 0.75f, 0.90f));  // プリズムゴールド
         main.loop = true;
-        main.maxParticles = 180;
+        main.maxParticles = 350;
+        main.gravityModifier = 0.25f; // ガラス片が地上へ優雅に舞い降りる
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        var emission = ps.emission;
+        emission.rateOverTime = 45f;
 
         var shape = ps.shape;
-        shape.shapeType = ParticleSystemShapeType.Circle;
-        shape.radius = 45f;
-        shape.rotation = new Vector3(90f, 0f, 0f);
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 85f;
 
         var rend = crackGo.GetComponent<ParticleSystemRenderer>();
         if (rend != null)
         {
             var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
             var mat = new Material(shader);
-            mat.SetColor("_BaseColor", new Color(0.45f, 0.95f, 1.0f, 0.85f));
+            mat.SetColor("_BaseColor", new Color(0.7f, 0.95f, 1.0f, 0.95f));
             rend.material = mat;
+            rend.renderMode = ParticleSystemRenderMode.Billboard;
         }
 
         ps.Play();

@@ -49,6 +49,7 @@ public class AdventureClassicSkyRuntime : MonoBehaviour
         ApplyFogAndAmbient();
         ApplySunLight();
         EnsurePostProcessingVolume();
+        AdventureCloudDrift.EnsureCloudSystem();
     }
 
     // ─── サブメソッド ─────────────────────────────────────────────

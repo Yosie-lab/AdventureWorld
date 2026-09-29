@@ -1,6 +1,9 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 /// <summary>
 /// 天蓋突破の外の世界パノラマ・光芒・フラッシュ・極寒霧。
@@ -16,6 +19,13 @@ public static class AdventureSkybreakVisuals
     static Material _savedSkybox;
     static Material _runtimeSkyMat;
     static Light _cachedSun;
+
+    // ── リアル極寒ポストプロセス＆凍結ビネット ──
+    static GameObject _coldVolumeGo;
+    static Volume _coldVolume;
+    static GameObject _frostVignetteCanvas;
+    static Image _frostVignetteImage;
+    static Coroutine _warmthFadeCoroutine;
 
     public static void DestroyNamed(string objectName)
     {
@@ -38,26 +48,61 @@ public static class AdventureSkybreakVisuals
         var panoramaGo = new GameObject("WildernessPanorama");
         panoramaGo.transform.position = new Vector3(512f, 90f, 512f);
 
-        var lit = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
         var unlit = Shader.Find("Universal Render Pipeline/Unlit")
                     ?? Shader.Find("Sprites/Default")
                     ?? Shader.Find("Unlit/Color");
 
         if (coldCrisis)
         {
-            // 限界中：割れ目の向こうも楽園と同じ澄んだ青空（変色しない）
-            SpawnOuterSkyScene(panoramaGo.transform, coldCrisis: true);
+            // 限界中：オープニングの高品質映画的空を基調に、天蓋が割れて冷涼な光芒と冷気ミストが天空から降り注ぐ
             ApplySkyboxForSkybreak(coldCrisis: true);
-            SpawnColdCrisisWilderness(panoramaGo.transform, lit, unlit);
+            SpawnSkybreakGodRays(panoramaGo.transform, unlit, coldCrisis: true);
             SpawnSkybreakColdMist(panoramaGo.transform);
         }
         else
         {
-            // 突破後：豊かな緑の大地＋海＋澄んだ青空（以前の ClearBlueSky）
-            SpawnOuterSkyScene(panoramaGo.transform, coldCrisis: false);
+            // 突破後：オープニングの空が全開に広がり、黄金の祝福光芒と光粒子が空を舞う
             ApplySkyboxForSkybreak(coldCrisis: false);
-            SpawnLushLiberationWorld(panoramaGo.transform, lit, unlit);
-            SpawnLiberationDust(panoramaGo.transform);
+            SpawnSkybreakGodRays(panoramaGo.transform, unlit, coldCrisis: false);
+            SpawnLiberationDust(panoramaGo.transform, golden: true);
+            AdventureCloudDrift.EnsureCloudSystem();
+        }
+    }
+
+    /// <summary>天蓋の裂け目から島全体へ降り注ぐ映画的シネマティック光芒（God Rays）</summary>
+    static void SpawnSkybreakGodRays(Transform parent, Shader unlit, bool coldCrisis)
+    {
+        // プレイヤーやRustの視界を塞ぐ近距離シリンダーは配置せず、遠景（半径350m以上）にのみ配置
+        var raysGo = new GameObject("SkybreakGodRays");
+        raysGo.transform.SetParent(parent, false);
+        raysGo.transform.localPosition = new Vector3(0f, 60f, 0f);
+
+        var rayMat = new Material(Shader.Find("Sprites/Default") ?? unlit);
+        Color rayColor = coldCrisis
+            ? new Color(0.70f, 0.90f, 1.0f, 0.08f)  // 寒冷限界：澄み渡る蒼白の淡い光芒
+            : new Color(1.0f, 0.94f, 0.72f, 0.12f); // 解放後：黄金に輝く祝福の淡い光芒
+        rayMat.color = rayColor;
+
+        for (int r = 0; r < 8; r++)
+        {
+            var ray = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ray.name = $"GodRay_{r}";
+            ray.transform.SetParent(raysGo.transform, false);
+            float angle = r * (360f / 8f) + Random.Range(-10f, 10f);
+            float tilt = Random.Range(15f, 30f);
+            // プレイヤー（半径0〜50m）から遥かに離れた外周（280m〜380m）に配置して絶対に遮蔽しない
+            float dist = Random.Range(280f, 380f);
+            ray.transform.localPosition = new Vector3(Mathf.Cos(angle * Mathf.Deg2Rad) * dist, 40f, Mathf.Sin(angle * Mathf.Deg2Rad) * dist);
+            ray.transform.localRotation = Quaternion.Euler(tilt, angle, 0f);
+            ray.transform.localScale = new Vector3(12f, 220f, 12f);
+            Object.Destroy(ray.GetComponent<Collider>());
+            var rend = ray.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                rend.material = rayMat;
+                rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                rend.receiveShadows = false;
+            }
         }
     }
 
@@ -499,17 +544,16 @@ public static class AdventureSkybreakVisuals
 
     static void ApplySkyboxForSkybreak(bool coldCrisis)
     {
-        if (!_coldAtmosphereActive && _savedSkybox == null && RenderSettings.skybox != _runtimeSkyMat)
-            _savedSkybox = RenderSettings.skybox;
+        // オープニングの映画的ファンタジースカイボックスを確実に適用
+        Material skyMat = null;
+#if UNITY_EDITOR
+        skyMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(AdventureClassicSkyRuntime.SkyboxPath);
+#endif
+        if (skyMat != null)
+        {
+            RenderSettings.skybox = skyMat;
+        }
 
-        var skyShader = Shader.Find("RustAndFloat/ClearBlueSky");
-        if (skyShader == null) return;
-
-        if (_runtimeSkyMat == null || _runtimeSkyMat.shader != skyShader)
-            _runtimeSkyMat = new Material(skyShader);
-
-        ApplySkyMaterialColors(_runtimeSkyMat, coldCrisis);
-        RenderSettings.skybox = _runtimeSkyMat;
         DynamicGI.UpdateEnvironment();
 
         if (_cachedSun == null)
@@ -529,8 +573,10 @@ public static class AdventureSkybreakVisuals
             _cachedSun.transform.rotation = coldCrisis
                 ? Quaternion.Euler(42f, 145f, 0f)
                 : Quaternion.Euler(50f, 140f, 0f);
-            _cachedSun.intensity = coldCrisis ? 1.55f : 1.8f;
-            _cachedSun.color = new Color(1f, 0.98f, 0.92f);
+            _cachedSun.intensity = coldCrisis ? 1.55f : 1.70f;
+            _cachedSun.color = coldCrisis
+                ? new Color(0.96f, 0.98f, 1.0f)   // 寒冷限界：白銀の凛とした日光
+                : new Color(1.0f, 0.96f, 0.82f);  // 解放後：黄金に輝く希望の日光
         }
     }
 
@@ -664,6 +710,7 @@ public static class AdventureSkybreakVisuals
 
     static void SpawnSkybreakColdMist(Transform parent)
     {
+        // 1. 漂う高高度の透明冷気ミスト
         var mistGo = new GameObject("SkybreakColdMist");
         mistGo.transform.SetParent(parent, false);
         mistGo.transform.localPosition = new Vector3(0f, 40f, 0f);
@@ -671,41 +718,33 @@ public static class AdventureSkybreakVisuals
         var ps = mistGo.AddComponent<ParticleSystem>();
         var main = ps.main;
         main.loop = true;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(4.5f, 9f);
-        main.startSize = new ParticleSystem.MinMaxCurve(1.2f, 3.8f);
+        main.startLifetime = new ParticleSystem.MinMaxCurve(4.5f, 8f);
+        main.startSize = new ParticleSystem.MinMaxCurve(1.0f, 2.5f);
         main.startColor = new ParticleSystem.MinMaxGradient(
-            new Color(0.85f, 0.93f, 1f, 0.18f),
-            new Color(0.70f, 0.85f, 1f, 0.08f));
-        main.startSpeed = new ParticleSystem.MinMaxCurve(2f, 8f);
-        main.maxParticles = 120;
+            new Color(0.85f, 0.94f, 1f, 0.12f),
+            new Color(0.70f, 0.85f, 1f, 0.05f));
+        main.startSpeed = new ParticleSystem.MinMaxCurve(1.5f, 5f);
+        main.maxParticles = 80;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
 
         var emission = ps.emission;
-        emission.rateOverTime = 18f;
+        emission.rateOverTime = 12f;
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 90f;
-
-        // velocityOverLifetime の軸モード不一致で毎フレームエラーになるため使わない
-        var noise = ps.noise;
-        noise.enabled = true;
-        noise.strength = 1.1f;
-        noise.frequency = 0.22f;
-        noise.scrollSpeed = 0.35f;
-        noise.octaveCount = 2;
+        shape.radius = 120f;
 
         var colorOver = ps.colorOverLifetime;
         colorOver.enabled = true;
         var grad = new Gradient();
         grad.SetKeys(
             new[] {
-                new GradientColorKey(new Color(0.9f, 0.95f, 1f), 0f),
-                new GradientColorKey(new Color(0.7f, 0.85f, 1f), 1f)
+                new GradientColorKey(new Color(0.92f, 0.96f, 1f), 0f),
+                new GradientColorKey(new Color(0.70f, 0.85f, 1f), 1f)
             },
             new[] {
                 new GradientAlphaKey(0f, 0f),
-                new GradientAlphaKey(0.22f, 0.25f),
+                new GradientAlphaKey(0.15f, 0.3f),
                 new GradientAlphaKey(0f, 1f)
             });
         colorOver.color = grad;
@@ -713,15 +752,88 @@ public static class AdventureSkybreakVisuals
         var rend = mistGo.GetComponent<ParticleSystemRenderer>();
         if (rend != null)
         {
-            var sh = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                     ?? Shader.Find("Particles/Standard Unlit")
-                     ?? Shader.Find("Sprites/Default");
+            var sh = Shader.Find("Sprites/Default") ?? Shader.Find("Mobile/Particles/Additive");
             var mat = new Material(sh);
-            mat.color = new Color(0.85f, 0.92f, 1f, 0.35f);
+            mat.color = new Color(0.85f, 0.92f, 1f, 0.25f);
             rend.material = mat;
             rend.renderMode = ParticleSystemRenderMode.Billboard;
         }
         ps.Play();
+
+        // 2. 冷たく強力に光り輝くキラキラ粒子のダイヤモンドダスト（空間全体を覆う加算発光）
+        var dustGo = new GameObject("SkybreakDiamondDust");
+        dustGo.transform.SetParent(parent, false);
+        dustGo.transform.localPosition = new Vector3(0f, 35f, 0f);
+
+        var dustPs = dustGo.AddComponent<ParticleSystem>();
+        var dMain = dustPs.main;
+        dMain.loop = true;
+        dMain.startLifetime = new ParticleSystem.MinMaxCurve(1.8f, 3.0f);
+        dMain.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.38f); // 煌めく星屑・氷晶サイズ
+        // HDR発光カラー（URP Bloomに直接乗り、まばゆくキラキラと発光）
+        dMain.startColor = new ParticleSystem.MinMaxGradient(
+            new Color(2.4f, 3.0f, 4.2f, 1.0f),  // 透徹なアイスブルー閃光
+            new Color(3.8f, 3.8f, 4.2f, 1.0f)); // 白銀に輝くダイヤモンド光
+        dMain.startSpeed = new ParticleSystem.MinMaxCurve(16f, 30f);
+        dMain.maxParticles = 850;
+        dMain.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        var dEmission = dustPs.emission;
+        dEmission.rateOverTime = 320f; // 画面全体を覆う高密度のキラキラ粒子
+
+        var dShape = dustPs.shape;
+        dShape.shapeType = ParticleSystemShapeType.Box;
+        dShape.scale = new Vector3(75f, 35f, 75f); // プレイヤーと視界全体を包み込む広がり
+
+        // 強風の方向（斜め下方に激しく吹き抜ける）
+        dustGo.transform.localRotation = Quaternion.Euler(22f, -55f, 0f);
+
+        // キラキラ瞬くアニメーション（点滅・明滅）
+        var dColorOver = dustPs.colorOverLifetime;
+        dColorOver.enabled = true;
+        var dGrad = new Gradient();
+        dGrad.SetKeys(
+            new[] {
+                new GradientColorKey(new Color(1f, 1f, 1f), 0f),
+                new GradientColorKey(new Color(0.85f, 0.95f, 1f), 1f)
+            },
+            new[] {
+                new GradientAlphaKey(0f, 0f),
+                new GradientAlphaKey(1.0f, 0.15f),
+                new GradientAlphaKey(0.85f, 0.80f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        dColorOver.color = dGrad;
+
+        // 結晶の回転によるキラメキ効果
+        var rot = dustPs.rotationOverLifetime;
+        rot.enabled = true;
+        rot.z = new ParticleSystem.MinMaxCurve(-180f * Mathf.Deg2Rad, 180f * Mathf.Deg2Rad);
+
+        var dRend = dustGo.GetComponent<ParticleSystemRenderer>();
+        if (dRend != null)
+        {
+            // 加算合成（Additive）でNiko/Rustを一切隠さず、強力に発光
+            var sh = Shader.Find("Universal Render Pipeline/Particles/Additive")
+                     ?? Shader.Find("Mobile/Particles/Additive")
+                     ?? Shader.Find("Particles/Standard Unlit")
+                     ?? Shader.Find("Sprites/Default");
+            var mat = new Material(sh);
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            mat.SetInt("_ZWrite", 0);
+            mat.renderQueue = 3200;
+            mat.color = Color.white;
+            dRend.material = mat;
+            dRend.renderMode = ParticleSystemRenderMode.Billboard;
+        }
+        dustPs.Play();
+
+        // 冷気ドライバーにダイヤモンドダストを登録（プレイヤー追従および雪解け消滅）
+        if (AdventureColdAtmosphereDriver.Instance != null)
+        {
+            AdventureColdAtmosphereDriver.Instance.RegisterDiamondDust(dustGo.transform, dustPs, dRend != null ? dRend.material : null);
+        }
     }
 
     public static void ApplyColdAtmosphere()
@@ -735,12 +847,108 @@ public static class AdventureSkybreakVisuals
             _coldAtmosphereActive = true;
         }
 
+        // 1. 環境フォグ＆アンビエント（手前のNiko/Rustを決して隠さず、遠景のみ冷たく澄み渡るアイスブルー）
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        // 薄い青白霧のみ（空の色を泥くしない）
-        RenderSettings.fogColor = new Color(0.72f, 0.84f, 0.96f);
-        RenderSettings.fogDensity = 0.0024f;
-        RenderSettings.ambientLight = new Color(0.62f, 0.74f, 0.92f);
+        RenderSettings.fogColor = new Color(0.70f, 0.84f, 0.98f);
+        RenderSettings.fogDensity = 0.0018f;
+        RenderSettings.ambientLight = new Color(0.68f, 0.80f, 0.96f);
+
+        // 2. 太陽光の特定と極寒化（青白く冴えた光）
+        if (_cachedSun == null)
+            _cachedSun = RenderSettings.sun;
+        if (_cachedSun == null)
+        {
+            var lights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+            for (int i = 0; i < lights.Length; i++)
+            {
+                if (lights[i].type == LightType.Directional && lights[i].isActiveAndEnabled)
+                {
+                    _cachedSun = lights[i];
+                    break;
+                }
+            }
+        }
+
+        Color originalSunColor = _cachedSun != null ? _cachedSun.color : new Color(1.0f, 0.95f, 0.84f);
+        float originalSunIntensity = _cachedSun != null ? _cachedSun.intensity : 1.45f;
+
+        Color coldSunColor = new Color(0.90f, 0.95f, 1.0f);
+        float coldSunIntensity = 1.75f;
+
+        if (_cachedSun != null)
+        {
+            _cachedSun.color = coldSunColor;
+            _cachedSun.intensity = coldSunIntensity;
+        }
+
+        // 3. URP ポストプロセス Volume（極寒の青白さ＋ダイヤモンドダストの強力な発光Bloom）
+        DestroyNamed("SkybreakColdVolume");
+        _coldVolumeGo = new GameObject("SkybreakColdVolume");
+        _coldVolume = _coldVolumeGo.AddComponent<Volume>();
+        _coldVolume.isGlobal = true;
+        _coldVolume.priority = 35f;
+        _coldVolume.weight = 1f;
+
+        var profile = ScriptableObject.CreateInstance<VolumeProfile>();
+        _coldVolume.profile = profile;
+
+        if (!profile.TryGet<WhiteBalance>(out var wb))
+            wb = profile.Add<WhiteBalance>(true);
+        wb.temperature.overrideState = true;
+        wb.temperature.value = -35f; // 自然で澄んだ極寒色温度
+        wb.tint.overrideState = true;
+        wb.tint.value = -5f;
+
+        if (!profile.TryGet<ColorAdjustments>(out var ca))
+            ca = profile.Add<ColorAdjustments>(true);
+        ca.saturation.overrideState = true;
+        ca.saturation.value = -18f; // 凍える空気の冷涼感
+        ca.contrast.overrideState = true;
+        ca.contrast.value = 12f; // NikoとRustがくっきりと浮き立つコントラスト
+        ca.colorFilter.overrideState = true;
+        ca.colorFilter.value = new Color(0.90f, 0.95f, 1.0f);
+
+        // ダイヤモンドダストの強力なキラキラ発光を引き出すブルーム
+        if (!profile.TryGet<Bloom>(out var bloom))
+            bloom = profile.Add<Bloom>(true);
+        bloom.intensity.overrideState = true;
+        bloom.intensity.value = 0.85f;
+        bloom.threshold.overrideState = true;
+        bloom.threshold.value = 1.02f; // 通常オブジェクトは光らず、HDRダイヤモンドダストのみ強烈に発光
+        bloom.scatter.overrideState = true;
+        bloom.scatter.value = 0.70f;
+
+        if (!profile.TryGet<Vignette>(out var vig))
+            vig = profile.Add<Vignette>(true);
+        vig.color.overrideState = true;
+        vig.color.value = new Color(0.35f, 0.58f, 0.88f); // 画面端の青白い冷気
+        vig.intensity.overrideState = true;
+        vig.intensity.value = 0.30f;
+        vig.smoothness.overrideState = true;
+        vig.smoothness.value = 0.60f;
+
+        DestroyNamed("SkybreakFrostVignetteCanvas");
+
+        // 4. 冷気ドライバーのアタッチ（プレイヤー追従および注油時の雪解けLerp）
+        var driver = _coldVolumeGo.AddComponent<AdventureColdAtmosphereDriver>();
+        driver.ColdVolume = _coldVolume;
+        driver.SunLight = _cachedSun;
+        driver.ColdSunColor = coldSunColor;
+        driver.WarmSunColor = originalSunColor;
+        driver.ColdSunIntensity = coldSunIntensity;
+        driver.WarmSunIntensity = originalSunIntensity;
+        driver.ColdFogColor = new Color(0.70f, 0.84f, 0.98f);
+        driver.WarmFogColor = AdventureClassicSkyRuntime.FogColor;
+
+        // すでに生成されているダイヤモンドダストがあれば登録
+        var existingDust = GameObject.Find("SkybreakDiamondDust");
+        if (existingDust != null)
+        {
+            var dps = existingDust.GetComponent<ParticleSystem>();
+            var drend = existingDust.GetComponent<ParticleSystemRenderer>();
+            driver.RegisterDiamondDust(existingDust.transform, dps, drend != null ? drend.material : null);
+        }
     }
 
     public static void SoftenColdAtmosphere()
@@ -748,21 +956,20 @@ public static class AdventureSkybreakVisuals
         if (!_coldAtmosphereActive)
             ApplyColdAtmosphere();
 
-        RenderSettings.fog = true;
-        RenderSettings.fogColor = new Color(0.78f, 0.88f, 0.98f);
-        RenderSettings.fogDensity = 0.0012f;
-        RenderSettings.ambientLight = new Color(0.70f, 0.82f, 0.98f);
-        ApplySkyboxForSkybreak(coldCrisis: false);
-
-        // ドーム色も解放後の空へ
-        var dome = GameObject.Find("OuterSkyDome");
-        if (dome != null)
+        // 1. 冷気ドライバーによる滑らかな雪解け移行（2.5秒フェード）
+        if (AdventureColdAtmosphereDriver.Instance != null)
         {
-            var r = dome.GetComponent<Renderer>();
-            if (r != null && r.material != null)
-                ApplySkyMaterialColors(r.material, coldCrisis: false);
+            AdventureColdAtmosphereDriver.Instance.StartThaw(2.5f);
+        }
+        else
+        {
+            ClearColdAtmosphere();
         }
 
+        // 2. スカイボックスをオープニングの暖色・快晴仕様に復帰
+        ApplySkyboxForSkybreak(coldCrisis: false);
+
+        // 3. 冷気ミストの段階的停止
         var mist = GameObject.Find("SkybreakColdMist");
         if (mist != null)
         {
@@ -770,7 +977,7 @@ public static class AdventureSkybreakVisuals
             if (ps != null)
             {
                 var emission = ps.emission;
-                emission.rateOverTime = 6f;
+                emission.rateOverTime = 2f;
             }
         }
     }
@@ -778,12 +985,26 @@ public static class AdventureSkybreakVisuals
     public static void ClearColdAtmosphere()
     {
         if (!_coldAtmosphereActive && _savedSkybox == null) return;
+
+        if (AdventureColdAtmosphereDriver.Instance != null)
+        {
+            Object.Destroy(AdventureColdAtmosphereDriver.Instance.gameObject);
+        }
+
+        DestroyNamed("SkybreakColdVolume");
+        DestroyNamed("SkybreakFrostVignetteCanvas");
+
         if (_coldAtmosphereActive)
         {
             RenderSettings.fog = _savedFogEnabled;
             RenderSettings.fogColor = _savedFogColor;
             RenderSettings.fogDensity = _savedFogDensity;
             RenderSettings.ambientLight = _savedAmbient;
+            if (_cachedSun != null)
+            {
+                _cachedSun.color = new Color(1.0f, 0.95f, 0.84f);
+                _cachedSun.intensity = 1.45f;
+            }
             _coldAtmosphereActive = false;
         }
         if (_savedSkybox != null)
@@ -791,6 +1012,110 @@ public static class AdventureSkybreakVisuals
             RenderSettings.skybox = _savedSkybox;
             _savedSkybox = null;
             DynamicGI.UpdateEnvironment();
+        }
+    }
+
+    /// <summary>
+    /// 冷気のリアルタイムプレイヤー追従および注油時の劇的な雪解けフェード制御
+    /// </summary>
+    private sealed class AdventureColdAtmosphereDriver : MonoBehaviour
+    {
+        public static AdventureColdAtmosphereDriver Instance { get; private set; }
+
+        public Volume ColdVolume;
+        public Light SunLight;
+        public Color ColdSunColor;
+        public Color WarmSunColor;
+        public float ColdSunIntensity;
+        public float WarmSunIntensity;
+        public Color ColdFogColor;
+        public Color WarmFogColor;
+
+        private Transform _dustTransform;
+        private ParticleSystem _dustPs;
+        private Material _dustMat;
+
+        private bool _isThawing;
+        private float _thawProgress;
+        private float _thawDuration = 2.5f;
+
+        void Awake()
+        {
+            Instance = this;
+        }
+
+        public void RegisterDiamondDust(Transform t, ParticleSystem ps, Material mat)
+        {
+            _dustTransform = t;
+            _dustPs = ps;
+            _dustMat = mat;
+        }
+
+        void Update()
+        {
+            // プレイヤーまたはカメラの位置に追従し、常に視界全体をダイヤモンドダストで覆う
+            if (_dustTransform != null)
+            {
+                var player = AdventurePlayerController.InstanceOrFind();
+                Vector3 centerPos = player != null ? player.transform.position : (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
+                if (centerPos.sqrMagnitude > 1f)
+                {
+                    _dustTransform.position = centerPos;
+                }
+            }
+
+            if (_isThawing)
+            {
+                // 注油回復時：ダイヤモンドダストがスッと溶けて消え、温かいオープニングの空へと回帰
+                _thawProgress += Time.deltaTime / _thawDuration;
+                float t = Mathf.Clamp01(_thawProgress);
+                float smoothT = Mathf.SmoothStep(0f, 1f, t);
+
+                if (ColdVolume != null)
+                {
+                    ColdVolume.weight = 1f - smoothT;
+                }
+
+                if (_dustMat != null)
+                {
+                    // 粒子マテリアルの輝度を滑らかにフェードアウト
+                    Color c = Color.Lerp(Color.white, Color.clear, smoothT);
+                    _dustMat.color = c;
+                }
+
+                if (SunLight != null)
+                {
+                    SunLight.color = Color.Lerp(ColdSunColor, WarmSunColor, smoothT);
+                    SunLight.intensity = Mathf.Lerp(ColdSunIntensity, WarmSunIntensity, smoothT);
+                }
+
+                RenderSettings.fogColor = Color.Lerp(ColdFogColor, WarmFogColor, smoothT);
+
+                if (t >= 1f)
+                {
+                    if (_dustTransform != null)
+                        Destroy(_dustTransform.gameObject);
+                    Destroy(gameObject);
+                }
+            }
+        }
+
+        public void StartThaw(float duration = 2.5f)
+        {
+            _isThawing = true;
+            _thawProgress = 0f;
+            _thawDuration = Mathf.Max(0.1f, duration);
+
+            if (_dustPs != null)
+            {
+                var em = _dustPs.emission;
+                em.rateOverTime = 0f;
+            }
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
         }
     }
 
@@ -845,17 +1170,27 @@ public static class AdventureSkybreakVisuals
         coreLight.intensity = 0f;
         coreLight.range = 160f;
 
+        // ── シネマティック天蓋崩壊：幾何学ガラスクラック網 ──
+        var lattice = CreateSkyCanopyLattice(root.transform, lineSh);
+
+        // ── 天蓋衝撃波リング（水平に急拡大する光輪） ──
+        var shockwave = CreateShockwaveRing(root.transform, lineSh);
+        Material shockwaveMat = shockwave != null ? shockwave.GetComponent<Renderer>()?.material : null;
+
+        // ── 割れ目から地上へ差し込む天空光芒シャフト ──
+        SpawnSkybreakApertureBeams(root.transform, lineSh);
+
         SpawnSkyTearBurst(root.transform, particleSh, "SkyTearShards",
-            new Color(0.75f, 0.95f, 1f, 0.9f), new Color(1f, 0.95f, 0.85f, 0.75f),
-            speedMin: 18f, speedMax: 55f, sizeMin: 0.4f, sizeMax: 2.0f,
-            gravity: 0.35f, radius: 10f,
-            bursts: new[] { 90, 70, 50, 35 }, burstTimes: new[] { 0.02f, 0.28f, 0.7f, 1.35f });
+            new Color(0.65f, 0.95f, 1f, 0.95f), new Color(1f, 0.98f, 0.85f, 0.90f),
+            speedMin: 22f, speedMax: 65f, sizeMin: 0.6f, sizeMax: 2.8f,
+            gravity: 0.45f, radius: 15f,
+            bursts: new[] { 140, 110, 80, 50 }, burstTimes: new[] { 0.02f, 0.28f, 0.7f, 1.35f });
 
         SpawnSkyTearBurst(root.transform, particleSh, "SkyTearDebris",
-            new Color(0.55f, 0.85f, 1f, 0.8f), new Color(0.9f, 0.9f, 0.85f, 0.7f),
-            speedMin: 6f, speedMax: 22f, sizeMin: 1.0f, sizeMax: 3.8f,
-            gravity: 1.1f, radius: 18f,
-            bursts: new[] { 28, 22 }, burstTimes: new[] { 0.15f, 0.9f });
+            new Color(0.45f, 0.88f, 1f, 0.85f), new Color(1f, 0.94f, 0.75f, 0.85f),
+            speedMin: 8f, speedMax: 28f, sizeMin: 1.2f, sizeMax: 4.5f,
+            gravity: 1.2f, radius: 24f,
+            bursts: new[] { 45, 35 }, burstTimes: new[] { 0.15f, 0.9f });
 
         var dustGo = new GameObject("SkyTearGroundDust");
         dustGo.transform.SetParent(root.transform, false);
@@ -896,7 +1231,7 @@ public static class AdventureSkybreakVisuals
             dustPs.Play();
         }
 
-        // 画面フラッシュのみ（放射割れラインなし）
+        // 画面フラッシュ
         var flashGo = new GameObject("SkyTearFlashCanvas");
         var canvas = flashGo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -904,7 +1239,7 @@ public static class AdventureSkybreakVisuals
         var scaler = flashGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1280f, 720f);
-        var flashImg = CreateFullScreenImage(flashGo.transform, "Flash", new Color(0.88f, 0.95f, 1f, 0f));
+        var flashImg = CreateFullScreenImage(flashGo.transform, "Flash", new Color(0.85f, 0.95f, 1f, 0f));
         var flashWhite = CreateFullScreenImage(flashGo.transform, "FlashWhite", new Color(1f, 1f, 1f, 0f));
 
         // 各稲妻の撃つタイミング（7秒間のリアルな連続落雷）
@@ -927,7 +1262,6 @@ public static class AdventureSkybreakVisuals
                 branchChance: 0.4f);
             SetLightningVisible(boltsExtra[i], false);
         }
-        // 後半追加分を配列に結合
         var allBolts = new LightningBolt[bolts.Length + boltsExtra.Length];
         for (int i = 0; i < bolts.Length; i++) allBolts[i] = bolts[i];
         for (int i = 0; i < boltsExtra.Length; i++) allBolts[bolts.Length + i] = boltsExtra[i];
@@ -946,11 +1280,38 @@ public static class AdventureSkybreakVisuals
         {
             t += Time.unscaledDeltaTime;
 
+            // ── 天蓋ショックウェーブの急拡大アニメーション ──
+            if (shockwave != null && shockwaveMat != null)
+            {
+                if (t >= 0.22f && t <= 2.2f)
+                {
+                    float swT = (t - 0.22f) / 1.98f;
+                    float swScale = Mathf.Lerp(12f, 420f, Mathf.Sqrt(swT));
+                    shockwave.localScale = new Vector3(swScale, 0.5f, swScale);
+                    float swAlpha = (1f - swT) * 0.85f;
+                    shockwaveMat.color = new Color(0.65f, 0.95f, 1.0f, swAlpha);
+                }
+                else if (t > 2.2f)
+                {
+                    shockwave.gameObject.SetActive(false);
+                }
+            }
+
+            // ── 天空ガラス亀裂（Lattice）の鼓動発光 ──
+            if (lattice.root != null && lattice.mat != null)
+            {
+                float latticeAlpha = Mathf.Clamp01(1f - (t / 6.5f));
+                // 稲妻放電に合わせて亀裂がバチバチと明滅
+                float flicker = 0.75f + Mathf.Sin(t * 32f) * 0.25f;
+                lattice.mat.color = new Color(0.6f, 0.92f, 1.0f, latticeAlpha * flicker);
+                if (lattice.centerGlow != null)
+                    lattice.centerGlow.intensity = latticeAlpha * flicker * 12f;
+            }
+
             for (int i = 0; i < bolts.Length; i++)
             {
                 float start = strikeAt[i];
                 float end = start + strikeDur[i];
-                // 落雷直前に経路を再生成（毎回違うジグザグ）
                 if (!reshaped[i] && t >= start - 0.02f)
                 {
                     reshaped[i] = true;
@@ -958,7 +1319,6 @@ public static class AdventureSkybreakVisuals
                 }
 
                 bool on = t >= start && t <= end;
-                // リアル稲妻：一瞬消え・再点灯（ステイマー）
                 if (on)
                 {
                     float local = t - start;
@@ -984,7 +1344,6 @@ public static class AdventureSkybreakVisuals
                 flashA += SkyTearFlashEnvelope(t, strikeAt[i], strikeDur[i] * 1.8f, i % 2 == 0 ? 0.72f : 0.45f);
                 whiteA += SkyTearFlashEnvelope(t, strikeAt[i], Mathf.Min(0.08f, strikeDur[i]), 0.55f);
             }
-            // 余韻の薄明かり
             flashA += SkyTearFlashEnvelope(t, 2.6f, 1.2f, 0.14f);
             flashA += SkyTearFlashEnvelope(t, 4.0f, 1.4f, 0.18f);
             flashA += SkyTearFlashEnvelope(t, 5.2f, 0.9f, 0.12f);
@@ -1050,6 +1409,139 @@ public static class AdventureSkybreakVisuals
             Object.Destroy(flashGo);
         if (coreLight != null)
             coreLight.intensity = 2.5f;
+    }
+
+    struct SkyCanopyLattice
+    {
+        public GameObject root;
+        public LineRenderer[] lines;
+        public Material mat;
+        public Light centerGlow;
+    }
+
+    /// <summary>天空全体に網の目のように広がる巨大幾何学ガラス亀裂ネットワーク</summary>
+    static SkyCanopyLattice CreateSkyCanopyLattice(Transform parent, Shader lineShader)
+    {
+        var latticeGo = new GameObject("SkyCanopyLattice");
+        latticeGo.transform.SetParent(parent, false);
+        latticeGo.transform.localPosition = new Vector3(0f, 35f, 0f);
+
+        var mat = new Material(lineShader);
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        if (mat.HasProperty("_ZWrite")) mat.SetFloat("_ZWrite", 0f);
+        mat.renderQueue = 3200;
+        mat.color = new Color(0.65f, 0.95f, 1.0f, 0.95f);
+
+        var lineList = new System.Collections.Generic.List<LineRenderer>();
+        Vector3 center = Vector3.zero;
+
+        // 1. 放射状の主亀裂（10本）
+        int mainBranches = 10;
+        var branchEnds = new Vector3[mainBranches];
+        for (int b = 0; b < mainBranches; b++)
+        {
+            float ang = b * (360f / mainBranches) + Random.Range(-8f, 8f);
+            float rad = Random.Range(140f, 210f);
+            Vector3 target = new Vector3(Mathf.Cos(ang * Mathf.Deg2Rad) * rad, Random.Range(8f, 28f), Mathf.Sin(ang * Mathf.Deg2Rad) * rad);
+            branchEnds[b] = target;
+
+            var go = new GameObject($"LatticeMain_{b}");
+            go.transform.SetParent(latticeGo.transform, false);
+            var lr = go.AddComponent<LineRenderer>();
+            lr.material = mat;
+            lr.startWidth = 2.8f;
+            lr.endWidth = 0.5f;
+            lr.useWorldSpace = false;
+            lr.positionCount = 8;
+
+            for (int p = 0; p < 8; p++)
+            {
+                float frac = (float)p / 7f;
+                Vector3 pt = Vector3.Lerp(center, target, frac);
+                if (p > 0 && p < 7)
+                {
+                    pt += new Vector3(Random.Range(-6f, 6f), Random.Range(-3f, 3f), Random.Range(-6f, 6f));
+                }
+                lr.SetPosition(p, pt);
+            }
+            lineList.Add(lr);
+        }
+
+        // 2. 環状・同心円の連結亀裂（クモの巣状・幾何学破砕グリッド）
+        for (int ring = 1; ring <= 3; ring++)
+        {
+            float ringFrac = (float)ring / 3.2f;
+            for (int b = 0; b < mainBranches; b++)
+            {
+                int nextB = (b + 1) % mainBranches;
+                Vector3 p1 = Vector3.Lerp(center, branchEnds[b], ringFrac);
+                Vector3 p2 = Vector3.Lerp(center, branchEnds[nextB], ringFrac);
+
+                var go = new GameObject($"LatticeRing_{ring}_{b}");
+                go.transform.SetParent(latticeGo.transform, false);
+                var lr = go.AddComponent<LineRenderer>();
+                lr.material = mat;
+                lr.startWidth = 1.4f * (1.1f - ringFrac * 0.5f);
+                lr.endWidth = 1.1f * (1.1f - ringFrac * 0.5f);
+                lr.useWorldSpace = false;
+                lr.positionCount = 4;
+                lr.SetPosition(0, p1);
+                lr.SetPosition(1, Vector3.Lerp(p1, p2, 0.33f) + Random.insideUnitSphere * 3.5f);
+                lr.SetPosition(2, Vector3.Lerp(p1, p2, 0.66f) + Random.insideUnitSphere * 3.5f);
+                lr.SetPosition(3, p2);
+                lineList.Add(lr);
+            }
+        }
+
+        var lightGo = new GameObject("LatticeGlow");
+        lightGo.transform.SetParent(latticeGo.transform, false);
+        var l = lightGo.AddComponent<Light>();
+        l.type = LightType.Point;
+        l.color = new Color(0.6f, 0.92f, 1f);
+        l.range = 240f;
+        l.intensity = 0f;
+
+        return new SkyCanopyLattice
+        {
+            root = latticeGo,
+            lines = lineList.ToArray(),
+            mat = mat,
+            centerGlow = l
+        };
+    }
+
+    /// <summary>天蓋が割れた瞬間に水平に急拡大する光の衝撃波リング</summary>
+    static Transform CreateShockwaveRing(Transform parent, Shader unlit)
+    {
+        var ringGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        ringGo.name = "SkyTearShockwave";
+        ringGo.transform.SetParent(parent, false);
+        ringGo.transform.localPosition = new Vector3(0f, 25f, 0f);
+        ringGo.transform.localScale = new Vector3(12f, 0.4f, 12f);
+        Object.Destroy(ringGo.GetComponent<Collider>());
+
+        var mat = new Material(unlit);
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        if (mat.HasProperty("_ZWrite")) mat.SetFloat("_ZWrite", 0f);
+        mat.renderQueue = 3150;
+        mat.color = new Color(0.70f, 0.95f, 1.0f, 0.85f);
+
+        var r = ringGo.GetComponent<Renderer>();
+        if (r != null)
+        {
+            r.material = mat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+        }
+        return ringGo.transform;
+    }
+
+    /// <summary>割れ目の中心から地上（タワー）へ真っ直ぐ降り注ぐ天空光芒シャフト</summary>
+    static void SpawnSkybreakApertureBeams(Transform parent, Shader unlit)
+    {
+        // プレイヤーNiko・Rustを内部に包み込んで遮蔽する巨大シリンダーは生成しない
     }
 
     /// <summary>

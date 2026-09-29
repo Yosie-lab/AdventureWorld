@@ -1099,87 +1099,8 @@ public static class AdventureDressRustFloatParadise
     /// <summary>空に浮かぶとても気持ちの良いふんわりとした白い雲群を生成</summary>
     static void PlaceParadiseClouds(GameObject root, System.Random rng)
     {
-        var cloudsRoot = new GameObject("ParadiseClouds");
-        cloudsRoot.transform.SetParent(root.transform, false);
-
-        // 雲マテリアルのロードまたは作成
-        var cloudShader = Shader.Find("RustAndFloat/FluffyCloud");
-        Material cloudMat = null;
-        if (cloudShader != null)
-        {
-            const string cloudMatPath = "Assets/RustAndFloat/Materials/FluffyCloud.mat";
-            cloudMat = AssetDatabase.LoadAssetAtPath<Material>(cloudMatPath);
-            if (cloudMat == null)
-            {
-                cloudMat = new Material(cloudShader);
-                cloudMat.SetColor("_BaseColor", new Color(0.96f, 0.98f, 1.0f, 0.94f));
-                cloudMat.SetColor("_ShadowColor", new Color(0.78f, 0.86f, 0.96f, 0.90f));
-                cloudMat.SetColor("_RimColor", new Color(1.0f, 1.0f, 1.0f, 1.0f));
-                cloudMat.SetFloat("_RimPower", 2.2f);
-                AssetDatabase.CreateAsset(cloudMat, cloudMatPath);
-            }
-        }
-        if (cloudMat == null)
-        {
-            cloudMat = MakeColorMat(Color.white, 0.1f, 0.5f);
-        }
-
-        // 18個のふんわりとした立体雲クラスターを空（高度110m〜240m）に散布
-        const int cloudCount = 18;
-        for (int i = 0; i < cloudCount; i++)
-        {
-            var clusterGo = new GameObject("CloudCluster_" + i);
-            clusterGo.transform.SetParent(cloudsRoot.transform, false);
-
-            // 島の広がり（1000m）全体の上空に散布
-            float cx = (float)(rng.NextDouble() * 1100.0 - 50.0);
-            float cz = (float)(rng.NextDouble() * 1100.0 - 50.0);
-            float cy = 115f + (float)(rng.NextDouble() * 110.0); // 高度115m〜225m
-            clusterGo.transform.position = new Vector3(cx, cy, cz);
-
-            // 各雲クラスターは6〜9個の重なり合う球体で、ぽっかりとした入道雲・夏雲を形成
-            int puffCount = 6 + rng.Next(4);
-            float baseScale = 24f + (float)rng.NextDouble() * 26f; // クラスター全体のスケール（24m〜50m）
-            for (int p = 0; p < puffCount; p++)
-            {
-                var puff = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                puff.name = "Puff_" + p;
-                puff.transform.SetParent(clusterGo.transform, false);
-
-                // 中央ほど大きく、周囲に広がる雲のモコモコ感
-                float px = (float)(rng.NextDouble() * baseScale * 1.4 - baseScale * 0.7);
-                float pz = (float)(rng.NextDouble() * baseScale * 1.0 - baseScale * 0.5);
-                float py = (float)(rng.NextDouble() * baseScale * 0.45 - baseScale * 0.1);
-                puff.transform.localPosition = new Vector3(px, py, pz);
-
-                // 扁平・丸みを帯びたスケール
-                float sx = baseScale * (0.55f + (float)rng.NextDouble() * 0.55f);
-                float sy = baseScale * (0.35f + (float)rng.NextDouble() * 0.45f);
-                float sz = baseScale * (0.55f + (float)rng.NextDouble() * 0.55f);
-                puff.transform.localScale = new Vector3(sx, sy, sz);
-
-                puff.GetComponent<Renderer>().sharedMaterial = cloudMat;
-                Object.DestroyImmediate(puff.GetComponent<Collider>());
-            }
-
-            // 風に乗ってゆっくり空を漂うアニメーション
-            clusterGo.AddComponent<AdventureCloudDrift>();
-        }
-
-        // 上空の爽やかな風の音（skywind_1.wav）
-        var windClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/AudioFiles/03_amb/skywind_1.wav");
-        if (windClip != null)
-        {
-            var windGo = new GameObject("SkyWindAmbience");
-            windGo.transform.SetParent(cloudsRoot.transform, false);
-            windGo.transform.position = new Vector3(512f, 120f, 512f);
-            var src = windGo.AddComponent<AudioSource>();
-            src.clip = windClip;
-            src.loop = true;
-            src.playOnAwake = true;
-            src.spatialBlend = 0.6f; // 上空の薄い気配に
-            src.volume = 0.03f; // 耳障りにならないよう極めて控えめに
-        }
+        // 古い不自然な雲の生成を廃止し、最新のふんわり雲システムに統一委譲
+        AdventureCloudDrift.EnsureCloudSystem();
     }
 
     static void PlaceButterfly(GameObject root, string file, Vector3 pos, System.Random rng)

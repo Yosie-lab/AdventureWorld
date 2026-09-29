@@ -33,9 +33,11 @@ public class AdventureCloudDrift : MonoBehaviour
 
     public static void EnsureCloudSystem()
     {
-        const int cloudCount = 15;
-        TrimCloudClusters("ParadiseClouds", "CloudCluster_", 12);
+        // 1. 古い不自然な雲（ParadiseClouds / 旧CloudCluster_*）を完全一掃
+        RemoveOldClouds();
 
+        // 2. 新しいふんわり雲（RustFloat_Clouds / FluffyCloudCluster_*）を適正数（14個）に維持
+        const int cloudCount = 14;
         var existing = GameObject.Find("RustFloat_Clouds");
         int have = CountNamedChildren(existing != null ? existing.transform : null, "FluffyCloudCluster_");
         if (have > cloudCount)
@@ -43,8 +45,63 @@ public class AdventureCloudDrift : MonoBehaviour
         if (have < cloudCount)
             SpawnFluffyClusters(existing, have, cloudCount);
 
-        TrimLargestClusters("RustFloat_Clouds", "FluffyCloudCluster_", 3);
-        TrimLargestClusters("ParadiseClouds", "CloudCluster_", 2);
+        TrimLargestClusters("RustFloat_Clouds", "FluffyCloudCluster_", 2);
+
+        // 3. 上空の爽やかな風音アンビエンスの保証
+        EnsureSkyWindAmbience(GameObject.Find("RustFloat_Clouds"));
+    }
+
+    private static void EnsureSkyWindAmbience(GameObject root)
+    {
+        if (root == null) return;
+        if (root.transform.Find("SkyWindAmbience") != null) return;
+#if UNITY_EDITOR
+        var windClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/AudioFiles/03_amb/skywind_1.wav");
+        if (windClip != null)
+        {
+            var windGo = new GameObject("SkyWindAmbience");
+            windGo.transform.SetParent(root.transform, false);
+            windGo.transform.position = new Vector3(512f, 120f, 512f);
+            var src = windGo.AddComponent<AudioSource>();
+            src.clip = windClip;
+            src.loop = true;
+            src.playOnAwake = true;
+            src.spatialBlend = 0.6f;
+            src.volume = 0.03f;
+        }
+#endif
+    }
+
+    /// <summary>古い不自然な雲オブジェクト（ParadiseClouds、CloudCluster_*）を完全に削除・整理</summary>
+    private static void RemoveOldClouds()
+    {
+        // A. ParadiseClouds の処理（風音アンビエンスを救出して本体ごと完全破棄）
+        var oldRoot = GameObject.Find("ParadiseClouds");
+        if (oldRoot != null)
+        {
+            var wind = oldRoot.transform.Find("SkyWindAmbience");
+            if (wind != null)
+            {
+                var newRoot = GameObject.Find("RustFloat_Clouds") ?? new GameObject("RustFloat_Clouds");
+                if (newRoot.transform.Find("SkyWindAmbience") == null)
+                {
+                    wind.SetParent(newRoot.transform, false);
+                }
+            }
+            DestroyGo(oldRoot);
+        }
+
+        // B. シーン直下などに残った旧名 CloudCluster_* をすべて破棄
+        var allDrifts = Object.FindObjectsByType<AdventureCloudDrift>(FindObjectsSortMode.None);
+        for (int i = 0; i < allDrifts.Length; i++)
+        {
+            if (allDrifts[i] == null) continue;
+            var go = allDrifts[i].gameObject;
+            if (go.name.StartsWith("CloudCluster_"))
+            {
+                DestroyGo(go);
+            }
+        }
     }
 
     static void SpawnFluffyClusters(GameObject existing, int have, int cloudCount)
