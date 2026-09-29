@@ -335,7 +335,8 @@ public partial class AdventureSanctuaryTowerManager
 
         StartCoroutine(ClimaxOilWarmGlowRoutine());
 
-        // 注油後：極寒の気配を少し緩め、解放の金色へ寄せる
+        // 注油完了：極寒の雷雲・冷気を解き、暖かな日光と黄金の祝福光芒・色彩豊かな景色を展開
+        SpawnWildernessPanorama(coldCrisis: false);
         SoftenSkybreakColdAtmosphere();
 
         _climaxBeatIndex = ClimaxOilSlot;
