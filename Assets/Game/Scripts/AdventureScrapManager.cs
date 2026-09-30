@@ -327,7 +327,7 @@ public class AdventureScrapManager : MonoBehaviour
     /// <summary>クライマックス祝福など、意図的に聴かせるチャイム</summary>
     public void PlayCelebrationChime(float volume = 0.28f)
     {
-        PlayChimeInternal(Mathf.Clamp(volume, 0.05f, 0.45f));
+        PlayChimeInternal(Mathf.Clamp(volume, 0.05f, 1.0f));
     }
 
     void PlayChimeInternal(float vol)

@@ -277,6 +277,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
     Vector2 _prevMouseScreenPos;
     bool _hasPrevMousePos;
+    CursorLockMode _prevLockMode = CursorLockMode.None;
 
     void UpdateLookInputOnly()
     {
@@ -320,33 +321,49 @@ public class AdventureCameraFollow : MonoBehaviour
         if (kb != null && kb.rKey.wasPressedThisFrame)
             SnapBehindTarget();
 
+        // カーソルロック状態が変化した瞬間は、画面中央への強制移動による座標ジャンプを防ぐため履歴を破棄
+        if (Cursor.lockState != _prevLockMode)
+        {
+            _prevLockMode = Cursor.lockState;
+            _hasPrevMousePos = false;
+            return;
+        }
+
         // ── マウス移動量の高信頼取得 ──
         float mouseX = 0f;
         float mouseY = 0f;
 
         if (mouse != null)
         {
-            // 系統1: delta による取得
+            // 系統1: delta による取得（最も安全かつ標準的）
             Vector2 delta = mouse.delta.ReadValue();
             mouseX = delta.x;
             mouseY = delta.y;
 
-            // 系統2: delta が 0 の場合、スクリーン座標の差分から直接算出（エディタ・OS非ロック時対応）
-            Vector2 curScreenPos = mouse.position.ReadValue();
-            if (_hasPrevMousePos && Mathf.Abs(mouseX) < 0.001f && Mathf.Abs(mouseY) < 0.001f)
+            // 系統2: カーソル解放中（非ロック時）のみスクリーン座標差分を補助利用
+            // ※ロック中はOSがカーソルを画面中央へ引き戻すため、差分を見ると巨大な跳ね上がりが発生する
+            if (Cursor.lockState != CursorLockMode.Locked)
             {
-                Vector2 diff = curScreenPos - _prevMouseScreenPos;
-                if (diff.sqrMagnitude < 250000f) // 画面端ワープ防止
+                Vector2 curScreenPos = mouse.position.ReadValue();
+                if (_hasPrevMousePos && Mathf.Abs(mouseX) < 0.001f && Mathf.Abs(mouseY) < 0.001f)
                 {
-                    mouseX = diff.x;
-                    mouseY = diff.y;
+                    Vector2 diff = curScreenPos - _prevMouseScreenPos;
+                    if (diff.sqrMagnitude < 25000f) // 150px以内
+                    {
+                        mouseX = diff.x;
+                        mouseY = diff.y;
+                    }
                 }
+                _prevMouseScreenPos = curScreenPos;
+                _hasPrevMousePos = true;
             }
-            _prevMouseScreenPos = curScreenPos;
-            _hasPrevMousePos = true;
+            else
+            {
+                _hasPrevMousePos = false;
+            }
         }
 
-        // 系統3: レガシー Input フォールバック（プロジェクト設定の両立環境・エディタでのOSロック差異対応）
+        // 系統3: レガシー Input フォールバック（適正スケール）
         if (Mathf.Abs(mouseX) < 0.001f && Mathf.Abs(mouseY) < 0.001f)
         {
             try
@@ -355,18 +372,23 @@ public class AdventureCameraFollow : MonoBehaviour
                 float ly = Input.GetAxisRaw("Mouse Y");
                 if (Mathf.Abs(lx) > 0.001f || Mathf.Abs(ly) > 0.001f)
                 {
-                    mouseX = lx * 15f;
-                    mouseY = ly * 15f;
+                    mouseX = lx * 2.0f;
+                    mouseY = ly * 2.0f;
                 }
             }
             catch { }
         }
 
+        // 1フレームあたりのマウス入力変化量を安全に制限（急激な跳ね上がり・天井張り付きを物理的に防止）
+        float maxStep = 18f;
+        float deltaYaw = Mathf.Clamp(mouseX * sensitivity, -maxStep, maxStep);
+        float deltaPitch = Mathf.Clamp(mouseY * sensitivity, -maxStep, maxStep);
+
         // カメラ回転へ即時反映
-        if (Mathf.Abs(mouseX) > 0.001f || Mathf.Abs(mouseY) > 0.001f)
+        if (Mathf.Abs(deltaYaw) > 0.0001f || Mathf.Abs(deltaPitch) > 0.0001f)
         {
-            _targetYaw += mouseX * sensitivity;
-            _targetPitch = Mathf.Clamp(_targetPitch - mouseY * sensitivity, pitchMin, pitchMax);
+            _targetYaw += deltaYaw;
+            _targetPitch = Mathf.Clamp(_targetPitch - deltaPitch, pitchMin, pitchMax);
             _lastMouseInputTime = Time.time;
         }
 

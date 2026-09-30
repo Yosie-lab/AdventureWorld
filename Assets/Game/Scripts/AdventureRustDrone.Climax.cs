@@ -358,10 +358,15 @@ public partial class AdventureRustDrone
         }
         EnsureClimaxEyeLight(new Color(1f, 0.9f, 0.45f), 2.8f);
 
-        if (_audio != null && _happyBeepClip != null)
+        // 油注入完了・回復の祝福チャイム（上空でも明瞭に届く大音量で再生）
+        if (AdventureScrapManager.Instance != null)
+        {
+            AdventureScrapManager.Instance.PlayCelebrationChime(0.95f);
+        }
+        else if (_audio != null && _happyBeepClip != null)
         {
             _audio.pitch = 1.0f;
-            _audio.PlayOneShot(_happyBeepClip, 0.6f);
+            _audio.PlayOneShot(_happyBeepClip, 0.9f);
         }
     }
 
@@ -425,32 +430,37 @@ public partial class AdventureRustDrone
     {
         if (_audio == null)
             SetupAudio();
-        if (_audio == null) return;
 
         if (_pipiChimeClip == null)
             _pipiChimeClip = MakePipiChime();
 
-        float savedPitch = _audio.pitch;
-        _audio.pitch = 1f;
-        if (_pipiChimeClip != null)
-            _audio.PlayOneShot(_pipiChimeClip, 0.9f);
-        if (_happyBeepClip != null)
-            _audio.PlayOneShot(_happyBeepClip, 0.55f);
-        _audio.pitch = savedPitch;
+        if (_audio != null)
+        {
+            float savedPitch = _audio.pitch;
+            float savedSpatial = _audio.spatialBlend;
+            _audio.pitch = 1f;
+            _audio.spatialBlend = 0f; // 上空の激しい風音・音楽の中でも耳元へ確実に響くよう2D化
+            if (_pipiChimeClip != null)
+                _audio.PlayOneShot(_pipiChimeClip, 1.0f);
+            if (_happyBeepClip != null)
+                _audio.PlayOneShot(_happyBeepClip, 0.9f);
+            _audio.pitch = savedPitch;
+            _audio.spatialBlend = savedSpatial;
+        }
 
-        // パーツ回収と同系のヒーリングチャイムも重ねて祝福感を出す
-        AdventureScrapManager.Instance?.PlayCelebrationChime(0.32f);
+        // パーツ回収と同系の極上ヒーリングチャイムをしっかり大音量で重ねて最高潮の祝福感を出す
+        AdventureScrapManager.Instance?.PlayCelebrationChime(1.0f);
     }
 
-    /// <summary>ピ・ピッ の二連電子音＋短い高音チャイム</summary>
+    /// <summary>ピ・ピッ の二連電子音＋澄んだ高音チャイム和音（倍音豊かで大音量）</summary>
     static AudioClip MakePipiChime()
     {
         const int hz = 44100;
-        float duration = 0.55f;
+        float duration = 0.95f;
         int samples = (int)(hz * duration);
         float[] data = new float[samples];
 
-        void AddBeep(float startSec, float dur, float f0, float f1, float amp)
+        void AddTone(float startSec, float dur, float f0, float f1, float amp, bool harmonics = false)
         {
             int start = Mathf.FloorToInt(startSec * hz);
             int len = Mathf.FloorToInt(dur * hz);
@@ -463,22 +473,40 @@ public partial class AdventureRustDrone
                 float freq = Mathf.Lerp(f0, f1, t);
                 phase += 2f * Mathf.PI * freq / hz;
                 float env = Mathf.Sin(Mathf.Clamp01(t) * Mathf.PI);
-                // ソフトアタック
-                if (t < 0.08f) env *= t / 0.08f;
-                data[idx] += Mathf.Sin(phase) * env * amp;
+                if (t < 0.05f) env = t / 0.05f;
+                else env = Mathf.Pow(1f - t, 1.25f); // 澄んだベル余韻
+
+                float val = Mathf.Sin(phase);
+                if (harmonics)
+                {
+                    val = val * 0.70f + Mathf.Sin(phase * 2f) * 0.25f + Mathf.Sin(phase * 3f) * 0.08f;
+                }
+                data[idx] += val * env * amp;
             }
         }
 
-        // ピ（短）・ピッ（少し長め上昇）
-        AddBeep(0.00f, 0.09f, 980f, 1180f, 0.42f);
-        AddBeep(0.12f, 0.16f, 1200f, 1560f, 0.48f);
-        // 明るい和音の余韻
-        AddBeep(0.22f, 0.30f, 784f, 784f, 0.18f);   // G5
-        AddBeep(0.24f, 0.28f, 988f, 988f, 0.16f);   // B5
-        AddBeep(0.26f, 0.26f, 1319f, 1319f, 0.14f); // E6
+        // ピ（短）・ピッ（少し長め上昇の可愛いロボット音声）
+        AddTone(0.00f, 0.11f, 1046f, 1318f, 0.75f);
+        AddTone(0.12f, 0.18f, 1318f, 1760f, 0.85f);
+        // 上空に美しく広がる高音チャイム和音（C6, E6, G6, C7）
+        AddTone(0.22f, 0.70f, 1046.5f, 1046.5f, 0.45f, true); // C6
+        AddTone(0.24f, 0.68f, 1318.5f, 1318.5f, 0.42f, true); // E6
+        AddTone(0.26f, 0.66f, 1567.9f, 1567.9f, 0.40f, true); // G6
+        AddTone(0.28f, 0.64f, 2093.0f, 2093.0f, 0.35f, true); // C7
 
+        // ピーク正規化（音割れ防止しつつ音量を最大化）
+        float maxVal = 0f;
         for (int i = 0; i < samples; i++)
-            data[i] = Mathf.Clamp(data[i], -1f, 1f);
+        {
+            float abs = Mathf.Abs(data[i]);
+            if (abs > maxVal) maxVal = abs;
+        }
+        if (maxVal > 0.001f)
+        {
+            float scale = 0.95f / maxVal;
+            for (int i = 0; i < samples; i++)
+                data[i] = Mathf.Clamp(data[i] * scale, -1f, 1f);
+        }
 
         var clip = AudioClip.Create("RustPipiChime", samples, 1, hz, false);
         clip.SetData(data, 0);

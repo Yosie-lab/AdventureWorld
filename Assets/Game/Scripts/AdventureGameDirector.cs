@@ -60,10 +60,13 @@ public class AdventureGameDirector : MonoBehaviour
         GroundAllSceneNpcs();
 
         StartCoroutine(RepositionLostPetsDelayed());
-        // 2050設定の導入。スペース／E で閉じるまで消えない
-        const string opening =
-            "西暦2050。nikoは正解しかない世界から逃げた。\n息苦しさが、この孤島へ導いた。猫と犬が迷子。\n【スペース】でつづける";
-        BeginOpeningDialogue(opening);
+        if (!AdventureSceneContext.IsRustFloat)
+        {
+            // 2050設定の導入。スペース／E で閉じるまで消えない（AdventureWorldシーン専用）
+            const string opening =
+                "西暦2050。nikoは正解しかない世界から逃げた。\n息苦しさが、この孤島へ導いた。猫と犬が迷子。\n【スペース】でつづける";
+            BeginOpeningDialogue(opening);
+        }
     }
 
     IEnumerator RepositionLostPetsDelayed()
@@ -684,6 +687,9 @@ public class AdventureGameDirector : MonoBehaviour
 
     void BuildHud()
     {
+        if (AdventureSceneContext.IsRustFloat)
+            return; // RustAndFloat では専用の RustFloatHUD / ScrapHUD / CompassHUD が稼働するため古いHUDは生成しない
+
         var canvasGo = new GameObject("AdventureHUD");
         var canvas = canvasGo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
