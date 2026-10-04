@@ -165,7 +165,18 @@ public class AdventureShallowFishSchool : MonoBehaviour
         }
 
         // 水深の高さを一定に保つ（水面下）
-        targetCenter.y = waterSurfaceY - swimDepth;
+        targetCenter.y = 5.50f - swimDepth;
+
+        // 陸地（砂浜）への侵入防止：目標中心の海底標高が浅い／陸地の場合は沖側（西側）へ押し戻す
+        var land = Terrain.activeTerrain;
+        if (land != null)
+        {
+            float centerBed = land.SampleHeight(targetCenter) + land.transform.position.y;
+            if (centerBed >= 5.28f)
+            {
+                targetCenter.x = Mathf.Min(targetCenter.x, _homeCenter.x - 2.5f);
+            }
+        }
 
         transform.position = Vector3.Lerp(transform.position, targetCenter, Time.deltaTime * (isPlayerFlee ? 2.5f : 0.8f));
 
@@ -192,9 +203,19 @@ public class AdventureShallowFishSchool : MonoBehaviour
 
             // 個体の位置を群れ中心に追従
             f.root.position += f.root.forward * (currentSpeed * Time.deltaTime);
-            // 水深キープ
+
+            // 水深キープ＆陸地進入防止
             var pos = f.root.position;
-            pos.y = waterSurfaceY - swimDepth + Mathf.Sin(t * 2f + f.personalOffset) * 0.04f;
+            if (land != null)
+            {
+                float fishBed = land.SampleHeight(pos) + land.transform.position.y;
+                if (fishBed >= 5.32f)
+                {
+                    // 陸地に入りそうになったら沖側（西）へ押し戻す
+                    pos.x = Mathf.Min(pos.x, transform.position.x - 0.2f);
+                }
+            }
+            pos.y = Mathf.Min(5.18f, 5.50f - swimDepth + Mathf.Sin(t * 2f + f.personalOffset) * 0.04f);
             f.root.position = pos;
         }
     }

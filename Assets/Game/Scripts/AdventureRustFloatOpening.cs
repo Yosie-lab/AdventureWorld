@@ -271,8 +271,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
                 triggerPlay = true;
             }
 
-            // 明示的な決定キー（Space, Enter）
-            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)
+            // 明示的な決定キー（Space, Enter, Escape）
+            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
             {
                 triggerPlay = true;
             }

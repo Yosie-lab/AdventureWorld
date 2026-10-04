@@ -261,20 +261,51 @@ public class AdventureSchoolingFish : MonoBehaviour
             curSpeed = _speed;
         }
 
-        // 水深クランプ（海面 5.50m より下、水底より上）
+        // 陸地（砂浜）進入防止チェック：目標地点の海底標高が浅すぎる／陸地の場合は沖合（西方向・深海側）へ強制反転
         var land = Terrain.activeTerrain;
+        if (land != null)
+        {
+            float targetBedH = land.SampleHeight(targetPos) + land.transform.position.y;
+            if (targetBedH >= 5.25f)
+            {
+                // 沖合（西方向：Xマイナス）へ目標を修正
+                targetPos.x = Mathf.Min(targetPos.x, schoolCenter.x - 3.0f);
+            }
+        }
+
+        // 水深クランプ（海面 5.50m より下、水底より上。陸地へ乗り上げないよう厳密制限）
         float bedY = land != null ? (land.SampleHeight(transform.position) + land.transform.position.y) : 4.0f;
-        float safeY = Mathf.Clamp(targetDepth, bedY + 0.18f, MaxFishSurfaceY); // 海面(5.50m)より深く潜らせ、水面とのチカチカ交差を完全防止
+        float safeY = Mathf.Min(Mathf.Max(bedY + 0.15f, 3.8f), MaxFishSurfaceY);
         targetPos.y = safeY;
 
         // スムーズな遊泳旋回
         Vector3 desiredVel = (targetPos - transform.position).normalized * curSpeed;
-        _velocity = Vector3.RotateTowards(_velocity, desiredVel, 4.5f * Time.deltaTime, curSpeed);
+
+        // 魚の現在地が万一陸地（砂浜：標高5.30m以上）に近づいた場合の強力な陸地回避
+        if (bedY >= 5.28f)
+        {
+            desiredVel.x = -curSpeed; // 西（沖合）へ急旋回
+            desiredVel.y = 0f;
+        }
+
+        _velocity = Vector3.RotateTowards(_velocity, desiredVel, 6.0f * Time.deltaTime, curSpeed);
 
         if (_velocity.sqrMagnitude > 0.01f)
         {
-            transform.position += _velocity * Time.deltaTime;
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(_velocity), 6f * Time.deltaTime);
+            Vector3 nextPos = transform.position + _velocity * Time.deltaTime;
+            // 魚の座標が海水の届かない陸地（標高5.35m以上）にはみ出さないようガード
+            if (land != null)
+            {
+                float nextBed = land.SampleHeight(nextPos) + land.transform.position.y;
+                if (nextBed >= 5.35f)
+                {
+                    // 陸地方向への移動をキャンセルし、沖合側へ押し戻す
+                    nextPos.x = transform.position.x - 0.05f;
+                }
+            }
+            nextPos.y = safeY;
+            transform.position = nextPos;
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(_velocity), 7f * Time.deltaTime);
         }
     }
 

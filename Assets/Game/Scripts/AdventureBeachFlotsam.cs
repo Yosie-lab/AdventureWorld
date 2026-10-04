@@ -170,6 +170,12 @@ public class AdventureBeachFlotsam : MonoBehaviour
         var player = AdventurePlayerController.Instance;
         if (player == null) return;
 
+        if (ShouldSuppressInteraction())
+        {
+            _isPlayerNear = false;
+            return;
+        }
+
         float dist = Vector3.Distance(transform.position, player.transform.position);
         _isPlayerNear = dist < 2.5f;
 
@@ -177,6 +183,15 @@ public class AdventureBeachFlotsam : MonoBehaviour
         {
             Inspect();
         }
+    }
+
+    static bool ShouldSuppressInteraction()
+    {
+        if (!AdventureRustFloatOpening.IsGameStarted) return true;
+        if (AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen()) return true;
+        if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening) return true;
+        if (AdventurePauseMenu.IsOpen) return true;
+        return false;
     }
 
     public void Inspect()
@@ -197,7 +212,7 @@ public class AdventureBeachFlotsam : MonoBehaviour
 
     void OnGUI()
     {
-        if (!_isPlayerNear || Camera.main == null)
+        if (!_isPlayerNear || Camera.main == null || ShouldSuppressInteraction())
             return;
 
         Vector3 screenPos = Camera.main.WorldToScreenPoint(transform.position + Vector3.up * 0.45f);

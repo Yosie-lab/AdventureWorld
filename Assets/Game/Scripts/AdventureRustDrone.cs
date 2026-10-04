@@ -1470,7 +1470,12 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
 
         if (_bodyMat != null && !IsClimaxCrisis && !IsClimaxOverdrive && !_climaxHealing)
-            _bodyMat.SetColor("_EmissionColor", new Color(1.6f, 0.35f, 0.05f) * (_heat * 2.1f));
+        {
+            // 天蓋演出（寄り添い）中や通常時、影で黒焦げのように見えないよう温かいアイドリング発光を維持
+            float minGlow = _skybreakNestle ? 0.45f : 0.15f;
+            float glowFactor = Mathf.Max(_heat * 2.1f, minGlow);
+            _bodyMat.SetColor("_EmissionColor", new Color(1.6f, 0.55f, 0.15f) * glowFactor);
+        }
 
         if (_body != null)
         {

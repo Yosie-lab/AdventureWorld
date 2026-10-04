@@ -146,11 +146,11 @@ public class AdventurePrologueDrama : MonoBehaviour
         return false;
     }
 
-    /// <summary>即時スキップ操作（Escapeキーやダブルクリック・長押し）</summary>
+    /// <summary>即時スキップ操作（Escapeキーや右クリック）</summary>
     bool CheckWakeupInput()
     {
         var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && (kb.escapeKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame))
+        if (kb != null && kb.escapeKey.wasPressedThisFrame)
             return true;
 
         var mouse = UnityEngine.InputSystem.Mouse.current;
@@ -827,7 +827,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         hintText.fontSize = 24;
         hintText.alignment = TextAnchor.MiddleCenter;
         hintText.color = new Color(1f, 0.92f, 0.65f, 0.95f);
-        hintText.text = "【クリック / Space / Enter】で進む　【長押し / Escape】でスキップ";
+        hintText.text = "【クリック / Space】で進む　【Escape】でスキップ";
         var hintOutline = hintGo.AddComponent<Outline>();
         hintOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
         hintOutline.effectDistance = new Vector2(1.5f, -1.5f);

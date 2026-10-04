@@ -264,4 +264,113 @@ public partial class AdventureSanctuaryTowerManager
         clip.SetData(stereoData, 0);
         return clip;
     }
+
+    #region エピローグ・ウミネコ環境音（「わぁぁ……！見て、Niko！」）
+    static AudioClip _cachedSeagullClip1;
+    static AudioClip _cachedSeagullClipMany;
+    Coroutine _epilogueSeagullCo;
+    GameObject _epilogueSeagullGo;
+
+    static AudioClip LoadSeagullClip(bool many = false)
+    {
+        if (many && _cachedSeagullClipMany != null) return _cachedSeagullClipMany;
+        if (!many && _cachedSeagullClip1 != null) return _cachedSeagullClip1;
+
+        AudioClip clip = null;
+#if UNITY_EDITOR
+        string path = many
+            ? "Assets/Audio/AudioFiles/06_birds/seagulls_many_2.wav"
+            : "Assets/Audio/AudioFiles/06_birds/seagulls_1.wav";
+        clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+#endif
+        if (clip == null)
+            clip = Resources.Load<AudioClip>(many ? "seagulls_many_2" : "seagulls_1");
+
+        if (many) _cachedSeagullClipMany = clip;
+        else _cachedSeagullClip1 = clip;
+
+        return clip;
+    }
+
+    /// <summary>
+    /// エピローグ冒頭（「わぁぁ……！見て、Niko！世界はこんなにも広かったんだ……！！」）から
+    /// 広大な外海・大空を象徴するウミネコの声を穏やかに響かせる
+    /// </summary>
+    void StartEpilogueSeagullAmbience()
+    {
+        StopEpilogueSeagullAmbience();
+        _epilogueSeagullCo = StartCoroutine(EpilogueSeagullRoutine());
+    }
+
+    void StopEpilogueSeagullAmbience()
+    {
+        if (_epilogueSeagullCo != null)
+        {
+            StopCoroutine(_epilogueSeagullCo);
+            _epilogueSeagullCo = null;
+        }
+        if (_epilogueSeagullGo != null)
+        {
+            Destroy(_epilogueSeagullGo);
+            _epilogueSeagullGo = null;
+        }
+    }
+
+    IEnumerator EpilogueSeagullRoutine()
+    {
+        var clip1 = LoadSeagullClip(false);
+        var clipMany = LoadSeagullClip(true);
+        if (clip1 == null && clipMany == null) yield break;
+
+        _epilogueSeagullGo = new GameObject("EpilogueSeagullAmbience");
+        _epilogueSeagullGo.transform.SetParent(transform, false);
+        var src = _epilogueSeagullGo.AddComponent<AudioSource>();
+        src.spatialBlend = 0.05f; // ステレオ全体で澄んでクリアに聴こえる定位
+        src.playOnAwake = false;
+
+        // 1. 「わぁぁ……！見て、Niko！」が表示されて間もなく（約0.8秒後）に最初の1羽
+        yield return new WaitForSecondsRealtime(0.8f);
+        if (!_epilogueTriggered || src == null) yield break;
+
+        if (clip1 != null)
+        {
+            src.pitch = 1.0f;
+            src.PlayOneShot(clip1, 0.28f);
+        }
+
+        // 2. 約5.2秒後、大空のパノラマが広がる中で遠くの群れがふわりと鳴き交わす
+        yield return new WaitForSecondsRealtime(5.2f);
+        if (!_epilogueTriggered || src == null) yield break;
+
+        if (clipMany != null)
+        {
+            src.pitch = 0.97f;
+            src.PlayOneShot(clipMany, 0.25f);
+        }
+        else if (clip1 != null)
+        {
+            src.pitch = 1.03f;
+            src.PlayOneShot(clip1, 0.25f);
+        }
+
+        // 3. さらに約7.5秒後、自由を取り戻した余韻の中、遠空からもうひと鳴き
+        yield return new WaitForSecondsRealtime(7.5f);
+        if (!_epilogueTriggered || src == null) yield break;
+
+        if (clip1 != null)
+        {
+            src.pitch = 0.98f;
+            src.PlayOneShot(clip1, 0.28f);
+        }
+
+        // 音声の余韻を待って片付け
+        yield return new WaitForSecondsRealtime(5.0f);
+        if (_epilogueSeagullGo != null)
+        {
+            Destroy(_epilogueSeagullGo);
+            _epilogueSeagullGo = null;
+        }
+    }
+    #endregion
 }
+

@@ -159,6 +159,14 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
             _targetHighlandVol *= groundDucking;
         }
 
+        // エピローグ中は風音を極めて小さくダッキング（映画テロップ・BGM・ウミネコを引き立てる）
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null && tower.EpilogueTriggered)
+        {
+            _targetGlidingVol *= 0.15f;
+            _targetHighlandVol *= 0.15f;
+        }
+
         // 4. スムーズな音量フェード（時定数約2.0秒）
         float fadeSpeed = Time.deltaTime * 0.85f;
         _curMeadowVol = Mathf.MoveTowards(_curMeadowVol, _targetMeadowVol, fadeSpeed);

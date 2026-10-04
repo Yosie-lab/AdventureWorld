@@ -125,18 +125,32 @@ public class AdventureNikoFootsteps : MonoBehaviour
         }
     }
 
-    /// <summary>Nikoが波打ち際や池の水中に足を踏み入れているかを判定</summary>
+    /// <summary>Nikoが波打ち際や池・湖の水中に足を踏み入れているかを正確に判定</summary>
     bool CheckIsInWater(Vector3 pos)
     {
-        // 1. 海面・波打ち際（標高5.80m〜6.25m）
-        if (pos.y < 6.25f)
-            return true;
+        // 1. 海面・波打ち際（正規海面水位 5.50m、波打ち際 5.62m 以下）
+        // 標高が 5.62m 以下であり、かつ海岸線外周エリア（西側白砂ビーチ浅瀬など）にある場合のみ水音
+        if (pos.y <= 5.62f)
+        {
+            var land = Terrain.activeTerrain;
+            float landH = land != null ? (land.SampleHeight(pos) + land.transform.position.y) : pos.y;
+            // 地形標高が海面（5.50m）付近またはそれ以下、かつ西海岸または外周海域
+            if (landH <= 5.62f && (pos.x <= 165f || pos.x >= 850f || pos.z <= 160f || pos.z >= 850f))
+                return true;
+        }
 
         // 2. 内陸オアシス池・段々池の浅瀬（標高47.8m〜48.7m付近）
         Vector3 oasisPos = new Vector3(480f, 48.0f, 455f);
         if (Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(oasisPos.x, oasisPos.z)) < 18f)
         {
             if (pos.y < 48.75f) return true;
+        }
+
+        // 3. カルデラ湖（標高25.5m付近）
+        Vector3 calderaPos = new Vector3(420f, 25.5f, 440f);
+        if (Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(calderaPos.x, calderaPos.z)) < 40f)
+        {
+            if (pos.y <= 25.8f) return true;
         }
 
         return false;
@@ -152,13 +166,18 @@ public class AdventureNikoFootsteps : MonoBehaviour
         AudioClip clip;
         if (inWater)
         {
-            // 水辺：ピチャッ、チャプッという涼やかな水しぶき足音
+            // 水辺・波打ち際：ピチャッ、チャプッという涼やかな水しぶき足音
             clip = isLeft ? _waterStepL : _waterStepR;
             SpawnFootstepSplashFx(footPos, isLeft, bigSplash: false);
         }
+        else if (onSand)
+        {
+            // 白砂ビーチ：サクッ、サクッという細粒砂の心地よい砂踏み足音
+            clip = isLeft ? _sandStepL : _sandStepR;
+        }
         else
         {
-            // 陸地：かわいいトコトコ音
+            // 通常陸地：愛らしいトコトコ音
             clip = isLeft ? _stepL : _stepR;
         }
 

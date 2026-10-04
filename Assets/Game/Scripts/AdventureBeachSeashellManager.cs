@@ -175,15 +175,19 @@ public class AdventureBeachSeashellManager : MonoBehaviour
 
         var land = Terrain.activeTerrain;
 
-        // 西側白砂ビーチの波打ち際ライン（Z: 175〜420、X: 135〜190、砂浜標高 5.95m〜7.2m）
-        // 候補座標（全24箇所）
+        // 西側白砂ビーチの波打ち際ライン（Z: 170〜430、X: 135〜198、砂浜標高 5.68m〜7.2m）
+        // 候補座標（全48箇所：サクラ貝・エメラルド・サファイア・琥珀・巻貝が全域に満遍なく散りばめられる）
         Vector3[] spawnPoints =
         {
             // 1. スタート地点・座礁艇まわり
-            new Vector3(156f, 0f, 274f),
+            new Vector3(150f, 0f, 270f),
             new Vector3(162f, 0f, 281f),
-            new Vector3(151f, 0f, 268f),
+            new Vector3(151f, 0f, 264f),
             new Vector3(166f, 0f, 288f),
+            new Vector3(158f, 0f, 260f),
+            new Vector3(164f, 0f, 272f),
+            new Vector3(148f, 0f, 278f),
+            new Vector3(155f, 0f, 286f),
 
             // 2. 南西岬〜南白砂ビーチ
             new Vector3(175f, 0f, 220f),
@@ -191,6 +195,11 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             new Vector3(196f, 0f, 185f),
             new Vector3(168f, 0f, 235f),
             new Vector3(178f, 0f, 250f),
+            new Vector3(182f, 0f, 230f),
+            new Vector3(190f, 0f, 215f),
+            new Vector3(198f, 0f, 195f),
+            new Vector3(172f, 0f, 242f),
+            new Vector3(185f, 0f, 175f),
 
             // 3. 焚き火キャンプ〜西海岸中央
             new Vector3(145f, 0f, 305f),
@@ -198,6 +207,11 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             new Vector3(142f, 0f, 335f),
             new Vector3(148f, 0f, 348f),
             new Vector3(155f, 0f, 330f),
+            new Vector3(150f, 0f, 312f),
+            new Vector3(140f, 0f, 328f),
+            new Vector3(146f, 0f, 340f),
+            new Vector3(152f, 0f, 325f),
+            new Vector3(158f, 0f, 318f),
 
             // 4. 北西砂浜〜波打ち際北端
             new Vector3(135f, 0f, 365f),
@@ -205,13 +219,23 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             new Vector3(146f, 0f, 395f),
             new Vector3(152f, 0f, 410f),
             new Vector3(158f, 0f, 422f),
+            new Vector3(138f, 0f, 372f),
+            new Vector3(144f, 0f, 388f),
+            new Vector3(148f, 0f, 402f),
+            new Vector3(154f, 0f, 416f),
+            new Vector3(162f, 0f, 428f),
 
-            // 5. 段々池の浅瀬アプローチ付近
+            // 5. 段々池の浅瀬アプローチ〜内陸砂地付近
             new Vector3(162f, 0f, 355f),
             new Vector3(168f, 0f, 370f),
             new Vector3(172f, 0f, 315f),
             new Vector3(182f, 0f, 295f),
             new Vector3(185f, 0f, 265f),
+            new Vector3(165f, 0f, 340f),
+            new Vector3(170f, 0f, 360f),
+            new Vector3(176f, 0f, 305f),
+            new Vector3(180f, 0f, 280f),
+            new Vector3(188f, 0f, 255f),
         };
 
         var rootGo = new GameObject("BeachSeashells_Root");
@@ -222,7 +246,7 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             if (land != null)
             {
                 float h = land.SampleHeight(pt) + land.transform.position.y;
-                pt.y = Mathf.Max(5.95f, h + 0.04f); // 砂浜表面にほんのり埋もれる高さ
+                pt.y = Mathf.Max(5.68f, h + 0.05f); // 砂浜表面にしっかり乗る高さ
             }
             else
             {

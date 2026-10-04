@@ -67,6 +67,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     AudioSource _audio;
     AudioSource _skybreakWindSource;
     AudioClip _skybreakWindClip;
+    Coroutine _skybreakWindFadeCo;
 
     bool _leverPulled = false;
     bool _endingSequenceActive = false;
@@ -193,7 +194,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     bool _climaxOilWaiting = false;
     float _oilHoldTimer = 0f;
     float _oilWaitOpenedAt = 0f;
-    const float OilHoldRequired = 0.7f;
+    int _oilHoldFrame = -1;
+    const float OilHoldRequired = 2.2f;
     /// <summary>注油長押しの持ち越しで次台本を即スキップしないよう、一度離すまで送り不可</summary>
     bool _scriptRequireInputRelease = false;
     int _climaxBeatIndex = -1; // -1=非アクティブ / 0..=台本 / OilPhaseIndex=注油待ち後の再開用
@@ -329,6 +331,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         StopAllCoroutines();
         _epilogueRoutine = null;
+        StopSkybreakAftershockLoop();
         Time.timeScale = 1f;
 
         _endingSequenceActive = false;
@@ -1152,6 +1155,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     void DestroySkybreakWorldFx()
     {
         StopSkybreakWindAmbience();
+        StopEpilogueSeagullAmbience();
         ClearSkybreakColdAtmosphere();
         if (_hyperUpdraftGo != null)
         {
@@ -1186,14 +1190,27 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _skybreakWindSource.volume = 0f;
         if (!_skybreakWindSource.isPlaying)
             _skybreakWindSource.Play();
-        StartCoroutine(FadeAudioSource(_skybreakWindSource, 0.45f, 1.4f));
+        if (_skybreakWindFadeCo != null)
+            StopCoroutine(_skybreakWindFadeCo);
+        _skybreakWindFadeCo = StartCoroutine(FadeAudioSource(_skybreakWindSource, 0.45f, 1.4f));
+    }
+
+    /// <summary>クライマックス演出等で風音の音量を滑らかに調整</summary>
+    void SetSkybreakWindVolume(float targetVol, float duration = 1.0f)
+    {
+        if (_skybreakWindSource == null) return;
+        if (_skybreakWindFadeCo != null)
+            StopCoroutine(_skybreakWindFadeCo);
+        _skybreakWindFadeCo = StartCoroutine(FadeAudioSource(_skybreakWindSource, targetVol, duration));
     }
 
     void StopSkybreakWindAmbience()
     {
         if (_skybreakWindSource == null) return;
+        if (_skybreakWindFadeCo != null)
+            StopCoroutine(_skybreakWindFadeCo);
         if (_skybreakWindSource.isPlaying)
-            StartCoroutine(FadeOutAndStopWind());
+            _skybreakWindFadeCo = StartCoroutine(FadeOutAndStopWind());
         else
             _skybreakWindSource.volume = 0f;
     }
@@ -1282,6 +1299,11 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         SuppressAllSpeechAndBanners();
         SpawnSkybreakCracks(new Vector3(512f, 150f, 512f));
 
+        var cam = AdventureCameraFollow.InstanceOrFind();
+        if (cam != null)
+            cam.Shake(0.35f, 1.5f);
+
+        // 地上シーン中は上昇気流コライダーを作動させず、ダイブ入力（FinishCanopyScriptBeats）で起動する
         if (_hyperUpdraftGo != null)
             _hyperUpdraftGo.SetActive(false);
 

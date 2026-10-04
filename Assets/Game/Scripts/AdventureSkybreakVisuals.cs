@@ -861,14 +861,14 @@ public static class AdventureSkybreakVisuals
             _coldAtmosphereActive = true;
         }
 
-        // 1. 環境フォグ＆アンビエント（手前のNiko/Rustを決して隠さず、遠景のみ冷たく澄み渡るアイスブルー）
+        // 1. 環境フォグ＆アンビエント（手前のNiko/Rustが黒く潰れないようアンビエント光を明るく確保）
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
         RenderSettings.fogColor = new Color(0.70f, 0.84f, 0.98f);
         RenderSettings.fogDensity = 0.0018f;
-        RenderSettings.ambientLight = new Color(0.68f, 0.80f, 0.96f);
+        RenderSettings.ambientLight = new Color(0.78f, 0.86f, 0.98f);
 
-        // 2. 太陽光の特定と極寒化（青白く冴えた光）
+        // 2. 太陽光の特定と極寒化（青白く冴えつつ、暗部を潰さない明るさを維持）
         if (_cachedSun == null)
             _cachedSun = RenderSettings.sun;
         if (_cachedSun == null)
@@ -887,8 +887,8 @@ public static class AdventureSkybreakVisuals
         Color originalSunColor = new Color(1.0f, 0.94f, 0.80f); // 暖かく輝く黄金日光
         float originalSunIntensity = 2.25f; // 燦々と降り注ぐ力強い光量
 
-        Color coldSunColor = new Color(0.90f, 0.95f, 1.0f);
-        float coldSunIntensity = 1.75f;
+        Color coldSunColor = new Color(0.92f, 0.96f, 1.0f);
+        float coldSunIntensity = 2.05f;
 
         if (_cachedSun != null)
         {
@@ -910,20 +910,20 @@ public static class AdventureSkybreakVisuals
         if (!profile.TryGet<WhiteBalance>(out var wb))
             wb = profile.Add<WhiteBalance>(true);
         wb.temperature.overrideState = true;
-        wb.temperature.value = -35f; // 自然で澄んだ極寒色温度
+        wb.temperature.value = -30f; // 自然で澄んだ極寒色温度
         wb.tint.overrideState = true;
-        wb.tint.value = -5f;
+        wb.tint.value = -4f;
 
         if (!profile.TryGet<ColorAdjustments>(out var ca))
             ca = profile.Add<ColorAdjustments>(true);
         ca.saturation.overrideState = true;
-        ca.saturation.value = -18f; // 凍える空気の冷涼感
+        ca.saturation.value = -6f; // 金属本来の色を失わせない適度な冷涼感
         ca.contrast.overrideState = true;
-        ca.contrast.value = 12f; // NikoとRustがくっきりと浮き立つコントラスト
+        ca.contrast.value = 4f; // 影が黒く潰れない自然なコントラスト
         ca.postExposure.overrideState = true;
-        ca.postExposure.value = 0f;
+        ca.postExposure.value = 0.08f; // 全体の明度をわずかに底上げ
         ca.colorFilter.overrideState = true;
-        ca.colorFilter.value = new Color(0.90f, 0.95f, 1.0f);
+        ca.colorFilter.value = new Color(0.92f, 0.96f, 1.0f);
 
         // ダイヤモンドダストの強力なキラキラ発光を引き出すブルーム（輝きを最大限に強調）
         if (!profile.TryGet<Bloom>(out var bloom))
@@ -1633,20 +1633,20 @@ public static class AdventureSkybreakVisuals
                 }
             }
 
-            // 稲妻に連動した空の閃光
+            // 稲妻に連動した空の閃光（白飛びでタワーや風景が隠れないよう上品なアルファに調整）
             float flashA = 0f;
             float whiteA = 0f;
             for (int i = 0; i < strikeAt.Length; i++)
             {
-                flashA += SkyTearFlashEnvelope(t, strikeAt[i], strikeDur[i] * 1.8f, i % 2 == 0 ? 0.72f : 0.45f);
-                whiteA += SkyTearFlashEnvelope(t, strikeAt[i], Mathf.Min(0.08f, strikeDur[i]), 0.55f);
+                flashA += SkyTearFlashEnvelope(t, strikeAt[i], strikeDur[i] * 1.5f, i % 2 == 0 ? 0.35f : 0.22f);
+                whiteA += SkyTearFlashEnvelope(t, strikeAt[i], Mathf.Min(0.06f, strikeDur[i]), 0.16f);
             }
-            flashA += SkyTearFlashEnvelope(t, 2.6f, 1.2f, 0.14f);
-            flashA += SkyTearFlashEnvelope(t, 4.0f, 1.4f, 0.18f);
-            flashA += SkyTearFlashEnvelope(t, 5.2f, 0.9f, 0.12f);
-            flashA += SkyTearFlashEnvelope(t, 6.3f, 0.8f, 0.10f);
-            flashImg.color = new Color(0.78f, 0.92f, 1f, Mathf.Clamp01(flashA));
-            flashWhite.color = new Color(1f, 1f, 1f, Mathf.Clamp01(whiteA));
+            flashA += SkyTearFlashEnvelope(t, 2.6f, 1.2f, 0.08f);
+            flashA += SkyTearFlashEnvelope(t, 4.0f, 1.4f, 0.10f);
+            flashA += SkyTearFlashEnvelope(t, 5.2f, 0.9f, 0.08f);
+            flashA += SkyTearFlashEnvelope(t, 6.3f, 0.8f, 0.06f);
+            flashImg.color = new Color(0.78f, 0.92f, 1f, Mathf.Clamp(flashA, 0f, 0.38f));
+            flashWhite.color = new Color(1f, 1f, 1f, Mathf.Clamp(whiteA, 0f, 0.18f));
 
             if (coreLight != null)
             {
@@ -1908,6 +1908,126 @@ public static class AdventureSkybreakVisuals
 
         if (flashGo != null)
             Object.Destroy(flashGo);
+    }
+
+    static AudioSource _aftershockAudioSource;
+    static AudioClip _aftershockThunderClip;
+
+    /// <summary>
+    /// 白閃フラッシュや稲妻・スターダストを出さず、地面の揺れ（地震・カメラシェイク）と地鳴り音のみを再生する
+    /// </summary>
+    public static IEnumerator PlayGroundEarthquakeOnlyRoutine(float shakeIntensity = 0.35f, float duration = 1.2f, float volume = 0.55f)
+    {
+        var cam = AdventureCameraFollow.InstanceOrFind();
+        if (cam != null)
+            cam.Shake(shakeIntensity, duration);
+
+        PlayAftershockThunderSound(volume);
+        yield return null;
+    }
+
+    /// <summary>
+    /// 「ありがとうRust」以降〜光の柱へ飛び込むまでの持続的な稲妻・地震・雷鳴演出。
+    /// 最初の大崩壊ほどではないが、迫力ある中規模の地震と稲妻放電・雷鳴を発生させる。
+    /// </summary>
+    public static IEnumerator PlaySkybreakLightningAndEarthquakeRoutine(float shakeIntensity = 0.35f, float volume = 0.55f)
+    {
+        var cam = AdventureCameraFollow.InstanceOrFind();
+        if (cam != null)
+            cam.Shake(shakeIntensity, 1.4f);
+
+        // 雷鳴SEの再生
+        PlayAftershockThunderSound(volume);
+
+        // 画面フラッシュ
+        var flashGo = new GameObject("SkyTearAftershockFlashCanvas");
+        var canvas = flashGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 8850;
+        var scaler = flashGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280f, 720f);
+        var flashImg = CreateFullScreenImage(flashGo.transform, "AftershockFlash", new Color(0.82f, 0.94f, 1f, 0f));
+
+        // 空中に稲妻ボルトを走らせる
+        var lineSh = Shader.Find("Universal Render Pipeline/Unlit")
+                     ?? Shader.Find("Sprites/Default")
+                     ?? Shader.Find("Unlit/Color");
+        var player = AdventurePlayerController.InstanceOrFind();
+        Vector3 center = player != null ? player.transform.position : new Vector3(512f, 90f, 512f);
+        float yaw = Random.Range(-130f, 130f);
+        Vector3 startPos = center + Quaternion.Euler(0f, yaw, 0f) * new Vector3(Random.Range(-30f, 30f), Random.Range(40f, 70f), Random.Range(25f, 60f));
+        Vector3 endPos = startPos + new Vector3(Random.Range(-20f, 20f), -Random.Range(45f, 80f), Random.Range(-20f, 20f));
+
+        var boltGo = new GameObject("AftershockBoltRoot");
+        var bolt = CreateLightningBolt(boltGo.transform, lineSh, "AftershockBolt", startPos, endPos,
+            segments: 14, jag: 4.0f, coreWidth: 0.85f, glowWidth: 2.8f, branchChance: 0.35f);
+
+        // 点滅放電（バチバチッ！）
+        SetLightningVisible(bolt, true);
+        flashImg.color = new Color(0.85f, 0.95f, 1f, 0.32f);
+        yield return new WaitForSeconds(0.06f);
+
+        SetLightningVisible(bolt, false);
+        flashImg.color = new Color(0.85f, 0.95f, 1f, 0.08f);
+        yield return new WaitForSeconds(0.03f);
+
+        SetLightningVisible(bolt, true);
+        flashImg.color = new Color(0.85f, 0.95f, 1f, 0.28f);
+        yield return new WaitForSeconds(0.05f);
+
+        SetLightningVisible(bolt, false);
+
+        // フラッシュフェード
+        float fadeT = 0f;
+        while (fadeT < 0.35f)
+        {
+            fadeT += Time.unscaledDeltaTime;
+            float a = 1f - Mathf.Clamp01(fadeT / 0.35f);
+            flashImg.color = new Color(0.85f, 0.95f, 1f, a * 0.22f);
+            yield return null;
+        }
+
+        if (boltGo != null) Object.Destroy(boltGo);
+        if (flashGo != null) Object.Destroy(flashGo);
+    }
+
+    static void PlayAftershockThunderSound(float volume)
+    {
+        if (_aftershockThunderClip == null)
+            _aftershockThunderClip = SynthesizeAftershockThunderClip();
+
+        if (_aftershockAudioSource == null || _aftershockAudioSource.gameObject == null)
+        {
+            var go = new GameObject("AftershockThunderAudio");
+            _aftershockAudioSource = go.AddComponent<AudioSource>();
+            _aftershockAudioSource.spatialBlend = 0f;
+        }
+
+        if (_aftershockAudioSource != null && _aftershockThunderClip != null)
+        {
+            _aftershockAudioSource.pitch = Random.Range(0.88f, 1.12f);
+            _aftershockAudioSource.PlayOneShot(_aftershockThunderClip, Mathf.Clamp01(volume));
+        }
+    }
+
+    static AudioClip SynthesizeAftershockThunderClip()
+    {
+        const int rate = 22050;
+        int count = (int)(rate * 1.6f);
+        float[] data = new float[count];
+        float lp = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float env = Mathf.Exp(-t * 2.0f) * (1f + 0.35f * Mathf.Sin(t * 14f));
+            float noise = (Random.value * 2f - 1f);
+            lp += (noise - lp) * 0.09f;
+            data[i] = Mathf.Clamp(lp * env * 0.85f, -1f, 1f);
+        }
+        var clip = AudioClip.Create("AftershockThunder", count, 1, rate, false);
+        clip.SetData(data, 0);
+        return clip;
     }
 
     #endregion

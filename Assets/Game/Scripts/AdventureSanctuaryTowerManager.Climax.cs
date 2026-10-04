@@ -19,6 +19,7 @@ public partial class AdventureSanctuaryTowerManager
         _oilHoldTimer = 0f;
         _climaxBeatIndex = 0;
         _scriptHoldTimer = 0f;
+        _scriptRequireInputRelease = true; // 光の柱上昇の長押しが残って最初の「限界高度」を即スキップするのを防止
         _suppressClimax = false;
         _ignoreSavedCanopyState = false;
 
@@ -26,7 +27,16 @@ public partial class AdventureSanctuaryTowerManager
         var player = GetPlayer();
 
         SetCinematicCamera(true);
+        EnsureCinematicLetterbox();
+        if (_letterboxRoot != null)
+        {
+            _letterboxRoot.SetActive(true);
+            if (_letterboxCg != null) _letterboxCg.alpha = 1f;
+        }
+        _letterboxTargetAlpha = 1f;
         SetExplorationHudVisible(false);
+        if (_scriptUiRoot != null) _scriptUiRoot.SetActive(false);
+
         SpawnWildernessPanorama(coldCrisis: true);
         ApplySkybreakColdAtmosphere();
 
@@ -54,7 +64,7 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         PresentClimaxBeat(0);
-        Debug.Log("[RustAndFloat] クライマックスを Update 駆動で開始");
+        Debug.Log("[RustAndFloat] クライマックス（スクリーンスクリプト）を Update 駆動で開始");
     }
 
     void PresentClimaxBeat(int index)
@@ -74,11 +84,13 @@ public partial class AdventureSanctuaryTowerManager
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         Time.timeScale = 1f;
+
         EnsureEventSystemForUi();
-        EnsureScriptBoardUI();
-        ApplyScriptBoardUI();
-        if (_scriptHintUi != null)
-            _scriptHintUi.text = "【Space長押し / クリック】つづき";
+        // 中央ボードは出さず、スクリーンスクリプト（シネマ字幕）として映画のように表示
+        if (_scriptUiRoot != null)
+            _scriptUiRoot.SetActive(false);
+
+        SetScreenScriptSubtitle(beat.Title, beat.Speaker, beat.Body, beat.Accent, false);
 
         // 台本1（警告）：そばで震え始める
         // 台本2（気流が冷たい）：力なく落ちていく
@@ -89,7 +101,7 @@ public partial class AdventureSanctuaryTowerManager
                 droneFall.BeginClimaxColdFallAway();
         }
 
-        // 台本12：全出力セリフと同時にオーバードライブ演出
+        // 台本（ピピッ！……ありがとう、Niko！）：全出力セリフと同時にオーバードライブ演出
         if (index == ClimaxOilSlot + 1)
         {
             var drone = GetDrone();
@@ -106,6 +118,8 @@ public partial class AdventureSanctuaryTowerManager
 
             SpawnWildernessPanorama(coldCrisis: false);
             SoftenSkybreakColdAtmosphere();
+            // 「ありがとう、Niko！」からは風の音を控えめ（0.45f -> 0.18f）に下げてBGMとセリフを引き立てる
+            SetSkybreakWindVolume(0.18f, 1.4f);
             StartCoroutine(AdventureSkybreakVisuals.BreakthroughFlashRoutine());
             AdventureMusicDirector.Ensure();
             AdventureMusicDirector.Instance?.TriggerSkybreakOverdriveDrop();
@@ -124,6 +138,7 @@ public partial class AdventureSanctuaryTowerManager
         _scriptBoardTitle = "";
         _scriptBoardSpeaker = "";
         _scriptBoardBody = "";
+        ClearFilmSubtitle();
         if (_scriptUiRoot != null)
             _scriptUiRoot.SetActive(false);
 
@@ -202,9 +217,11 @@ public partial class AdventureSanctuaryTowerManager
             }
         }
 
-        // 注油後の最初のセリフは最低2.2秒見せる。最終セリフ「全力」は誤爆スキップ防止のため最低5.0秒保持
+        // 限界高度（初手）は最低2.0秒保持して確実に読ませる。注油後の最初のセリフは最低2.2秒。最終セリフは最低5.0秒。
         float minHoldOpen = 0.35f;
-        if (postOilBeat && _climaxBeatIndex == ClimaxOilSlot)
+        if (_climaxBeatIndex == 0)
+            minHoldOpen = 2.0f;
+        else if (postOilBeat && _climaxBeatIndex == ClimaxOilSlot)
             minHoldOpen = 2.2f;
         else if (postOilBeat && _climaxBeatIndex > ClimaxOilSlot)
             minHoldOpen = 5.0f;
@@ -295,11 +312,22 @@ public partial class AdventureSanctuaryTowerManager
 
         bool holding = IsDiveConfirmHeld();
         if (holding)
-            _oilHoldTimer += Time.unscaledDeltaTime;
+        {
+            if (_oilHoldFrame != Time.frameCount)
+            {
+                _oilHoldFrame = Time.frameCount;
+                _oilHoldTimer += Time.unscaledDeltaTime;
+            }
+        }
         else
-            _oilHoldTimer = Mathf.Max(0f, _oilHoldTimer - Time.unscaledDeltaTime * 1.1f);
+        {
+            if (_oilHoldFrame != Time.frameCount)
+            {
+                _oilHoldTimer = Mathf.Max(0f, _oilHoldTimer - Time.unscaledDeltaTime * 0.75f);
+            }
+        }
 
-        if (Time.unscaledTime - _oilWaitOpenedAt >= 8f)
+        if (Time.unscaledTime - _oilWaitOpenedAt >= 10f)
             _oilHoldTimer = OilHoldRequired;
 
         RefreshOilPromptUI();
@@ -308,10 +336,12 @@ public partial class AdventureSanctuaryTowerManager
             CompleteClimaxOil();
     }
 
-    /// <summary>外部／プレイヤーから注油ホールドを加算</summary>
+    /// <summary>外部／プレイヤーから注油ホールドを加算（同一フレームでの多重加算を防止）</summary>
     public void NotifyOilHold(float dt)
     {
-        if (!IsClimaxOilPromptActive) return;
+        if (!IsClimaxOilPromptActive || _climaxOilInjected) return;
+        if (_oilHoldFrame == Time.frameCount) return;
+        _oilHoldFrame = Time.frameCount;
         _oilHoldTimer += Mathf.Max(0f, dt);
         if (_oilHoldTimer >= OilHoldRequired)
             CompleteClimaxOil();
@@ -402,47 +432,64 @@ public partial class AdventureSanctuaryTowerManager
         var canvasGo = new GameObject("ClimaxOilPromptCanvas");
         var canvas = canvasGo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 5200;
+        canvas.sortingOrder = 9600; // レターボックス(9500)より手前に確実に表示
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1280f, 720f);
         canvasGo.AddComponent<GraphicRaycaster>();
 
-        // 上下レターボックス
-        CreateOilBar(canvasGo.transform, true);
-        CreateOilBar(canvasGo.transform, false);
-
         var panelGo = new GameObject("Panel");
         panelGo.transform.SetParent(canvasGo.transform, false);
         var panelRt = panelGo.AddComponent<RectTransform>();
-        panelRt.anchorMin = panelRt.anchorMax = new Vector2(0.5f, 0.5f);
-        panelRt.sizeDelta = new Vector2(860f, 320f);
+        panelRt.anchorMin = panelRt.anchorMax = new Vector2(0.5f, 0f); // 画面下部アンカー
+        panelRt.pivot = new Vector2(0.5f, 0f);
+        panelRt.anchoredPosition = new Vector2(0f, 48f); // 画面下部に配置し、中央〜上部の2人の飛行アクションを完全にクリアに見せる
+        panelRt.sizeDelta = new Vector2(760f, 210f);
         var panelImg = panelGo.AddComponent<Image>();
-        panelImg.color = new Color(0.02f, 0.05f, 0.10f, 0.96f);
+        panelImg.color = new Color(0.01f, 0.03f, 0.08f, 0.22f); // 大幅に透明化（22%）：背後のRustの動き・空・稲妻がしっかり透ける
         panelImg.raycastTarget = true;
         var panelBtn = panelGo.AddComponent<Button>();
         panelBtn.targetGraphic = panelImg;
         panelBtn.transition = Selectable.Transition.None;
-        // 押し続け判定は Update 側。ここでは見た目用
 
-        _oilTitleUi = MakeScriptText(panelGo.transform, "OilTitle", new Vector2(0f, -24f), new Vector2(0.5f, 1f), new Vector2(800f, 40f), 30, TextAnchor.MiddleCenter, font);
-        _oilTitleUi.color = new Color(1f, 0.82f, 0.42f, 1f);
+        // 繊細な氷晶ゴールド枠線（半透明でも境界が綺麗に際立つ）
+        var borderOutline = panelGo.AddComponent<Outline>();
+        borderOutline.effectColor = new Color(0.75f, 0.88f, 1f, 0.35f);
+        borderOutline.effectDistance = new Vector2(1f, -1f);
+
+        // 左側アクセントバー（シースルーに馴染む細ライン）
+        var accGo = new GameObject("Accent");
+        accGo.transform.SetParent(panelGo.transform, false);
+        var accRt = accGo.AddComponent<RectTransform>();
+        accRt.anchorMin = new Vector2(0f, 0f);
+        accRt.anchorMax = new Vector2(0f, 1f);
+        accRt.pivot = new Vector2(0f, 0.5f);
+        accRt.sizeDelta = new Vector2(4f, 0f);
+        accRt.anchoredPosition = Vector2.zero;
+        var accImg = accGo.AddComponent<Image>();
+        accImg.color = new Color(1f, 0.85f, 0.35f, 0.75f);
+        accImg.raycastTarget = false;
+
+        _oilTitleUi = MakeScriptText(panelGo.transform, "OilTitle", new Vector2(0f, -12f), new Vector2(0.5f, 1f), new Vector2(720f, 32f), 24, TextAnchor.MiddleCenter, font);
+        _oilTitleUi.color = new Color(1f, 0.88f, 0.40f, 1f);
         _oilTitleUi.text = SkyLimitWarning;
-        PrepareFontForText(font, _oilTitleUi.text, 30, FontStyle.Bold);
+        PrepareFontForText(font, _oilTitleUi.text, 24, FontStyle.Bold);
 
-        _oilPromptUi = MakeScriptText(panelGo.transform, "OilPrompt", new Vector2(0f, 10f), new Vector2(0.5f, 0.5f), new Vector2(780f, 140f), 25, TextAnchor.MiddleCenter, font);
-        _oilPromptUi.color = new Color(1f, 0.95f, 0.75f, 1f);
-        _oilPromptUi.text = "極寒の気流でRustのギアが凍りつく……！\n集めた常備油を心臓部へ注ぎ込め！\n【E / Space / クリック長押し】";
-        PrepareFontForText(font, _oilPromptUi.text, 25);
+        _oilPromptUi = MakeScriptText(panelGo.transform, "OilPrompt", new Vector2(0f, -46f), new Vector2(0.5f, 1f), new Vector2(720f, 54f), 19, TextAnchor.MiddleCenter, font);
+        _oilPromptUi.color = new Color(1f, 0.96f, 0.88f, 1f);
+        _oilPromptUi.text = "極寒の気流でRustのギアが凍りつく……！\n集めた常備油を心臓部へ注ぎ込め！\n【 E / Space / クリック長押し 】";
+        _oilPromptUi.lineSpacing = 1.18f;
+        PrepareFontForText(font, _oilPromptUi.text, 19);
 
         var gaugeBgGo = new GameObject("GaugeBg");
         gaugeBgGo.transform.SetParent(panelGo.transform, false);
         var gaugeBgRt = gaugeBgGo.AddComponent<RectTransform>();
         gaugeBgRt.anchorMin = gaugeBgRt.anchorMax = new Vector2(0.5f, 0f);
-        gaugeBgRt.anchoredPosition = new Vector2(0f, 36f);
-        gaugeBgRt.sizeDelta = new Vector2(640f, 28f);
+        gaugeBgRt.pivot = new Vector2(0.5f, 0f);
+        gaugeBgRt.anchoredPosition = new Vector2(0f, 58f);
+        gaugeBgRt.sizeDelta = new Vector2(600f, 18f);
         var gaugeBgImg = gaugeBgGo.AddComponent<Image>();
-        gaugeBgImg.color = new Color(0.12f, 0.16f, 0.22f, 0.95f);
+        gaugeBgImg.color = new Color(0.06f, 0.10f, 0.18f, 0.45f); // 半透明背景
 
         var gaugeFillGo = new GameObject("GaugeFill");
         gaugeFillGo.transform.SetParent(gaugeBgGo.transform, false);
@@ -456,20 +503,21 @@ public partial class AdventureSanctuaryTowerManager
         _oilGaugeFill.color = new Color(1f, 0.82f, 0.22f, 1f);
 
         var holdGo = new GameObject("HoldBtn");
-        holdGo.transform.SetParent(canvasGo.transform, false);
+        holdGo.transform.SetParent(panelGo.transform, false);
         var holdRt = holdGo.AddComponent<RectTransform>();
         holdRt.anchorMin = holdRt.anchorMax = new Vector2(0.5f, 0f);
-        holdRt.anchoredPosition = new Vector2(0f, 88f);
-        holdRt.sizeDelta = new Vector2(640f, 64f);
+        holdRt.pivot = new Vector2(0.5f, 0f);
+        holdRt.anchoredPosition = new Vector2(0f, 12f);
+        holdRt.sizeDelta = new Vector2(600f, 40f);
         var holdImg = holdGo.AddComponent<Image>();
-        holdImg.color = new Color(0.95f, 0.75f, 0.2f, 0.95f);
+        holdImg.color = new Color(0.95f, 0.78f, 0.25f, 0.82f);
         _oilHoldBtn = holdGo.AddComponent<Button>();
         _oilHoldBtn.targetGraphic = holdImg;
         _oilHoldBtn.transition = Selectable.Transition.None;
-        _oilHoldLabelUi = MakeScriptText(holdGo.transform, "HoldLabel", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(600f, 56f), 26, TextAnchor.MiddleCenter, font);
+        _oilHoldLabelUi = MakeScriptText(holdGo.transform, "HoldLabel", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(560f, 36f), 19, TextAnchor.MiddleCenter, font);
         _oilHoldLabelUi.color = new Color(0.12f, 0.08f, 0.02f, 1f);
         _oilHoldLabelUi.text = "【長押しで注油】Rustを温める";
-        PrepareFontForText(font, _oilHoldLabelUi.text, 26, FontStyle.Bold);
+        PrepareFontForText(font, _oilHoldLabelUi.text, 19, FontStyle.Bold);
 
         _oilUiRoot = canvasGo;
         RefreshOilPromptUI();

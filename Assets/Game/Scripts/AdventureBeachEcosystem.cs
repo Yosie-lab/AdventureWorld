@@ -10,7 +10,7 @@ public class AdventureBeachEcosystem : MonoBehaviour
 {
     public static AdventureBeachEcosystem Instance { get; private set; }
 
-    const float SeaLevel = 5.95f;
+    const float SeaLevel = 5.50f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void AutoInit()
@@ -56,13 +56,13 @@ public class AdventureBeachEcosystem : MonoBehaviour
         var root = new GameObject("Beach_Ecosystem_Root");
         var land = Terrain.activeTerrain;
 
-        // 1. サンゴ礁＆海草クラスタ（西側海岸の浅瀬、岩場周辺）
+        // 1. サンゴ礁＆海草クラスタ（西側海岸の浅瀬、岩場周辺。陸地から十分に離れた海中）
         Vector3[] reefCenters =
         {
-            new Vector3(145f, 0f, 265f), // 座礁艇の沖合浅瀬
-            new Vector3(138f, 0f, 315f), // 焚き火沖合
-            new Vector3(158f, 0f, 215f), // 南西岬沖
-            new Vector3(130f, 0f, 360f)  // 北西浅瀬
+            new Vector3(141f, 0f, 265f), // 座礁艇の沖合浅瀬
+            new Vector3(134f, 0f, 315f), // 焚き火沖合
+            new Vector3(153f, 0f, 215f), // 南西岬沖
+            new Vector3(126f, 0f, 360f)  // 北西浅瀬
         };
 
         for (int i = 0; i < reefCenters.Length; i++)
@@ -74,12 +74,12 @@ public class AdventureBeachEcosystem : MonoBehaviour
             SpawnCoralReefCluster(root.transform, center, i);
         }
 
-        // 2. 小魚の群れ（銀色に光る小魚）
+        // 2. 小魚の群れ（銀色に光る小魚。確実に海中を泳ぐよう沖合へ配置）
         Vector3[] schoolAnchors =
         {
-            new Vector3(148f, 5.2f, 258f),
-            new Vector3(140f, 5.1f, 305f),
-            new Vector3(132f, 5.0f, 348f)
+            new Vector3(141f, 5.0f, 258f),
+            new Vector3(135f, 4.9f, 305f),
+            new Vector3(128f, 4.8f, 348f)
         };
 
         for (int s = 0; s < schoolAnchors.Length; s++)

@@ -142,6 +142,8 @@ public class AdventurePauseMenu : MonoBehaviour
                 if (AdventureRustWorkshopUI.IsOpen) return;
                 if (AdventureBeachDriftBox.IsModalOpen) return;
                 if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal) return;
+                if (AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen()) return;
+                if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening) return;
             }
 
             // 確認モーダルが開いている場合は先に確認モーダルを閉じる

@@ -47,7 +47,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         // 採取判定コライダー
         var col = gameObject.AddComponent<SphereCollider>();
         col.isTrigger = true;
-        col.radius = 2.4f;
+        col.radius = 2.8f;
     }
 
     void Start()
@@ -113,42 +113,47 @@ public class AdventureBeachSeashellItem : MonoBehaviour
 
         var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
         var mat = new Material(shader);
+        mat.EnableKeyword("_EMISSION");
 
         switch (kind)
         {
             case ShellKind.Sakuragai:
                 itemName = "桜色のサクラガイ";
                 rustReaction = "わぁ、花びらみたいな貝殻だね！";
-                themeColor = new Color(1f, 0.72f, 0.82f, 1f);
-                mat.color = new Color(1f, 0.82f, 0.88f, 0.95f);
-                mat.SetFloat("_Smoothness", 0.85f);
+                themeColor = new Color(1f, 0.72f, 0.85f, 1f);
+                mat.color = new Color(1f, 0.78f, 0.88f, 0.95f);
+                mat.SetColor("_EmissionColor", new Color(1f, 0.65f, 0.80f) * 0.40f);
+                mat.SetFloat("_Smoothness", 0.90f);
                 CreateShellMesh(vGo.transform, mat, isSakura: true);
                 break;
 
             case ShellKind.SeaGlassEmerald:
                 itemName = "エメラルド・シーグラス";
                 rustReaction = "波に磨かれて角がすべすべだ！宝石みたい…！";
-                themeColor = new Color(0.25f, 0.95f, 0.65f, 1f);
-                mat.color = new Color(0.35f, 0.88f, 0.65f, 0.92f);
-                mat.SetFloat("_Smoothness", 0.92f);
+                themeColor = new Color(0.20f, 0.98f, 0.65f, 1f);
+                mat.color = new Color(0.25f, 0.92f, 0.65f, 0.92f);
+                mat.SetColor("_EmissionColor", new Color(0.15f, 0.95f, 0.55f) * 0.48f);
+                mat.SetFloat("_Smoothness", 0.95f);
                 CreateGlassMesh(vGo.transform, mat);
                 break;
 
             case ShellKind.SeaGlassSapphire:
                 itemName = "サファイア・シーグラス";
                 rustReaction = "深海みたいな綺麗な青色！空に透かすとキラキラするよ！";
-                themeColor = new Color(0.35f, 0.78f, 1f, 1f);
-                mat.color = new Color(0.25f, 0.68f, 0.95f, 0.92f);
-                mat.SetFloat("_Smoothness", 0.95f);
+                themeColor = new Color(0.30f, 0.80f, 1f, 1f);
+                mat.color = new Color(0.20f, 0.72f, 0.98f, 0.92f);
+                mat.SetColor("_EmissionColor", new Color(0.20f, 0.75f, 1f) * 0.52f);
+                mat.SetFloat("_Smoothness", 0.96f);
                 CreateGlassMesh(vGo.transform, mat);
                 break;
 
             case ShellKind.AmberPebble:
                 itemName = "太陽の小琥珀";
                 rustReaction = "黄金色に光ってる…！昔の太陽の光を閉じ込めたみたい！";
-                themeColor = new Color(1f, 0.82f, 0.25f, 1f);
-                mat.color = new Color(1f, 0.78f, 0.20f, 0.95f);
-                mat.SetFloat("_Smoothness", 0.90f);
+                themeColor = new Color(1f, 0.85f, 0.25f, 1f);
+                mat.color = new Color(1f, 0.80f, 0.18f, 0.95f);
+                mat.SetColor("_EmissionColor", new Color(1f, 0.78f, 0.20f) * 0.45f);
+                mat.SetFloat("_Smoothness", 0.92f);
                 CreateAmberMesh(vGo.transform, mat);
                 break;
 
@@ -156,8 +161,9 @@ public class AdventureBeachSeashellItem : MonoBehaviour
                 itemName = "純白の小巻貝";
                 rustReaction = "耳を当ててみて、Niko！遠くの波の音が聞こえるよ！";
                 themeColor = new Color(0.95f, 0.98f, 1f, 1f);
-                mat.color = new Color(0.96f, 0.95f, 0.90f, 1f);
-                mat.SetFloat("_Smoothness", 0.75f);
+                mat.color = new Color(0.98f, 0.97f, 0.92f, 1f);
+                mat.SetColor("_EmissionColor", new Color(0.90f, 0.95f, 1f) * 0.35f);
+                mat.SetFloat("_Smoothness", 0.85f);
                 CreateSpiralMesh(vGo.transform, mat);
                 break;
         }
@@ -170,7 +176,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     {
         var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         sphere.transform.SetParent(parent, false);
-        sphere.transform.localScale = new Vector3(0.18f, 0.035f, 0.22f);
+        sphere.transform.localScale = new Vector3(0.26f, 0.055f, 0.32f); // 約1.5倍に拡大し砂に埋もれずコロンと目立つ
         sphere.GetComponent<Renderer>().material = mat;
         Destroy(sphere.GetComponent<Collider>());
     }
@@ -179,7 +185,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     {
         var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
         cube.transform.SetParent(parent, false);
-        cube.transform.localScale = new Vector3(0.14f, 0.05f, 0.16f);
+        cube.transform.localScale = new Vector3(0.22f, 0.08f, 0.24f); // 宝石のように立体的に光る
         cube.transform.localRotation = Quaternion.Euler(15f, 30f, 10f);
         cube.GetComponent<Renderer>().material = mat;
         Destroy(cube.GetComponent<Collider>());
@@ -189,7 +195,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     {
         var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         sphere.transform.SetParent(parent, false);
-        sphere.transform.localScale = new Vector3(0.13f, 0.09f, 0.15f);
+        sphere.transform.localScale = new Vector3(0.20f, 0.14f, 0.22f);
         sphere.GetComponent<Renderer>().material = mat;
         Destroy(sphere.GetComponent<Collider>());
     }
@@ -198,7 +204,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     {
         var cap = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         cap.transform.SetParent(parent, false);
-        cap.transform.localScale = new Vector3(0.08f, 0.16f, 0.08f);
+        cap.transform.localScale = new Vector3(0.13f, 0.26f, 0.13f);
         cap.transform.localRotation = Quaternion.Euler(0f, 0f, 65f);
         cap.GetComponent<Renderer>().material = mat;
         Destroy(cap.GetComponent<Collider>());
@@ -210,29 +216,29 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     {
         var psGo = new GameObject("Sparkles");
         psGo.transform.SetParent(transform, false);
-        psGo.transform.localPosition = Vector3.up * 0.12f;
+        psGo.transform.localPosition = Vector3.up * 0.14f;
 
         _sparklePs = psGo.AddComponent<ParticleSystem>();
         var main = _sparklePs.main;
-        main.startLifetime = 1.2f;
-        main.startSpeed = 0.18f;
-        main.startSize = 0.08f;
+        main.startLifetime = 1.6f;
+        main.startSpeed = 0.26f;
+        main.startSize = 0.16f; // キラキラ粒子のサイズ倍増
         main.startColor = themeColor;
         main.loop = true;
 
         var emission = _sparklePs.emission;
-        emission.rateOverTime = 2.5f;
+        emission.rateOverTime = 4.5f; // 発生頻度を強化
 
         var shape = _sparklePs.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.22f;
+        shape.radius = 0.28f;
 
         var colOverLifetime = _sparklePs.colorOverLifetime;
         colOverLifetime.enabled = true;
         var grad = new Gradient();
         grad.SetKeys(
             new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(themeColor, 0.6f) },
-            new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.85f, 0.4f), new GradientAlphaKey(0f, 1f) }
+            new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.95f, 0.35f), new GradientAlphaKey(0f, 1f) }
         );
         colOverLifetime.color = grad;
 
@@ -294,8 +300,15 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         var p = AdventurePlayerController.Instance;
         if (p != null)
         {
+            // オープニングボード表示中やプロローグ目覚め中は採取・プロンプトを完全停止
+            if (ShouldSuppressInteraction())
+            {
+                _isPlayerNear = false;
+                return;
+            }
+
             float dist = Vector3.Distance(transform.position, p.transform.position);
-            _isPlayerNear = (dist < 2.3f);
+            _isPlayerNear = (dist < 2.8f);
 
             if (_isPlayerNear)
             {
@@ -312,6 +325,15 @@ public class AdventureBeachSeashellItem : MonoBehaviour
                 }
             }
         }
+    }
+
+    static bool ShouldSuppressInteraction()
+    {
+        if (!AdventureRustFloatOpening.IsGameStarted) return true;
+        if (AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen()) return true;
+        if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening) return true;
+        if (AdventurePauseMenu.IsOpen) return true;
+        return false;
     }
 
     void StartCollecting()
@@ -367,7 +389,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
 
     void OnGUI()
     {
-        if (_isCollected || _isCollecting || !_isPlayerNear || AdventurePauseMenu.IsOpen) return;
+        if (_isCollected || _isCollecting || !_isPlayerNear || ShouldSuppressInteraction()) return;
 
         // 採取プロンプトHUD（画面内スクリーン座標に小さく「【E】拾う」）
         var cam = Camera.main;

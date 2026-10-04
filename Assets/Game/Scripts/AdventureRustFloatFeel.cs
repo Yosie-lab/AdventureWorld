@@ -10,11 +10,26 @@ public static class AdventureRustFloatFeel
     public const float SeaLevel = 5.50f;
 
     // ── 地上移動 ──
-    public const float WalkSpeed = 10.2f;
+    public const float InitialWalkSpeed = 5.7f;       // スタート時（0ポイント）の歩行速度
+    public const float TargetWalkSpeed = 10.2f;       // 15ポイント到達時の目標歩行速度（現在の歩行速度）
+    public const int SpeedProgressMaxPoints = 15;      // 歩行速度が最大に達するポイント数
+    public const float WalkSpeed = TargetWalkSpeed;   // 後方互換用
     public const float RunSpeed = 16.0f;
     public const float DashRunSpeed = 18.5f;
     public const float TurnSpeed = 40f;
     public const float DashTurnSpeed = 48f;
+
+    /// <summary>探索ポイント数（0〜15pt）に応じたNikoの歩行速度を計算（15pt以上は現在の最高速度10.2fを維持）</summary>
+    public static float GetProgressWalkSpeed(int totalPoints)
+    {
+        if (totalPoints >= SpeedProgressMaxPoints)
+            return TargetWalkSpeed;
+        if (totalPoints <= 0)
+            return InitialWalkSpeed;
+
+        float t = Mathf.Clamp01((float)totalPoints / SpeedProgressMaxPoints);
+        return Mathf.Lerp(InitialWalkSpeed, TargetWalkSpeed, t);
+    }
 
     /// <summary>立ち止まり→歩き出しの一瞬ブースト</summary>
     public const float StartupBoostMul = 1.55f;
@@ -45,7 +60,8 @@ public static class AdventureRustFloatFeel
     public static void ApplyLocomotionSpeeds(AdventurePlayerController player)
     {
         if (player == null) return;
-        player.walkSpeed = WalkSpeed;
+        int pts = AdventureScrapManager.Instance != null ? AdventureScrapManager.Instance.TotalProgressPoints : 0;
+        player.walkSpeed = GetProgressWalkSpeed(pts);
         player.runSpeed = RunSpeed;
         player.turnSpeed = TurnSpeed;
     }

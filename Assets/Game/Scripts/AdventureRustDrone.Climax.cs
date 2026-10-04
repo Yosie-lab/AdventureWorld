@@ -181,11 +181,16 @@ public partial class AdventureRustDrone
             if (face.sqrMagnitude > 0.01f)
                 transform.rotation = Quaternion.LookRotation(face.normalized);
         }
+
+        // レバー操作後のシネマ中、Rustが暗がりで黒く沈まないよう温かいフィルライトを点灯
+        EnsureClimaxEyeLight(new Color(1f, 0.88f, 0.6f), 1.8f);
     }
 
     public void StopSkybreakNestle()
     {
         _skybreakNestle = false;
+        if (_climaxEyeLight != null && !IsClimaxCrisis && !_climaxHealing && !IsClimaxOverdrive)
+            _climaxEyeLight.enabled = false;
         if (CurrentState == RustState.Petting && !IsClimaxCrisis && !_climaxHealing && !_prologueDistress)
         {
             CurrentState = RustState.Follow;
@@ -248,8 +253,12 @@ public partial class AdventureRustDrone
         {
             _savedEmission = _bodyMat.GetColor("_EmissionColor");
             _bodyMat.EnableKeyword("_EMISSION");
-            _bodyMat.SetColor("_EmissionColor", new Color(0.15f, 0.35f, 0.55f) * 0.4f);
+            // 暗い黒色ではなく、凍結したことが美しく分かる青白いフロスト発光
+            _bodyMat.SetColor("_EmissionColor", new Color(0.35f, 0.75f, 1.0f) * 0.85f);
         }
+
+        // 凍結中も暗部に沈まないよう、冷たい青白い光を灯す
+        EnsureClimaxEyeLight(new Color(0.45f, 0.80f, 1.0f), 1.6f);
 
         SpawnClimaxIceFx();
         SpawnClimaxSparkFx();

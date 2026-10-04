@@ -9,6 +9,47 @@ public partial class AdventureSanctuaryTowerManager
 {
     #region 5. 天蓋開放台本ビート制御
 
+    void SetScreenScriptSubtitle(string title, string speaker, string body, Color accent, bool isPrompt = false)
+    {
+        EnsureCinematicLetterbox();
+        if (_filmSubtitleUi == null)
+            BuildFilmSubtitleOnLetterbox();
+
+        if (_letterboxRoot != null && !_letterboxRoot.activeSelf)
+            _letterboxRoot.SetActive(true);
+        if (_letterboxCg != null)
+            _letterboxCg.alpha = 1f;
+        _letterboxTargetAlpha = 1f;
+
+        if (_filmSubtitleUi == null) return;
+
+        Font font = ResolveEpilogueFont();
+        if (font != null) _filmSubtitleUi.font = font;
+
+        if (isPrompt)
+        {
+            _filmSubtitleUi.text = "<size=30><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 空の裂け目へダイブ！</size>";
+        }
+        else if (!string.IsNullOrEmpty(speaker))
+        {
+            string hex = ColorUtility.ToHtmlStringRGBA(accent);
+            _filmSubtitleUi.text = $"<color=#{hex}><b>{speaker}</b></color> 「{body}」";
+        }
+        else if (!string.IsNullOrEmpty(title))
+        {
+            string hex = ColorUtility.ToHtmlStringRGBA(accent);
+            _filmSubtitleUi.text = $"<color=#{hex}><b>✦ {title} ✦</b></color>\n{body}";
+        }
+        else
+        {
+            string hex = ColorUtility.ToHtmlStringRGBA(accent);
+            _filmSubtitleUi.text = $"<color=#{hex}>{body}</color>";
+        }
+
+        _filmSubtitleUi.color = Color.white;
+        _filmSubtitleUi.transform.localScale = Vector3.one;
+    }
+
     void BeginCanopyScriptBeats()
     {
         _suppressClimax = true;
@@ -32,6 +73,19 @@ public partial class AdventureSanctuaryTowerManager
         SpawnWildernessPanorama(coldCrisis: true);
         ApplySkybreakColdAtmosphere();
 
+        EnsureCinematicLetterbox();
+        if (_letterboxRoot != null)
+        {
+            _letterboxRoot.SetActive(true);
+            if (_letterboxCg != null) _letterboxCg.alpha = 1f;
+        }
+        _letterboxTargetAlpha = 1f;
+        SetExplorationHudVisible(false);
+
+        // 中央ボードは出さずに完全スクリーンスクリプト（シネマ字幕）で進行
+        if (_scriptUiRoot != null)
+            _scriptUiRoot.SetActive(false);
+
         // ピアノが鳴っていたら2秒かけてフェードアウト＆ダッキング解除
         var piano = AdventureAncientPianoRelic.Instance ?? Object.FindAnyObjectByType<AdventureAncientPianoRelic>();
         if (piano != null)
@@ -47,7 +101,7 @@ public partial class AdventureSanctuaryTowerManager
         _canopyBeatIndex = 0;
         _skyTearPlayed = false;
         PresentCanopyBeat(0);
-        Debug.Log("[RustAndFloat] 天蓋台本を Update 駆動で開始（全" + CanopyBeats.Length + "枚）");
+        Debug.Log("[RustAndFloat] 天蓋スクリーンスクリプト（シネマ字幕）を Update 駆動で開始（全" + CanopyBeats.Length + "枚）");
     }
 
     void PresentCanopyBeat(int index)
@@ -70,15 +124,11 @@ public partial class AdventureSanctuaryTowerManager
         Time.timeScale = 1f;
 
         EnsureEventSystemForUi();
-        EnsureScriptBoardUI();
-        ApplyScriptBoardUI();
+        // 中央ボードは出さず、スクリーンスクリプト（シネマ字幕）として映画のように表示
+        if (_scriptUiRoot != null)
+            _scriptUiRoot.SetActive(false);
 
-        if (_scriptHintUi != null)
-        {
-            _scriptHintUi.text = beat.IsDive
-                ? "【Space長押し / クリック】ダイブ！"
-                : "【Space長押し / クリック】つづき";
-        }
+        SetScreenScriptSubtitle(beat.Title, beat.Speaker, beat.Body, beat.Accent, beat.IsDive);
 
         // 「空が……割れるよ」で天空裂開シーン
         if (index == 2 && !_skyTearPlayed)
@@ -89,27 +139,45 @@ public partial class AdventureSanctuaryTowerManager
             StartCoroutine(AdventureSkybreakVisuals.PlaySkyTearOpenRoutine());
             Debug.Log("[RustAndFloat] 天空裂開シーン開始（7.0秒演出）");
         }
-        else if (index >= 3 && index <= 5)
+        else if (index >= 3)
         {
-            // 後続セリフ（ありがとうRust〜光の柱へ）中も空の裂け目からパルス・閃光を走らせる
-            if (index == 4)
-            {
-                // 「あれが本物の空だ……！」：セリフ中ずっと3回連続で激しく持続（3.2秒間）
-                StartCoroutine(AdventureSkybreakVisuals.PlaySkyTearMiniPulseRoutine(shakeIntensity: 0.35f, pulses: 3, totalDuration: 3.2f));
-            }
-            else if (index == 5)
-            {
-                // 「タワー中央の光の柱へ…」：2回持続パルス（2.2秒間）
-                StartCoroutine(AdventureSkybreakVisuals.PlaySkyTearMiniPulseRoutine(shakeIntensity: 0.30f, pulses: 2, totalDuration: 2.2f));
-            }
-            else
-            {
-                // 「ありがとうRust…！」：1回パルス
-                StartCoroutine(AdventureSkybreakVisuals.PlaySkyTearMiniPulseRoutine(shakeIntensity: 0.22f, pulses: 1, totalDuration: 0.45f));
-            }
+            // 「ありがとうRust…！」以降、光の柱へ飛び込む（ダイブ完了）まで、中規模の稲妻と地震を持続ループ
+            StartSkybreakAftershockLoop();
         }
 
-        Debug.Log($"[RustAndFloat] 台本 {index + 1}/{CanopyBeats.Length}: {beat.Title} {beat.Speaker}");
+        Debug.Log($"[RustAndFloat] スクリーンスクリプト {index + 1}/{CanopyBeats.Length}: {beat.Title} {beat.Speaker}");
+    }
+
+    Coroutine _skybreakAftershockRoutine;
+
+    void StartSkybreakAftershockLoop()
+    {
+        if (_skybreakAftershockRoutine != null) return;
+        _skybreakAftershockRoutine = StartCoroutine(SkybreakAftershockLoopRoutine());
+        Debug.Log("[RustAndFloat] 天蓋崩壊余震・稲妻ループ開始（光の柱ダイブまで継続）");
+    }
+
+    void StopSkybreakAftershockLoop()
+    {
+        if (_skybreakAftershockRoutine != null)
+        {
+            StopCoroutine(_skybreakAftershockRoutine);
+            _skybreakAftershockRoutine = null;
+            Debug.Log("[RustAndFloat] 天蓋崩壊余震・稲妻ループ停止");
+        }
+    }
+
+    IEnumerator SkybreakAftershockLoopRoutine()
+    {
+        while (_canopyBeatIndex >= 3 && _endingSequenceActive)
+        {
+            // 最初（0.7〜0.85f）ほどではないが、迫力ある中規模の地震（0.30f〜0.42f）と空の稲妻・雷鳴
+            float shakeAmp = Random.Range(0.30f, 0.42f);
+            float vol = Random.Range(0.45f, 0.60f);
+            yield return StartCoroutine(AdventureSkybreakVisuals.PlaySkybreakLightningAndEarthquakeRoutine(shakeIntensity: shakeAmp, volume: vol));
+            yield return new WaitForSecondsRealtime(Random.Range(1.2f, 2.0f));
+        }
+        _skybreakAftershockRoutine = null;
     }
 
     void TickCanopyScriptBeats()
@@ -136,6 +204,10 @@ public partial class AdventureSanctuaryTowerManager
             if (IsDiveConfirmHeld())
             {
                 _scriptHoldTimer += Time.unscaledDeltaTime;
+                if (_scriptBoardIsDive && _filmSubtitleUi != null)
+                {
+                    _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
+                }
                 if (_scriptHoldTimer >= 0.08f)
                     _scriptBoardAdvance = true;
             }
@@ -144,10 +216,10 @@ public partial class AdventureSanctuaryTowerManager
                 _scriptHoldTimer = 0f;
             }
 
-            // 1枚目7秒／「空が割れるよ」7秒／会話3.8秒／ナレ3.5秒／ダイブ5秒
-            float autoSec = _scriptBoardIsDive ? 5f : 3.0f;
+            // 1枚目6秒／「空が割れるよ」7秒／会話3.8秒／ナレ3.5秒／ダイブ6秒
+            float autoSec = _scriptBoardIsDive ? 6f : 3.0f;
             if (_canopyBeatIndex == 0)
-                autoSec = 7.0f;
+                autoSec = 6.0f;
             else if (_canopyBeatIndex == 2)
                 autoSec = 7.0f;
             else if (_canopyBeatIndex == 3 || _canopyBeatIndex == 4)
@@ -173,7 +245,7 @@ public partial class AdventureSanctuaryTowerManager
 
     void FinishCanopyScriptBeats()
     {
-        Debug.Log("[RustAndFloat] 天蓋台本完了 → 光の柱上昇 → クライマックスへ");
+        Debug.Log("[RustAndFloat] 天蓋スクリーンスクリプト完了 → 光の柱上昇 → クライマックスへ");
         _canopyBeatIndex = -1;
         _scriptBoardAdvance = false;
         _scriptBoardVisible = false;
@@ -181,6 +253,8 @@ public partial class AdventureSanctuaryTowerManager
         _scriptBoardTitle = "";
         _scriptBoardSpeaker = "";
         _scriptBoardBody = "";
+        StopSkybreakAftershockLoop();
+        ClearFilmSubtitle();
         if (_scriptUiRoot != null)
             _scriptUiRoot.SetActive(false);
 

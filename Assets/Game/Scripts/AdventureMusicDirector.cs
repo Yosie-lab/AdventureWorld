@@ -701,31 +701,49 @@ public class AdventureMusicDirector : MonoBehaviour
                 }
             }
 
-            // ブリブリベース（16分ストレート・Moog風ドライブシンセベース）
+            // EDM ノコギリ波ユニゾン・シンセベース（Unison SuperSaw Synth Bass：サスティーン最大・超極太ブリブリサウンド）
             if (hasBass)
             {
                 float bRoot = bassRoots8[bar8];
-                float bOct = bRoot * 2.0f;
                 float stepT = (bar8T / 0.1875f) % 1.0f;
                 int stepIndex = Mathf.FloorToInt(bar8T / 0.1875f) % 8;
-                float bVel = (stepIndex % 2 == 0) ? 1.05f : 0.85f;
-                float bEnv = Mathf.Exp(-stepT * 18.0f) * bVel;
+                float bVel = (stepIndex % 2 == 0) ? 1.0f : 0.92f;
 
-                float filterEnv = Mathf.Exp(-stepT * 28.0f);
+                // ── 1. アンプエンベロープ（サスティーン最大化） ──
+                // ノートの終わりまで音量を高く維持し、音の継ぎ目のみ滑らかに繋ぐ（途切れのない太い持続音）
+                float attackEnv = Mathf.Clamp01(stepT / 0.025f);
+                float releaseEnv = (stepT > 0.85f) ? Mathf.Clamp01((1.0f - stepT) / 0.15f) * 0.75f + 0.25f : 1.0f;
+                float bEnv = attackEnv * releaseEnv * bVel; // サスティーンMAX！
 
-                float sub1 = Mathf.Sin(2f * Mathf.PI * bRoot * t) * 0.75f;
-                float saw1 = Mathf.Sin(2f * Mathf.PI * bRoot * t) * 0.45f
-                           - Mathf.Sin(4f * Mathf.PI * bRoot * t) * 0.25f
-                           + Mathf.Sin(6f * Mathf.PI * bRoot * t) * 0.15f
-                           - Mathf.Sin(8f * Mathf.PI * bRoot * t) * 0.08f;
+                // ── 2. 5重ユニゾンSAWオシレーター（EDM SuperSaw） ──
+                // わずかにデチューンした5本の独立ノコギリ波を重ね合わせ、強烈なうねりと極太の音圧を生成
+                float sawCenter = 2f * ((t * bRoot) % 1.0f - 0.5f);
+                float sawDetune1L = 2f * ((t * (bRoot * 0.993f) + 0.15f) % 1.0f - 0.5f);
+                float sawDetune1R = 2f * ((t * (bRoot * 1.007f) + 0.35f) % 1.0f - 0.5f);
+                float sawDetune2L = 2f * ((t * (bRoot * 0.985f) + 0.60f) % 1.0f - 0.5f);
+                float sawDetune2R = 2f * ((t * (bRoot * 1.015f) + 0.85f) % 1.0f - 0.5f);
 
-                float sub2 = Mathf.Sin(2f * Mathf.PI * bOct * t) * 0.35f;
-                float saw2 = (Mathf.Sin(2f * Mathf.PI * bOct * t) * 0.28f
-                           - Mathf.Sin(4f * Mathf.PI * bOct * t) * 0.14f);
+                // ユニゾン合算（中心をしっかり出しつつ、両サイドのデチューンで広がりとうねりを付加）
+                float unisonSaw = sawCenter * 0.38f
+                                + (sawDetune1L + sawDetune1R) * 0.22f
+                                + (sawDetune2L + sawDetune2R) * 0.14f;
 
-                float rawBass = (sub1 + sub2) + (saw1 + saw2) * (0.35f + filterEnv * 0.85f);
-                float fatBass = (float)System.Math.Tanh(rawBass * 1.50f);
-                synthBass = fatBass * bEnv * 0.54f; // 太くグルーヴィーなブリブリベース
+                // ── 3. 1オクターブ下の強力サブベース（重低音のパンチ） ──
+                float subRoot = bRoot * 0.5f; // 1オクターブ下（36.7Hz〜49Hz）の超低音
+                // オクターブ上のサイン成分を控えめに抑え（0.35f -> 0.15f）、どっしりとした重低音を主役に
+                float subBass = Mathf.Sin(2f * Mathf.PI * subRoot * t) * 0.90f
+                              + Mathf.Sin(2f * Mathf.PI * bRoot * t) * 0.15f;
+
+                // ── 4. フィルターモジュレーション（オクターブ上の高域倍音ボリュームを適度に抑える） ──
+                // ノコギリ波のオクターブ上で鳴るギラつきを少し抑え、太くマイルドに馴染ませる
+                float punchEnv = Mathf.Exp(-stepT * 15.0f);
+                float sawFiltered = unisonSaw * (0.42f + punchEnv * 0.35f);
+
+                // ── 5. アナログドライブ（Tanh サチュレーションで太く迫力あるブリブリ感） ──
+                float rawBass = subBass * 0.80f + sawFiltered * 0.65f;
+                float fatBass = (float)System.Math.Tanh(rawBass * 1.70f);
+
+                synthBass = fatBass * bEnv * 0.63f; // ほんのわずか音量を上げて迫力と存在感を強化
             }
 
             float loopFade = 1f;

@@ -171,7 +171,15 @@ public partial class AdventurePlayerController : MonoBehaviour
         }
     }
 
-    public static float ActiveWalkSpeed => IsRustFloatScene() ? AdventureRustFloatFeel.WalkSpeed : BaseWalkSpeed;
+    public static float ActiveWalkSpeed
+    {
+        get
+        {
+            if (!IsRustFloatScene()) return BaseWalkSpeed;
+            int pts = AdventureScrapManager.Instance != null ? AdventureScrapManager.Instance.TotalProgressPoints : 0;
+            return AdventureRustFloatFeel.GetProgressWalkSpeed(pts);
+        }
+    }
     public static float ActiveRunSpeed  => IsRustFloatScene() ? AdventureRustFloatFeel.RunSpeed  : BaseRunSpeed;
     public static float ActiveDashRunSpeed => IsRustFloatScene() ? AdventureRustFloatFeel.DashRunSpeed : DashRunSpeed;
     public static float ActiveTurnSpeed => IsRustFloatScene() ? AdventureRustFloatFeel.TurnSpeed : BaseTurnSpeed;
@@ -265,6 +273,14 @@ public partial class AdventurePlayerController : MonoBehaviour
 
         Vector2 input     = AdventureInputReader.MoveAxis;
         bool    sprinting = AdventureInputReader.ShiftHeld;
+
+        // RustAndFloat：ポイント獲得数（0〜15pt）に応じた歩行速度の動的更新（15pt以上で現在の最高速度10.2fを維持）
+        if (AdventureSceneContext.IsRustFloat)
+        {
+            int pts = AdventureScrapManager.Instance != null ? AdventureScrapManager.Instance.TotalProgressPoints : 0;
+            walkSpeed = AdventureRustFloatFeel.GetProgressWalkSpeed(pts);
+        }
+
         // WASD＝歩き、Shift＝ダッシュ（アニメも連動）
         float   speed     = (sprinting ? runSpeed : walkSpeed) * moveSpeedMultiplier;
         bool    running   = sprinting;

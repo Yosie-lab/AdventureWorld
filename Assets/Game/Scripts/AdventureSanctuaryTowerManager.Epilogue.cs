@@ -121,6 +121,9 @@ public partial class AdventureSanctuaryTowerManager
         _filmLastAct = -1;
         _filmIndex = 0;
         PrepareFilmLine(0, allowActGap: false);
+        // 「わぁぁ……！見て、Niko！」からは風の音をごくわずかなそよ風（0.04f）まで下げて映画の余韻とウミネコを際立たせる
+        SetSkybreakWindVolume(0.04f, 1.2f);
+        StartEpilogueSeagullAmbience();
         Debug.Log($"[RustAndFloat] シネマエピローグ開始（Update） lines={EpilogueFilmLines.Length} subtitle={(_filmSubtitleUi != null)}");
     }
 
@@ -309,6 +312,7 @@ public partial class AdventureSanctuaryTowerManager
         _epilogueAlpha = 0f;
         _letterboxTargetAlpha = 0f;
         SuppressAllSpeechAndBanners();
+        StopEpilogueSeagullAmbience();
         EnsureGameClearModalUI();
         PlayGameClearTriumphChime();
         AdventureMusicDirector.Ensure();
