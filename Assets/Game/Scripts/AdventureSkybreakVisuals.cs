@@ -37,14 +37,13 @@ public static class AdventureSkybreakVisuals
     #region [1] Wilderness Panorama ─ 外の世界パノラマ・光芒・フラッシュ
     public static void DestroyNamed(string objectName)
     {
-        var all = Resources.FindObjectsOfTypeAll<Transform>();
-        for (int i = 0; i < all.Length; i++)
+        // Resources.FindObjectsOfTypeAll は全アセット(19万オブジェクト)を走査し数秒固まるため、
+        // シーン内のアクティブオブジェクトのみを軽量な GameObject.Find で除去する
+        for (int i = 0; i < 8; i++)
         {
-            var t = all[i];
-            if (t == null || t.gameObject == null) continue;
-            if (t.name != objectName) continue;
-            if (!t.gameObject.scene.IsValid()) continue;
-            Object.DestroyImmediate(t.gameObject);
+            var go = GameObject.Find(objectName);
+            if (go == null) break;
+            Object.DestroyImmediate(go);
         }
     }
 
@@ -550,19 +549,25 @@ public static class AdventureSkybreakVisuals
         }
     }
 
+    static Material _skybreakSkyMatCache;
+
     static void ApplySkyboxForSkybreak(bool coldCrisis)
     {
         // オープニングの映画的ファンタジースカイボックスを確実に適用
-        Material skyMat = null;
+        if (_skybreakSkyMatCache == null)
+        {
 #if UNITY_EDITOR
-        skyMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(AdventureClassicSkyRuntime.SkyboxPath);
+            _skybreakSkyMatCache = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(AdventureClassicSkyRuntime.SkyboxPath);
 #endif
-        if (skyMat != null)
+        }
+        Material skyMat = _skybreakSkyMatCache;
+
+        // スカイボックスが実際に変わる時だけ重い GI 環境更新を行う（重複呼び出しによる数秒フリーズ防止）
+        if (skyMat != null && RenderSettings.skybox != skyMat)
         {
             RenderSettings.skybox = skyMat;
+            DynamicGI.UpdateEnvironment();
         }
-
-        DynamicGI.UpdateEnvironment();
 
         if (_cachedSun == null)
         {
