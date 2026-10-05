@@ -226,10 +226,12 @@ public partial class AdventureSanctuaryTowerManager
                 _scriptHoldTimer = 0f;
             }
 
-            // 1枚目6秒／「空が割れるよ」7秒／会話3.8秒／ナレ3.5秒／ダイブ6秒
+            // 1枚目7.5秒／2枚目4.5秒／「空が割れるよ」7秒／会話3.8秒／ナレ3.5秒／ダイブ6秒
             float autoSec = _scriptBoardIsDive ? 6f : 3.0f;
             if (_canopyBeatIndex == 0)
-                autoSec = 6.0f;
+                autoSec = 7.5f;
+            else if (_canopyBeatIndex == 1)
+                autoSec = 4.5f;
             else if (_canopyBeatIndex == 2)
                 autoSec = 7.0f;
             else if (_canopyBeatIndex == 3 || _canopyBeatIndex == 4)
