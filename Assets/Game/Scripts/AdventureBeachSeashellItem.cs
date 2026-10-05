@@ -335,31 +335,34 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         }
 
         // プレイヤー接近判定
-        var p = AdventurePlayerController.Instance;
+        var p = AdventurePlayerController.Instance ?? Object.FindAnyObjectByType<AdventurePlayerController>();
         if (p != null)
         {
-            // オープニングボード表示中やプロローグ目覚め中は採取・プロンプトを完全停止
+            // オープニングボード表示中やプロローグ目覚め中は採取・プロンプトを停止
             if (ShouldSuppressInteraction())
             {
                 _isPlayerNear = false;
                 return;
             }
 
-            float dist = Vector3.Distance(transform.position, p.transform.position);
+            Vector3 itemPos = transform.position;
+            Vector3 playerPos = p.transform.position;
+            float flatDist = Vector2.Distance(new Vector2(itemPos.x, itemPos.z), new Vector2(playerPos.x, playerPos.z));
+            float heightDiff = Mathf.Abs(itemPos.y - playerPos.y);
 
-            // すぐ近く（2.0m以内）まで行くと自動で吸い込み採取！
-            const float autoPickupDist = 2.0f;
-            const float promptDist = 2.8f;
+            // すぐ近く（水平2.4m、高さ差2.0m以内）まで近づくと自動で手元へフワリと吸い込み採取！
+            const float autoPickupDist = 2.4f;
+            const float promptDist = 3.5f;
 
-            if (dist < autoPickupDist)
+            if (flatDist < autoPickupDist && heightDiff < 2.2f)
             {
                 _isPlayerNear = false;
                 StartCollecting();
                 return;
             }
 
-            // 少し離れた距離（2.0m〜2.8m）ではEキー/クリックでの手動採取も受付
-            _isPlayerNear = (dist < promptDist);
+            // 少し離れた距離（2.4m〜3.5m）ではEキー/クリックでの手動採取も受付
+            _isPlayerNear = (flatDist < promptDist && heightDiff < 2.2f);
 
             if (_isPlayerNear)
             {
@@ -367,7 +370,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
                 var mouse = UnityEngine.InputSystem.Mouse.current;
                 bool pressed = (kb != null && kb.eKey.wasPressedThisFrame)
                             || (mouse != null && mouse.leftButton.wasPressedThisFrame);
-                try { if (Input.GetKeyDown(KeyCode.E)) pressed = true; } catch { }
+                try { if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0)) pressed = true; } catch { }
 
                 if (pressed && !AdventurePauseMenu.IsOpen)
                 {
@@ -389,7 +392,6 @@ public class AdventureBeachSeashellItem : MonoBehaviour
 
     static bool ShouldSuppressInteraction()
     {
-        if (!AdventureRustFloatOpening.IsGameStarted) return true;
         if (AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen()) return true;
         if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening) return true;
         if (AdventurePauseMenu.IsOpen) return true;
