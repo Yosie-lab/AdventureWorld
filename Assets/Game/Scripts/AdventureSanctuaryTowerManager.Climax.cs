@@ -187,25 +187,64 @@ public partial class AdventureSanctuaryTowerManager
         if (_climaxBeatIndex < 0 || !_scriptBoardVisible)
             return;
 
+        // キーを離したことを検知して離し待ちガードを確実に解除
+        if (_scriptRequireInputRelease)
+        {
+            if (!IsDiveConfirmHeld())
+            {
+                _scriptRequireInputRelease = false;
+                _scriptHoldTimer = 0f;
+            }
+        }
+
         bool postOilBeat = _climaxBeatIndex >= ClimaxOilSlot;
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
-        // セリフ表示直後の0.25秒デバウンス（直前の連打による誤スキップ防止）
-        const float minHoldOpen = 0.25f;
+        // セリフ表示直後の安全デバウンス（連打や切り替わり瞬間の暴走防止）
+        float minHoldOpen = 0.35f;
         if (openFor >= minHoldOpen)
         {
-            // 単発押し（Down）でセリフを1つ進める（Space / クリック / E / Enter）
-            // ※キーを離していれば押した瞬間に小気味よく即座に進む！
-            if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseLeftDown ||
-                AdventureInputReader.SpaceDown || AdventureInputReader.InteractDown || AdventureInputReader.EnterDown)
+            // キー離し待ちが解除されている場合のみ、プレイヤーの手動送りを確実に受け付ける！
+            // （注油直後の長押し残りや、前セリフの押しっぱなしがそのまま次へ貫通するのを100%防止）
+            if (!_scriptRequireInputRelease)
             {
-                _scriptBoardAdvance = true;
-                Debug.Log($"[RustAndFloat] クライマックス手動送り入力検知: beat={_climaxBeatIndex}");
+                // 1. タップ入力（Space / Enter / クリック / E / J）
+                PollScriptBoardAdvance();
+
+                // 2. 単発Down判定（InputReader経由）
+                if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseLeftDown ||
+                    AdventureInputReader.SpaceDown || AdventureInputReader.InteractDown || AdventureInputReader.EnterDown)
+                {
+                    _scriptBoardAdvance = true;
+                    Debug.Log($"[RustAndFloat] クライマックス単発送り入力検知: beat={_climaxBeatIndex}");
+                }
+
+                // 3. 長押し入力（0.25秒以上のホールドで小気味よく送れる）
+                if (IsDiveConfirmHeld())
+                {
+                    _scriptHoldTimer += Time.unscaledDeltaTime;
+                    if (_scriptHoldTimer >= 0.25f)
+                    {
+                        _scriptBoardAdvance = true;
+                        Debug.Log($"[RustAndFloat] クライマックス長押し送り入力検知: beat={_climaxBeatIndex}");
+                    }
+                }
+                else
+                {
+                    _scriptHoldTimer = 0f;
+                }
+            }
+            else
+            {
+                _scriptHoldTimer = 0f;
             }
 
-            // 何も押さなくても自然に次のセリフへ進む自動送り時間（放置シネマ：5.5〜6.5秒）
+            // 4. 自然な自動送り時間（放置シネマ：セリフをじっくり読める時間を確保）
+            // beat 3（蘇生セリフ）: 6.5秒
+            // beat 4（全力セリフ）: 7.5秒
+            // それ以前: 5.0秒
             bool finalBeat = _climaxBeatIndex >= ClimaxBeats.Length - 1;
-            float autoSec = finalBeat ? 6.5f : (postOilBeat ? 5.5f : 5.0f);
+            float autoSec = finalBeat ? 7.5f : (postOilBeat ? 6.5f : 5.0f);
 
             if (openFor >= autoSec)
             {
@@ -215,6 +254,12 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         if (!_scriptBoardAdvance) return;
+
+        // 次のセリフへ進む瞬間に入力フラグとホールドタイマーをリセットし、
+        // 必ず一度キーを離すまで次のセリフへの連鎖スキップを物理的に完全遮断！
+        _scriptHoldTimer = 0f;
+        _scriptBoardAdvance = false;
+        _scriptRequireInputRelease = true;
 
         int next = _climaxBeatIndex + 1;
 

@@ -623,18 +623,16 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         TickGameClearModal();
         TickCinematicLetterbox();
 
-        // 台本ボード：Updateでも進む入力を拾う（クライマックス中はTickClimaxSequenceに一任）
-        if (_scriptBoardVisible && !_scriptBoardAdvance && !_climaxOilWaiting && !_climaxCrisisStarted)
+        // 入力離し待ちの解除（全フェーズ共通：キーを離したら即座に解除）
+        if (_scriptRequireInputRelease && !IsDiveConfirmHeld())
         {
-            if (_scriptRequireInputRelease)
-            {
-                if (!IsDiveConfirmHeld())
-                    _scriptRequireInputRelease = false;
-            }
-            else
-            {
-                PollScriptBoardAdvance();
-            }
+            _scriptRequireInputRelease = false;
+        }
+
+        // 台本ボード：Updateでも進む入力を拾う（天蓋台本用。クライマックス中はTickClimaxSequenceに一任）
+        if (_scriptBoardVisible && !_scriptBoardAdvance && !_climaxOilWaiting && !_climaxCrisisStarted && !_scriptRequireInputRelease)
+        {
+            PollScriptBoardAdvance();
         }
 
         // キャッシュ参照を使用（毎フレームFind廃止）
@@ -1401,12 +1399,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         if (!_scriptBoardVisible || _scriptBoardAdvance) return;
         if (_scriptRequireInputRelease) return;
 
-        // 注油直後の最初のセリフだけ長めに守る
-        float minShow = 0.35f;
-        if (_climaxCrisisStarted && _climaxBeatIndex == ClimaxOilSlot)
-            minShow = 2.2f;
-        else if (_climaxCrisisStarted && _climaxBeatIndex > ClimaxOilSlot)
-            minShow = 0.85f;
+        // セリフ表示直後の誤タップ防止（0.30秒）
+        const float minShow = 0.30f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
 
         var kb = UnityEngine.InputSystem.Keyboard.current;
