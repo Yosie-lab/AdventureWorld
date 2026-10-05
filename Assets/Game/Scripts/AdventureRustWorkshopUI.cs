@@ -282,11 +282,15 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         }
 
         // 2. Rustにプレイヤーが接近している時はRustへの注油・手当て・会話を最優先（作業台インタラクトを遮断）
-        var drone = AdventureRustDrone.Instance;
-        if (drone != null && drone.IsPlayerNear)
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
         {
-            if (_promptCg != null) _promptCg.alpha = 0f;
-            return;
+            float rustDist = Vector3.Distance(player.transform.position, drone.transform.position);
+            if (drone.IsPlayerNear || rustDist < 4.0f)
+            {
+                if (_promptCg != null) _promptCg.alpha = 0f;
+                return;
+            }
         }
 
         // 3. 作業台との水平距離および向き判定（正面から机を見た時のみ有効）

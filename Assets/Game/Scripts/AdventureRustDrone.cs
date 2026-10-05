@@ -50,6 +50,7 @@ public partial class AdventureRustDrone : MonoBehaviour
     public int oilCount = 8;
     public float wellOiledUntil = 0f;
     bool _isPlayerNear = false;
+    public bool IsPlayerNear => _isPlayerNear;
     float _lastInteractTime = 0f;
 
     // 3大お宝レーダー探知（スクラップ・漂流木箱・貝殻）
