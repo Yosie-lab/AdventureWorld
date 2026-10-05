@@ -223,11 +223,11 @@ public partial class AdventureSanctuaryTowerManager
             }
 
             // 4. 自然な自動送り時間（放置シネマ）
-            // beat 3（蘇生セリフ「……あ……温かい油が……」）: 4.8秒間じっくり余韻を味わったあと自然に進行
+            // beat 3（蘇生セリフ「……あ……温かい油が……」）: 8.8秒間じっくり余韻を味わったあと自然に進行
             // beat 4（全力セリフ「ピピッ！ありがとう、Niko！」）: 6.2秒で大空へダイブ
             // それ以前: 4.5秒
             bool finalBeat = _climaxBeatIndex >= ClimaxBeats.Length - 1;
-            float autoSec = finalBeat ? 6.2f : (isRevivalBeat ? 4.8f : 4.5f);
+            float autoSec = finalBeat ? 6.2f : (isRevivalBeat ? 8.8f : 4.5f);
 
             if (openFor >= autoSec)
             {
