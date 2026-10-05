@@ -39,6 +39,7 @@ public partial class AdventureSanctuaryTowerManager
 
         SpawnWildernessPanorama(coldCrisis: true);
         ApplySkybreakColdAtmosphere();
+        AdventureParticleSanitizer.SanitizeAllParticles();
 
         if (player != null)
         {
@@ -187,10 +188,10 @@ public partial class AdventureSanctuaryTowerManager
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
         // キー離し待ちガード：直前の長押し／連打が次のセリフを即座に送ってしまうのを防止
-        // （キーを離せば即座に解除され、万が一押しっぱなしでも2.5秒で自動解除）
+        // （キーを離すまで手動送りを確実にブロック。ただしキーを離していれば直ちに解除）
         if (_scriptRequireInputRelease)
         {
-            if (!IsDiveConfirmHeld() || openFor >= 2.5f)
+            if (!IsDiveConfirmHeld())
             {
                 _scriptRequireInputRelease = false;
             }
@@ -200,9 +201,8 @@ public partial class AdventureSanctuaryTowerManager
             }
         }
 
-        // 最低表示時間は0.35秒（誤タップ1回の防止用）。
-        // キーを離した状態であれば、読めたタイミングでSpaceやクリックを押せば即座に進む（「固まった」感を根絶）
-        const float minHoldOpen = 0.35f;
+        // 最低表示時間は0.75秒（セリフが表示された瞬間の誤タップや注油直後の連打を確実に防ぎ、読ませる）
+        const float minHoldOpen = 0.75f;
         if (openFor >= minHoldOpen)
         {
             // 単発押し（Down）でセリフを1つ進める
@@ -210,30 +210,31 @@ public partial class AdventureSanctuaryTowerManager
                 AdventureInputReader.SpaceDown || AdventureInputReader.InteractDown || AdventureInputReader.EnterDown)
             {
                 _scriptBoardAdvance = true;
+                Debug.Log($"[RustAndFloat] クライマックス手動送り入力検知: beat={_climaxBeatIndex}");
             }
 
             // 何も押さなくても自然に次のセリフへ進む自動送り時間（放置シネマ）
+            // ※感動的な注油後セリフ（beat 3, 4）は勝手に消えないよう十分に長い時間（8.5〜10.0秒）を確保！
             bool finalBeat = _climaxBeatIndex >= ClimaxBeats.Length - 1;
             float autoSec;
             if (_climaxBeatIndex == 0)
-                autoSec = 5.5f;
+                autoSec = 6.0f;
             else if (_climaxBeatIndex == 1)
-                autoSec = 5.0f;
+                autoSec = 5.5f;
             else if (_climaxBeatIndex == 2)
-                autoSec = 4.5f;
+                autoSec = 5.0f;
             else if (postOilBeat && _climaxBeatIndex == ClimaxOilSlot)
-                autoSec = 4.8f; // 「温かい油が…」
+                autoSec = 8.5f; // 「……あ……温かい油が……」（8.5秒）
             else if (finalBeat)
-                autoSec = 5.5f; // 「ありがとう、Niko！」
+                autoSec = 10.0f; // 「ピピッ！ありがとう、Niko！」（10.0秒）
             else
                 autoSec = GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
 
             if (openFor >= autoSec)
+            {
                 _scriptBoardAdvance = true;
-
-            // 最終セリフの安全保障（最長6.5秒で確実にエピローグへ）
-            if (finalBeat && openFor >= 6.5f)
-                _scriptBoardAdvance = true;
+                Debug.Log($"[RustAndFloat] クライマックス自動送り発動: beat={_climaxBeatIndex} (経過={openFor:F1}s)");
+            }
         }
 
         if (!_scriptBoardAdvance) return;
@@ -351,10 +352,12 @@ public partial class AdventureSanctuaryTowerManager
         // 注油完了：極寒の雷雲・冷気を解き、暖かな日光と黄金の祝福光芒・色彩豊かな景色を展開
         SpawnWildernessPanorama(coldCrisis: false);
         SoftenSkybreakColdAtmosphere();
+        AdventureParticleSanitizer.SanitizeAllParticles();
 
         _climaxBeatIndex = ClimaxOilSlot;
         _scriptBoardAdvance = false;
         _scriptHoldTimer = 0f;
+        _scriptBoardOpenedAt = Time.unscaledTime;
         // 注油ゲージを満たした押しっぱなしが、そのまま台本送りにならないようにする
         _scriptRequireInputRelease = true;
         PresentClimaxBeat(ClimaxOilSlot);

@@ -666,6 +666,7 @@ public partial class AdventureRustDrone
         go.transform.localPosition = new Vector3(0f, -0.05f, -0.32f);
         go.transform.localRotation = Quaternion.Euler(180f, 0f, 0f);
         _climaxJetFx = go.AddComponent<ParticleSystem>();
+        _climaxJetFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = _climaxJetFx.main;
         main.duration = 10f;
         main.loop = true;
