@@ -693,7 +693,8 @@ public partial class AdventureRustDrone : MonoBehaviour
         float flatDist = Vector2.Distance(droneXZ, nikoXZ);
 
         // Niko体幹半径 (0.40m) + Rust球体半径・アクセサリー余裕 (0.42m) = 安全距離 0.82m
-        const float minSafeRadius = 0.82f;
+        // クライマックス危機・注油・寄り添い時は画面中央寄りの見やすい構図を維持するため0.62mに設定
+        float minSafeRadius = (IsClimaxCrisis || _climaxHealing || IsClimaxOverdrive) ? 0.62f : 0.82f;
 
         if (flatDist < minSafeRadius)
         {
@@ -1069,12 +1070,12 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
 
         // クライマックス危機／注油：カメラ側・画面右に寄せて必ず見える
-        // 「上空でRustが限界」時点で画面外に出ないこと
+        // 「上空でRustが限界」時点で画面外に出ないこと（Nikoの右胸〜肩前方の見やすい位置）
         if ((IsClimaxCrisis || _climaxHealing) && !_climaxFalling)
         {
             if (_climaxHealing)
-                return VisibleBesideNikoOnScreen(0.95f, 0.62f, 0.22f) + Vector3.up * (Mathf.Sin(Time.unscaledTime * 2.8f) * 0.04f);
-            return VisibleBesideNikoOnScreen(0.78f, 0.58f, 0.14f);
+                return VisibleBesideNikoOnScreen(0.75f, 0.50f, 0.28f) + Vector3.up * (Mathf.Sin(Time.unscaledTime * 2.8f) * 0.04f);
+            return VisibleBesideNikoOnScreen(0.55f, 0.42f, 0.38f);
         }
 
         // オーバードライブ「ありがとうNiko！翼は…」：右肩のすぐ外側

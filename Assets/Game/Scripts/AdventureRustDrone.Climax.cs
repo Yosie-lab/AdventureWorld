@@ -70,8 +70,8 @@ public partial class AdventureRustDrone
         return nest;
     }
 
-    /// <summary>カメラから見て必ず画面内：Nikoの右隣＋カメラ寄り（後ろに隠れない）</summary>
-    Vector3 VisibleBesideNikoOnScreen(float side = 0.75f, float towardCam = 0.55f, float lift = 0.12f)
+    /// <summary>カメラから見て必ず画面内：Nikoの右隣＋カメラ寄り（後ろに隠れず、画面中央寄りの見やすい位置）</summary>
+    Vector3 VisibleBesideNikoOnScreen(float side = 0.55f, float towardCam = 0.42f, float lift = 0.38f)
     {
         if (_lookAt == null)
             return transform.position;
@@ -93,10 +93,10 @@ public partial class AdventureRustDrone
         }
         Vector3 res = chest + sideDir * side + toCam * towardCam + Vector3.up * lift;
 
-        // 体幹クリアランス（0.82m）との競合を完全に防ぎ、RustとNikoが押し合わないよう水平距離1.05m以上を保証
+        // 体幹クリアランスとの競合を防ぎつつ、画面右端や字幕帯へ押し出されないよう水平距離0.68mを確保
         Vector3 flat = res - chest;
         flat.y = 0f;
-        const float minFlat = 1.05f;
+        const float minFlat = 0.68f;
         if (flat.sqrMagnitude < minFlat * minFlat)
         {
             Vector3 dir = flat.sqrMagnitude > 0.01f ? flat.normalized : (_lookAt.right * 0.85f + _lookAt.forward * 0.5f).normalized;
@@ -251,7 +251,7 @@ public partial class AdventureRustDrone
         if (_lookAt != null)
         {
             if (!_bonesCached) CacheNikoBones();
-            Vector3 nest = VisibleBesideNikoOnScreen(0.78f, 0.58f, 0.14f);
+            Vector3 nest = VisibleBesideNikoOnScreen(0.55f, 0.42f, 0.38f);
             transform.position = nest;
             _lagTarget = nest;
             _velocity = Vector3.zero;
@@ -537,8 +537,8 @@ public partial class AdventureRustDrone
     {
         if (_lookAt == null) return;
         Vector3 nest = healingNestle
-            ? VisibleBesideNikoOnScreen(0.95f, 0.62f, 0.22f)
-            : VisibleBesideNikoOnScreen(0.78f, 0.58f, 0.14f);
+            ? VisibleBesideNikoOnScreen(0.75f, 0.50f, 0.28f)
+            : VisibleBesideNikoOnScreen(0.55f, 0.42f, 0.38f);
 
         transform.position = nest;
         _lagTarget = nest;
@@ -557,16 +557,16 @@ public partial class AdventureRustDrone
         Vector3 safe = IsClimaxOverdrive
             ? GetOverdriveShoulderNestle()
             : VisibleBesideNikoOnScreen(
-                _climaxHealing ? 0.95f : 0.78f,
-                _climaxHealing ? 0.62f : 0.58f,
-                _climaxHealing ? 0.22f : 0.14f);
+                _climaxHealing ? 0.75f : 0.55f,
+                _climaxHealing ? 0.50f : 0.42f,
+                _climaxHealing ? 0.28f : 0.38f);
 
-        // 画面外に見切れた場合のみ、滑らかに画面内へソフト補正（毎フレームのテレポート・速度潰しを完全排除）
+        // 画面外や字幕枠・レターボックス帯に見切れた場合のみ、滑らかに画面内へソフト補正
         Vector3 sp = cam.WorldToViewportPoint(transform.position);
         bool offScreen =
             sp.z < 0.30f
-            || sp.x < 0.08f || sp.x > 0.92f
-            || sp.y < 0.10f || sp.y > 0.90f;
+            || sp.x < 0.12f || sp.x > 0.86f
+            || sp.y < 0.18f || sp.y > 0.88f;
 
         if (offScreen)
         {
