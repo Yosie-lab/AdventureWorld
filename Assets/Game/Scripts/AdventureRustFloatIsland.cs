@@ -36,5 +36,7 @@ public class AdventureRustFloatIsland : MonoBehaviour
     {
         if (GetComponent<AdventureRustFloatOpening>() == null)
             gameObject.AddComponent<AdventureRustFloatOpening>();
+
+        AdventureWestSlopeFloraManager.Ensure();
     }
 }

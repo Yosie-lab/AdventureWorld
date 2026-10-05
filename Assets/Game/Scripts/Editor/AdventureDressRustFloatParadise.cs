@@ -367,6 +367,8 @@ public static class AdventureDressRustFloatParadise
             PlacePalmsGrand(root, land, rng, water);
             // 蝶（森や花畑の各所に36箇所）
             PlaceButterfliesGrand(root, land, rng);
+            // 西の斜面の豊かな草地・花畑・蝶々（白砂ビーチから大草原への登り口を美化）
+            AdventureWestSlopeFloraManager.BuildWestSlopeFloraIfNeeded();
             // 動物たち（カピバラ、犬、猫）
             PlaceAnimalsGrand(root, land, rng);
             // 鳥のさえずり・空の旋回鳥
