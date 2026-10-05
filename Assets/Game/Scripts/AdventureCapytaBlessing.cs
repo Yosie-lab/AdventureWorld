@@ -106,6 +106,12 @@ public class AdventureCapytaBlessing : MonoBehaviour
         _instance = this;
     }
 
+    void OnDestroy()
+    {
+        if (_instance == this)
+            _instance = null;
+    }
+
     void Start()
     {
         if (PlayerPrefs.GetInt(PrefKey, 0) == 1)

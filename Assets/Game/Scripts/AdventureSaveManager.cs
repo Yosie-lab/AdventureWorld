@@ -715,6 +715,8 @@ public class AdventureSaveManager : MonoBehaviour
         AdventureBeachSeashellManager.Instance?.ResetForNewGame();
         AdventureRustCosmetics.Ensure();
         AdventureRustCosmetics.Instance?.ResetForNewGame();
+        AdventureWestSlopeFloraManager.Ensure();
+        AdventureWestSlopeFloraManager.Instance?.ResetFloraForNewGame();
 
         // 1. パーツおよび全探索ポイント（ドリフトボックス・古代遺物）を0に完全リセット
         var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();

@@ -13,7 +13,7 @@ public static class AdventureParticleSanitizer
 
     public static void SanitizeAllParticles()
     {
-        var allPs = Object.FindObjectsByType<ParticleSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var allPs = Object.FindObjectsByType<ParticleSystem>(FindObjectsInactive.Include);
         int fixedCount = 0;
         for (int i = 0; i < allPs.Length; i++)
         {

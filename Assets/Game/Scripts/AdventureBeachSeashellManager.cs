@@ -142,6 +142,12 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         CreateToastUI();
     }
 
+    void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     void Start()
     {
         CheckAndMigrateLegacyStock();

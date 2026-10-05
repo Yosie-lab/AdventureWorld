@@ -51,6 +51,11 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
         "Code Related/Butterfly_03.prefab"
     };
 
+    // キャッシュ済みプレハブ配列（毎回のアセットロード負荷を完全排除）
+    private static GameObject[] _cachedGrass;
+    private static GameObject[] _cachedFlowers;
+    private static GameObject[] _cachedButterflies;
+
     public static void Ensure()
     {
         if (_instance != null) return;
@@ -75,9 +80,44 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
         _instance = this;
     }
 
+    private void OnDestroy()
+    {
+        if (_instance == this) _instance = null;
+    }
+
     private void Start()
     {
         BuildWestSlopeFloraIfNeeded();
+    }
+
+    /// <summary>ニューゲーム／リスタート時：安全に再確認</summary>
+    public void ResetFloraForNewGame()
+    {
+        BuildWestSlopeFloraIfNeeded();
+    }
+
+    private static void PreloadPrefabs()
+    {
+#if UNITY_EDITOR
+        if (_cachedGrass == null || _cachedGrass.Length == 0)
+        {
+            _cachedGrass = new GameObject[GrassPrefabs.Length];
+            for (int i = 0; i < GrassPrefabs.Length; i++)
+                _cachedGrass[i] = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoot + GrassPrefabs[i]);
+        }
+        if (_cachedFlowers == null || _cachedFlowers.Length == 0)
+        {
+            _cachedFlowers = new GameObject[FlowerPrefabs.Length];
+            for (int i = 0; i < FlowerPrefabs.Length; i++)
+                _cachedFlowers[i] = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoot + FlowerPrefabs[i]);
+        }
+        if (_cachedButterflies == null || _cachedButterflies.Length == 0)
+        {
+            _cachedButterflies = new GameObject[ButterflyPrefabs.Length];
+            for (int i = 0; i < ButterflyPrefabs.Length; i++)
+                _cachedButterflies[i] = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoot + ButterflyPrefabs[i]);
+        }
+#endif
     }
 
     /// <summary>西の斜面の草花・蝶々が未生成なら動的に生成・配置</summary>
@@ -89,6 +129,8 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
             // 既に斜面および台地の大草原・蝶々が配置されていればスキップ
             return;
         }
+
+        PreloadPrefabs();
 
         if (existingRoot != null)
         {
@@ -180,8 +222,7 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
                 if (h < 6.2f) continue; // 汀線ギリギリは避ける
                 pos.y = h;
 
-                string pName = GrassPrefabs[rng.Next(GrassPrefabs.Length)];
-                var prefab = LoadPrefab(pName);
+                var prefab = GetRandomGrassPrefab(rng);
                 if (prefab == null) continue;
 
                 var go = InstantiateObject(prefab, grassGroup.transform, pos, Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f));
@@ -244,8 +285,7 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
                 if (h < 6.4f) continue;
                 pos.y = h;
 
-                string pName = FlowerPrefabs[rng.Next(FlowerPrefabs.Length)];
-                var prefab = LoadPrefab(pName);
+                var prefab = GetRandomFlowerPrefab(rng);
                 if (prefab == null) continue;
 
                 var go = InstantiateObject(prefab, flowerGroup.transform, pos, Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f));
@@ -290,8 +330,7 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
             // 地面から 1.4m〜2.2m 上空をふわりと舞う
             pos.y = groundY + 1.6f + (float)rng.NextDouble() * 0.6f;
 
-            string bName = ButterflyPrefabs[i % ButterflyPrefabs.Length];
-            var prefab = LoadPrefab(bName);
+            var prefab = GetButterflyPrefab(i);
             if (prefab == null) continue;
 
             var go = InstantiateObject(prefab, butterflyGroup.transform, pos, Quaternion.identity);
@@ -373,8 +412,7 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
                 if (h < 7.5f) continue;
                 pos.y = h;
 
-                string pName = GrassPrefabs[rng.Next(GrassPrefabs.Length)];
-                var prefab = LoadPrefab(pName);
+                var prefab = GetRandomGrassPrefab(rng);
                 if (prefab == null) continue;
 
                 var go = InstantiateObject(prefab, grassGroup.transform, pos, Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f));
@@ -432,8 +470,7 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
                 if (h < 7.5f) continue;
                 pos.y = h;
 
-                string pName = FlowerPrefabs[rng.Next(FlowerPrefabs.Length)];
-                var prefab = LoadPrefab(pName);
+                var prefab = GetRandomFlowerPrefab(rng);
                 if (prefab == null) continue;
 
                 var go = InstantiateObject(prefab, flowerGroup.transform, pos, Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f));
@@ -486,8 +523,7 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
             // 地面から 1.8m〜3.2m 上空を優美に舞う
             pos.y = groundY + 1.8f + (float)rng.NextDouble() * 1.2f;
 
-            string bName = ButterflyPrefabs[i % ButterflyPrefabs.Length];
-            var prefab = LoadPrefab(bName);
+            var prefab = GetButterflyPrefab(i);
             if (prefab == null) continue;
 
             var go = InstantiateObject(prefab, butterflyGroup.transform, pos, Quaternion.identity);
@@ -514,13 +550,25 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
         }
     }
 
-    private static GameObject LoadPrefab(string relativePath)
+    private static GameObject GetRandomGrassPrefab(System.Random rng)
     {
-#if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoot + relativePath);
-#else
-        return null;
-#endif
+        if (_cachedGrass == null || _cachedGrass.Length == 0) PreloadPrefabs();
+        if (_cachedGrass == null || _cachedGrass.Length == 0) return null;
+        return _cachedGrass[rng.Next(_cachedGrass.Length)];
+    }
+
+    private static GameObject GetRandomFlowerPrefab(System.Random rng)
+    {
+        if (_cachedFlowers == null || _cachedFlowers.Length == 0) PreloadPrefabs();
+        if (_cachedFlowers == null || _cachedFlowers.Length == 0) return null;
+        return _cachedFlowers[rng.Next(_cachedFlowers.Length)];
+    }
+
+    private static GameObject GetButterflyPrefab(int index)
+    {
+        if (_cachedButterflies == null || _cachedButterflies.Length == 0) PreloadPrefabs();
+        if (_cachedButterflies == null || _cachedButterflies.Length == 0) return null;
+        return _cachedButterflies[index % _cachedButterflies.Length];
     }
 
     private static GameObject InstantiateObject(GameObject prefab, Transform parent, Vector3 pos, Quaternion rot)

@@ -165,7 +165,7 @@ public class AdventureShallowFishSchool : MonoBehaviour
         }
 
         // 水深の高さを一定に保つ（水面下）
-        targetCenter.y = 5.50f - swimDepth;
+        targetCenter.y = waterSurfaceY - swimDepth;
 
         // 陸地（砂浜）への侵入防止：目標中心の海底標高が浅い／陸地の場合は沖側（西側）へ押し戻す
         var land = Terrain.activeTerrain;

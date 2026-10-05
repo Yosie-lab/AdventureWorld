@@ -50,6 +50,12 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
         _instance = this;
     }
 
+    void OnDestroy()
+    {
+        if (_instance == this)
+            _instance = null;
+    }
+
     void Start()
     {
         SpawnAllDriftBoxes();

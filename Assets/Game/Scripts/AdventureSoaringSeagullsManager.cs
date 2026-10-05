@@ -191,7 +191,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             else
                 _cachedWorldSeagullSources.Clear();
 
-            var allSources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var allSources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Include);
             for (int i = 0; i < allSources.Length; i++)
             {
                 var src = allSources[i];
