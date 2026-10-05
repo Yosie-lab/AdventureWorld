@@ -91,7 +91,18 @@ public partial class AdventureRustDrone
             if (toCam.sqrMagnitude < 0.01f) toCam = -_lookAt.forward;
             else toCam.Normalize();
         }
-        return chest + sideDir * side + toCam * towardCam + Vector3.up * lift;
+        Vector3 res = chest + sideDir * side + toCam * towardCam + Vector3.up * lift;
+
+        // 体幹クリアランス（0.82m）との競合を完全に防ぎ、RustとNikoが押し合わないよう水平距離1.05m以上を保証
+        Vector3 flat = res - chest;
+        flat.y = 0f;
+        const float minFlat = 1.05f;
+        if (flat.sqrMagnitude < minFlat * minFlat)
+        {
+            Vector3 dir = flat.sqrMagnitude > 0.01f ? flat.normalized : (_lookAt.right * 0.85f + _lookAt.forward * 0.5f).normalized;
+            res = chest + dir * minFlat + Vector3.up * (res.y - chest.y);
+        }
+        return res;
     }
 
     Vector3 EndingBesideNiko(float forward, float lateral, float lift)
@@ -550,23 +561,19 @@ public partial class AdventureRustDrone
                 _climaxHealing ? 0.62f : 0.58f,
                 _climaxHealing ? 0.22f : 0.14f);
 
-        if (!force)
+        // 画面外に見切れた場合のみ、滑らかに画面内へソフト補正（毎フレームのテレポート・速度潰しを完全排除）
+        Vector3 sp = cam.WorldToViewportPoint(transform.position);
+        bool offScreen =
+            sp.z < 0.30f
+            || sp.x < 0.08f || sp.x > 0.92f
+            || sp.y < 0.10f || sp.y > 0.90f;
+
+        if (offScreen)
         {
-            Vector3 sp = cam.WorldToViewportPoint(transform.position);
-            bool off =
-                sp.z < 0.35f
-                || sp.x < 0.12f || sp.x > 0.88f
-                || sp.y < 0.15f || sp.y > 0.85f;
-            if (!off) return;
-            transform.position = Vector3.Lerp(transform.position, safe, 0.55f);
+            transform.position = Vector3.Lerp(transform.position, safe, 0.35f);
+            _lagTarget = transform.position;
+            _velocity = Vector3.ClampMagnitude(_velocity, 6f);
         }
-        else
-        {
-            // 危機／全力中は毎フレーム画面内スロットへ強く吸着
-            transform.position = Vector3.Lerp(transform.position, safe, 0.72f);
-        }
-        _lagTarget = transform.position;
-        _velocity *= 0.35f;
     }
 
     void SpawnClimaxIceFx()

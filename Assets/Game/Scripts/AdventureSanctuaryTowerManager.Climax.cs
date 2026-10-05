@@ -185,72 +185,62 @@ public partial class AdventureSanctuaryTowerManager
         bool postOilBeat = _climaxBeatIndex >= ClimaxOilSlot;
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
-        // 注油完了直後：Space/E が押されたままだと「温かい油」が即スキップされる
-        // ※押しっぱなし中は手動送りだけ抑止。自動送り／最終保険は必ず通す（エピローグ詰まり防止）
+        // 注油完了直後：直前の注油長押しがそのままセリフ送りになるのを防ぐ安全ガード（最長0.45秒で自動解除）
         if (_scriptRequireInputRelease)
         {
-            if (!IsDiveConfirmHeld())
+            if (!IsDiveConfirmHeld() || openFor >= 0.45f)
             {
                 _scriptRequireInputRelease = false;
-                _scriptHoldTimer = 0f;
             }
             else
             {
-                _scriptHoldTimer = 0f;
-                bool finalWhileHeld = _climaxBeatIndex >= ClimaxBeats.Length - 1;
-                float heldOpen = openFor;
-                float heldAuto;
-                if (_climaxBeatIndex == 0)
-                    heldAuto = 8.0f;
-                else if (finalWhileHeld)
-                    heldAuto = 8.0f;
-                else
-                    heldAuto = GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
-
-                if (heldOpen >= heldAuto || (finalWhileHeld && heldOpen >= 9.5f))
-                {
-                    _scriptRequireInputRelease = false;
-                    _scriptBoardAdvance = true;
-                }
-                else
-                    return;
+                return;
             }
         }
 
-        // 限界高度（初手）は最低2.0秒保持して確実に読ませる。注油後の最初のセリフは最低2.2秒。最終セリフは最低5.0秒。
-        float minHoldOpen = 0.35f;
+        // 各ビートの最低表示時間ガード（誤スキップ・連打を物理的に100%遮断し、セリフと演出を確実に味わわせる）
+        float minHoldOpen = 1.0f;
         if (_climaxBeatIndex == 0)
-            minHoldOpen = 2.0f;
+            minHoldOpen = 1.5f;
+        else if (_climaxBeatIndex == 1)
+            minHoldOpen = 1.2f;
+        else if (_climaxBeatIndex == 2)
+            minHoldOpen = 1.0f;
         else if (postOilBeat && _climaxBeatIndex == ClimaxOilSlot)
-            minHoldOpen = 2.2f;
+            minHoldOpen = 1.8f; // 「温かい油が…」は最低1.8秒間確実に表示
         else if (postOilBeat && _climaxBeatIndex > ClimaxOilSlot)
-            minHoldOpen = 5.0f;
+            minHoldOpen = 2.0f; // 「ありがとう、Niko！」は最低2.0秒間確実に表示
+
         if (openFor >= minHoldOpen)
         {
-            PollScriptBoardAdvance();
-            if (IsDiveConfirmHeld())
+            // 単発押し（Down）でのみセリフを1つ進める（長押しによる多重連鎖スキップを完全排除）
+            if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseLeftDown ||
+                AdventureInputReader.SpaceDown || AdventureInputReader.InteractDown || AdventureInputReader.EnterDown)
             {
-                _scriptHoldTimer += Time.unscaledDeltaTime;
-                float holdThreshold = (_climaxBeatIndex >= ClimaxBeats.Length - 1) ? 0.45f : 0.18f;
-                if (_scriptHoldTimer >= holdThreshold)
-                    _scriptBoardAdvance = true;
+                _scriptBoardAdvance = true;
             }
-            else _scriptHoldTimer = 0f;
 
+            // 自然な自動送り時間（放置しても映画のように美しく進行）
             bool finalBeat = _climaxBeatIndex >= ClimaxBeats.Length - 1;
             float autoSec;
             if (_climaxBeatIndex == 0)
-                autoSec = 8.0f;
+                autoSec = 5.8f;
+            else if (_climaxBeatIndex == 1)
+                autoSec = 5.2f;
+            else if (_climaxBeatIndex == 2)
+                autoSec = 4.8f;
+            else if (postOilBeat && _climaxBeatIndex == ClimaxOilSlot)
+                autoSec = 5.0f;
             else if (finalBeat)
-                autoSec = 8.0f;
+                autoSec = 5.8f;
             else
                 autoSec = GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
 
             if (openFor >= autoSec)
                 _scriptBoardAdvance = true;
 
-            // 最終セリフ：入力が取れなくても必ずエピローグへ（保険）
-            if (finalBeat && openFor >= 9.5f)
+            // 最終セリフの安全保障（最長6.5秒で確実にエピローグへ）
+            if (finalBeat && openFor >= 6.5f)
                 _scriptBoardAdvance = true;
         }
 
@@ -272,6 +262,7 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         _climaxBeatIndex = next;
+        Debug.Log($"[RustAndFloat] クライマックス台本進行: beat={next}");
         PresentClimaxBeat(next);
     }
 
@@ -605,9 +596,9 @@ public partial class AdventureSanctuaryTowerManager
         var player = GetPlayer();
         if (player != null)
         {
-            player.SetAutoGlideMode(false);
-            player.ApplyGlideBoost(3.2f, 75f);
-            player.ApplyUpdraft(28f);
+            player.ApplyGlideBoost(2.0f, 18f);
+            if (player.transform.position.y < 118f)
+                player.ApplyUpdraft(16f);
         }
 
         _epilogueTriggered = true;

@@ -502,7 +502,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             if (IsClimaxCrisis || IsClimaxOverdrive || _climaxHealing || _skybreakNestle || _prologueDistress)
             {
                 goal = FollowPoint();
-                _lagTarget = Vector3.Lerp(_lagTarget, goal, 0.85f);
+                _lagTarget = goal;
             }
             else
             {
@@ -542,19 +542,19 @@ public partial class AdventureRustDrone : MonoBehaviour
         _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-2.2f * Time.deltaTime));
         float smoothTime = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning || CurrentState == RustState.Petting) ? 0.24f : (wellOiled ? 0.38f : 0.52f);
         if (_climaxHealing)
-            smoothTime = 0.08f;
+            smoothTime = 0.14f;
         else if (IsClimaxOverdrive)
-            smoothTime = 0.05f; // 肩そばへ素早く密着
-        else if (IsClimaxCrisis || _skybreakNestle || _prologueDistress)
             smoothTime = 0.12f;
-        float maxSpeed = _climaxHealing ? 22f : (IsClimaxOverdrive ? 28f : 8.5f);
+        else if (IsClimaxCrisis || _skybreakNestle || _prologueDistress)
+            smoothTime = 0.16f;
+        float maxSpeed = _climaxHealing ? 18f : (IsClimaxOverdrive ? 24f : 8.5f);
         transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, maxSpeed);
 
-        // 危機・寄り添い・全力中は毎フレーム画面内へ吸着（限界警告／ありがとうで見切れ・消失を防ぐ）
+        // 画面見切れ防止ガード（オフスクリーン時のみソフト補正）
         if ((_skybreakNestle || IsClimaxCrisis || _climaxHealing || IsClimaxOverdrive || _prologueDistress) && !_climaxFalling)
-            KeepRustOnScreenNearNiko(force: IsClimaxCrisis || _climaxHealing || IsClimaxOverdrive);
+            KeepRustOnScreenNearNiko(force: false);
 
-        // 危機時／冒頭ドラマ：ガタガタ震え／注油時：ふわり浮遊オフセット
+        // 危機時／冒頭ドラマ：ガタガタ震え
         if ((IsClimaxCrisis || _prologueDistress) && !_climaxHealing)
         {
             float shake = _prologueDistress ? 0.04f : 0.055f;
@@ -562,11 +562,6 @@ public partial class AdventureRustDrone : MonoBehaviour
                 Mathf.Sin(Time.unscaledTime * 42f) * shake,
                 Mathf.Sin(Time.unscaledTime * 51f) * shake * 0.7f,
                 Mathf.Cos(Time.unscaledTime * 37f) * shake);
-        }
-        else if (_climaxHealing)
-        {
-            float floatUp = Mathf.Sin(Time.unscaledTime * 3.2f) * 0.04f + 0.08f;
-            transform.position += Vector3.up * floatUp;
         }
 
         // Nikoの体躯への食い込みを物理的に100%遮断・押し出す安全ガード
@@ -1078,7 +1073,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         if ((IsClimaxCrisis || _climaxHealing) && !_climaxFalling)
         {
             if (_climaxHealing)
-                return VisibleBesideNikoOnScreen(0.95f, 0.62f, 0.22f);
+                return VisibleBesideNikoOnScreen(0.95f, 0.62f, 0.22f) + Vector3.up * (Mathf.Sin(Time.unscaledTime * 2.8f) * 0.04f);
             return VisibleBesideNikoOnScreen(0.78f, 0.58f, 0.14f);
         }
 

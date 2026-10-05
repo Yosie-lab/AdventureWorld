@@ -623,8 +623,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         TickGameClearModal();
         TickCinematicLetterbox();
 
-        // 台本ボード：Updateでも進む入力を拾う（注油直後の押しっぱなしは除外）
-        if (_scriptBoardVisible && !_scriptBoardAdvance && !_climaxOilWaiting)
+        // 台本ボード：Updateでも進む入力を拾う（クライマックス中はTickClimaxSequenceに一任）
+        if (_scriptBoardVisible && !_scriptBoardAdvance && !_climaxOilWaiting && !_climaxCrisisStarted)
         {
             if (_scriptRequireInputRelease)
             {
