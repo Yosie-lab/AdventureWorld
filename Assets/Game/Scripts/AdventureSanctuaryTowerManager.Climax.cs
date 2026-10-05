@@ -186,11 +186,14 @@ public partial class AdventureSanctuaryTowerManager
         if (_climaxBeatIndex < 0 || !_scriptBoardVisible)
             return;
 
+        bool isRevivalBeat = (_climaxBeatIndex == ClimaxOilSlot); // beat 3: 「……あ……温かい油が……心臓部に……」
         bool postOilBeat = _climaxBeatIndex >= ClimaxOilSlot;
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
-        // セリフ表示直後の安全デバウンス（0.30秒：連打や切り替わり瞬間の暴走誤スキップを防止）
-        const float minHoldOpen = 0.30f;
+        // 注油直後の蘇生セリフ（beat 3）は、注油ホールドの余韻がセリフを突き抜けないよう1.2秒間しっかり保護
+        // それ以外のセリフは0.35秒の切り替えデバウンス
+        float minHoldOpen = isRevivalBeat ? 1.20f : 0.35f;
+
         if (openFor >= minHoldOpen)
         {
             // 1. タップ入力（Space / Enter / クリック / E / J）
@@ -204,27 +207,27 @@ public partial class AdventureSanctuaryTowerManager
                 Debug.Log($"[RustAndFloat] クライマックス単発送り入力検知: beat={_climaxBeatIndex}");
             }
 
-            // 3. 長押し入力（0.20秒以上のホールドで天蓋台本同様に小気味よく送れる）
-            if (IsDiveConfirmHeld())
+            // 3. 確実な新InputSystemダイレクトDown判定（誤スキップ防止デバウンス通過後のみ受付）
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame ||
+                               kb.eKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame))
             {
-                _scriptHoldTimer += Time.unscaledDeltaTime;
-                if (_scriptHoldTimer >= 0.20f)
-                {
-                    _scriptBoardAdvance = true;
-                    Debug.Log($"[RustAndFloat] クライマックス長押し送り入力検知: beat={_climaxBeatIndex}");
-                }
+                _scriptBoardAdvance = true;
+                Debug.Log($"[RustAndFloat] クライマックスキーボードDown検知: beat={_climaxBeatIndex}");
             }
-            else
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
             {
-                _scriptHoldTimer = 0f;
+                _scriptBoardAdvance = true;
+                Debug.Log($"[RustAndFloat] クライマックスマウスDown検知: beat={_climaxBeatIndex}");
             }
 
-            // 4. 自然な自動送り時間（放置シネマ：固まらずスムーズに心地よく流れるテンポ）
-            // beat 3（蘇生セリフ「……あ……温かい油が……」）: 3.6秒でスッと次へ進行
-            // beat 4（全力セリフ「ピピッ！ありがとう、Niko！」）: 5.2秒で大空へダイブ
+            // 4. 自然な自動送り時間（放置シネマ）
+            // beat 3（蘇生セリフ「……あ……温かい油が……」）: 4.8秒間じっくり余韻を味わったあと自然に進行
+            // beat 4（全力セリフ「ピピッ！ありがとう、Niko！」）: 6.2秒で大空へダイブ
             // それ以前: 4.5秒
             bool finalBeat = _climaxBeatIndex >= ClimaxBeats.Length - 1;
-            float autoSec = finalBeat ? 5.2f : (postOilBeat ? 3.6f : 4.5f);
+            float autoSec = finalBeat ? 6.2f : (isRevivalBeat ? 4.8f : 4.5f);
 
             if (openFor >= autoSec)
             {
