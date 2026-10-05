@@ -132,6 +132,9 @@ public class AdventureRustSpeechUI : MonoBehaviour
         if (_cg == null || _body == null) return;
 
         bool hide = AdventureStoryFlow.HidesRustSpeech;
+        var opening = AdventureRustFloatOpening.Instance;
+        if (opening != null && opening.IsModalBoardOpen())
+            hide = true;
 
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         bool show = !hide && drone != null && drone.HasActiveSpeech;
@@ -146,7 +149,11 @@ public class AdventureRustSpeechUI : MonoBehaviour
         }
         else
         {
-            _cg.alpha = Mathf.MoveTowards(_cg.alpha, 0f, Time.unscaledDeltaTime * 4f);
+            // オープニング中や台本中は即座に消去して重なりを完全防止
+            if (hide)
+                _cg.alpha = 0f;
+            else
+                _cg.alpha = Mathf.MoveTowards(_cg.alpha, 0f, Time.unscaledDeltaTime * 4f);
         }
     }
 

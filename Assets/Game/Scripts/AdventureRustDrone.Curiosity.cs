@@ -78,6 +78,24 @@ public partial class AdventureRustDrone
         SpawnHappyStars();
     }
 
+    /// <summary>貝殻・素材ポーチ取得時のRustの愛らしいリアクション（宙返り＋セリフ＋鳴き声＋星屑）</summary>
+    public void TriggerSeashellReaction(
+        AdventureBeachSeashellItem.ShellKind kind, 
+        string itemName, 
+        string itemReaction, 
+        AdventureRustCosmetics.CosmeticDef newlyCraftable)
+    {
+        if (IsClimaxCrisis || IsClimaxOverdrive || _climaxHealing || _prologueDistress || _climaxFalling)
+            return;
+
+        string speech = (newlyCraftable != null)
+            ? $"ピピピッ！「{newlyCraftable.displayName}」の素材が揃ったよ！\n【Bキー】で工房を開いて作ってみよう！"
+            : (!string.IsNullOrEmpty(itemReaction) ? itemReaction : $"ピピッ！綺麗な「{itemName}」だね！");
+
+        // 喜びの宙返りアニメーション（フリップ回転）＆セリフ発火！
+        TriggerCelebration(speech, 3.2f);
+    }
+
     /// <summary>喜びの星型スパークル粒子エフェクト</summary>
     void SpawnHappyStars()
     {

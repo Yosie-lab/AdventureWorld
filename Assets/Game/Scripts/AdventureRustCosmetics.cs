@@ -50,7 +50,7 @@ public class AdventureRustCosmetics : MonoBehaviour
             displayName = "サクラガイの花冠",
             description = "薄紅色の貝殻を優美に編み込んだティアラ。桜色の優しい光の粉がふわふわと舞う。",
             requiredKind = AdventureBeachSeashellItem.ShellKind.Sakuragai,
-            requiredCount = 3,
+            requiredCount = 1,
             themeColor = new Color(1f, 0.72f, 0.82f),
             rustReaction = "わぁ…！花冠、すっごく可愛い！お花の妖精さんみたい？"
         },
@@ -61,7 +61,7 @@ public class AdventureRustCosmetics : MonoBehaviour
             displayName = "エメラルド・アンテナランプ",
             description = "アンテナ先端に装着する深緑のクリスタル。暗がりで神秘的な光を灯し、周囲を照らす。",
             requiredKind = AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald,
-            requiredCount = 2,
+            requiredCount = 1,
             themeColor = new Color(0.35f, 0.95f, 0.65f),
             rustReaction = "ピキッ！頭がピカピカ光ってる！これなら暗い森も怖くないよ！"
         },
@@ -72,7 +72,7 @@ public class AdventureRustCosmetics : MonoBehaviour
             displayName = "サファイアの翼チャーム",
             description = "波に磨かれた蒼いガラスの小翼。空を飛ぶたびに流麗なサファイアの光跡（Trail）を残す。",
             requiredKind = AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire,
-            requiredCount = 2,
+            requiredCount = 1,
             themeColor = new Color(0.25f, 0.75f, 1f),
             rustReaction = "見て見てNiko！飛ぶたびに青い光がキラキラついてくるよ！"
         },
@@ -83,7 +83,7 @@ public class AdventureRustCosmetics : MonoBehaviour
             displayName = "太陽の琥珀コア",
             description = "胴体中央のランプが温かい黄金琥珀色に輝き、ホバリング推進炎がゴールドスパークに変化する。",
             requiredKind = AdventureBeachSeashellItem.ShellKind.AmberPebble,
-            requiredCount = 2,
+            requiredCount = 1,
             themeColor = new Color(1f, 0.82f, 0.28f),
             rustReaction = "あったかい…！太陽の力が湧いてくるみたい！"
         },
@@ -94,7 +94,7 @@ public class AdventureRustCosmetics : MonoBehaviour
             displayName = "純白巻貝のホイッスル",
             description = "側面に寄り添う小さな純白巻貝。Rustが嬉しそうに鳴くときに澄んだ潮騒のチャイムが重なる。",
             requiredKind = AdventureBeachSeashellItem.ShellKind.SpiralShell,
-            requiredCount = 2,
+            requiredCount = 1,
             themeColor = new Color(0.96f, 0.95f, 1f),
             rustReaction = "ポォーッ♪ 耳をすますと、波の音が聴こえるよ！"
         }
@@ -182,6 +182,38 @@ public class AdventureRustCosmetics : MonoBehaviour
         if (shellMgr == null) return false;
 
         return shellMgr.GetShellCount(def.requiredKind) >= def.requiredCount;
+    }
+
+    /// <summary>指定された素材を拾ったことで、新しく作れるようになったアクセサリーの定義を返す（なければnull）</summary>
+    public CosmeticDef CheckNewlyCraftable(AdventureBeachSeashellItem.ShellKind kind)
+    {
+        for (int i = 0; i < AllDefs.Length; i++)
+        {
+            var def = AllDefs[i];
+            if (def.requiredKind == kind && !IsUnlocked(def.id) && CanCraft(def.id))
+            {
+                var shellMgr = AdventureBeachSeashellManager.Instance;
+                if (shellMgr != null && shellMgr.GetShellCount(kind) == def.requiredCount)
+                {
+                    return def;
+                }
+            }
+        }
+        return null;
+    }
+
+    /// <summary>現在作れる状態（未作成かつ素材十分）のアクセサリーを1つ返す（なければnull）</summary>
+    public CosmeticDef GetFirstCraftableDef()
+    {
+        for (int i = 0; i < AllDefs.Length; i++)
+        {
+            var def = AllDefs[i];
+            if (!IsUnlocked(def.id) && CanCraft(def.id))
+            {
+                return def;
+            }
+        }
+        return null;
     }
 
     /// <summary>素材を消費してアクセサリーをクラフト・アンロック＆自動装備</summary>

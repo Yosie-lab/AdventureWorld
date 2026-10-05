@@ -69,6 +69,9 @@ public partial class AdventureSanctuaryTowerManager
         AdventureMusicDirector.Instance?.PlaySkybreakTheme(force: true);
         StartSkybreakWindAmbience(); // 風の音は追加で流す
 
+        // 天蓋崩壊中はウミネコ（カモメ）音声を小さい声も含めて完全に強制沈黙
+        AdventureSoaringSeagullsManager.SilenceAllWorldSeagulls(true);
+
         // 「空が割れた」直後から割れ目の向こうの空を見せる
         SpawnWildernessPanorama(coldCrisis: true);
         ApplySkybreakColdAtmosphere();

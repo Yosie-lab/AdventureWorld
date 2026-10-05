@@ -313,6 +313,9 @@ public class AdventureBeachSeagull : MonoBehaviour
     {
         if (_player == null) return;
 
+        // 【ユーザー指示】ウミネコの飛行は「ピピッ！ありがとう、Niko！」から。それまでのウミネコ飛行はなし
+        if (!AdventureSoaringSeagullsManager.IsSeagullFlightAllowed()) return;
+
         float dist = Vector3.Distance(transform.position, _player.position);
         if (dist < TakeoffDistance)
         {
@@ -328,11 +331,12 @@ public class AdventureBeachSeagull : MonoBehaviour
     public void TakeOff()
     {
         if (_isTakingOff) return;
+        if (!AdventureSoaringSeagullsManager.IsSeagullFlightAllowed()) return;
         _isTakingOff = true;
         _flightTime = 0f;
 
-        // 飛び立つ瞬間にウミネコの鳴き声を再生
-        if (seagullCryClip != null)
+        // 飛び立つ瞬間にウミネコの鳴き声を再生（崩壊シーケンス〜エピローグ前はミュート）
+        if (seagullCryClip != null && !AdventureSoaringSeagullsManager.ShouldMuteSeagullCries())
         {
             if (_audioSource == null)
             {

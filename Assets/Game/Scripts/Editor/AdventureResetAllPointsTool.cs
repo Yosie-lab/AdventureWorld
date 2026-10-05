@@ -44,6 +44,24 @@ public static class AdventureResetAllPointsTool
             hud.ResetForNewGame();
         }
 
-        Debug.Log("[AdventureResetAllPointsTool] ✅ 漂着パーツ(0/12)、ドリフトボックス(0/5)、ピアノ古代遺物をすべて0ptに初期化しました！");
+        // 5. 砂浜の貝殻・シーグラス（全48個）の再配置＆リセット
+        var shellMgr = AdventureBeachSeashellManager.Instance ?? Object.FindAnyObjectByType<AdventureBeachSeashellManager>();
+        if (shellMgr != null)
+        {
+            shellMgr.ResetForNewGame();
+        }
+
+        Debug.Log("[AdventureResetAllPointsTool] ✅ 漂着パーツ(0/12)、ドリフトボックス(0/5)、ピアノ古代遺物、貝殻・シーグラス(48個)をすべて初期化しました！");
+    }
+
+    [MenuItem("Adventure/🐚 砂浜の貝殻・シーグラスを全リスポーン（再配置）")]
+    public static void RespawnAllBeachSeashellsNow()
+    {
+        var shellMgr = AdventureBeachSeashellManager.Instance ?? Object.FindAnyObjectByType<AdventureBeachSeashellManager>();
+        if (shellMgr != null)
+        {
+            shellMgr.ResetForNewGame();
+            Debug.Log("[AdventureResetAllPointsTool] 🐚 砂浜の全貝殻・シーグラスをリスポーンしました！");
+        }
     }
 }

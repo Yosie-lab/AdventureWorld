@@ -216,6 +216,7 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
 
     void PlayRandomBirdChirp(Vector3 playerPos, float seScale)
     {
+        if (AdventureSoaringSeagullsManager.ShouldMuteSeagullCries()) return;
         if (_birdChirpClips == null || _birdChirpClips.Length == 0 || _birdChirpSource == null) return;
 
         var clip = _birdChirpClips[Random.Range(0, _birdChirpClips.Length)];

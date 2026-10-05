@@ -24,10 +24,10 @@ public class AdventureMusicDirector : MonoBehaviour
     /// <summary>エンディング後に探索曲へ戻したら、天蓋開放済みでも天空曲へ再切替しない</summary>
     bool _preferAmbientAfterEnding = false;
     bool _isFadingA = false;
-    const float EndingThemeVolume = 1.00f;
+    const float EndingThemeVolume = 1.35f;
     // AudioSource.volume は 1 で頭打ちになる。1 を超える分は生成波形で足す。
     float SkybreakSourceVolume => Mathf.Min(1f, EndingThemeVolume);
-    const float AmbientThemeVolume = 0.11f;
+    const float AmbientThemeVolume = 0.14f;
 
     /// <summary>外部（古代ピアノ等の環境スポット）からのダッキング要求度 (0.0 = 通常音量, 1.0 = 最大ダッキング)</summary>
     public float spotDuckingFactor = 0f;
@@ -558,7 +558,7 @@ public class AdventureMusicDirector : MonoBehaviour
                 float s = Mathf.Sin(2f * Mathf.PI * freq * t) * 0.45f
                         + Mathf.Sin(4f * Mathf.PI * freq * t) * 0.25f
                         + Mathf.Sin(6f * Mathf.PI * freq * t) * 0.15f;
-                float gain = (!hasBass && !hasDrums) ? 0.11f : 0.08f;
+                float gain = (!hasBass && !hasDrums) ? 0.17f : 0.11f;
                 brass += s * (gain / chord.Length);
             }
             brass *= env;
@@ -568,7 +568,7 @@ public class AdventureMusicDirector : MonoBehaviour
             int arpIndex = Mathf.FloorToInt(t * 8.0f) % chord.Length;
             float arpFreq = chord[arpIndex] * 2.0f;
             float arpEnv = Mathf.Exp(-arpPhase * 5.0f);
-            float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.13f;
+            float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.19f;
 
             // 3. 揺れのない澄み切ったピュア・バイオリン主旋律（白玉＋4分音符のバッハ風旋律）
             // 3周目（24秒〜）から開始し、8小節4連駆け上がりから1小節目へ突入！Rust回復後は消える
@@ -647,8 +647,8 @@ public class AdventureMusicDirector : MonoBehaviour
                     }
                 }
 
-                float strIntensity = (!hasBass && !hasDrums) ? 0.15f : (hasDrums ? 0.23f : 0.19f);
-                if (isDrumsOnly) strIntensity = 0.24f;
+                float strIntensity = (!hasBass && !hasDrums) ? 0.22f : (hasDrums ? 0.28f : 0.24f);
+                if (isDrumsOnly) strIntensity = 0.30f;
 
                 // バイオリン主旋律（3周目のみ合流） ＋ 温かいピュアパッド
                 float combined = (mel * 0.33f + pad * 0.30f) * strIntensity;
@@ -743,7 +743,7 @@ public class AdventureMusicDirector : MonoBehaviour
                 float rawBass = subBass * 0.80f + sawFiltered * 0.65f;
                 float fatBass = (float)System.Math.Tanh(rawBass * 1.70f);
 
-                synthBass = fatBass * bEnv * 0.63f; // ほんのわずか音量を上げて迫力と存在感を強化
+                synthBass = fatBass * bEnv * 0.80f; // ベース音を0.80fに設定
             }
 
             float loopFade = 1f;

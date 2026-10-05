@@ -380,12 +380,26 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         if (_guideText != null)
         {
-            _guideText.text = "【WASD / 矢印キー】移動　【マウス】視点　【Shift】走る　【Space長押し】滑空　【R】リセット";
+            _guideText.text = "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【B】ドレスアップ工房";
             _guideText.gameObject.SetActive(true);
         }
 
         AdventurePrologueDrama.Ensure();
-        AdventurePrologueDrama.Instance?.BeginAfterOpening();
+        var prologue = AdventurePrologueDrama.Instance;
+        if (prologue != null)
+        {
+            prologue.BeginAfterOpening();
+            if (!prologue.IsPrologueActive)
+            {
+                var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
+                drone?.PlayStartupGreeting();
+            }
+        }
+        else
+        {
+            var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
+            drone?.PlayStartupGreeting();
+        }
     }
 
     /// <summary>滑空状態に応じて操作ガイドの文言を動的に切り替える</summary>
@@ -394,7 +408,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_guideText == null) return;
         _guideText.text = isGliding
             ? "【A / D】旋回　【W】ダイブ　【S】フレア　【Space長押し】滑空"
-            : "【WASD / 矢印キー】移動　【マウス】視点　【Shift】走る　【Space長押し】滑空　【R】リセット";
+            : "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【B】ドレスアップ工房";
     }
 
     void BuildHud()
@@ -450,7 +464,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         guideOutline.effectDistance = new Vector2(1f, -1f);
         _guideText.gameObject.SetActive(false);
 
-        // 3. 全画面の極薄アンビエントオーバーレイ
+        // 3. 全画面のアンビエントオーバーレイ（暗転させず、背景の明るいビーチ・青空の陽光をそのまま活かす）
         _overlayGo = new GameObject("OpeningOverlay");
         _overlayGo.transform.SetParent(_canvasGo.transform, false);
         var overlayRt = _overlayGo.AddComponent<RectTransform>();
@@ -458,10 +472,10 @@ public class AdventureRustFloatOpening : MonoBehaviour
         overlayRt.anchorMax = Vector2.one;
         overlayRt.sizeDelta = Vector2.zero;
         var overlayImg = _overlayGo.AddComponent<Image>();
-        overlayImg.color = new Color(0.01f, 0.03f, 0.06f, 0.20f);
+        overlayImg.color = new Color(0f, 0f, 0f, 0f); // 暗転ベールを排除し、待機中も世界を明るく見せる
         overlayImg.raycastTarget = false;
 
-        // 4. 中央の時代背景説明ボード（文章専用：ボタンが被らずスクリプトをクリアに読める）
+        // 4. 中央の時代背景説明ボード（爽やかなシースルーグラスモーフィズム：背後の海と光が透けて明るい）
         _modalBoard = new GameObject("StoryModalBoard");
         _modalBoard.transform.SetParent(_overlayGo.transform, false);
         _modalCg = _modalBoard.AddComponent<CanvasGroup>();
@@ -473,14 +487,14 @@ public class AdventureRustFloatOpening : MonoBehaviour
         boardRt.anchoredPosition = new Vector2(0f, 6f);
         boardRt.sizeDelta = new Vector2(740f, 560f); // 縦幅・横幅をゆったり拡張し、本文・ボタン・操作説明の余白を完璧に確保
 
-        // ボード背景（高級感のあるダークグラスモーフィズム・背後の景色が文字を邪魔しない高密度シールド）
+        // ボード背景（透明感のあるマリンブルーグラス・背後の陽光が美しく透ける）
         var boardImg = _modalBoard.AddComponent<Image>();
-        boardImg.color = new Color(0.02f, 0.05f, 0.09f, 0.85f);
+        boardImg.color = new Color(0.03f, 0.09f, 0.16f, 0.58f);
         boardImg.raycastTarget = false;
 
         // 外枠線アウトライン（繊細なガラスの光彩エッジ）
         var boardOutline = _modalBoard.AddComponent<Outline>();
-        boardOutline.effectColor = new Color(0.35f, 0.90f, 1.0f, 0.40f);
+        boardOutline.effectColor = new Color(0.35f, 0.90f, 1.0f, 0.60f);
         boardOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
         // 上部アクセントバー

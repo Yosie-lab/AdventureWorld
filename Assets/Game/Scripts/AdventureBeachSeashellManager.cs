@@ -19,6 +19,11 @@ public class AdventureBeachSeashellManager : MonoBehaviour
     Text _toastText;
     float _toastTimer = 0f;
 
+    // 採取音＆Rust反応音用 2D常駐オーディオ
+    AudioSource _seAudioSource;
+    AudioClip _chimeClip;
+    AudioClip _rustPipiClip;
+
     readonly List<AdventureBeachSeashellItem> _items = new List<AdventureBeachSeashellItem>();
 
     public static event System.Action OnInventoryChanged;
@@ -133,6 +138,7 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             return;
         }
         Instance = this;
+        SetupAudio();
         CreateToastUI();
     }
 
@@ -144,26 +150,58 @@ public class AdventureBeachSeashellManager : MonoBehaviour
 
     void CheckAndMigrateLegacyStock()
     {
-        // 過去に拾った実績があるが個別ストックが未記録の場合の移行
-        int total = TotalCollectedCount;
-        if (total > 0)
+        // 過去に拾われたアイテムID（shell_01〜48）の実態をスキャン
+        int collectedCount = 0;
+        int[] expectedStockPerKind = new int[5];
+        for (int i = 0; i < 48; i++)
         {
-            int currentSum = GetShellCount(AdventureBeachSeashellItem.ShellKind.Sakuragai)
-                           + GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald)
-                           + GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire)
-                           + GetShellCount(AdventureBeachSeashellItem.ShellKind.AmberPebble)
-                           + GetShellCount(AdventureBeachSeashellItem.ShellKind.SpiralShell);
-            if (currentSum == 0)
+            string key = $"Seashell_Collected_shell_{i + 1:D2}";
+            if (PlayerPrefs.GetInt(key, 0) == 1)
             {
-                // バランスよく分配
-                int each = total / 5;
-                int rem = total % 5;
-                AddShell(AdventureBeachSeashellItem.ShellKind.Sakuragai, each + (rem > 0 ? 1 : 0));
-                AddShell(AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald, each + (rem > 1 ? 1 : 0));
-                AddShell(AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire, each + (rem > 2 ? 1 : 0));
-                AddShell(AdventureBeachSeashellItem.ShellKind.AmberPebble, each + (rem > 3 ? 1 : 0));
-                AddShell(AdventureBeachSeashellItem.ShellKind.SpiralShell, each);
+                collectedCount++;
+                int kindIndex = i % 5;
+                expectedStockPerKind[kindIndex]++;
             }
+        }
+
+        // 現在保存されている各素材のストック数を取得
+        int stockSakura = GetShellCount(AdventureBeachSeashellItem.ShellKind.Sakuragai);
+        int stockEmerald = GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald);
+        int stockSapphire = GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire);
+        int stockAmber = GetShellCount(AdventureBeachSeashellItem.ShellKind.AmberPebble);
+        int stockConch = GetShellCount(AdventureBeachSeashellItem.ShellKind.SpiralShell);
+        int totalStock = stockSakura + stockEmerald + stockSapphire + stockAmber + stockConch;
+
+        // 過去のバグにより「サクラガイ以外が0個」だが実際に他のアイテムが拾われていた、
+        // または過去の総合カウントと個別ストックに乖離がある場合の自動修復
+        bool needRebalance = (stockEmerald == 0 && stockSapphire == 0 && stockAmber == 0 && stockConch == 0 && (stockSakura > 0 || collectedCount > 0));
+
+        if (needRebalance)
+        {
+            if (collectedCount > 0)
+            {
+                // 実際に拾ったshell_XXの本来の種別に合わせて正確に復元
+                PlayerPrefs.SetInt("Seashell_Stock_" + AdventureBeachSeashellItem.ShellKind.Sakuragai.ToString(), expectedStockPerKind[0]);
+                PlayerPrefs.SetInt("Seashell_Stock_" + AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald.ToString(), expectedStockPerKind[1]);
+                PlayerPrefs.SetInt("Seashell_Stock_" + AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire.ToString(), expectedStockPerKind[2]);
+                PlayerPrefs.SetInt("Seashell_Stock_" + AdventureBeachSeashellItem.ShellKind.AmberPebble.ToString(), expectedStockPerKind[3]);
+                PlayerPrefs.SetInt("Seashell_Stock_" + AdventureBeachSeashellItem.ShellKind.SpiralShell.ToString(), expectedStockPerKind[4]);
+                TotalCollectedCount = Mathf.Max(TotalCollectedCount, collectedCount);
+            }
+            else if (stockSakura > 0)
+            {
+                // サクラガイに偏ってしまっていたストックを全種類に再分配
+                int each = stockSakura / 5;
+                int rem = stockSakura % 5;
+                PlayerPrefs.SetInt("Seashell_Stock_" + AdventureBeachSeashellItem.ShellKind.Sakuragai.ToString(), each + (rem > 0 ? 1 : 0));
+                PlayerPrefs.SetInt("Seashell_Stock_" + AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald.ToString(), each + (rem > 1 ? 1 : 0));
+                PlayerPrefs.SetInt("Seashell_Stock_" + AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire.ToString(), each + (rem > 2 ? 1 : 0));
+                PlayerPrefs.SetInt("Seashell_Stock_" + AdventureBeachSeashellItem.ShellKind.AmberPebble.ToString(), each + (rem > 3 ? 1 : 0));
+                PlayerPrefs.SetInt("Seashell_Stock_" + AdventureBeachSeashellItem.ShellKind.SpiralShell.ToString(), each);
+            }
+            PlayerPrefs.Save();
+            OnInventoryChanged?.Invoke();
+            Debug.Log("[AdventureBeachSeashellManager] 🐚 素材ポーチのストックデータを正常に再同期・修復しました");
         }
     }
 
@@ -258,17 +296,8 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             itemGo.transform.position = pt;
 
             var item = itemGo.AddComponent<AdventureBeachSeashellItem>();
-            item.itemId = $"shell_{i + 1:D2}";
-
-            // 種類をバリエーション豊かに割り振り
-            switch (i % 5)
-            {
-                case 0: item.kind = AdventureBeachSeashellItem.ShellKind.Sakuragai; break;
-                case 1: item.kind = AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald; break;
-                case 2: item.kind = AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire; break;
-                case 3: item.kind = AdventureBeachSeashellItem.ShellKind.AmberPebble; break;
-                case 4: item.kind = AdventureBeachSeashellItem.ShellKind.SpiralShell; break;
-            }
+            var kind = (AdventureBeachSeashellItem.ShellKind)(i % 5);
+            item.Initialize($"shell_{i + 1:D2}", kind);
 
             _items.Add(item);
         }
@@ -283,13 +312,44 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         AddShell(item.kind, 1);
         int currentStock = GetShellCount(item.kind);
 
+        var newlyCraftable = AdventureRustCosmetics.Instance != null 
+            ? AdventureRustCosmetics.Instance.CheckNewlyCraftable(item.kind) 
+            : null;
+
+        // 1. 小さく澄んだ上品な採取音（控えめ音量 0.35f）
+        if (_seAudioSource != null && _chimeClip != null)
+        {
+            float seVol = PlayerPrefs.GetFloat("Adventure_SeVolume", 1.0f);
+            _seAudioSource.pitch = Random.Range(1.0f, 1.08f);
+            _seAudioSource.PlayOneShot(_chimeClip, 0.35f * seVol);
+        }
+
+        // 2. Rustの反応（愛らしくピピッ♪と鳴く＋ホップ＆セリフ）
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+        {
+            if (_seAudioSource != null && _rustPipiClip != null)
+            {
+                _seAudioSource.PlayOneShot(_rustPipiClip, 0.40f);
+            }
+            drone.TriggerSeashellReaction(item.kind, item.itemName, item.rustReaction, newlyCraftable);
+        }
+
+        // 3. トースト案内
         if (_toastText != null)
         {
             string hexCol = ColorUtility.ToHtmlStringRGB(item.themeColor);
-            _toastText.text = $"<color=#{hexCol}><b>✦ {item.itemName}</b></color> <color=#FFFFFF>を拾った</color>  <size=13><color=#FFE066>(所持: {currentStock}個)</color></size>";
+            if (newlyCraftable != null)
+            {
+                _toastText.text = $"<color=#{hexCol}><b>✦ {item.itemName}</b></color> <color=#FFFFFF>を拾った！</color> <size=13><color=#66FFAA>({currentStock}個)</color></size>\n<size=14><color=#FFE066>✨「{newlyCraftable.displayName}」が作れるよ！【Bキー】で工房を開こう！</color></size>";
+                _toastTimer = 4.2f;
+            }
+            else
+            {
+                _toastText.text = $"<color=#{hexCol}><b>✦ {item.itemName}</b></color> <color=#FFFFFF>を拾った</color>  <size=13><color=#FFE066>(所持: {currentStock}個)</color></size>";
+                _toastTimer = 2.6f;
+            }
         }
-
-        _toastTimer = 2.6f;
     }
 
     void Update()
@@ -361,9 +421,11 @@ public class AdventureBeachSeashellManager : MonoBehaviour
     }
 
     /// <summary>ニューゲーム／リセット時：採取記録を全初期化してアイテムを再アクティブ化</summary>
+    public void ResetAllSeashellsData() => ResetForNewGame();
+
     public void ResetForNewGame()
     {
-        for (int i = 1; i <= 24; i++)
+        for (int i = 1; i <= 48; i++)
         {
             PlayerPrefs.DeleteKey($"Seashell_Collected_shell_{i:D2}");
         }
@@ -394,5 +456,72 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         f = Resources.GetBuiltinResource<Font>("Arial.ttf");
         if (f != null) return f;
         return Font.CreateDynamicFontFromOSFont("Hiragino Sans", 14);
+    }
+
+    void SetupAudio()
+    {
+        if (_seAudioSource == null)
+        {
+            _seAudioSource = gameObject.AddComponent<AudioSource>();
+            _seAudioSource.spatialBlend = 0f; // 2D音響で確実に届く
+            _seAudioSource.playOnAwake = false;
+        }
+
+        if (_chimeClip == null)
+            _chimeClip = CreateSmallChimeClip();
+        if (_rustPipiClip == null)
+            _rustPipiClip = CreateRustHappyPipiClip();
+    }
+
+    static AudioClip CreateSmallChimeClip()
+    {
+        int rate = 44100;
+        float duration = 0.28f;
+        int count = Mathf.RoundToInt(rate * duration);
+        float[] samples = new float[count];
+
+        // 澄んだ小さく優しいチャイム（E6: 1318Hz -> G#6: 1661Hz -> B6: 1975Hz の可憐な和音）
+        float[] notes = { 1318.51f, 1661.22f, 1975.53f };
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float sum = 0f;
+            for (int n = 0; n < notes.Length; n++)
+            {
+                float noteT = t - n * 0.035f;
+                if (noteT >= 0f)
+                {
+                    float env = Mathf.Exp(-noteT * 18f); // 素早く減衰する小さく優しい音
+                    sum += Mathf.Sin(2f * Mathf.PI * notes[n] * noteT) * env * 0.28f;
+                }
+            }
+            samples[i] = Mathf.Clamp(sum, -1f, 1f);
+        }
+
+        var clip = AudioClip.Create("SeashellSmallChime", count, 1, rate, false);
+        clip.SetData(samples, 0);
+        return clip;
+    }
+
+    static AudioClip CreateRustHappyPipiClip()
+    {
+        int rate = 44100;
+        float duration = 0.22f;
+        int count = Mathf.RoundToInt(rate * duration);
+        float[] samples = new float[count];
+
+        // 愛らしい電子チャイム音「ピピッ♪」（高めのピロリン）
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float freq = t < 0.10f ? 1760f : 2349f; // A6 -> D7
+            float env = Mathf.Exp(-((t % 0.10f) * 22f));
+            float s = Mathf.Sin(2f * Mathf.PI * freq * t) * env * 0.32f;
+            samples[i] = Mathf.Clamp(s, -1f, 1f);
+        }
+
+        var clip = AudioClip.Create("RustHappyPipi", count, 1, rate, false);
+        clip.SetData(samples, 0);
+        return clip;
     }
 }

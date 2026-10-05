@@ -207,9 +207,44 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     public bool ClimaxCrisisStarted => _climaxCrisisStarted;
     public bool ClimaxOilInjected => _climaxOilInjected;
+    public bool EndingSequenceActive => _endingSequenceActive;
     public bool EpilogueTriggered => _epilogueTriggered;
     public float EpilogueAlpha => _epilogueAlpha;
     public bool ShowGameClearModal => _showGameClearModal;
+
+    /// <summary>天蓋崩壊シーケンス開始から、注油完了後の「あ 温かい油が 心臓部に…」が出るまでの緊迫フェーズ中判定</summary>
+    public bool IsBeforeWarmOilSpeech
+    {
+        get
+        {
+            if (!_endingSequenceActive && !_leverPulled && !_climaxCrisisStarted) return false;
+            if (_epilogueTriggered) return false;
+            if (!_climaxOilInjected) return true;
+            if (_climaxBeatIndex < 3) return true; // 3 = 「……あ……温かい油が……心臓部に……」
+            return false;
+        }
+    }
+
+    /// <summary>天蓋崩壊開始からエピローグ（見て、Niko）までの全シネマティック中判定</summary>
+    public bool IsCanopyToEpilogueSequence
+    {
+        get
+        {
+            if (_epilogueTriggered) return false;
+            return _endingSequenceActive || _leverPulled || _climaxCrisisStarted || _canopyBeatIndex >= 0 || _climaxBeatIndex >= 0;
+        }
+    }
+
+    /// <summary>「ピピッ！……ありがとう、Niko！」（_climaxBeatIndex >= 4）以降かどうか（大空ウミネコ解禁トリガー）</summary>
+    public bool IsClimaxAfterThanksSpeech
+    {
+        get
+        {
+            if (_epilogueTriggered) return true;
+            if (_climaxCrisisStarted && _climaxOilInjected && _climaxBeatIndex >= 4) return true;
+            return false;
+        }
+    }
     /// <summary>エピローグ字幕／台本ボード表示中（他HUD・セリフを抑止するため）</summary>
     public bool IsEpiloguePlaying =>
         _epilogueTriggered && !_showGameClearModal;

@@ -15,21 +15,21 @@ public class AdventureClassicSkyRuntime : MonoBehaviour
 
     // 大気フォグ
     public static readonly Color  FogColor          = new Color(0.627451f, 1f, 0.9764706f, 1f);
-    public const  float           FogDensity         = 0.0025f;
+    public const  float           FogDensity         = 0.0010f; // 霞みを抑えて遠景の海・空を澄み渡らせる
 
-    // 環境光
-    public const  float           AmbientIntensity   = 1.18f;
-    public static readonly Color  AmbientSkyColor    = new Color(0.75f, 0.88f, 1.0f, 1f);
-    public static readonly Color  AmbientEquator     = new Color(0.88f, 0.90f, 0.82f, 1f);
-    public static readonly Color  AmbientGround      = new Color(0.42f, 0.55f, 0.35f, 1f);
+    // 環境光（Trilightモードで影が黒く沈むのを防止し、白砂・草原の照り返しを明るく表現）
+    public const  float           AmbientIntensity   = 1.35f;
+    public static readonly Color  AmbientSkyColor    = new Color(0.72f, 0.86f, 1.0f, 1f);     // 青空の反射光
+    public static readonly Color  AmbientEquator     = new Color(0.92f, 0.94f, 0.88f, 1f);    // 水平線の柔らかい光
+    public static readonly Color  AmbientGround      = new Color(0.55f, 0.68f, 0.48f, 1f);    // 白砂・草原の照り返し
 
     // 太陽光
-    public static readonly Color  SunColor           = new Color(1f, 0.96f, 0.78f, 1f);
-    public const  float           SunIntensity       = 1.35f;
+    public static readonly Color  SunColor           = new Color(1f, 0.98f, 0.90f, 1f);
+    public const  float           SunIntensity       = 1.65f; // 暖かく明るい南国の陽光
 
     // ポストプロセス
-    public const  float           PostExposure       = 0.0f;
-    public const  float           Contrast           = -8f;
+    public const  float           PostExposure       = 0.35f; // 全体の露出を底上げして明るく爽やかな画面に
+    public const  float           Contrast           = -4f;
     public const  float           BloomIntensity     = 0.28f;
     public const  float           BloomThreshold     = 1.18f;
     // ─────────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ public class AdventureClassicSkyRuntime : MonoBehaviour
         RenderSettings.fogMode          = FogMode.ExponentialSquared;
         RenderSettings.fogColor         = FogColor;
         RenderSettings.fogDensity       = FogDensity;
-        RenderSettings.ambientMode      = AmbientMode.Skybox;
+        RenderSettings.ambientMode      = AmbientMode.Trilight;
         RenderSettings.ambientIntensity = AmbientIntensity;
         RenderSettings.ambientSkyColor  = AmbientSkyColor;
         RenderSettings.ambientEquatorColor = AmbientEquator;

@@ -31,8 +31,11 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     Vector3 _startPos;
     Transform _visualRoot;
     ParticleSystem _sparklePs;
+    ParticleSystem _twinklePs;
+    Light _pointLight;
     AudioSource _audioSource;
     static AudioClip _chimeClip;
+    bool _initialized = false;
 
     public bool IsCollected => _isCollected;
     public Color itemColor => themeColor;
@@ -40,23 +43,40 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     void Awake()
     {
         _startPos = transform.position;
+
+        // 採取判定コライダー（至近距離での自動接触採取）
+        var col = GetComponent<SphereCollider>();
+        if (col == null)
+            col = gameObject.AddComponent<SphereCollider>();
+        col.isTrigger = true;
+        col.radius = 2.0f;
+    }
+
+    /// <summary>Managerから指定ID・種類を受け取って固有の見た目・効果を構築</summary>
+    public void Initialize(string id, ShellKind shellKind)
+    {
+        itemId = id;
+        kind = shellKind;
+        _startPos = transform.position;
+
         CreateVisual();
         SetupAudio();
         CreateSparkleFx();
+        _initialized = true;
 
-        // 採取判定コライダー
-        var col = gameObject.AddComponent<SphereCollider>();
-        col.isTrigger = true;
-        col.radius = 2.8f;
-    }
-
-    void Start()
-    {
         // セーブ済み判定
         if (!string.IsNullOrEmpty(itemId) && PlayerPrefs.GetInt("Seashell_Collected_" + itemId, 0) == 1)
         {
             _isCollected = true;
             gameObject.SetActive(false);
+        }
+    }
+
+    void Start()
+    {
+        if (!_initialized)
+        {
+            Initialize(itemId, kind);
         }
     }
 
@@ -122,8 +142,8 @@ public class AdventureBeachSeashellItem : MonoBehaviour
                 rustReaction = "わぁ、花びらみたいな貝殻だね！";
                 themeColor = new Color(1f, 0.72f, 0.85f, 1f);
                 mat.color = new Color(1f, 0.78f, 0.88f, 0.95f);
-                mat.SetColor("_EmissionColor", new Color(1f, 0.65f, 0.80f) * 0.40f);
-                mat.SetFloat("_Smoothness", 0.90f);
+                mat.SetColor("_EmissionColor", new Color(1f, 0.65f, 0.80f) * 1.5f);
+                mat.SetFloat("_Smoothness", 0.85f);
                 CreateShellMesh(vGo.transform, mat, isSakura: true);
                 break;
 
@@ -132,8 +152,8 @@ public class AdventureBeachSeashellItem : MonoBehaviour
                 rustReaction = "波に磨かれて角がすべすべだ！宝石みたい…！";
                 themeColor = new Color(0.20f, 0.98f, 0.65f, 1f);
                 mat.color = new Color(0.25f, 0.92f, 0.65f, 0.92f);
-                mat.SetColor("_EmissionColor", new Color(0.15f, 0.95f, 0.55f) * 0.48f);
-                mat.SetFloat("_Smoothness", 0.95f);
+                mat.SetColor("_EmissionColor", new Color(0.15f, 0.95f, 0.55f) * 1.6f);
+                mat.SetFloat("_Smoothness", 0.90f);
                 CreateGlassMesh(vGo.transform, mat);
                 break;
 
@@ -142,8 +162,8 @@ public class AdventureBeachSeashellItem : MonoBehaviour
                 rustReaction = "深海みたいな綺麗な青色！空に透かすとキラキラするよ！";
                 themeColor = new Color(0.30f, 0.80f, 1f, 1f);
                 mat.color = new Color(0.20f, 0.72f, 0.98f, 0.92f);
-                mat.SetColor("_EmissionColor", new Color(0.20f, 0.75f, 1f) * 0.52f);
-                mat.SetFloat("_Smoothness", 0.96f);
+                mat.SetColor("_EmissionColor", new Color(0.20f, 0.75f, 1f) * 1.6f);
+                mat.SetFloat("_Smoothness", 0.90f);
                 CreateGlassMesh(vGo.transform, mat);
                 break;
 
@@ -152,8 +172,8 @@ public class AdventureBeachSeashellItem : MonoBehaviour
                 rustReaction = "黄金色に光ってる…！昔の太陽の光を閉じ込めたみたい！";
                 themeColor = new Color(1f, 0.85f, 0.25f, 1f);
                 mat.color = new Color(1f, 0.80f, 0.18f, 0.95f);
-                mat.SetColor("_EmissionColor", new Color(1f, 0.78f, 0.20f) * 0.45f);
-                mat.SetFloat("_Smoothness", 0.92f);
+                mat.SetColor("_EmissionColor", new Color(1f, 0.78f, 0.20f) * 1.5f);
+                mat.SetFloat("_Smoothness", 0.85f);
                 CreateAmberMesh(vGo.transform, mat);
                 break;
 
@@ -162,8 +182,8 @@ public class AdventureBeachSeashellItem : MonoBehaviour
                 rustReaction = "耳を当ててみて、Niko！遠くの波の音が聞こえるよ！";
                 themeColor = new Color(0.95f, 0.98f, 1f, 1f);
                 mat.color = new Color(0.98f, 0.97f, 0.92f, 1f);
-                mat.SetColor("_EmissionColor", new Color(0.90f, 0.95f, 1f) * 0.35f);
-                mat.SetFloat("_Smoothness", 0.85f);
+                mat.SetColor("_EmissionColor", new Color(0.90f, 0.95f, 1f) * 1.3f);
+                mat.SetFloat("_Smoothness", 0.80f);
                 CreateSpiralMesh(vGo.transform, mat);
                 break;
         }
@@ -176,7 +196,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     {
         var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         sphere.transform.SetParent(parent, false);
-        sphere.transform.localScale = new Vector3(0.26f, 0.055f, 0.32f); // 約1.5倍に拡大し砂に埋もれずコロンと目立つ
+        sphere.transform.localScale = new Vector3(0.26f, 0.055f, 0.32f); // 砂に埋もれずコロンと目立つ
         sphere.GetComponent<Renderer>().material = mat;
         Destroy(sphere.GetComponent<Collider>());
     }
@@ -210,64 +230,72 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         Destroy(cap.GetComponent<Collider>());
     }
 
-    static Material _sharedSparkleMat;
+    static Shader GetSafeUnlitShader()
+    {
+        return Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Sprites/Default")
+            ?? Shader.Find("Mobile/Particles/Additive")
+            ?? Shader.Find("Unlit/Transparent");
+    }
+
+    static Material CreateSafeGlowMaterial(Texture2D tex, Color color, string name)
+    {
+        var shader = GetSafeUnlitShader();
+        var mat = new Material(shader) { name = name };
+        mat.mainTexture = tex;
+        mat.color = color;
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+
+        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f); // Transparent
+        if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 1f); // Additive
+        if (mat.HasProperty("_Cull")) mat.SetFloat("_Cull", 0f); // Double-sided
+        if (mat.HasProperty("_ZWrite")) mat.SetFloat("_ZWrite", 0f);
+
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.renderQueue = 3100;
+        return mat;
+    }
 
     void CreateSparkleFx()
     {
-        var psGo = new GameObject("Sparkles");
-        psGo.transform.SetParent(transform, false);
-        psGo.transform.localPosition = Vector3.up * 0.14f;
+        var smokeTex = AdventureRustDrone.GetSoftSmokeTexture();
 
-        _sparklePs = psGo.AddComponent<ParticleSystem>();
-        var main = _sparklePs.main;
-        main.startLifetime = 1.6f;
-        main.startSpeed = 0.26f;
-        main.startSize = 0.16f; // キラキラ粒子のサイズ倍増
-        main.startColor = themeColor;
-        main.loop = true;
+        // 1. 周囲の砂浜を優しく照らすポイントライト
+        var lightGo = new GameObject("ItemPointLight");
+        lightGo.transform.SetParent(transform, false);
+        lightGo.transform.localPosition = new Vector3(0f, 0.35f, 0f);
+        _pointLight = lightGo.AddComponent<Light>();
+        _pointLight.type = LightType.Point;
+        _pointLight.range = 3.5f;
+        _pointLight.intensity = 1.8f;
+        _pointLight.color = themeColor;
+        _pointLight.shadows = LightShadows.None;
 
-        var emission = _sparklePs.emission;
-        emission.rateOverTime = 4.5f; // 発生頻度を強化
+        // 2. 上空にフワリと立ち上る光の蛍粒子（Rising Dust）
+        var dustGo = new GameObject("RisingDust");
+        dustGo.transform.SetParent(transform, false);
+        dustGo.transform.localPosition = Vector3.up * 0.12f;
 
-        var shape = _sparklePs.shape;
-        shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.28f;
+        _sparklePs = dustGo.AddComponent<ParticleSystem>();
+        var mainDust = _sparklePs.main;
+        mainDust.loop = true;
+        mainDust.startLifetime = 1.8f;
+        mainDust.startSpeed = 0.32f;
+        mainDust.startSize = 0.22f;
+        mainDust.startColor = themeColor;
 
-        var colOverLifetime = _sparklePs.colorOverLifetime;
-        colOverLifetime.enabled = true;
-        var grad = new Gradient();
-        grad.SetKeys(
-            new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(themeColor, 0.6f) },
-            new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.95f, 0.35f), new GradientAlphaKey(0f, 1f) }
-        );
-        colOverLifetime.color = grad;
+        var emissionDust = _sparklePs.emission;
+        emissionDust.rateOverTime = 4.5f;
 
-        var psRend = psGo.GetComponent<ParticleSystemRenderer>();
-        if (psRend != null)
+        var rendDust = dustGo.GetComponent<ParticleSystemRenderer>();
+        if (rendDust != null)
         {
-            if (_sharedSparkleMat == null)
-            {
-                var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                          ?? Shader.Find("Universal Render Pipeline/Unlit")
-                          ?? Shader.Find("Mobile/Particles/Additive")
-                          ?? Shader.Find("Particles/Standard Unlit");
-                _sharedSparkleMat = new Material(shader) { name = "SeashellSparkle_Mat" };
-                var tex = AdventureRustDrone.GetSoftSmokeTexture();
-                _sharedSparkleMat.SetTexture("_BaseMap", tex);
-                _sharedSparkleMat.mainTexture = tex;
-                _sharedSparkleMat.SetColor("_BaseColor", Color.white);
-                _sharedSparkleMat.color = Color.white;
-                _sharedSparkleMat.SetFloat("_Surface", 1f);
-                _sharedSparkleMat.SetFloat("_Blend", 1f); // Additive
-                _sharedSparkleMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                _sharedSparkleMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
-                _sharedSparkleMat.SetInt("_ZWrite", 0);
-                _sharedSparkleMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                _sharedSparkleMat.renderQueue = 3100;
-            }
-            psRend.sharedMaterial = _sharedSparkleMat;
-            psRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            psRend.receiveShadows = false;
+            rendDust.sharedMaterial = CreateSafeGlowMaterial(smokeTex, themeColor, "SeashellDust_Mat");
+            rendDust.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rendDust.receiveShadows = false;
         }
     }
 
@@ -296,6 +324,16 @@ public class AdventureBeachSeashellItem : MonoBehaviour
             return;
         }
 
+        // ライトの優しいパルス
+        float pulseTime = (Time.time * 3.2f) + (itemId != null ? itemId.GetHashCode() % 10 : 0);
+        float pulse = Mathf.Sin(pulseTime);
+
+        if (_pointLight != null)
+        {
+            _pointLight.intensity = 1.8f + pulse * 0.45f;
+            _pointLight.range = 3.5f + pulse * 0.6f;
+        }
+
         // プレイヤー接近判定
         var p = AdventurePlayerController.Instance;
         if (p != null)
@@ -308,11 +346,23 @@ public class AdventureBeachSeashellItem : MonoBehaviour
             }
 
             float dist = Vector3.Distance(transform.position, p.transform.position);
-            _isPlayerNear = (dist < 2.8f);
+
+            // すぐ近く（2.0m以内）まで行くと自動で吸い込み採取！
+            const float autoPickupDist = 2.0f;
+            const float promptDist = 2.8f;
+
+            if (dist < autoPickupDist)
+            {
+                _isPlayerNear = false;
+                StartCollecting();
+                return;
+            }
+
+            // 少し離れた距離（2.0m〜2.8m）ではEキー/クリックでの手動採取も受付
+            _isPlayerNear = (dist < promptDist);
 
             if (_isPlayerNear)
             {
-                // Eキー入力、またはクリックで採取！
                 var kb = UnityEngine.InputSystem.Keyboard.current;
                 var mouse = UnityEngine.InputSystem.Mouse.current;
                 bool pressed = (kb != null && kb.eKey.wasPressedThisFrame)
@@ -324,6 +374,16 @@ public class AdventureBeachSeashellItem : MonoBehaviour
                     StartCollecting();
                 }
             }
+        }
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        // 高速ダッシュやジャンプ等で接触した場合も確実に自動採取
+        if (_isCollecting || _isCollected || ShouldSuppressInteraction()) return;
+        if (other.GetComponentInParent<AdventurePlayerController>() != null)
+        {
+            StartCollecting();
         }
     }
 
@@ -356,6 +416,9 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         {
             _sparklePs.Emit(14);
         }
+
+        // ライトを消灯
+        if (_pointLight != null) _pointLight.enabled = false;
     }
 
     void FinishCollection()
@@ -370,18 +433,10 @@ public class AdventureBeachSeashellItem : MonoBehaviour
             PlayerPrefs.Save();
         }
 
-        // トースト通知を表示
+        // トースト通知＆音響・Rustリアクション発火
         if (AdventureBeachSeashellManager.Instance != null)
         {
             AdventureBeachSeashellManager.Instance.NotifyCollected(this);
-        }
-
-        // 相棒Rustのリアクション＆お祝い宙返り！
-        var drone = AdventureRustDrone.Instance;
-        if (drone != null)
-        {
-            string speech = !string.IsNullOrEmpty(rustReaction) ? rustReaction : $"ピピッ！綺麗な「{itemName}」だね！";
-            drone.TriggerCelebration(speech, 2.4f);
         }
 
         gameObject.SetActive(false);

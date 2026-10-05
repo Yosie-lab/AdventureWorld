@@ -205,9 +205,23 @@ public partial class AdventureRustDrone : MonoBehaviour
 
         AdventureRustSpeechUI.Ensure();
 
-        // 起動時のあたたかい挨拶（新規ゲームのプロローグがある場合は後で上書き）
+        // 起動時のあたたかい挨拶（オープニングモーダル表示中は重なり防止のため保留）
+        var opening = AdventureRustFloatOpening.Instance;
+        if (opening == null || !opening.IsModalBoardOpen())
+        {
+            PlayStartupGreeting();
+        }
+        else
+        {
+            _nextIdleTalk = Time.unscaledTime + 30f;
+            _lastIdleLine = "";
+        }
+    }
+
+    /// <summary>ゲーム開始／再開時のあたたかい挨拶</summary>
+    public void PlayStartupGreeting()
+    {
         SetSpeech("ピピッ…！起動したよ、Niko。一緒に行こう！", 4.5f);
-        // 約30秒後から定期会話（プロローグ中は後で繰り延べ）
         _nextIdleTalk = Time.unscaledTime + 30f;
         _lastIdleLine = "";
     }

@@ -105,13 +105,18 @@ public static class AdventureStoryFlow
         }
     }
 
-    /// <summary>Rustの吹き出しを消す（台本・エピローグ・クリア）。</summary>
+    /// <summary>Rustの吹き出しを消す（オープニング・台本・エピローグ・クリア）。</summary>
     public static bool HidesRustSpeech
     {
         get
         {
             var p = Current;
-            return p == Phase.Skybreak || p == Phase.Epilogue || p == Phase.Clear;
+            if (p == Phase.Opening || p == Phase.Skybreak || p == Phase.Epilogue || p == Phase.Clear)
+                return true;
+            var opening = AdventureRustFloatOpening.Instance;
+            if (opening != null && opening.IsModalBoardOpen())
+                return true;
+            return false;
         }
     }
 

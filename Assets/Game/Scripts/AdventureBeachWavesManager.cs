@@ -168,11 +168,27 @@ public class AdventureBeachWavesManager : MonoBehaviour
 
         // 3. ウミネコ（カモメ）の鳴き声制御
         HandleSeagullAmbience(pos, targetIntensity, dt);
+
+        // 4. ウミネコ飛行ビジュアルの表示制御（「ピピッ！ありがとう、Niko！」まで飛行なし）
+        bool flightAllowed = AdventureSoaringSeagullsManager.IsSeagullFlightAllowed();
+        if (_seagullFlockRoot != null && _seagullFlockRoot.activeSelf != flightAllowed)
+        {
+            _seagullFlockRoot.SetActive(flightAllowed);
+        }
     }
 
     void HandleSeagullAmbience(Vector3 playerPos, float beachIntensity, float dt)
     {
         if (_seagullSource == null) return;
+
+        // 崩壊シーケンス〜「あ 温かい油が 心臓部に」〜エピローグ前はウミネコ音声を完全ミュート
+        if (AdventureSoaringSeagullsManager.ShouldMuteSeagullCries())
+        {
+            if (_seagullSource.isPlaying)
+                _seagullSource.Stop();
+            return;
+        }
+
         _seagullTimer -= dt;
 
         if (_seagullTimer <= 0f)
@@ -265,6 +281,9 @@ public class AdventureBeachWavesManager : MonoBehaviour
                 BuildSeagullMesh(bird.transform, birdMat, beakMat, wingTipMat, flight);
             }
         }
+
+        // 初期状態：「ピピッ！ありがとう、Niko！」までは完全非アクティブ（飛行なし）
+        _seagullFlockRoot.SetActive(AdventureSoaringSeagullsManager.IsSeagullFlightAllowed());
     }
 
     void BuildSeagullMesh(Transform parent, Material bodyMat, Material beakMat, Material tipMat, AdventureSeagullFlightVisual flight)
