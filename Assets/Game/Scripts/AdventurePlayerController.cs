@@ -563,9 +563,12 @@ public partial class AdventurePlayerController : MonoBehaviour
             }
             if (tower.IsSkybreakModalActive)
             {
-                // 全台本：タップ or 押しっぱなしで送り
-                if (AdventureInputReader.SpaceOrJDown || AdventureInputReader.SpaceOrJHeld)
-                    tower.NotifyScriptBoardAdvance();
+                // クライマックス中（凍結危機〜エピローグ前）はTickClimaxSequenceが一元管理するため、HandleJump側からの自動台本送りは行わない
+                if (!tower.ClimaxCrisisStarted)
+                {
+                    if (AdventureInputReader.SpaceOrJDown || AdventureInputReader.SpaceOrJHeld)
+                        tower.NotifyScriptBoardAdvance();
+                }
                 return;
             }
             if (tower.IsPlayerNearLever && tower.IsLeverReadyToOpen) return;

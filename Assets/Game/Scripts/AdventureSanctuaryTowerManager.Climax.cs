@@ -81,6 +81,7 @@ public partial class AdventureSanctuaryTowerManager
         _scriptBoardVisible = true;
         _scriptBoardOpenedAt = Time.unscaledTime;
         _scriptHoldTimer = 0f;
+        _scriptRequireInputRelease = true; // 各セリフ開始時はキーを一度離すのを待つ（連打・長押し多重スキップ完全防止）
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         Time.timeScale = 1f;
@@ -185,10 +186,11 @@ public partial class AdventureSanctuaryTowerManager
         bool postOilBeat = _climaxBeatIndex >= ClimaxOilSlot;
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
-        // 注油完了直後：直前の注油長押しがそのままセリフ送りになるのを防ぐ安全ガード（最長0.45秒で自動解除）
+        // キー離し待ちガード：直前の長押し／連打が次のセリフを即座に送ってしまうのを防止
+        // （キーを離せば即座に解除され、万が一押しっぱなしでも2.5秒で自動解除）
         if (_scriptRequireInputRelease)
         {
-            if (!IsDiveConfirmHeld() || openFor >= 0.45f)
+            if (!IsDiveConfirmHeld() || openFor >= 2.5f)
             {
                 _scriptRequireInputRelease = false;
             }
@@ -198,41 +200,31 @@ public partial class AdventureSanctuaryTowerManager
             }
         }
 
-        // 各ビートの最低表示時間ガード（誤スキップ・連打を物理的に100%遮断し、セリフと演出を確実に味わわせる）
-        float minHoldOpen = 1.0f;
-        if (_climaxBeatIndex == 0)
-            minHoldOpen = 1.5f;
-        else if (_climaxBeatIndex == 1)
-            minHoldOpen = 1.2f;
-        else if (_climaxBeatIndex == 2)
-            minHoldOpen = 1.0f;
-        else if (postOilBeat && _climaxBeatIndex == ClimaxOilSlot)
-            minHoldOpen = 1.8f; // 「温かい油が…」は最低1.8秒間確実に表示
-        else if (postOilBeat && _climaxBeatIndex > ClimaxOilSlot)
-            minHoldOpen = 2.0f; // 「ありがとう、Niko！」は最低2.0秒間確実に表示
-
+        // 最低表示時間は0.35秒（誤タップ1回の防止用）。
+        // キーを離した状態であれば、読めたタイミングでSpaceやクリックを押せば即座に進む（「固まった」感を根絶）
+        const float minHoldOpen = 0.35f;
         if (openFor >= minHoldOpen)
         {
-            // 単発押し（Down）でのみセリフを1つ進める（長押しによる多重連鎖スキップを完全排除）
+            // 単発押し（Down）でセリフを1つ進める
             if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseLeftDown ||
                 AdventureInputReader.SpaceDown || AdventureInputReader.InteractDown || AdventureInputReader.EnterDown)
             {
                 _scriptBoardAdvance = true;
             }
 
-            // 自然な自動送り時間（放置しても映画のように美しく進行）
+            // 何も押さなくても自然に次のセリフへ進む自動送り時間（放置シネマ）
             bool finalBeat = _climaxBeatIndex >= ClimaxBeats.Length - 1;
             float autoSec;
             if (_climaxBeatIndex == 0)
-                autoSec = 5.8f;
+                autoSec = 5.5f;
             else if (_climaxBeatIndex == 1)
-                autoSec = 5.2f;
-            else if (_climaxBeatIndex == 2)
-                autoSec = 4.8f;
-            else if (postOilBeat && _climaxBeatIndex == ClimaxOilSlot)
                 autoSec = 5.0f;
+            else if (_climaxBeatIndex == 2)
+                autoSec = 4.5f;
+            else if (postOilBeat && _climaxBeatIndex == ClimaxOilSlot)
+                autoSec = 4.8f; // 「温かい油が…」
             else if (finalBeat)
-                autoSec = 5.8f;
+                autoSec = 5.5f; // 「ありがとう、Niko！」
             else
                 autoSec = GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
 
@@ -574,7 +566,14 @@ public partial class AdventureSanctuaryTowerManager
     void HideOilPromptUI()
     {
         if (_oilUiRoot != null)
+        {
             _oilUiRoot.SetActive(false);
+            Destroy(_oilUiRoot);
+            _oilUiRoot = null;
+        }
+        var canvas = GameObject.Find("ClimaxOilPromptCanvas");
+        if (canvas != null)
+            Destroy(canvas);
     }
 
     void FinishClimaxSequence()

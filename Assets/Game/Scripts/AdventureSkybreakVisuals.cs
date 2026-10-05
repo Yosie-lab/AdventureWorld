@@ -684,31 +684,28 @@ public static class AdventureSkybreakVisuals
         var whiteImg = CreateFullScreenImage(canvasGo.transform, "FlashWhite", new Color(1f, 1f, 1f, 0f));
         var goldImg = CreateFullScreenImage(canvasGo.transform, "FlashGold", new Color(1f, 0.88f, 0.45f, 0f));
 
-        // 急激なホワイトアウト
+        // 柔らかく広がる黄金の祝福光芒（背後のNikoやRustの飛行が透けて見えるマイルドな演出）
         float t = 0f;
-        while (t < 0.08f)
+        const float peak = 0.25f;
+        while (t < peak)
         {
             t += Time.unscaledDeltaTime;
-            float a = Mathf.Clamp01(t / 0.08f);
-            whiteImg.color = new Color(1f, 0.99f, 0.96f, a);
-            goldImg.color = new Color(1f, 0.9f, 0.5f, a * 0.55f);
+            float a = Mathf.Clamp01(t / peak);
+            whiteImg.color = new Color(1f, 0.99f, 0.96f, a * 0.35f);
+            goldImg.color = new Color(1f, 0.9f, 0.5f, a * 0.40f);
             yield return null;
         }
-        whiteImg.color = new Color(1f, 0.99f, 0.97f, 1f);
-        goldImg.color = new Color(1f, 0.92f, 0.55f, 0.7f);
-        yield return new WaitForSecondsRealtime(0.18f);
 
-        // 黄金に溶けながら外の世界が見える
+        // 黄金の余韻を残しながら大空が美しく広がる
         t = 0f;
-        const float fade = 1.65f;
+        const float fade = 1.2f;
         while (t < fade)
         {
             t += Time.unscaledDeltaTime;
             float u = Mathf.Clamp01(t / fade);
-            float soft = 1f - u;
-            soft *= soft;
-            whiteImg.color = new Color(1f, 0.98f, 0.92f, soft * 0.85f);
-            goldImg.color = new Color(1f, 0.86f, 0.42f, soft * 0.55f);
+            float soft = (1f - u) * (1f - u);
+            whiteImg.color = new Color(1f, 0.98f, 0.92f, soft * 0.35f);
+            goldImg.color = new Color(1f, 0.86f, 0.42f, soft * 0.40f);
             yield return null;
         }
 

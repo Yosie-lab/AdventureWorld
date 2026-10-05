@@ -462,12 +462,8 @@ public partial class AdventureSanctuaryTowerManager
     {
         if (!_scriptBoardVisible) return;
         if (_scriptRequireInputRelease) return;
-        // 注油直後の最初のセリフだけ長めに守る。最終「全力で行くよ」はすぐ送れるようにする
+        if (_climaxCrisisStarted) return; // クライマックス中はTickClimaxSequenceが一元管理
         float minShow = 0.45f;
-        if (_climaxCrisisStarted && _climaxBeatIndex == ClimaxOilSlot)
-            minShow = 2.2f;
-        else if (_climaxCrisisStarted && _climaxBeatIndex > ClimaxOilSlot)
-            minShow = 0.85f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
         _scriptBoardAdvance = true;
         Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");
