@@ -114,12 +114,69 @@ public class AdventureCapytaBlessing : MonoBehaviour
         AdventureCapytaBodyCollider.EnsureAllCapytasInScene();
     }
 
-    static readonly Vector3[] BeachCapytaSpots =
+    // カピタの候補座標プール（同一ステージ内で複数地点。スタート至近を避け、島内各所へ分散）
+    static readonly Vector3[][] BeachCapytaCandidatePools =
     {
-        new Vector3(148f, 0f, 248f), // スタート南方（Nikoスポーンから約28m）
-        new Vector3(132f, 0f, 328f), // 西砂浜中央帯
-        new Vector3(205f, 0f, 198f), // 南砂浜
+        // 1. 南砂浜〜南西岬エリア（木陰や波打ち際で気持ちよく佇む）
+        new[]
+        {
+            new Vector3(215f, 0f, 185f),
+            new Vector3(195f, 0f, 160f),
+            new Vector3(185f, 0f, 210f),
+            new Vector3(228f, 0f, 205f),
+        },
+        // 2. 西砂浜中央〜北西海岸エリア
+        new[]
+        {
+            new Vector3(136f, 0f, 335f),
+            new Vector3(145f, 0f, 380f),
+            new Vector3(152f, 0f, 415f),
+            new Vector3(138f, 0f, 310f),
+        },
+        // 3. 内陸せせらぎ川〜草原池エリア
+        new[]
+        {
+            new Vector3(245f, 0f, 270f),
+            new Vector3(285f, 0f, 320f),
+            new Vector3(220f, 0f, 240f),
+            new Vector3(265f, 0f, 295f),
+        },
     };
+
+    static Vector3 GetCapytaSpot(int index)
+    {
+        if (index < 0 || index >= BeachCapytaCandidatePools.Length) return Vector3.zero;
+        var pool = BeachCapytaCandidatePools[index];
+        int savedIdx = PlayerPrefs.GetInt($"Capyta_Beach_PosIdx_{index}", 0);
+        savedIdx = Mathf.Clamp(savedIdx, 0, pool.Length - 1);
+        return pool[savedIdx];
+    }
+
+    /// <summary>リスタート・ニューゲーム時：カピタの出現スポットを再抽選して再配置</summary>
+    public static void ReshuffleCapytaPositionsStatic()
+    {
+        var land = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
+        for (int i = 0; i < BeachCapytaCandidatePools.Length; i++)
+        {
+            var pool = BeachCapytaCandidatePools[i];
+            int prevIdx = PlayerPrefs.GetInt($"Capyta_Beach_PosIdx_{i}", 0);
+            int nextIdx = (prevIdx + Random.Range(1, pool.Length)) % pool.Length;
+            PlayerPrefs.SetInt($"Capyta_Beach_PosIdx_{i}", nextIdx);
+        }
+        PlayerPrefs.Save();
+
+        var existingBeach = FindBeachCapitas();
+        for (int i = 0; i < existingBeach.Count && i < BeachCapytaCandidatePools.Length; i++)
+        {
+            if (existingBeach[i] != null)
+            {
+                PlaceCapytaOnGround(existingBeach[i], GetCapytaSpot(i), land);
+            }
+        }
+        Vector3 nikoSpawn = ResolveNikoSpawnXZ();
+        PushCapitasClearOfPoint(nikoSpawn, 20f, land);
+        Debug.Log("[AdventureCapytaBlessing] 🦫 カピタの出現スポットを異なる候補地点へ再シャッフルしました");
+    }
 
     /// <summary>砂浜にカピタを少しだけ配置（既に Beach 個体がいれば位置だけ補正）</summary>
     static void SpawnBeachCapitasIfNeeded()
@@ -131,14 +188,14 @@ public class AdventureCapytaBlessing : MonoBehaviour
         if (existingBeach.Count > 0)
         {
             // 過去の二重生成ぶんを掃除
-            for (int i = BeachCapytaSpots.Length; i < existingBeach.Count; i++)
+            for (int i = BeachCapytaCandidatePools.Length; i < existingBeach.Count; i++)
             {
                 if (existingBeach[i] != null)
                     Object.Destroy(existingBeach[i].gameObject);
             }
-            for (int i = 0; i < existingBeach.Count && i < BeachCapytaSpots.Length; i++)
-                PlaceCapytaOnGround(existingBeach[i], BeachCapytaSpots[i], land);
-            PushCapitasClearOfPoint(nikoSpawn, 10f, land);
+            for (int i = 0; i < existingBeach.Count && i < BeachCapytaCandidatePools.Length; i++)
+                PlaceCapytaOnGround(existingBeach[i], GetCapytaSpot(i), land);
+            PushCapitasClearOfPoint(nikoSpawn, 20f, land);
             return;
         }
 
@@ -150,15 +207,15 @@ public class AdventureCapytaBlessing : MonoBehaviour
         if (prefab == null) return;
 
         var root = new GameObject("Capyta_Beach_Root");
-        for (int i = 0; i < BeachCapytaSpots.Length; i++)
+        for (int i = 0; i < BeachCapytaCandidatePools.Length; i++)
         {
-            Vector3 p = GroundAt(BeachCapytaSpots[i], land);
+            Vector3 p = GroundAt(GetCapytaSpot(i), land);
             var go = Object.Instantiate(prefab, p, Quaternion.Euler(0f, 40f + i * 70f, 0f), root.transform);
             go.name = "Capyta_Beach_" + i;
             go.transform.localScale = Vector3.one * (0.92f + i * 0.04f);
         }
 
-        PushCapitasClearOfPoint(nikoSpawn, 10f, land);
+        PushCapitasClearOfPoint(nikoSpawn, 20f, land);
     }
 
     static System.Collections.Generic.List<Transform> FindBeachCapitas()
@@ -252,6 +309,8 @@ public class AdventureCapytaBlessing : MonoBehaviour
                 || player.jumpMultiplier > 1.01f)
                 player.jumpMultiplier = 1.0f;
         }
+
+        ReshuffleCapytaPositionsStatic();
     }
 
     /// <summary>AdventureGameDirector のカピタ会話からも呼べる（スーパージャンプ＋油）</summary>

@@ -43,24 +43,27 @@ public class AdventureFlightManager : MonoBehaviour
         BuildCanyonCourse(root.transform, land);
     }
 
-    /// <summary>砂浜コース: スタート正面に最初の風の輪、岸沿いに続き</summary>
+    /// <summary>砂浜コース: スタート直前の密集を避け、南岬・大草原アプローチ・木道テラスへ分散配置</summary>
     void BuildBeachCourse(Transform parent, Terrain land)
     {
         var course = new GameObject("Course_Beach");
         course.transform.SetParent(parent, false);
 
-        // スポーン正面（内陸・方位75°）・ジャンプ〜短い滑空で届く高さ
-        Vector3 spawn = new Vector3(158f, 0f, 275f);
-        float yawRad = 75f * Mathf.Deg2Rad;
-        Vector3 inland = new Vector3(Mathf.Sin(yawRad), 0f, Mathf.Cos(yawRad));
-        CreateRingAt(course.transform, spawn + inland * 18f, 2.0f, Quaternion.LookRotation(inland), land);
+        // 1. 大草原へのアプローチ斜面（少し歩いて坂を登り始める場所）
+        Vector3 meadowRing = new Vector3(210f, 0f, 280f) + (Vector3)Random.insideUnitCircle * 2.0f;
+        CreateRingAt(course.transform, meadowRing, 3.2f + Random.Range(-0.3f, 0.4f), Quaternion.Euler(0f, 75f, 0f), land);
 
-        // スタート座礁艇やや北・岸沿い
-        CreateRingAt(course.transform, new Vector3(168f, 0f, 295f), 2.4f, Quaternion.Euler(0f, 10f, 0f), land);
-        // 西砂浜中央〜焚き火帯
-        CreateRingAt(course.transform, new Vector3(148f, 0f, 330f), 2.6f, Quaternion.Euler(0f, -5f, 0f), land);
-        // 南西砂浜寄り
-        CreateRingAt(course.transform, new Vector3(188f, 0f, 215f), 2.5f, Quaternion.Euler(0f, 25f, 0f), land);
+        // 2. せせらぎ川を飛び越えるジャンプライン
+        Vector3 riverRing = new Vector3(238f, 0f, 260f) + (Vector3)Random.insideUnitCircle * 2.0f;
+        CreateRingAt(course.transform, riverRing, 3.8f + Random.Range(-0.3f, 0.4f), Quaternion.Euler(0f, 65f, 0f), land);
+
+        // 3. 西砂浜中央〜木道テラス手前
+        Vector3 terraceRing = new Vector3(145f, 0f, 345f) + (Vector3)Random.insideUnitCircle * 2.0f;
+        CreateRingAt(course.transform, terraceRing, 3.0f + Random.Range(-0.3f, 0.4f), Quaternion.Euler(0f, -5f, 0f), land);
+
+        // 4. 南岬の海風ライン
+        Vector3 capeRing = new Vector3(195f, 0f, 205f) + (Vector3)Random.insideUnitCircle * 2.0f;
+        CreateRingAt(course.transform, capeRing, 3.2f + Random.Range(-0.3f, 0.4f), Quaternion.Euler(0f, 25f, 0f), land);
     }
 
     /// <summary>コース1: スタート地点正面〜大草原フライトライン（開始直後に正面で一目で体験可能）</summary>

@@ -243,11 +243,11 @@ public class AdventureBeachWavesManager : MonoBehaviour
         _seagullFlockRoot = new GameObject("SeagullFlock_Sky");
         _seagullFlockRoot.transform.SetParent(transform, false);
 
-        // 西側砂浜（160, 280）周辺の上空、および南西海岸の上空に数羽のカモメを配置
+        // 西側砂浜沖合・南西岬沖・北西海上にカモメを分散配置（スタート頭上の密集を解消）
         Vector3[] flockCenters = {
-            new Vector3(160f, 26f, 280f), // 西側ビーチ（スポーン地点真上）
-            new Vector3(145f, 32f, 320f), // 北西寄り海面上空
-            new Vector3(175f, 28f, 230f)  // 南西寄りビーチ上空
+            new Vector3(120f, 28f, 260f) + new Vector3(Random.Range(-4f, 4f), Random.Range(-2f, 3f), Random.Range(-4f, 4f)), // 西側沖合上空
+            new Vector3(135f, 32f, 340f) + new Vector3(Random.Range(-4f, 4f), Random.Range(-2f, 3f), Random.Range(-4f, 4f)), // 北西海面上空
+            new Vector3(170f, 29f, 195f) + new Vector3(Random.Range(-4f, 4f), Random.Range(-2f, 3f), Random.Range(-4f, 4f))  // 南西岬沖上空
         };
 
         var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
@@ -263,7 +263,7 @@ public class AdventureBeachWavesManager : MonoBehaviour
 
         for (int i = 0; i < flockCenters.Length; i++)
         {
-            int birdsInGroup = (i == 0) ? 3 : 2; // スポーン地点頭上には3羽
+            int birdsInGroup = 2; // 各海域に2羽ずつ優雅に旋回
             for (int b = 0; b < birdsInGroup; b++)
             {
                 var bird = new GameObject($"Seagull_{i}_{b}");
@@ -271,8 +271,8 @@ public class AdventureBeachWavesManager : MonoBehaviour
 
                 var flight = bird.AddComponent<AdventureSeagullFlightVisual>();
                 flight.center = flockCenters[i];
-                flight.radius = Random.Range(14f, 26f);
-                flight.speed = Random.Range(12f, 18f);
+                flight.radius = Random.Range(15f, 28f);
+                flight.speed = Random.Range(11f, 17f);
                 flight.altitude = flockCenters[i].y + Random.Range(-3f, 4f);
                 flight.angleOffset = b * (360f / birdsInGroup) + Random.Range(-20f, 20f);
                 flight.isClockwise = (i % 2 == 0);

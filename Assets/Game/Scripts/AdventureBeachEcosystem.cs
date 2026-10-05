@@ -56,18 +56,18 @@ public class AdventureBeachEcosystem : MonoBehaviour
         var root = new GameObject("Beach_Ecosystem_Root");
         var land = Terrain.activeTerrain;
 
-        // 1. サンゴ礁＆海草クラスタ（西側海岸の浅瀬、岩場周辺。陸地から十分に離れた海中）
+        // 1. サンゴ礁＆海草クラスタ（西側海岸の浅瀬、岩場周辺。スタート直近を避け沖合へ分散）
         Vector3[] reefCenters =
         {
-            new Vector3(141f, 0f, 265f), // 座礁艇の沖合浅瀬
+            new Vector3(146f, 0f, 230f), // 南西沖合浅瀬
             new Vector3(134f, 0f, 315f), // 焚き火沖合
-            new Vector3(153f, 0f, 215f), // 南西岬沖
+            new Vector3(160f, 0f, 195f), // 南西岬沖
             new Vector3(126f, 0f, 360f)  // 北西浅瀬
         };
 
         for (int i = 0; i < reefCenters.Length; i++)
         {
-            Vector3 center = reefCenters[i];
+            Vector3 center = reefCenters[i] + (Vector3)Random.insideUnitCircle * 2.5f;
             float bedY = land != null ? (land.SampleHeight(center) + land.transform.position.y) : 4.6f;
             center.y = bedY;
 
@@ -77,38 +77,44 @@ public class AdventureBeachEcosystem : MonoBehaviour
         // 2. 小魚の群れ（銀色に光る小魚。確実に海中を泳ぐよう沖合へ配置）
         Vector3[] schoolAnchors =
         {
-            new Vector3(141f, 5.0f, 258f),
-            new Vector3(135f, 4.9f, 305f),
-            new Vector3(128f, 4.8f, 348f)
+            new Vector3(145f, 5.0f, 235f), // 南西寄り浅瀬
+            new Vector3(132f, 4.9f, 320f), // 西海岸中央
+            new Vector3(125f, 4.8f, 365f)  // 北西浅瀬
         };
 
         for (int s = 0; s < schoolAnchors.Length; s++)
         {
-            SpawnFishSchool(root.transform, schoolAnchors[s], 12 + s * 2);
+            Vector3 anchor = schoolAnchors[s] + (Vector3)Random.insideUnitCircle * 3.0f;
+            anchor.y = schoolAnchors[s].y;
+            SpawnFishSchool(root.transform, anchor, 12 + s * 2);
         }
 
         // 3. 優雅な熱帯魚（キイロハギ、ナンヨウハギ、ツノダシ）
         SpawnTropicalFishFamily(root.transform, reefCenters);
 
-        // 4. 波打ち際のヤドカリ（濡れ砂の汀線）
+        // 4. 波打ち際のヤドカリ（スタート直前の密集を排除し、汀線全体に分散）
         Vector3[] crabSpots =
         {
-            new Vector3(155f, 0f, 276f), // 座礁艇手前の濡れ砂
-            new Vector3(160f, 0f, 262f),
-            new Vector3(148f, 0f, 318f), // 焚き火キャンプ手前
-            new Vector3(142f, 0f, 342f),
-            new Vector3(168f, 0f, 232f)  // 南岬の汀線
+            new Vector3(175f, 0f, 240f), // 川口南の砂浜
+            new Vector3(188f, 0f, 205f), // 南白砂の汀線
+            new Vector3(196f, 0f, 180f), // 南岬の波打ち際
+            new Vector3(146f, 0f, 325f), // 焚き火キャンプ手前の汀線
+            new Vector3(138f, 0f, 368f)  // 北西汀線
         };
 
         for (int c = 0; c < crabSpots.Length; c++)
         {
             Vector3 p = crabSpots[c];
+            // リスタート・起動ごとのランダムジッター（±2m）
+            Vector2 jit = Random.insideUnitCircle * 2.0f;
+            p.x += jit.x;
+            p.z += jit.y;
             float y = land != null ? (land.SampleHeight(p) + land.transform.position.y) : 6.05f;
             p.y = y;
             SpawnHermitCrab(root.transform, p);
         }
 
-        Debug.Log("[AdventureBeachEcosystem] 浅瀬の小魚の群れ・熱帯魚・サンゴ礁・ヤドカリの生態系を生成しました");
+        Debug.Log("[AdventureBeachEcosystem] 浅瀬の小魚の群れ・熱帯魚・サンゴ礁・ヤドカリの生態系を島全体へ分散生成しました");
     }
 
     /// <summary>小魚の群れをスポーン</summary>

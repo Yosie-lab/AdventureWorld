@@ -106,6 +106,49 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
         }
     }
 
+    // 各ボックスの候補座標プール（同一ステージ内で複数地点。リスタート時に異なる地点へ再配置）
+    static readonly Vector3[][] BoxCandidatePools =
+    {
+        // Box 1: 川口南の砂浜〜南白砂エリア（スタートの目の前ではなく、少し南へ歩いた浜辺）
+        new[]
+        {
+            new Vector3(195f, 0f, 245f),
+            new Vector3(210f, 0f, 220f),
+            new Vector3(182f, 0f, 255f),
+            new Vector3(170f, 0f, 320f),
+        },
+        // Box 2: 南砂浜奥〜南西岬
+        new[]
+        {
+            new Vector3(218f, 0f, 185f),
+            new Vector3(235f, 0f, 225f),
+            new Vector3(185f, 0f, 205f),
+            new Vector3(205f, 0f, 175f),
+        },
+        // Box 3: 西砂浜北寄り〜木道アプローチ
+        new[]
+        {
+            new Vector3(145f, 0f, 360f),
+            new Vector3(160f, 0f, 340f),
+            new Vector3(135f, 0f, 385f),
+            new Vector3(150f, 0f, 395f),
+        },
+        // Box 4: 東の大樹海・激流沿い
+        new[]
+        {
+            new Vector3(320f, 0f, 138f),
+            new Vector3(345f, 0f, 155f),
+            new Vector3(310f, 0f, 125f),
+        },
+        // Box 5: 中央タワー外郭
+        new[]
+        {
+            new Vector3(930f, 0f, 480f),
+            new Vector3(915f, 0f, 465f),
+            new Vector3(940f, 0f, 495f),
+        },
+    };
+
     private static DriftBoxData[] GetBoxDefinitions()
     {
         return new DriftBoxData[]
@@ -118,7 +161,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
                 message = "気がつくと見知らぬ白砂の海岸に打ち上げられていた。\n\n内陸から心地よいせせらぎが聞こえる。川を遡ると『せせらぎ池』や『カルデラ湖』があるようだ。\n\n水と古代パーツを探すなら、まずは目の前の川沿いに内陸を目指すのが良いだろう。",
                 rustDialogue = "ケースの中にサバイバルメモがあるよ！川を遡ると内陸の池や湖に出られるみたいだね。川沿いに行ってみよう！",
                 nextObjective = "川沿いに進んで内陸のせせらぎ池を目指そう",
-                position = new Vector3(178f, 0f, 290f), // 漂着艇(152, 275)から約30m離れた波打ち際へ配置し、干渉・重複を完全根絶
+                position = GetCandidatePosition(0),
                 rotationY = 45f
             },
             new DriftBoxData
@@ -129,7 +172,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
                 message = "島中に散らばる『古代パーツ』を集めれば、相棒ドローンの故障したブースターが修復されるらしい。\n\nパーツを【3個】集めると『高速ダッシュ』が解放され、広大な島を快適に駆け抜けられるようになる。\n\n空へ伸びる黄金やシアンの光の柱を探せ。",
                 rustDialogue = "パーツを3個集めれば僕のブースターが直ってダッシュできるようになるんだ！周りを見渡して光の柱を探そう！",
                 nextObjective = "古代パーツを3個集めてブースターダッシュを解放しよう",
-                position = new Vector3(165f, 0f, 240f), // 川の南側ビーチへすっきりと配置
+                position = GetCandidatePosition(1),
                 rotationY = 25f
             },
             new DriftBoxData
@@ -140,7 +183,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
                 message = "砂浜と内陸の高台の間には、海風が吹き上げる『サーマル上昇気流』や、登りやすい『木道スロープ』がある。\n\n高い崖も、Spaceキーを長押しして海風に乗れば、一気に上空へ舞い上がって高台を飛び越えられるはずだ。",
                 rustDialogue = "高い崖も海風の上昇気流に乗れば一気に飛べるんだ！Spaceキー長押しで風に乗ってみよう！",
                 nextObjective = "海風の上昇気流や木道を使って高台へ登ろう",
-                position = new Vector3(135f, 0f, 345f), // 3個目のスクラップパーツ(140, 320)から約26m離れた木道手前へ移動し、キーストーン演出との衝突を完全根絶
+                position = GetCandidatePosition(2),
                 rotationY = 110f
             },
             new DriftBoxData
@@ -151,7 +194,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
                 message = "東の山岳地帯には原生林『大樹海』と岩が敷き詰められた激流が広がる。\n\n古代パーツを【9個】集めると、相棒ドローンに『探知ソナー』が修復され、近くの未発見パーツを音で教えてくれるようになるという。",
                 rustDialogue = "東の大樹海かぁ…！パーツを9個集めれば探知ソナーで音を使って探索できるようになるよ！",
                 nextObjective = "パーツを9個集めて探知ソナーを解放しよう",
-                position = new Vector3(320f, 0f, 138f),
+                position = GetCandidatePosition(3),
                 rotationY = 280f
             },
             new DriftBoxData
@@ -162,10 +205,50 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
                 message = "島の中央にそびえる白亜のタワー…あそこの最上部には、島の空を覆う『見えない天蓋』を開放する鍵がある。\n\nすべての古代パーツ【12個】を集めた時、タワーへの道が完全に開かれ、外の世界への脱出が可能になる。",
                 rustDialogue = "島の中央にそびえる巨大タワー…あそこが僕たちの最終目的地だね！全部のパーツを集めて脱出しよう！",
                 nextObjective = "古代パーツを12個集めて中央タワーの天蓋を開放しよう",
-                position = new Vector3(930f, 0f, 480f),
+                position = GetCandidatePosition(4),
                 rotationY = 205f
             }
         };
+    }
+
+    private static Vector3 GetCandidatePosition(int boxIndex)
+    {
+        if (boxIndex < 0 || boxIndex >= BoxCandidatePools.Length) return Vector3.zero;
+        var pool = BoxCandidatePools[boxIndex];
+        int savedIdx = PlayerPrefs.GetInt($"DriftBox_PosIdx_{boxIndex + 1}", 0);
+        savedIdx = Mathf.Clamp(savedIdx, 0, pool.Length - 1);
+        return pool[savedIdx];
+    }
+
+    /// <summary>リスタート・ニューゲーム時：各ボックスの配置場所を前回と異なる地点にシャッフル</summary>
+    public static void ReshuffleAllBoxesStatic()
+    {
+        for (int i = 0; i < BoxCandidatePools.Length; i++)
+        {
+            var pool = BoxCandidatePools[i];
+            int prevIdx = PlayerPrefs.GetInt($"DriftBox_PosIdx_{i + 1}", 0);
+            int nextIdx = (prevIdx + Random.Range(1, pool.Length)) % pool.Length;
+            PlayerPrefs.SetInt($"DriftBox_PosIdx_{i + 1}", nextIdx);
+        }
+        PlayerPrefs.Save();
+
+        var land = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
+        var boxes = Object.FindObjectsByType<AdventureBeachDriftBox>(FindObjectsInactive.Include);
+        foreach (var b in boxes)
+        {
+            if (b == null) continue;
+            int bIdx = b.boxId - 1;
+            if (bIdx >= 0 && bIdx < BoxCandidatePools.Length)
+            {
+                Vector3 p = GetCandidatePosition(bIdx);
+                if (land != null)
+                {
+                    p.y = land.SampleHeight(p) + land.transform.position.y - 0.08f;
+                }
+                b.transform.position = p;
+            }
+        }
+        Debug.Log("[AdventureBeachDriftBoxManager] 📦 全ドリフトボックスの位置を異なる候補地点へ再シャッフルしました");
     }
 
     private static void BuildSingleDriftBox(Transform parent, DriftBoxData data, Vector3 pos, Material woodMat, Material metalMat, Material lampMat)

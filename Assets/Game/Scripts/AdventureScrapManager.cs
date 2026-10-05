@@ -114,13 +114,13 @@ public class AdventureScrapManager : MonoBehaviour
     /// </summary>
     static readonly Vector3[][] ScrapCandidatePools =
     {
-        // 1. スタート座礁艇まわり（最初のギア・目の前で必ず見つかる）
+        // 1. スタート座礁艇から少し離れた渚・波打ち際（少し歩いて自然に発見できる距離）
         new[]
         {
-            new Vector3(167f, 0f, 277f),
-            new Vector3(162f, 0f, 268f),
-            new Vector3(172f, 0f, 285f),
-            new Vector3(155f, 0f, 282f),
+            new Vector3(172f, 0f, 252f),
+            new Vector3(164f, 0f, 306f),
+            new Vector3(148f, 0f, 290f),
+            new Vector3(182f, 0f, 242f),
         },
         // 2. 南西岬〜南砂浜
         new[]

@@ -855,6 +855,9 @@ public class AdventureBeachDriftBox : MonoBehaviour
             }
         }
 
+        // 次回プレイ用にボックスの配置位置を候補地プールからシャッフル
+        AdventureBeachDriftBoxManager.ReshuffleAllBoxesStatic();
+
         var scrapMgr = AdventureScrapManager.Instance;
         if (scrapMgr != null)
         {

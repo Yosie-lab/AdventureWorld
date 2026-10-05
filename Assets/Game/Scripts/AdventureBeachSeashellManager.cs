@@ -217,15 +217,17 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         // 候補座標（全48箇所：サクラ貝・エメラルド・サファイア・琥珀・巻貝が全域に満遍なく散りばめられる）
         Vector3[] spawnPoints =
         {
-            // 1. スタート地点・座礁艇まわり
-            new Vector3(150f, 0f, 270f),
-            new Vector3(162f, 0f, 281f),
-            new Vector3(151f, 0f, 264f),
-            new Vector3(166f, 0f, 288f),
-            new Vector3(158f, 0f, 260f),
-            new Vector3(164f, 0f, 272f),
-            new Vector3(148f, 0f, 278f),
-            new Vector3(155f, 0f, 286f),
+            // 1. スタート地点・座礁艇まわり（密集をなくし、2箇所のみ控えめに配置）
+            new Vector3(148f, 0f, 268f),
+            new Vector3(166f, 0f, 292f),
+
+            // 1-b. 島内・内陸水辺・南西砂州への分散配置
+            new Vector3(205f, 0f, 170f), // 南西岬の奥
+            new Vector3(192f, 0f, 198f), // 南砂浜のヤシの木陰
+            new Vector3(132f, 0f, 325f), // 西海岸中央の岩場
+            new Vector3(132f, 0f, 375f), // 北西砂浜の岬
+            new Vector3(215f, 0f, 265f), // せせらぎ川の河原
+            new Vector3(235f, 0f, 280f), // 小川の渡河地点付近
 
             // 2. 南西岬〜南白砂ビーチ
             new Vector3(175f, 0f, 220f),
@@ -281,6 +283,11 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         for (int i = 0; i < spawnPoints.Length; i++)
         {
             Vector3 pt = spawnPoints[i];
+            // 初回生成時にも自然なランダムジッター（±1.5m）を付与
+            Vector2 jit = Random.insideUnitCircle * 1.5f;
+            pt.x += jit.x;
+            pt.z += jit.y;
+
             if (land != null)
             {
                 float h = land.SampleHeight(pt) + land.transform.position.y;
@@ -437,16 +444,33 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         PlayerPrefs.Save();
         OnInventoryChanged?.Invoke();
 
-        // 既存アイテムを全再表示
-        foreach (var item in _items)
-        {
-            if (item != null)
-            {
-                item.gameObject.SetActive(true);
-            }
-        }
+        // 既存アイテムを全再表示＆リスタート時の位置ランダムシャッフル
+        ReshuffleSeashellPositions();
 
-        Debug.Log("[AdventureBeachSeashellManager] 🐚 貝殻・シーグラスの収集データを完全リセットしました");
+        Debug.Log("[AdventureBeachSeashellManager] 🐚 貝殻・シーグラスの収集データを完全リセット＆位置を再配置しました");
+    }
+
+    /// <summary>各アイテムの座標を地形に沿ってランダムに再配置・微小ジッター</summary>
+    public void ReshuffleSeashellPositions()
+    {
+        var land = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
+        for (int i = 0; i < _items.Count; i++)
+        {
+            var item = _items[i];
+            if (item == null) continue;
+            item.gameObject.SetActive(true);
+
+            Vector3 current = item.transform.position;
+            // 周囲 ±2.5m の範囲でランダムに揺らす
+            Vector2 offset = Random.insideUnitCircle * 2.5f;
+            Vector3 nextPos = new Vector3(current.x + offset.x, current.y, current.z + offset.y);
+            if (land != null)
+            {
+                float h = land.SampleHeight(nextPos) + land.transform.position.y;
+                nextPos.y = Mathf.Max(5.68f, h + 0.05f);
+            }
+            item.transform.position = nextPos;
+        }
     }
 
     Font ResolveFont()

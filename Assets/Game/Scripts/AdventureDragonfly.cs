@@ -41,9 +41,35 @@ public class AdventureDragonfly : MonoBehaviour
         RebuildVisualsIfNeeded();
     }
 
+    // スタート地点密集回避用の分散候補地（小川、南砂浜、西海岸中央、北西汀線）
+    static readonly Vector3[] DispersedDragonflySpots =
+    {
+        new Vector3(210f, 6.2f, 250f), // せせらぎ川口
+        new Vector3(185f, 6.0f, 205f), // 南砂浜の草むら
+        new Vector3(142f, 6.1f, 335f), // 西砂浜中央の渚
+        new Vector3(238f, 7.5f, 275f), // 小川のほとり
+    };
+    static int _dragonflyDisperseIndex = 0;
+
     private void Start()
     {
         if (_homePosition == Vector3.zero) _homePosition = transform.position;
+
+        // スタート地点（158, 275）から35m以内の過密を解消し、他の水辺・緑地へ分散
+        Vector3 startPoint = new Vector3(158f, _homePosition.y, 275f);
+        if (Vector3.Distance(new Vector3(_homePosition.x, 0f, _homePosition.z), new Vector3(startPoint.x, 0f, startPoint.z)) < 35f)
+        {
+            Vector3 targetSpot = DispersedDragonflySpots[_dragonflyDisperseIndex % DispersedDragonflySpots.Length];
+            _dragonflyDisperseIndex++;
+            _homePosition = targetSpot;
+            transform.position = targetSpot;
+        }
+
+        // リスタート・実行ごとの自然なランダムジッター（±3m）
+        Vector2 jit = Random.insideUnitCircle * 3.0f;
+        _homePosition += new Vector3(jit.x, Random.Range(-0.2f, 0.4f), jit.y);
+        transform.position = _homePosition;
+
         if (_targetPosition == Vector3.zero) PickNewTarget();
     }
 
