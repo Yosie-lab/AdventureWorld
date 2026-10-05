@@ -226,18 +226,10 @@ public partial class AdventureSanctuaryTowerManager
                 _scriptHoldTimer = 0f;
             }
 
-            // 1枚目7.5秒／2枚目4.5秒／「空が割れるよ」7秒／会話3.8秒／ナレ3.5秒／ダイブ6秒
-            float autoSec = _scriptBoardIsDive ? 6f : 3.0f;
-            if (_canopyBeatIndex == 0)
-                autoSec = 7.5f;
-            else if (_canopyBeatIndex == 1)
-                autoSec = 4.5f;
-            else if (_canopyBeatIndex == 2)
-                autoSec = 7.0f;
-            else if (_canopyBeatIndex == 3 || _canopyBeatIndex == 4)
-                autoSec = 3.8f;
-            else if (!_scriptBoardIsDive && _canopyBeatIndex >= 1 && _canopyBeatIndex <= 5)
-                autoSec = 3.5f;
+            // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目4.5s／3枚目7.0s／会話3.8s／ダイブ6.0s）
+            float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
+                ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
+                : (_scriptBoardIsDive ? 6.0f : 3.5f);
             if (openFor >= autoSec)
                 _scriptBoardAdvance = true;
         }
@@ -361,14 +353,6 @@ public partial class AdventureSanctuaryTowerManager
             : Time.unscaledTime + failsafeSeconds;
     }
 
-    /// <summary>天蓋破壊ボード（旧コルーチン版は未使用・互換のため残置）</summary>
-    IEnumerator SkybreakFromTitleBoardRoutine()
-    {
-        BeginCanopyScriptBeats();
-        while (_canopyBeatIndex >= 0)
-            yield return null;
-    }
-
     void SuppressAllSpeechAndBanners()
     {
         var drone = GetDrone();
@@ -376,94 +360,6 @@ public partial class AdventureSanctuaryTowerManager
             drone.ClearSpeech();
         if (AdventureScrapHUD.Instance != null)
             AdventureScrapHUD.Instance.HideBannerImmediately();
-    }
-
-    /// <summary>台本を1枚のボードで表示し、進む入力まで待つ（吹き出しと重ねない）</summary>
-    /// <param name="autoAdvanceOverride">0より大きいとき、通常の自動送り秒数の代わりに使う</param>
-    IEnumerator ShowScriptBeat(string title, string speaker, string body, Color accent, bool isDive = false, float autoAdvanceOverride = -1f)
-    {
-        SuppressAllSpeechAndBanners();
-
-        var player = AdventurePlayerController.Instance;
-        if (player != null
-            && player.transform.position.y < 90f
-            && !player.IsSkybreakPillarAscending
-            && !player.IsAutoGliding)
-            player.ForceGroundReset();
-
-        _scriptBoardTitle = title ?? "";
-        _scriptBoardSpeaker = speaker ?? "";
-        _scriptBoardBody = body ?? "";
-        _scriptBoardAccent = accent;
-        _scriptBoardIsDive = isDive;
-        _scriptBoardAdvance = false;
-        _scriptBoardVisible = true;
-        _scriptBoardOpenedAt = Time.unscaledTime;
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-        Time.timeScale = 1f;
-
-        EnsureEventSystemForUi();
-        EnsureScriptBoardUI();
-        ApplyScriptBoardUI();
-
-        if (_scriptBtn != null)
-        {
-            var btnRt = _scriptBtn.GetComponent<RectTransform>();
-            if (btnRt != null)
-            {
-                btnRt.sizeDelta = isDive ? new Vector2(560f, 72f) : new Vector2(520f, 56f);
-                btnRt.anchoredPosition = new Vector2(0f, 16f);
-            }
-        }
-        if (_scriptHintUi != null)
-        {
-            _scriptHintUi.fontSize = isDive ? 22 : 18;
-            _scriptHintUi.text = isDive
-                ? "【Space長押し / クリック】ダイブ！"
-                : "【Space長押し / クリック】つづき";
-        }
-
-        // 最低表示
-        const float minShow = 0.5f;
-        while (Time.unscaledTime - _scriptBoardOpenedAt < minShow)
-            yield return null;
-
-        float holdTimer = 0f;
-        float autoAfter = isDive ? 8f : 3.5f;
-        if (autoAdvanceOverride > 0f)
-            autoAfter = autoAdvanceOverride;
-        while (!_scriptBoardAdvance)
-        {
-            PollScriptBoardAdvance();
-
-            // 全台本：Space/クリック押しっぱなしで進む
-            if (IsDiveConfirmHeld())
-            {
-                holdTimer += Time.unscaledDeltaTime;
-                if (holdTimer >= 0.12f)
-                    _scriptBoardAdvance = true;
-            }
-            else
-            {
-                holdTimer = 0f;
-            }
-
-            if (Time.unscaledTime - _scriptBoardOpenedAt > autoAfter)
-                _scriptBoardAdvance = true;
-
-            yield return null;
-        }
-
-        _scriptBoardAdvance = false;
-        _scriptBoardVisible = false;
-        _scriptBoardIsDive = false;
-        _scriptBoardTitle = "";
-        _scriptBoardSpeaker = "";
-        _scriptBoardBody = "";
-        if (_scriptUiRoot != null)
-            _scriptUiRoot.SetActive(false);
-        yield return null;
     }
 
     /// <summary>プレイヤー／UIから台本送りを直接要求</summary>

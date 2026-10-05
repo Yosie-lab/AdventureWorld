@@ -170,7 +170,7 @@ public partial class AdventureSanctuaryTowerManager
         _filmPhaseAt = Time.unscaledTime;
 
         // 「箱庭の外には、凍えるほどリアルで、優しい風が吹いていた。」で正面に美しい大虹を架橋
-        if (line.Text != null && line.Text.Contains("箱庭の外には"))
+        if (index == 2 || (line.Text != null && line.Text.Contains("箱庭の外には")))
         {
             SpawnEpilogueRainbow();
         }
@@ -227,7 +227,7 @@ public partial class AdventureSanctuaryTowerManager
                 PresentFilmLineContent(line.Text, line.Color);
                 _filmPhase = 1;
                 _filmPhaseAt = Time.unscaledTime;
-                if (line.Text != null && line.Text.Contains("箱庭の外には"))
+                if (_filmIndex == 2 || (line.Text != null && line.Text.Contains("箱庭の外には")))
                 {
                     SpawnEpilogueRainbow();
                 }

@@ -137,21 +137,28 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         public string Speaker;
         public string Body;
         public Color Accent;
+        public float AutoAdvanceSeconds;
         public bool IsDive;
-        public CanopyBeat(string title, string speaker, string body, Color accent, bool isDive = false)
+
+        public CanopyBeat(string title, string speaker, string body, Color accent, float autoSec = 3.5f, bool isDive = false)
         {
-            Title = title; Speaker = speaker; Body = body; Accent = accent; IsDive = isDive;
+            Title = title;
+            Speaker = speaker;
+            Body = body;
+            Accent = accent;
+            AutoAdvanceSeconds = autoSec;
+            IsDive = isDive;
         }
     }
     static readonly CanopyBeat[] CanopyBeats =
     {
-        new CanopyBeat("天蓋崩壊　未知の荒野への跳躍", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f)),
-        new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f)),
-        new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Niko！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
-        new CanopyBeat("", "✦ Niko", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f)),
-        new CanopyBeat("", "✦ 相棒 Rust", "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Niko！！", new Color(0.35f, 0.92f, 0.98f, 1f)),
-        new CanopyBeat("", "", "タワー中央の光の柱へ飛び込み、\n空の裂け目へ突き抜ける。", new Color(0.85f, 0.95f, 1f, 1f)),
-        new CanopyBeat("空の裂け目へ", "", "【Space長押し / クリック】でダイブする", new Color(1f, 0.88f, 0.4f, 1f), true),
+        new CanopyBeat("天蓋崩壊　未知の荒野への跳躍", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 7.5f),
+        new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 4.5f),
+        new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Niko！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 7.0f),
+        new CanopyBeat("", "✦ Niko", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f), autoSec: 3.8f),
+        new CanopyBeat("", "✦ 相棒 Rust", "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Niko！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 3.8f),
+        new CanopyBeat("", "", "タワー中央の光の柱へ飛び込み、\n空の裂け目へ突き抜ける。", new Color(0.85f, 0.95f, 1f, 1f), autoSec: 3.5f),
+        new CanopyBeat("空の裂け目へ", "", "【Space長押し / クリック】でダイブする", new Color(1f, 0.88f, 0.4f, 1f), autoSec: 6.0f, isDive: true),
     };
 
     GameObject _scriptUiRoot;
@@ -211,6 +218,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     public bool EpilogueTriggered => _epilogueTriggered;
     public float EpilogueAlpha => _epilogueAlpha;
     public bool ShowGameClearModal => _showGameClearModal;
+    public bool IsPendingClimax => _pendingClimaxAfterCanopy;
 
     /// <summary>天蓋崩壊シーケンス開始から、注油完了後の「あ 温かい油が 心臓部に…」が出るまでの緊迫フェーズ中判定</summary>
     public bool IsBeforeWarmOilSpeech
@@ -257,12 +265,12 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     const int ClimaxOilSlot = 3; // next==3 のとき注油フェーズへ入る
     static readonly CanopyBeat[] ClimaxBeats =
     {
-        new CanopyBeat("限界高度", "", "天蓋の裂け目から、凍てつく突風が吹き荒れる——\nRustのギアが、悲鳴のようなきしみ音を上げていた。", new Color(0.85f, 0.92f, 1f, 1f)),
-        new CanopyBeat("", "✦ 相棒 Rust", "ギギッ……！ Niko……身体が……冷え切って動かないよ……！\nギアが……凍りついちゃう……！", new Color(0.45f, 0.92f, 1f, 1f)),
-        new CanopyBeat("", "✦ Niko", "Rust、待ってて！　今、集めた油を全部注ぐから……！", new Color(1f, 0.92f, 0.55f, 1f)),
+        new CanopyBeat("限界高度", "", "天蓋の裂け目から、凍てつく突風が吹き荒れる——\nRustのギアが、悲鳴のようなきしみ音を上げていた。", new Color(0.85f, 0.92f, 1f, 1f), autoSec: 4.5f),
+        new CanopyBeat("", "✦ 相棒 Rust", "ギギッ……！ Niko……身体が……冷え切って動かないよ……！\nギアが……凍りついちゃう……！", new Color(0.45f, 0.92f, 1f, 1f), autoSec: 4.5f),
+        new CanopyBeat("", "✦ Niko", "Rust、待ってて！　今、集めた油を全部注ぐから……！", new Color(1f, 0.92f, 0.55f, 1f), autoSec: 4.5f),
         // ← ここで注油フェーズ
-        new CanopyBeat("", "✦ 相棒 Rust", "……あ……温かい油が……心臓部に……じわっと染み込んでいく……！", new Color(0.45f, 0.92f, 1f, 1f)),
-        new CanopyBeat("", "✦ 相棒 Rust", "ピピッ！……ありがとう、Niko！これで僕たちの翼は折れることはないよ！　大空の向こうまで、全力で行こう！！", new Color(0.45f, 0.95f, 1f, 1f)),
+        new CanopyBeat("", "✦ 相棒 Rust", "……あ……温かい油が……心臓部に……じわっと染み込んでいく……！", new Color(0.45f, 0.92f, 1f, 1f), autoSec: 9.5f),
+        new CanopyBeat("", "✦ 相棒 Rust", "ピピッ！……ありがとう、Niko！これで僕たちの翼は折れることはないよ！　大空の向こうまで、全力で行こう！！", new Color(0.45f, 0.95f, 1f, 1f), autoSec: 7.5f),
     };
 
     public static void Ensure()

@@ -222,12 +222,10 @@ public partial class AdventureSanctuaryTowerManager
                 Debug.Log($"[RustAndFloat] クライマックスマウスDown検知: beat={_climaxBeatIndex}");
             }
 
-            // 4. 自然な自動送り時間（放置シネマ）
-            // beat 3（蘇生セリフ「……あ……温かい油が……」）: 9.5秒間じっくり余韻を味わったあと自然に進行
-            // beat 4（全力セリフ「ピピッ！ありがとう、Niko！」）: 7.5秒で大空へダイブ
-            // それ以前: 4.5秒
-            bool finalBeat = _climaxBeatIndex >= ClimaxBeats.Length - 1;
-            float autoSec = finalBeat ? 7.5f : (isRevivalBeat ? 9.5f : 4.5f);
+            // 4. 自然な自動送り時間（放置シネマ：ClimaxBeats定義から直接取得）
+            float autoSec = (_climaxBeatIndex >= 0 && _climaxBeatIndex < ClimaxBeats.Length)
+                ? ClimaxBeats[_climaxBeatIndex].AutoAdvanceSeconds
+                : 4.5f;
 
             if (openFor >= autoSec)
             {
@@ -262,13 +260,6 @@ public partial class AdventureSanctuaryTowerManager
         PresentClimaxBeat(next);
     }
 
-    static float GetScriptBeatAutoAdvanceSeconds(string body, bool postOil)
-    {
-        int len = string.IsNullOrEmpty(body) ? 0 : body.Length;
-        if (postOil)
-            return Mathf.Clamp(8f + len * 0.14f, 9f, 20f);
-        return Mathf.Clamp(3.4f + len * 0.07f, 3f, 12f);
-    }
 
     void HideScriptBoardCompletely()
     {

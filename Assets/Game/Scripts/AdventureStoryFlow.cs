@@ -74,9 +74,14 @@ public static class AdventureStoryFlow
                 return Phase.Epilogue;
             if (tower.ClimaxCrisisStarted || tower.IsClimaxOilPromptActive)
                 return Phase.Climax;
-            if (tower.IsSkybreakModalActive)
+            // 天蓋台本中、およびダイブ後の光の柱上昇中・クライマックス保留中も確実に Skybreak を維持
+            if (tower.IsSkybreakModalActive || tower.IsPendingClimax || tower.EndingSequenceActive)
                 return Phase.Skybreak;
         }
+
+        var player = AdventurePlayerController.Instance;
+        if (player != null && player.IsSkybreakPillarAscending)
+            return Phase.Skybreak;
 
         if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsPrologueActive)
             return Phase.Prologue;
