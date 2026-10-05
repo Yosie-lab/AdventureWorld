@@ -168,6 +168,12 @@ public partial class AdventureSanctuaryTowerManager
         PresentFilmLineContent(line.Text, line.Color);
         _filmPhase = 1;
         _filmPhaseAt = Time.unscaledTime;
+
+        // 「箱庭の外には、凍えるほどリアルで、優しい風が吹いていた。」で正面に美しい大虹を架橋
+        if (line.Text != null && line.Text.Contains("箱庭の外には"))
+        {
+            SpawnEpilogueRainbow();
+        }
     }
 
     void PresentFilmLineContent(string text, Color color)
@@ -221,6 +227,10 @@ public partial class AdventureSanctuaryTowerManager
                 PresentFilmLineContent(line.Text, line.Color);
                 _filmPhase = 1;
                 _filmPhaseAt = Time.unscaledTime;
+                if (line.Text != null && line.Text.Contains("箱庭の外には"))
+                {
+                    SpawnEpilogueRainbow();
+                }
             }
             return;
         }
@@ -521,6 +531,26 @@ public partial class AdventureSanctuaryTowerManager
         var follow = AdventureCameraFollow.Instance;
         if (follow != null)
             follow.SetCinematicMode(enabled);
+    }
+
+    void SpawnEpilogueRainbow()
+    {
+        var player = GetPlayer();
+        Camera cam = Camera.main;
+        Vector3 origin = player != null ? player.transform.position : new Vector3(512f, 120f, 512f);
+        Vector3 forward = Vector3.forward;
+
+        if (cam != null && cam.transform != null)
+        {
+            forward = cam.transform.forward;
+        }
+        else if (player != null && player.transform != null)
+        {
+            forward = player.transform.forward;
+        }
+
+        AdventureSkybreakRainbow.Spawn(origin, forward);
+        Debug.Log("[RustAndFloat] 「箱庭の外には」のシーン：正面に大空の二重虹（Grand Rainbow）を架橋");
     }
 
     #endregion

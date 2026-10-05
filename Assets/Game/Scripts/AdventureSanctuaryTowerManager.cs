@@ -1201,6 +1201,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         DestroyAllByName("SkybreakColdMist");
         DestroyAllByName("SkyTearOpening");
         DestroyAllByName("SkyTearFlashCanvas");
+        AdventureSkybreakRainbow.DestroyRainbow();
+        DestroyAllByName("EpilogueGrandRainbow");
     }
 
     /// <summary>天蓋破壊ボード表示と同時に、外気の冷たい風音をフェードイン</summary>
