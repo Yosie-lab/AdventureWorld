@@ -9,7 +9,7 @@ public partial class AdventureSanctuaryTowerManager
 {
     #region 5. 天蓋開放台本ビート制御
 
-    void SetScreenScriptSubtitle(string title, string speaker, string body, Color accent, bool isPrompt = false)
+    void SetScreenScriptSubtitle(string title, string speaker, string body, Color accent, bool isPrompt = false, string hint = null)
     {
         EnsureCinematicLetterbox();
         if (_filmSubtitleUi == null)
@@ -26,26 +26,33 @@ public partial class AdventureSanctuaryTowerManager
         Font font = ResolveEpilogueFont();
         if (font != null) _filmSubtitleUi.font = font;
 
+        string mainText = "";
         if (isPrompt)
         {
-            _filmSubtitleUi.text = "<size=30><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 空の裂け目へダイブ！</size>";
+            mainText = "<size=30><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 空の裂け目へダイブ！</size>";
         }
         else if (!string.IsNullOrEmpty(speaker))
         {
             string hex = ColorUtility.ToHtmlStringRGBA(accent);
-            _filmSubtitleUi.text = $"<color=#{hex}><b>{speaker}</b></color> 「{body}」";
+            mainText = $"<color=#{hex}><b>{speaker}</b></color> 「{body}」";
         }
         else if (!string.IsNullOrEmpty(title))
         {
             string hex = ColorUtility.ToHtmlStringRGBA(accent);
-            _filmSubtitleUi.text = $"<color=#{hex}><b>✦ {title} ✦</b></color>\n{body}";
+            mainText = $"<color=#{hex}><b>✦ {title} ✦</b></color>\n{body}";
         }
         else
         {
             string hex = ColorUtility.ToHtmlStringRGBA(accent);
-            _filmSubtitleUi.text = $"<color=#{hex}>{body}</color>";
+            mainText = $"<color=#{hex}>{body}</color>";
         }
 
+        if (!string.IsNullOrEmpty(hint))
+        {
+            mainText += $"\n<size=19><color=#FFE073><b>{hint}</b></color></size>";
+        }
+
+        _filmSubtitleUi.text = mainText;
         _filmSubtitleUi.color = Color.white;
         _filmSubtitleUi.transform.localScale = Vector3.one;
     }

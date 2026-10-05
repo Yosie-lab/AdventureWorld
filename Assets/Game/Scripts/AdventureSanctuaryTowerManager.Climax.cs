@@ -92,7 +92,10 @@ public partial class AdventureSanctuaryTowerManager
         if (_scriptUiRoot != null)
             _scriptUiRoot.SetActive(false);
 
-        SetScreenScriptSubtitle(beat.Title, beat.Speaker, beat.Body, beat.Accent, false);
+        string hint = (index >= ClimaxBeats.Length - 1)
+            ? "【 Space / クリック 】大空へ！"
+            : "【 Space / クリック 】つづき";
+        SetScreenScriptSubtitle(beat.Title, beat.Speaker, beat.Body, beat.Accent, false, hint);
 
         // 台本1（警告）：そばで震え始める
         // 台本2（気流が冷たい）：力なく落ちていく
@@ -167,15 +170,15 @@ public partial class AdventureSanctuaryTowerManager
             return;
         }
 
-        // 最終セリフ後に台本が消えた／進まない場合でもエピローグへ強制遷移（8.0秒表示後の保険として9.5秒）
+        // 最終セリフ後に完全に放置された場合の保険（12秒）
         if (_climaxOilInjected
             && _climaxBeatIndex >= ClimaxBeats.Length - 1
             && !_epilogueTriggered)
         {
             float finalOpen = Time.unscaledTime - _scriptBoardOpenedAt;
-            if (finalOpen >= 9.5f || (!_scriptBoardVisible && finalOpen >= 0.35f))
+            if (finalOpen >= 12.0f)
             {
-                Debug.LogWarning("[RustAndFloat] 最終セリフ詰まり検知 → エピローグ強制開始");
+                Debug.LogWarning("[RustAndFloat] 最終セリフタイムアウト → エピローグ強制開始");
                 FinishClimaxSequence();
                 return;
             }
@@ -187,25 +190,12 @@ public partial class AdventureSanctuaryTowerManager
         bool postOilBeat = _climaxBeatIndex >= ClimaxOilSlot;
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
-        // キー離し待ちガード：直前の長押し／連打が次のセリフを即座に送ってしまうのを防止
-        // （キーを離すまで手動送りを確実にブロック。ただしキーを離していれば直ちに解除）
-        if (_scriptRequireInputRelease)
-        {
-            if (!IsDiveConfirmHeld())
-            {
-                _scriptRequireInputRelease = false;
-            }
-            else
-            {
-                return;
-            }
-        }
-
-        // 最低表示時間は0.75秒（セリフが表示された瞬間の誤タップや注油直後の連打を確実に防ぎ、読ませる）
-        const float minHoldOpen = 0.75f;
+        // セリフ表示直後の0.25秒デバウンス（直前の連打による誤スキップ防止）
+        const float minHoldOpen = 0.25f;
         if (openFor >= minHoldOpen)
         {
-            // 単発押し（Down）でセリフを1つ進める
+            // 単発押し（Down）でセリフを1つ進める（Space / クリック / E / Enter）
+            // ※キーを離していれば押した瞬間に小気味よく即座に進む！
             if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseLeftDown ||
                 AdventureInputReader.SpaceDown || AdventureInputReader.InteractDown || AdventureInputReader.EnterDown)
             {
@@ -213,22 +203,9 @@ public partial class AdventureSanctuaryTowerManager
                 Debug.Log($"[RustAndFloat] クライマックス手動送り入力検知: beat={_climaxBeatIndex}");
             }
 
-            // 何も押さなくても自然に次のセリフへ進む自動送り時間（放置シネマ）
-            // ※感動的な注油後セリフ（beat 3, 4）は勝手に消えないよう十分に長い時間（8.5〜10.0秒）を確保！
+            // 何も押さなくても自然に次のセリフへ進む自動送り時間（放置シネマ：5.5〜6.5秒）
             bool finalBeat = _climaxBeatIndex >= ClimaxBeats.Length - 1;
-            float autoSec;
-            if (_climaxBeatIndex == 0)
-                autoSec = 6.0f;
-            else if (_climaxBeatIndex == 1)
-                autoSec = 5.5f;
-            else if (_climaxBeatIndex == 2)
-                autoSec = 5.0f;
-            else if (postOilBeat && _climaxBeatIndex == ClimaxOilSlot)
-                autoSec = 8.5f; // 「……あ……温かい油が……」（8.5秒）
-            else if (finalBeat)
-                autoSec = 10.0f; // 「ピピッ！ありがとう、Niko！」（10.0秒）
-            else
-                autoSec = GetScriptBeatAutoAdvanceSeconds(_scriptBoardBody, postOilBeat);
+            float autoSec = finalBeat ? 6.5f : (postOilBeat ? 5.5f : 5.0f);
 
             if (openFor >= autoSec)
             {
