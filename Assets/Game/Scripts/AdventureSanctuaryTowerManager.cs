@@ -1401,12 +1401,12 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         if (!_scriptBoardVisible || _scriptBoardAdvance) return;
         if (_scriptRequireInputRelease) return;
 
-        // セリフ表示直後の最低表示時間（0.45〜0.50秒）
+        // 注油直後の最初のセリフだけ長めに守る
         float minShow = 0.35f;
         if (_climaxCrisisStarted && _climaxBeatIndex == ClimaxOilSlot)
-            minShow = 0.50f;
+            minShow = 2.2f;
         else if (_climaxCrisisStarted && _climaxBeatIndex > ClimaxOilSlot)
-            minShow = 0.45f;
+            minShow = 0.85f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
 
         var kb = UnityEngine.InputSystem.Keyboard.current;
