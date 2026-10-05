@@ -586,6 +586,7 @@ public partial class AdventureRustDrone
         var go = new GameObject("Rust_ClimaxIceFx");
         go.transform.SetParent(transform, false);
         _climaxIceFx = go.AddComponent<ParticleSystem>();
+        _climaxIceFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = _climaxIceFx.main;
         main.duration = 5f;
         main.loop = true;
@@ -612,6 +613,7 @@ public partial class AdventureRustDrone
         var go = new GameObject("Rust_ClimaxSparkFx");
         go.transform.SetParent(transform, false);
         _climaxSparkFx = go.AddComponent<ParticleSystem>();
+        _climaxSparkFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = _climaxSparkFx.main;
         main.duration = 5f;
         main.loop = true;
@@ -638,6 +640,7 @@ public partial class AdventureRustDrone
         var go = new GameObject("Rust_ClimaxHealAura");
         go.transform.SetParent(transform, false);
         _climaxHealFx = go.AddComponent<ParticleSystem>();
+        _climaxHealFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = _climaxHealFx.main;
         main.duration = 2f;
         main.loop = true;

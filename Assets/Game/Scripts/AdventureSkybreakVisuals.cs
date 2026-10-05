@@ -1233,7 +1233,8 @@ public static class AdventureSkybreakVisuals
                 RenderSettings.fogColor = Color.Lerp(ColdFogColor, WarmFogColor, smoothT);
                 RenderSettings.fogDensity = Mathf.Lerp(0.0018f, 0.0006f, smoothT);
 
-                if (t >= 1f)
+                // 緑化コルーチンが完了するまでドライバーを破棄しない（途中で止まらないように）
+                if (t >= 1f && _foliageDone)
                 {
                     if (_dustTransform != null)
                         Destroy(_dustTransform.gameObject);
@@ -1282,7 +1283,9 @@ public static class AdventureSkybreakVisuals
             }
 
             // 地上の緑の木と草のマテリアルのみを自然で豊かなトーンに整える（花や紅葉、サクラ等の色は保護）
-            NaturalizeGroundFoliage();
+            // 全Rendererのマテリアル複製は重いため、フレーム分散して実行する
+            _foliageDone = false;
+            StartCoroutine(NaturalizeGroundFoliage());
 
             // 落雷ループを即座に停止
             if (_lightningRoutine != null)
@@ -1298,12 +1301,14 @@ public static class AdventureSkybreakVisuals
             }
         }
 
-        static void NaturalizeGroundFoliage()
+        bool _foliageDone = true;
+
+        IEnumerator NaturalizeGroundFoliage()
         {
-            try
+            var renderers = Object.FindObjectsByType<Renderer>();
+            int budget = 0;
+            for (int i = 0; i < renderers.Length; i++)
             {
-                var renderers = Object.FindObjectsByType<Renderer>();
-                for (int i = 0; i < renderers.Length; i++)
                 {
                     var rend = renderers[i];
                     if (rend == null) continue;
@@ -1315,6 +1320,33 @@ public static class AdventureSkybreakVisuals
                         goName.Contains("godray") || goName.Contains("shockwave"))
                     {
                         continue;
+                    }
+
+                    // 事前チェック：共有マテリアルの名前だけで緑の葉/草を持つか判定（複製を作らず軽量）
+                    var shared = rend.sharedMaterials;
+                    bool hasFoliage = false;
+                    if (shared != null)
+                    {
+                        for (int s = 0; s < shared.Length; s++)
+                        {
+                            if (shared[s] == null) continue;
+                            string sn = shared[s].name.ToLowerInvariant();
+                            if (sn.Contains("green") || sn.Contains("broadleaf") || sn.Contains("willow")
+                                || sn.Contains("leaf") || sn.Contains("leaves") || sn.Contains("grass"))
+                            {
+                                hasFoliage = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!hasFoliage) continue;
+
+                    // 1フレームあたり最大24個のRendererだけ処理して固まりを防ぐ
+                    if (++budget >= 24)
+                    {
+                        budget = 0;
+                        yield return null;
+                        if (rend == null) continue;
                     }
 
                     var mats = rend.materials;
@@ -1384,10 +1416,7 @@ public static class AdventureSkybreakVisuals
                     }
                 }
             }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning("[AdventureSkybreakVisuals] NaturalizeGroundFoliage warning: " + ex.Message);
-            }
+            _foliageDone = true;
         }
 
         void OnDestroy()
