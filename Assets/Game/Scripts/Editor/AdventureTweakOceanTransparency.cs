@@ -68,6 +68,7 @@ public static class AdventureTweakOceanTransparency
         mat.SetFloat("_SunGlitterIntensity", 4.8f);
         mat.SetFloat("_SunGlitterExponent", 80f);
         mat.SetFloat("_SparkleScale", 1.8f);
+        mat.SetFloat("_OverheadSparkleIntensity", 1.6f);
 
         mat.SetVector("_IslandCenter", new Vector4(512f, 5.5f, 512f, 0f));
         mat.SetFloat("_ShallowRadius", 360f);

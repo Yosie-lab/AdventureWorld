@@ -24,6 +24,7 @@ Shader "RustAndFloat/ParadiseCurvedOcean"
         _SunGlitterIntensity ("波のきらめき強度", Range(0.5, 8.0)) = 3.2
         _SunGlitterExponent ("きらめき集中度", Range(16, 256)) = 80
         _SparkleScale ("星屑グリッタースケール", Float) = 1.6
+        _OverheadSparkleIntensity ("上空見下ろし波のキラキラ強度", Range(0.0, 5.0)) = 2.2
 
         [Header(Curved Horizon)]
         _IslandCenter ("島中心ワールド座標 (XZ)", Vector) = (512, 5.5, 512, 0)
@@ -95,6 +96,7 @@ Shader "RustAndFloat/ParadiseCurvedOcean"
                 float _SunGlitterIntensity;
                 float _SunGlitterExponent;
                 float _SparkleScale;
+                float _OverheadSparkleIntensity;
                 float _ShallowRadius;
                 float _DeepRadius;
                 float _HorizonRadius;
@@ -174,19 +176,40 @@ Shader "RustAndFloat/ParadiseCurvedOcean"
                 float3 skyReflection = lerp(float3(0.02, 0.75, 0.70), float3(0.25, 0.92, 0.88), fresnel);
                 float3 diffuseWater = lerp(waterCol.rgb, skyReflection, fresnel * 0.28);
 
-                // 太陽光のスペキュラ・グリッター（波のきらめき）
+                // 1. 太陽光のダイレクト・スペキュラ（直射日光ハイライト）
                 float3 halfDir = normalize(lightDir + viewDirWS);
                 float NdotH = saturate(dot(normalWS, halfDir));
                 float spec = pow(NdotH, _SunGlitterExponent);
 
-                // マイクロファセット・波頭の煌めき（Sparkle）
+                // 2. 太陽ハイライト周辺のダイナミック・グリッター
                 float2 sparkleUV = posWS.xz * _SparkleScale;
-                float sparkleNoise = sin(sparkleUV.x * 3.2 + _Time.y * 3.5) * cos(sparkleUV.y * 3.2 - _Time.y * 2.8);
-                sparkleNoise = saturate((sparkleNoise - 0.35) * 2.2);
-                float sparkleTerm = pow(NdotH, _SunGlitterExponent * 0.45) * sparkleNoise * 2.0;
+                float sparkleNoise = sin(sparkleUV.x * 2.8 + _Time.y * 3.2) * cos(sparkleUV.y * 2.8 - _Time.y * 2.5);
+                sparkleNoise = saturate((sparkleNoise - 0.4) * 2.5);
+                float sunSparkle = pow(NdotH, _SunGlitterExponent * 0.4) * sparkleNoise * 1.8;
 
-                float totalGlitter = (spec + sparkleTerm) * _SunGlitterIntensity;
-                float3 glitterColor = totalGlitter * _SunGlitterColor.rgb * lightColor;
+                // 3. 上空見下ろし対応：波頭（Wave Crest）の自然で細やかなキラキラ（メッシュ線皆無・モアレフリー設計）
+                // 波テクスチャのオフセット（waveOffset）から純粋な波の尾根（Crest）をピンポイント抽出
+                float waveSlope = length(waveOffset);
+                float waveCrest = saturate((waveSlope - 0.10) * 3.5);
+
+                // 近〜中距離でのみ上品に瞬くプロシージャル・スターダスト（波頭にのみ発生）
+                float camDist = length(_WorldSpaceCameraPos - posWS);
+                float sparkleFade = saturate(1.0 - camDist / 1500.0);
+                sparkleFade = sparkleFade * sparkleFade; // 2乗でソフトフェード
+
+                // 波頭の傾斜に乗ってピカピカと瞬く星屑ドット
+                float2 dotUV = posWS.xz * 0.25 + _Time.y * float2(0.05, -0.04);
+                float dotVal = sin(dotUV.x * 8.0) * cos(dotUV.y * 8.0);
+                float starDust = pow(saturate(dotVal), 16.0) * (waveCrest * 0.85 + 0.15) * sparkleFade * 2.2;
+
+                // 波頭のきらめき合成（波の尾根の自然なツヤ + 瞬く星屑）
+                float overheadSparkle = (waveCrest * 0.28 + starDust) * _OverheadSparkleIntensity;
+
+                // 4. 太陽方向の散乱照り返し（波頭のハイライト）
+                float crestSunGlitter = pow(saturate(dot(normalWS, lightDir)), 8.0) * waveCrest * 0.65;
+
+                float totalGlitter = (spec + sunSparkle) * _SunGlitterIntensity + (overheadSparkle + crestSunGlitter);
+                float3 glitterColor = totalGlitter * _SunGlitterColor.rgb * (lightColor * 0.65 + 0.35);
 
                 // 最終カラー合成（フォグで白飛びさせず、水平線カラーと自然に融合）
                 float3 finalColor = diffuseWater * (lightColor * 0.65 + 0.35) + glitterColor;

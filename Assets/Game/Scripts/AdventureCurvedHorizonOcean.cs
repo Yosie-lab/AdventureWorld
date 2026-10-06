@@ -155,6 +155,8 @@ public class AdventureCurvedHorizonOcean : MonoBehaviour
             _oceanMaterial.SetFloat("_NormalStrength", 1.25f);
             _oceanMaterial.SetFloat("_SunGlitterIntensity", 5.2f);
             _oceanMaterial.SetFloat("_SunGlitterExponent", 80f);
+            _oceanMaterial.SetFloat("_SparkleScale", 1.8f);
+            _oceanMaterial.SetFloat("_OverheadSparkleIntensity", 1.6f);
             _oceanMaterial.SetFloat("_ShallowRadius", 360f);
             _oceanMaterial.SetFloat("_DeepRadius", 800f);
             _oceanMaterial.SetFloat("_HorizonRadius", MaxRadius);

@@ -37,6 +37,7 @@ Material:
     - _DeepRadius: 800
     - _HorizonRadius: 4500
     - _NormalStrength: 1.25
+    - _OverheadSparkleIntensity: 1.6
     - _ShallowRadius: 360
     - _Smoothness: 0.985
     - _SparkleScale: 1.8
