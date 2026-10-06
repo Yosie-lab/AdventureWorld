@@ -206,7 +206,7 @@ public class AdventureCameraFollow : MonoBehaviour
         if (_cam != null && !AdventureRustFloatFeel.IsActiveScene)
         {
             _cam.nearClipPlane = 0.05f;
-            _cam.farClipPlane = 12000f;
+            _cam.farClipPlane = 1200f;
             _cam.useOcclusionCulling = false;
             if (_cam.fieldOfView < 60f || _cam.fieldOfView > 68f)
                 _cam.fieldOfView = 64f;

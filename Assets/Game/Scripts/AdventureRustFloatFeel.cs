@@ -105,7 +105,7 @@ public static class AdventureRustFloatFeel
 
         if (unityCam == null) return;
         unityCam.nearClipPlane = 0.05f;
-        unityCam.farClipPlane = 12000f; // 雄大な水平線と大洋を見通せるよう12kmに拡張
+        unityCam.farClipPlane = 1200f;
         unityCam.useOcclusionCulling = false;
         if (unityCam.fieldOfView < 60f || unityCam.fieldOfView > 68f)
             unityCam.fieldOfView = WalkFov;

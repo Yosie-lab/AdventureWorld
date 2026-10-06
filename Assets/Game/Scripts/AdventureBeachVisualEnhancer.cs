@@ -80,15 +80,8 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
         var oldMist = GameObject.Find("Beach_ShoreMistVFX");
         if (oldMist != null) Destroy(oldMist);
 
-        // 旧西海岸用の四角い直線リボンメッシュ（Beach_WaterCaustics, Beach_ShorelineWave）を完全破棄
-        var oldCaustics = GameObject.Find("Beach_WaterCaustics");
-        if (oldCaustics != null) Destroy(oldCaustics);
-        var oldWave = GameObject.Find("Beach_ShorelineWave");
-        if (oldWave != null) Destroy(oldWave);
-
         SetupMaterials();
-        // 円形アイランドではParadiseOceanシェーダーが360度美しく水面・波・光を表現するため、旧リボンメッシュは生成しない
-        // BuildCoastMeshes();
+        BuildCoastMeshes();
 
         var player = AdventurePlayerController.Instance;
         if (player != null)

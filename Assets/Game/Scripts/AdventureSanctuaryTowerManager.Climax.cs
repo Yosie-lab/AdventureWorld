@@ -373,7 +373,7 @@ public partial class AdventureSanctuaryTowerManager
         imgRt.anchorMax = Vector2.one;
         imgRt.sizeDelta = Vector2.zero;
         var img = imgGo.AddComponent<Image>();
-        img.color = new Color(1f, 0.98f, 0.92f, 0f);
+        img.color = new Color(1f, 0.88f, 0.45f, 0f);
         img.raycastTarget = false;
 
         float t = 0f;
@@ -381,7 +381,7 @@ public partial class AdventureSanctuaryTowerManager
         while (t < peakTime)
         {
             t += Time.unscaledDeltaTime;
-            img.color = new Color(1f, 0.98f, 0.92f, Mathf.Clamp01(t / peakTime) * 0.28f);
+            img.color = new Color(1f, 0.88f, 0.45f, Mathf.Clamp01(t / peakTime) * 0.45f);
             yield return null;
         }
         t = 0f;
@@ -390,7 +390,7 @@ public partial class AdventureSanctuaryTowerManager
         {
             t += Time.unscaledDeltaTime;
             float a = 1f - Mathf.Clamp01(t / fadeTime);
-            img.color = new Color(1f, 0.98f, 0.92f, a * 0.28f);
+            img.color = new Color(1f, 0.85f, 0.35f, a * 0.45f);
             yield return null;
         }
         Destroy(glowGo);

@@ -87,7 +87,7 @@ public static class AdventureSkybreakVisuals
         var rayMat = new Material(Shader.Find("Sprites/Default") ?? unlit);
         Color rayColor = coldCrisis
             ? new Color(0.70f, 0.90f, 1.0f, 0.08f)  // 寒冷限界：澄み渡る蒼白の淡い光芒
-            : new Color(1.0f, 0.98f, 0.92f, 0.07f); // 解放後：清らかで透明感のあるピュアホワイトの光芒（黄色く濁らせない）
+            : new Color(1.0f, 0.94f, 0.72f, 0.12f); // 解放後：黄金に輝く祝福の淡い光芒
         rayMat.color = rayColor;
 
         for (int r = 0; r < 8; r++)
@@ -586,10 +586,10 @@ public static class AdventureSkybreakVisuals
             _cachedSun.transform.rotation = coldCrisis
                 ? Quaternion.Euler(42f, 145f, 0f)
                 : Quaternion.Euler(50f, 140f, 0f);
-            _cachedSun.intensity = coldCrisis ? 1.55f : AdventureClassicSkyRuntime.SunIntensity;
+            _cachedSun.intensity = coldCrisis ? 1.55f : 1.70f;
             _cachedSun.color = coldCrisis
                 ? new Color(0.96f, 0.98f, 1.0f)   // 寒冷限界：白銀の凛とした日光
-                : AdventureClassicSkyRuntime.SunColor;  // 解放後：澄み切ったピュアな南国の太陽光（黄色かぶりを完全根絶）
+                : new Color(1.0f, 0.96f, 0.82f);  // 解放後：黄金に輝く希望の日光
         }
     }
 
@@ -606,18 +606,18 @@ public static class AdventureSkybreakVisuals
         main.startSize = new ParticleSystem.MinMaxCurve(golden ? 0.25f : 0.35f, golden ? 1.1f : 1.4f);
         main.startColor = golden
             ? new ParticleSystem.MinMaxGradient(
-                new Color(0.88f, 0.96f, 1f, 0.55f),
-                new Color(0.95f, 1f, 0.92f, 0.2f))
+                new Color(1f, 0.92f, 0.45f, 0.65f),
+                new Color(1f, 0.98f, 0.82f, 0.2f))
             : new ParticleSystem.MinMaxGradient(
                 new Color(0.85f, 0.98f, 0.65f, 0.55f),
                 new Color(0.95f, 1f, 0.88f, 0.18f));
         main.startSpeed = new ParticleSystem.MinMaxCurve(0.4f, 2.2f);
-        main.maxParticles = golden ? 140 : 120;
+        main.maxParticles = golden ? 200 : 160;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
         main.gravityModifier = golden ? -0.02f : 0f;
 
         var emission = ps.emission;
-        emission.rateOverTime = golden ? 20f : 16f;
+        emission.rateOverTime = golden ? 28f : 22f;
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Cone;
@@ -631,12 +631,12 @@ public static class AdventureSkybreakVisuals
         {
             grad.SetKeys(
                 new[] {
-                    new GradientColorKey(new Color(0.92f, 0.98f, 1f), 0f),
-                    new GradientColorKey(new Color(0.82f, 0.94f, 1f), 1f)
+                    new GradientColorKey(new Color(1f, 0.95f, 0.7f), 0f),
+                    new GradientColorKey(new Color(1f, 0.78f, 0.35f), 1f)
                 },
                 new[] {
                     new GradientAlphaKey(0f, 0f),
-                    new GradientAlphaKey(0.60f, 0.18f),
+                    new GradientAlphaKey(0.75f, 0.18f),
                     new GradientAlphaKey(0f, 1f)
                 });
         }
@@ -886,12 +886,11 @@ public static class AdventureSkybreakVisuals
             }
         }
 
-        // 太陽光の色と光量：通常時の爽やかで自然な南国の陽光を基準とし、黄色かぶりを防止
-        Color originalSunColor = AdventureClassicSkyRuntime.SunColor; // new Color(1f, 0.98f, 0.90f, 1f)
-        float originalSunIntensity = AdventureClassicSkyRuntime.SunIntensity; // 1.65f 眩しすぎず白飛びしない適正光量
+        Color originalSunColor = new Color(1.0f, 0.94f, 0.80f); // 暖かく輝く黄金日光
+        float originalSunIntensity = 2.25f; // 燦々と降り注ぐ力強い光量
 
         Color coldSunColor = new Color(0.92f, 0.96f, 1.0f);
-        float coldSunIntensity = 1.55f;
+        float coldSunIntensity = 2.05f;
 
         if (_cachedSun != null)
         {
@@ -946,11 +945,6 @@ public static class AdventureSkybreakVisuals
         vig.intensity.value = 0.30f;
         vig.smoothness.overrideState = true;
         vig.smoothness.value = 0.60f;
-
-        // 大空パノラマ視点で地上全体がピンボケするのを確実に防止
-        if (!profile.TryGet<DepthOfField>(out var dof))
-            dof = profile.Add<DepthOfField>(true);
-        dof.active = false;
 
         // 解凍時に地上の木々の葉と草の緑を鮮烈に引き立てるカラーグレーディング
         if (!profile.TryGet<ShadowsMidtonesHighlights>(out var smh))
@@ -1034,8 +1028,8 @@ public static class AdventureSkybreakVisuals
             RenderSettings.ambientLight = _savedAmbient;
             if (_cachedSun != null)
             {
-                _cachedSun.color = AdventureClassicSkyRuntime.SunColor;
-                _cachedSun.intensity = AdventureClassicSkyRuntime.SunIntensity;
+                _cachedSun.color = new Color(1.0f, 0.95f, 0.84f);
+                _cachedSun.intensity = 1.45f;
             }
             _coldAtmosphereActive = false;
         }
@@ -1185,21 +1179,20 @@ public static class AdventureSkybreakVisuals
                 if (ColdVolume != null && ColdVolume.profile != null)
                 {
                     var p = ColdVolume.profile;
-                    // WhiteBalance: 極寒 -30f -> 完全ニュートラル 0.0f（暖色・黄色シフトを完全撤廃し、本来の全色彩を100%保つ）
+                    // WhiteBalance: 極寒 -35f -> 自然で暖かな陽光 +6f、Tint は 0f（完全ニュートラル！緑被りをゼロにしてNikoや空・海の本来の美しい色彩を100%保つ）
                     if (p.TryGet<WhiteBalance>(out var wb))
                     {
-                        wb.temperature.value = Mathf.Lerp(-30f, 0.0f, smoothT);
-                        wb.tint.value = Mathf.Lerp(-4f, 0.0f, smoothT);
+                        wb.temperature.value = Mathf.Lerp(-35f, 6f, smoothT);
+                        wb.tint.value = Mathf.Lerp(-5f, 0f, smoothT);
                     }
-                    // ColorAdjustments: 自然で息をのむほど鮮やかな全色彩！
-                    // 彩度を +26f にブースト、コントラストを +14f に引き締めて白ボケ・眠さを一掃
+                    // ColorAdjustments: 自然で豊かな全色彩。彩度 +16f、露出 +0.16f、コントラスト 12f
                     if (p.TryGet<ColorAdjustments>(out var ca))
                     {
-                        ca.saturation.value = Mathf.Lerp(-6f, 26f, smoothT);
-                        ca.contrast.value = Mathf.Lerp(4f, 14f, smoothT);
-                        ca.postExposure.value = Mathf.Lerp(0.08f, 0.24f, smoothT);
+                        ca.saturation.value = Mathf.Lerp(-18f, 16f, smoothT);
+                        ca.contrast.value = Mathf.Lerp(12f, 12f, smoothT);
+                        ca.postExposure.value = Mathf.Lerp(0f, 0.16f, smoothT);
                         // フィルターによる色被りは一切なし（白：全波長がクリアに通る）
-                        ca.colorFilter.value = Color.Lerp(new Color(0.92f, 0.96f, 1.0f), Color.white, smoothT);
+                        ca.colorFilter.value = Color.Lerp(new Color(0.90f, 0.95f, 1.0f), Color.white, smoothT);
                     }
                     // ShadowsMidtonesHighlights: 完全ニュートラル（特定色の偏りを完全排除）
                     if (p.TryGet<ShadowsMidtonesHighlights>(out var smh))
@@ -1212,16 +1205,10 @@ public static class AdventureSkybreakVisuals
                     {
                         vig.intensity.value = Mathf.Lerp(0.30f, 0f, smoothT);
                     }
-                    // Bloom: 通常時の映画的ブルームへスムーズに戻す
+                    // Bloom: 黄金の光粒子や海面をやわらかく包む
                     if (p.TryGet<Bloom>(out var bloom))
                     {
-                        bloom.intensity.value = Mathf.Lerp(1.35f, AdventureClassicSkyRuntime.BloomIntensity, smoothT);
-                        bloom.threshold.value = Mathf.Lerp(1.01f, AdventureClassicSkyRuntime.BloomThreshold, smoothT);
-                    }
-                    // DepthOfField: 遠景がボケるのを完全にオフ
-                    if (p.TryGet<DepthOfField>(out var dofComp))
-                    {
-                        dofComp.active = false;
+                        bloom.intensity.value = Mathf.Lerp(1.35f, 0.38f, smoothT);
                     }
                 }
 
@@ -1238,15 +1225,13 @@ public static class AdventureSkybreakVisuals
                     SunLight.intensity = Mathf.Lerp(ColdSunIntensity, WarmSunIntensity, smoothT);
                 }
 
-                // 環境光：通常時の澄んだTrilight（青空の光・白砂と緑の爽やかな照り返し）へ復帰
-                RenderSettings.ambientSkyColor = Color.Lerp(new Color(0.78f, 0.86f, 0.98f), AdventureClassicSkyRuntime.AmbientSkyColor, smoothT);
-                RenderSettings.ambientEquatorColor = Color.Lerp(new Color(0.80f, 0.88f, 0.95f), AdventureClassicSkyRuntime.AmbientEquator, smoothT);
-                RenderSettings.ambientGroundColor = Color.Lerp(new Color(0.55f, 0.68f, 0.50f), AdventureClassicSkyRuntime.AmbientGround, smoothT);
+                // 環境光：大地の自然なアーストーン（NikoやRustが緑に染まらないよう自然な反射光）
+                RenderSettings.ambientGroundColor = Color.Lerp(AdventureClassicSkyRuntime.AmbientGround, new Color(0.36f, 0.40f, 0.32f), smoothT);
+                RenderSettings.ambientEquatorColor = Color.Lerp(AdventureClassicSkyRuntime.AmbientEquator, new Color(0.68f, 0.74f, 0.76f), smoothT);
 
-                // フォグ：南国の澄み切ったエメラルド〜シアン大気フォグへ復帰
-                RenderSettings.fogColor = Color.Lerp(ColdFogColor, AdventureClassicSkyRuntime.FogColor, smoothT);
-                // ★極めて重要：高度150mから見下ろしても島全体がガラスのように透き通るよう、フォグ密度を極薄の0.00035fに調整
-                RenderSettings.fogDensity = Mathf.Lerp(0.0018f, 0.00035f, smoothT);
+                // フォグ密度：透明感のある澄んだ南国の空気（0.0006f）
+                RenderSettings.fogColor = Color.Lerp(ColdFogColor, WarmFogColor, smoothT);
+                RenderSettings.fogDensity = Mathf.Lerp(0.0018f, 0.0006f, smoothT);
 
                 // 緑化コルーチンが完了するまでドライバーを破棄しない（途中で止まらないように）
                 if (t >= 1f && _foliageDone)
@@ -1266,37 +1251,41 @@ public static class AdventureSkybreakVisuals
             _thawDuration = Mathf.Max(0.1f, duration);
 
             // 上空から見下ろしても木々や花が美しく描画されるようLODバイアスを最適化
-            QualitySettings.lodBias = 3.5f;
+            QualitySettings.lodBias = 2.6f;
 
-            // 地上のTerrain描画距離と品質を最適化（上空150mから見ても高精細テクスチャ＆草花が消えない）
+            // 地上のTerrain描画距離と品質を最適化（草と木をしっかり描画）
             var terrains = Object.FindObjectsByType<Terrain>();
             for (int i = 0; i < terrains.Length; i++)
             {
                 var tr = terrains[i];
                 if (tr == null) continue;
-                tr.basemapDistance = 3000f; // 低解像度ベタ塗りにならず高精細テクスチャを維持
-                tr.treeDistance = 3000f;
-                tr.treeBillboardDistance = 2000f;
-                tr.treeMaximumFullLODCount = 3000;
-                tr.detailObjectDistance = 800f; // 上空からでも地上の花畑や草が鮮やかに描画される
+                tr.basemapDistance = 2000f;
+                tr.treeDistance = 2500f;
+                tr.treeBillboardDistance = 1500f;
+                tr.treeMaximumFullLODCount = 2000;
+                tr.detailObjectDistance = 500f;
                 tr.detailObjectDensity = 1.0f;
-            }
 
-            // シーン内のすべての Volume から DepthOfField（被写界深度ボケ）を解除
-            var volumes = Object.FindObjectsByType<Volume>();
-            for (int v = 0; v < volumes.Length; v++)
-            {
-                if (volumes[v] != null && volumes[v].profile != null)
+                if (tr.terrainData != null)
                 {
-                    if (volumes[v].profile.TryGet<DepthOfField>(out var dof))
+                    tr.terrainData.wavingGrassTint = new Color(0.55f, 0.82f, 0.40f);
+                    var protos = tr.terrainData.detailPrototypes;
+                    if (protos != null && protos.Length > 0)
                     {
-                        dof.active = false;
+                        for (int p = 0; p < protos.Length; p++)
+                        {
+                            protos[p].healthyColor = new Color(0.48f, 0.78f, 0.32f);
+                            protos[p].dryColor = new Color(0.65f, 0.76f, 0.38f);
+                        }
+                        tr.terrainData.detailPrototypes = protos;
                     }
                 }
             }
 
-            // マテリアルの強制上書きは行わず、本来のみずみずしい緑と全21種の花々の鮮烈な色彩を100%尊重
-            _foliageDone = true;
+            // 地上の緑の木と草のマテリアルのみを自然で豊かなトーンに整える（花や紅葉、サクラ等の色は保護）
+            // 全Rendererのマテリアル複製は重いため、フレーム分散して実行する
+            _foliageDone = false;
+            StartCoroutine(NaturalizeGroundFoliage());
 
             // 落雷ループを即座に停止
             if (_lightningRoutine != null)
@@ -1313,6 +1302,122 @@ public static class AdventureSkybreakVisuals
         }
 
         bool _foliageDone = true;
+
+        IEnumerator NaturalizeGroundFoliage()
+        {
+            var renderers = Object.FindObjectsByType<Renderer>();
+            int budget = 0;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                {
+                    var rend = renderers[i];
+                    if (rend == null) continue;
+
+                    string goName = rend.gameObject.name.ToLowerInvariant();
+                    // プレイヤーやペット、天蓋エフェクト等は除外
+                    if (goName.Contains("niko") || goName.Contains("rust") || goName.Contains("player") ||
+                        goName.Contains("skybreak") || goName.Contains("beam") || goName.Contains("lightning") ||
+                        goName.Contains("godray") || goName.Contains("shockwave"))
+                    {
+                        continue;
+                    }
+
+                    // 事前チェック：共有マテリアルの名前だけで緑の葉/草を持つか判定（複製を作らず軽量）
+                    var shared = rend.sharedMaterials;
+                    bool hasFoliage = false;
+                    if (shared != null)
+                    {
+                        for (int s = 0; s < shared.Length; s++)
+                        {
+                            if (shared[s] == null) continue;
+                            string sn = shared[s].name.ToLowerInvariant();
+                            if (sn.Contains("green") || sn.Contains("broadleaf") || sn.Contains("willow")
+                                || sn.Contains("leaf") || sn.Contains("leaves") || sn.Contains("grass"))
+                            {
+                                hasFoliage = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!hasFoliage) continue;
+
+                    // 1フレームあたり最大24個のRendererだけ処理して固まりを防ぐ
+                    if (++budget >= 24)
+                    {
+                        budget = 0;
+                        yield return null;
+                        if (rend == null) continue;
+                    }
+
+                    var mats = rend.materials;
+                    if (mats == null) continue;
+
+                    for (int m = 0; m < mats.Length; m++)
+                    {
+                        var mat = mats[m];
+                        if (mat == null) continue;
+                        string matName = mat.name.ToLowerInvariant();
+
+                        // 木の幹や岩、水面などは除外
+                        if (matName.Contains("bark") || matName.Contains("trunk") || matName.Contains("wood") ||
+                            matName.Contains("rock") || matName.Contains("stone") || matName.Contains("water") ||
+                            matName.Contains("sea"))
+                        {
+                            continue;
+                        }
+
+                        // ★重要：ピンクの桜、紅葉の赤、花々の色は絶対に緑に上書きせず、本来の美しい色彩を100%保護する
+                        bool isColoredFloral = matName.Contains("blossom") || matName.Contains("cherry") || matName.Contains("flower")
+                            || matName.Contains("red") || matName.Contains("pink") || matName.Contains("purple")
+                            || matName.Contains("autumn") || matName.Contains("petal") || goName.Contains("blossom")
+                            || goName.Contains("flower") || goName.Contains("pink") || goName.Contains("red");
+
+                        if (isColoredFloral)
+                        {
+                            continue;
+                        }
+
+                        // 緑の木々および草地のみを、自然でみずみずしい上品なグリーンに整える
+                        bool isGreenFoliage = matName.Contains("green") || matName.Contains("broadleaf") || matName.Contains("willow")
+                            || matName.Contains("leaf") || matName.Contains("leaves") || matName.Contains("grass");
+
+                        if (isGreenFoliage)
+                        {
+                            // 頂部カラー：暖かな木漏れ日を浴びた自然な若葉色
+                            if (mat.HasProperty("_TopColor"))
+                                mat.SetColor("_TopColor", new Color(0.58f, 0.76f, 0.18f, 1f));
+                            if (mat.HasProperty("_Top_Color"))
+                                mat.SetColor("_Top_Color", new Color(0.58f, 0.76f, 0.18f, 1f));
+
+                            // 下部カラー：落ち着いた深みのあるフォレストグリーン
+                            if (mat.HasProperty("_BottomColor"))
+                                mat.SetColor("_BottomColor", new Color(0.30f, 0.52f, 0.15f, 1f));
+                            if (mat.HasProperty("_Bottom_Color"))
+                                mat.SetColor("_Bottom_Color", new Color(0.30f, 0.52f, 0.15f, 1f));
+
+                            // 基本カラー
+                            if (mat.HasProperty("_BaseColor"))
+                            {
+                                Color cur = mat.GetColor("_BaseColor");
+                                if (cur.g >= cur.r * 0.85f && cur.g >= cur.b * 0.85f)
+                                {
+                                    mat.SetColor("_BaseColor", new Color(0.42f, 0.75f, 0.25f, cur.a));
+                                }
+                            }
+                            if (mat.HasProperty("_Color"))
+                            {
+                                Color cur = mat.GetColor("_Color");
+                                if (cur.g >= cur.r * 0.85f && cur.g >= cur.b * 0.85f)
+                                {
+                                    mat.SetColor("_Color", new Color(0.42f, 0.75f, 0.25f, cur.a));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _foliageDone = true;
+        }
 
         void OnDestroy()
         {

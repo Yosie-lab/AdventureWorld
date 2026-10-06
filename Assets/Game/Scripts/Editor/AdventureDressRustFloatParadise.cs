@@ -66,24 +66,16 @@ public static class AdventureDressRustFloatParadise
         "FlowerMeadow_Pink.prefab",
         "FlowerMeadow_White.prefab",
         "FlowerMeadow_Orange.prefab",
-        "FlowerMeadow_Red.prefab",
         "FlowerMeadow_RedPink.prefab",
-        "FlowerMeadow_RedOrange.prefab",
-        "FlowerMeadow_RedPurple.prefab",
-        "FlowerMeadow_Purple.prefab",
-        "FlowerMeadow_PurpleRedPink.prefab",
-        "FlowerMeadow_Blue.prefab",
         "FlowerMeadow_BluePurple.prefab",
+        "FlowerMeadow_RedOrange.prefab",
+        "FlowerMeadow_PurpleRedPink.prefab",
         "FlowerMeadow_OrangePinkRedPurpleBlue.prefab",
         "Flower_Yellow.prefab",
         "Flower_White.prefab",
         "Flower_Blue_01.prefab",
-        "Flower_Blue_02.prefab",
         "Flower_Orange.prefab",
-        "Flower_Purple.prefab",
-        "Flower_Pink.prefab",
-        "Flower_Red.prefab",
-        "Flower_YellowRed.prefab"
+        "Flower_Purple.prefab"
     };
 
     static readonly string[] Rocks =
@@ -362,8 +354,9 @@ public static class AdventureDressRustFloatParadise
             // 豊かな下草・灌木（大樹海の林床や草原の起伏を彩る）
             ScatterGrand(root, land, rng, Bushes, 400, sanctuary, 40f, northCliff, 40f,
                 0.9f, 1.7f, water + 1.4f, isTree: false);
-            // 色とりどりの花畑・花（全21種の群生パッチ＋名所テーマフラワーガーデンを一括配置）
-            AdventurePlantParadiseFlowers.PlantFlowers(root, land);
+            // 色とりどりの花畑・花（小道や池の周囲のアクセント花畑）
+            ScatterGrand(root, land, rng, Flowers, 300, sanctuary, 35f, northCliff, 35f,
+                1.1f, 2.4f, water + 1.2f, isTree: false);
             // 岸辺の岩と水辺植物
             PlaceShoreGrand(root, land, rng, water);
             // 標高差を下る激しい「渓流（東の深林大渓流）」の巨石群・飛び石・苔岩・水辺植物デコレーション

@@ -102,10 +102,18 @@ public class AdventureDayNightDirector : MonoBehaviour
             ToggleDayNightMode();
         }
 
-        // 天蓋破壊後：危機中や注油後・エピローグの大気・ライティングは AdventureSkybreakVisuals が一元管理する。
-        // （AdventureDayNightDirector が独自にフォグや太陽光を上書きして黄色く濁らせるのを完全に防止）
+        // 天蓋破壊後：危機中は凍える外気、注油後／エピローグは夜明けへ
         if (AdventureSanctuaryTowerManager.IsCanopyBroken)
         {
+            var tower = AdventureSanctuaryTowerManager.Instance;
+            bool freezing = tower != null
+                            && tower.ClimaxCrisisStarted
+                            && !tower.ClimaxOilInjected
+                            && !tower.EpilogueTriggered;
+            if (freezing)
+                ApplyFreezingOuterSky();
+            else
+                ApplyDawnSky();
             return;
         }
 
@@ -249,18 +257,18 @@ public class AdventureDayNightDirector : MonoBehaviour
 
     void ApplyDawnSky()
     {
-        // 天蓋崩壊時：未知の世界の神々しい大空・澄み切った陽光
+        // 天蓋崩壊時：未知の世界の神々しい夜明け・黄金の朝陽
         float dt = Time.deltaTime * 1.2f;
-        Color dawnSun = AdventureClassicSkyRuntime.SunColor;
-        Color dawnAmbient = AdventureClassicSkyRuntime.AmbientGround;
-        Color dawnFog = AdventureClassicSkyRuntime.FogColor;
+        Color dawnSun = new Color(1f, 0.95f, 0.82f);
+        Color dawnAmbient = new Color(0.62f, 0.68f, 0.82f);
+        Color dawnFog = new Color(0.88f, 0.82f, 0.72f);
 
         _mainSunLight.color = Color.Lerp(_mainSunLight.color, dawnSun, dt);
-        _mainSunLight.intensity = Mathf.Lerp(_mainSunLight.intensity, AdventureClassicSkyRuntime.SunIntensity, dt);
+        _mainSunLight.intensity = Mathf.Lerp(_mainSunLight.intensity, 1.45f, dt);
         _mainSunLight.transform.rotation = Quaternion.Slerp(_mainSunLight.transform.rotation, Quaternion.Euler(42f, -40f, 0f), dt);
 
         RenderSettings.ambientLight = Color.Lerp(RenderSettings.ambientLight, dawnAmbient, dt);
         RenderSettings.fogColor = Color.Lerp(RenderSettings.fogColor, dawnFog, dt);
-        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, AdventureClassicSkyRuntime.FogDensity, dt);
+        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, 0.0022f, dt);
     }
 }
