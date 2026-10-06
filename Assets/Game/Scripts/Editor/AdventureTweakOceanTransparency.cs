@@ -9,11 +9,11 @@ public static class AdventureTweakOceanTransparency
     private const string MeshPath = "Assets/RustAndFloat/Terrain/ParadiseCurvedOceanMesh.asset";
     private const string ShaderName = "RustAndFloat/ParadiseCurvedOcean";
 
-    [MenuItem("Adventure/Ocean/🏝️ エメラルドグリーン海面を適用 (Apply Emerald Green Ocean)", priority = 200)]
+    [MenuItem("Adventure/Ocean/🏝️ トパーズ＆アクアマリン海面を適用 (案C: Pastel Aquamarine)", priority = 200)]
     public static void ApplyHighTransparency()
     {
         if (Application.isPlaying) return;
-        Debug.Log("<color=#00ffc8><b>[AdventureCurvedOcean]</b> エメラルドグリーン曲面海面システムの構築を開始します...</color>");
+        Debug.Log("<color=#00ffc8><b>[AdventureCurvedOcean]</b> トパーズ＆アクアマリン曲面海面（案C）の適用を開始します...</color>");
 
         // 1. ラジアル曲面メッシュ (半径4500m / 直径9km) の生成と保存
         var mesh = AdventureCurvedHorizonOcean.GenerateRadialCurvedOceanMesh();
@@ -52,11 +52,12 @@ public static class AdventureTweakOceanTransparency
         if (n1 != null) mat.SetTexture("_NormalMap1", n1);
         if (n2 != null) mat.SetTexture("_NormalMap2", n2);
 
-        // 透き通る鮮やかなクリスタルエメラルドグリーン 〜 ターコイズ 〜 ディープエメラルド 〜 水平線ミント
-        mat.SetColor("_ShallowColor", new Color(0.015f, 0.98f, 0.78f, 0.82f));
-        mat.SetColor("_MidColor", new Color(0.01f, 0.90f, 0.72f, 0.94f));
-        mat.SetColor("_DeepColor", new Color(0.005f, 0.62f, 0.55f, 0.99f));
-        mat.SetColor("_HorizonColor", new Color(0.22f, 0.90f, 0.84f, 1.0f));
+        // トパーズ＆アクアマリン・パラダイス（案C）
+        // 透き通るパステルアクアマリン 〜 トパーズターコイズ 〜 爽やかなターコイズブルー 〜 地平線スカイミント
+        mat.SetColor("_ShallowColor", new Color(0.08f, 0.99f, 0.82f, 0.78f));
+        mat.SetColor("_MidColor", new Color(0.04f, 0.88f, 0.80f, 0.90f));
+        mat.SetColor("_DeepColor", new Color(0.015f, 0.68f, 0.72f, 0.98f));
+        mat.SetColor("_HorizonColor", new Color(0.35f, 0.88f, 0.92f, 1.0f));
         mat.SetColor("_SunGlitterColor", new Color(1.0f, 0.98f, 0.88f, 1.0f));
 
         mat.SetFloat("_WaveScale1", 0.035f);
@@ -129,6 +130,7 @@ public static class AdventureTweakOceanTransparency
 
         // 6. 検証スクリーンショットの撮影
         CaptureViews();
+        GenerateColorProposals();
     }
 
     private static void CaptureViews()
@@ -184,5 +186,97 @@ public static class AdventureTweakOceanTransparency
 
         File.WriteAllBytes(fullPath, tex.EncodeToPNG());
         Object.DestroyImmediate(tex);
+    }
+
+    public static void GenerateColorProposals()
+    {
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath);
+        if (mat == null) return;
+
+        string outDir = "/Users/user/.gemini/antigravity-ide/brain/ed566f25-4713-4c09-bcc2-4dcd6bfc0123";
+        if (!Directory.Exists(outDir)) Directory.CreateDirectory(outDir);
+
+        var camGo = new GameObject("TempProposalCam");
+        var cam = camGo.AddComponent<Camera>();
+        cam.clearFlags = CameraClearFlags.Skybox;
+        cam.fieldOfView = 65f;
+        cam.nearClipPlane = 0.3f;
+        cam.farClipPlane = 5000f;
+
+        var rt = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32);
+        cam.targetTexture = rt;
+
+        // 定義する4つの対比カラー案
+        var proposals = new (string id, string name, Color shallow, Color mid, Color deep, Color horizon)[]
+        {
+            (
+                "ocean_proposal_a_vivid_emerald",
+                "案A: クリスタル・ラグーン・エメラルド (Vivid Lagoon Emerald)",
+                new Color(0.015f, 0.98f, 0.78f, 0.82f),
+                new Color(0.01f, 0.90f, 0.72f, 0.94f),
+                new Color(0.005f, 0.62f, 0.55f, 0.99f),
+                new Color(0.22f, 0.90f, 0.84f, 1.0f)
+            ),
+            (
+                "ocean_proposal_b_tropical_cerulean",
+                "案B: セルリアン・トロピカルオーシャン (Tropical Cerulean & Sapphire)",
+                new Color(0.02f, 0.98f, 0.75f, 0.80f),
+                new Color(0.01f, 0.75f, 0.88f, 0.92f),
+                new Color(0.005f, 0.28f, 0.65f, 0.99f),
+                new Color(0.38f, 0.78f, 0.98f, 1.0f)
+            ),
+            (
+                "ocean_proposal_c_aquamarine_pastel",
+                "案C: トパーズ＆アクアマリン・パラダイス (Aquamarine & Pastel Turquoise)",
+                new Color(0.08f, 0.99f, 0.82f, 0.78f),
+                new Color(0.04f, 0.88f, 0.80f, 0.90f),
+                new Color(0.015f, 0.68f, 0.72f, 0.98f),
+                new Color(0.35f, 0.88f, 0.92f, 1.0f)
+            ),
+            (
+                "ocean_proposal_d_deep_oceanic",
+                "案D: ディープ・オーシャン・コントラスト (Deep Indigo & Neon Emerald)",
+                new Color(0.00f, 1.00f, 0.70f, 0.86f),
+                new Color(0.005f, 0.65f, 0.80f, 0.95f),
+                new Color(0.002f, 0.18f, 0.45f, 0.99f),
+                new Color(0.25f, 0.65f, 0.88f, 1.0f)
+            )
+        };
+
+        foreach (var p in proposals)
+        {
+            mat.SetColor("_ShallowColor", p.shallow);
+            mat.SetColor("_MidColor", p.mid);
+            mat.SetColor("_DeepColor", p.deep);
+            mat.SetColor("_HorizonColor", p.horizon);
+
+            // 1. 高空パノラマ（島全体・空・水平線）
+            cam.transform.position = new Vector3(512f, 240f, 200f);
+            cam.transform.rotation = Quaternion.Euler(26f, 0f, 0f);
+            cam.Render();
+            SaveTexture(rt, Path.Combine(outDir, p.id + ".png"));
+
+            // 2. 西ビーチ上空（白砂・浅瀬・海・水平線）
+            cam.transform.position = new Vector3(320f, 150f, 320f);
+            cam.transform.rotation = Quaternion.Euler(18f, 235f, 0f);
+            cam.Render();
+            SaveTexture(rt, Path.Combine(outDir, p.id + "_sky.png"));
+        }
+
+        // 案C（トパーズ＆アクアマリン・パラダイス）を確定適用
+        mat.SetColor("_ShallowColor", proposals[2].shallow);
+        mat.SetColor("_MidColor", proposals[2].mid);
+        mat.SetColor("_DeepColor", proposals[2].deep);
+        mat.SetColor("_HorizonColor", proposals[2].horizon);
+        EditorUtility.SetDirty(mat);
+        AssetDatabase.SaveAssets();
+
+        cam.targetTexture = null;
+        RenderTexture.active = null;
+        rt.Release();
+        Object.DestroyImmediate(rt);
+        Object.DestroyImmediate(camGo);
+
+        Debug.Log("<color=#00ffc8><b>[AdventureCurvedOcean]</b> 4パターンの対比カラー案の撮影が完了しました！</color>");
     }
 }
