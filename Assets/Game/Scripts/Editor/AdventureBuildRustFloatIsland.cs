@@ -690,15 +690,20 @@ public static class AdventureBuildRustFloatIsland
         PaintLayers(td, land);
         PaintGrassDetails(td, land);
 
-        // 広大な海面 OceanPlane (中心 512, 5.5, 512, スケール 160)
+        // 広大な海面 OceanPlane (中心 512, 5.5, 512, スケール 1200)
         var water = GameObject.Find("OceanPlane");
         if (water != null)
         {
             water.transform.position = new Vector3(512f, 5.5f, 512f);
-            water.transform.localScale = new Vector3(160f, 1f, 160f);
+            water.transform.localScale = new Vector3(1200f, 1f, 1200f);
             var col = water.GetComponent<Collider>();
             if (col != null)
                 Object.DestroyImmediate(col);
+
+            var horizonMgr = water.GetComponent<AdventureOceanHorizonManager>();
+            if (horizonMgr == null)
+                horizonMgr = water.AddComponent<AdventureOceanHorizonManager>();
+            horizonMgr.EnsureCurvedHorizon();
         }
 
         // 3つの池（オアシス湧水池・大カルデラ湖・草原池）と小川（上流急流・本流大河）の水面メッシュと3Dせせらぎ音

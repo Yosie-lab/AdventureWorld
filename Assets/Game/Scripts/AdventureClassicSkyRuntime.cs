@@ -120,6 +120,16 @@ public class AdventureClassicSkyRuntime : MonoBehaviour
         {
             ca.postExposure.Override(PostExposure);
             ca.contrast.Override(Contrast);
+            ca.saturation.Override(14f); // 通常探索時も色鮮やかで美しい発色に
+        }
+        if (vol.profile.TryGet<WhiteBalance>(out var wb))
+        {
+            wb.temperature.Override(0f); // 黄ばみ・赤みを完全カット
+            wb.tint.Override(0f);
+        }
+        if (vol.profile.TryGet<DepthOfField>(out var dof))
+        {
+            dof.active = false; // 遠景の白ボケ・ピンボケを完全防止
         }
         if (vol.profile.TryGet<Bloom>(out var bloom))
         {
