@@ -5,10 +5,10 @@ Shader "RustAndFloat/ParadiseCurvedOcean"
     Properties
     {
         [Header(Colors)]
-        _ShallowColor ("浅瀬クリスタルエメラルド (Lagoon Emerald)", Color) = (0.05, 0.96, 0.75, 0.82)
-        _MidColor ("沿岸南国ターコイズ (Coastal Turquoise)", Color) = (0.02, 0.82, 0.68, 0.94)
-        _DeepColor ("深海ディープエメラルド (Deep Emerald)", Color) = (0.01, 0.48, 0.50, 0.99)
-        _HorizonColor ("水平線ミントスカイ (Horizon Mint Sky)", Color) = (0.35, 0.85, 0.82, 1.0)
+        _ShallowColor ("浅瀬クリスタルエメラルド (Lagoon Emerald)", Color) = (0.015, 0.98, 0.78, 0.82)
+        _MidColor ("沿岸鮮やかエメラルドターコイズ (Vivid Emerald Turquoise)", Color) = (0.01, 0.90, 0.72, 0.94)
+        _DeepColor ("深海ディープエメラルドグリーン (Deep Emerald)", Color) = (0.005, 0.62, 0.55, 0.99)
+        _HorizonColor ("水平線ミントスカイ (Horizon Mint Sky)", Color) = (0.22, 0.90, 0.84, 1.0)
         _SunGlitterColor ("太陽光きらめきカラー (Sun Glitter)", Color) = (1.0, 0.98, 0.88, 1.0)
 
         [Header(Waves and Normals)]
@@ -170,9 +170,9 @@ Shader "RustAndFloat/ParadiseCurvedOcean"
                 float NdotV = saturate(dot(normalWS, viewDirWS));
                 float fresnel = 0.04 + 0.96 * pow(1.0 - NdotV, 4.0);
 
-                // 空の反射色（エメラルド〜ターコイズ光の映り込み）
-                float3 skyReflection = lerp(float3(0.06, 0.60, 0.75), float3(0.40, 0.85, 0.90), fresnel);
-                float3 diffuseWater = lerp(waterCol.rgb, skyReflection, fresnel * 0.35);
+                // 空の反射色（鮮烈なエメラルド〜ターコイズ光の映り込み）
+                float3 skyReflection = lerp(float3(0.02, 0.75, 0.70), float3(0.25, 0.92, 0.88), fresnel);
+                float3 diffuseWater = lerp(waterCol.rgb, skyReflection, fresnel * 0.28);
 
                 // 太陽光のスペキュラ・グリッター（波のきらめき）
                 float3 halfDir = normalize(lightDir + viewDirWS);

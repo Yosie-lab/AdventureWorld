@@ -12,6 +12,7 @@ public static class AdventureTweakOceanTransparency
     [MenuItem("Adventure/Ocean/🏝️ エメラルドグリーン海面を適用 (Apply Emerald Green Ocean)", priority = 200)]
     public static void ApplyHighTransparency()
     {
+        if (Application.isPlaying) return;
         Debug.Log("<color=#00ffc8><b>[AdventureCurvedOcean]</b> エメラルドグリーン曲面海面システムの構築を開始します...</color>");
 
         // 1. ラジアル曲面メッシュ (半径4500m / 直径9km) の生成と保存
@@ -51,11 +52,11 @@ public static class AdventureTweakOceanTransparency
         if (n1 != null) mat.SetTexture("_NormalMap1", n1);
         if (n2 != null) mat.SetTexture("_NormalMap2", n2);
 
-        // 透き通るエメラルドグリーン 〜 ターコイズ 〜 ディープエメラルド 〜 水平線ミント
-        mat.SetColor("_ShallowColor", new Color(0.04f, 0.95f, 0.76f, 0.78f));
-        mat.SetColor("_MidColor", new Color(0.02f, 0.82f, 0.68f, 0.92f));
-        mat.SetColor("_DeepColor", new Color(0.01f, 0.46f, 0.52f, 0.98f));
-        mat.SetColor("_HorizonColor", new Color(0.35f, 0.84f, 0.85f, 1.0f));
+        // 透き通る鮮やかなクリスタルエメラルドグリーン 〜 ターコイズ 〜 ディープエメラルド 〜 水平線ミント
+        mat.SetColor("_ShallowColor", new Color(0.015f, 0.98f, 0.78f, 0.82f));
+        mat.SetColor("_MidColor", new Color(0.01f, 0.90f, 0.72f, 0.94f));
+        mat.SetColor("_DeepColor", new Color(0.005f, 0.62f, 0.55f, 0.99f));
+        mat.SetColor("_HorizonColor", new Color(0.22f, 0.90f, 0.84f, 1.0f));
         mat.SetColor("_SunGlitterColor", new Color(1.0f, 0.98f, 0.88f, 1.0f));
 
         mat.SetFloat("_WaveScale1", 0.035f);

@@ -16,6 +16,8 @@ public static class AdventureBeautifyIslandCoastline
     [MenuItem("Adventure/🏝️ Beautify Island Coastline & Remove Square Sea Bed (島の縁を丸い白砂にし四角い海底を消去)", false, 5)]
     public static void BeautifyCoastlineAndRemoveSquareSeaBed()
     {
+        if (Application.isPlaying) return;
+
         var terrainGo = GameObject.Find("LandTerrain");
         if (terrainGo == null)
         {

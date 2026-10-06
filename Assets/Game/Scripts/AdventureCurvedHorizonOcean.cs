@@ -146,10 +146,10 @@ public class AdventureCurvedHorizonOcean : MonoBehaviour
             if (n1 != null) _oceanMaterial.SetTexture("_NormalMap1", n1);
             if (n2 != null) _oceanMaterial.SetTexture("_NormalMap2", n2);
 
-            _oceanMaterial.SetColor("_ShallowColor", new Color(0.05f, 0.96f, 0.75f, 0.82f));
-            _oceanMaterial.SetColor("_MidColor", new Color(0.02f, 0.82f, 0.68f, 0.94f));
-            _oceanMaterial.SetColor("_DeepColor", new Color(0.01f, 0.48f, 0.50f, 0.99f));
-            _oceanMaterial.SetColor("_HorizonColor", new Color(0.35f, 0.85f, 0.82f, 1.0f));
+            _oceanMaterial.SetColor("_ShallowColor", new Color(0.015f, 0.98f, 0.78f, 0.82f));
+            _oceanMaterial.SetColor("_MidColor", new Color(0.01f, 0.90f, 0.72f, 0.94f));
+            _oceanMaterial.SetColor("_DeepColor", new Color(0.005f, 0.62f, 0.55f, 0.99f));
+            _oceanMaterial.SetColor("_HorizonColor", new Color(0.22f, 0.90f, 0.84f, 1.0f));
             _oceanMaterial.SetColor("_SunGlitterColor", new Color(1.0f, 0.98f, 0.88f, 1.0f));
 
             _oceanMaterial.SetFloat("_NormalStrength", 1.25f);

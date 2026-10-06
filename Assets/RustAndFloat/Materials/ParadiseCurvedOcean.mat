@@ -45,11 +45,11 @@ Material:
     - _WaveScale1: 0.035
     - _WaveScale2: 0.085
     m_Colors:
-    - _DeepColor: {r: 0.01, g: 0.46, b: 0.52, a: 0.98}
-    - _HorizonColor: {r: 0.35, g: 0.84, b: 0.85, a: 1}
+    - _DeepColor: {r: 0.005, g: 0.62, b: 0.55, a: 0.99}
+    - _HorizonColor: {r: 0.22, g: 0.9, b: 0.84, a: 1}
     - _IslandCenter: {r: 512, g: 5.5, b: 512, a: 0}
-    - _MidColor: {r: 0.02, g: 0.82, b: 0.68, a: 0.92}
-    - _ShallowColor: {r: 0.04, g: 0.95, b: 0.76, a: 0.78}
+    - _MidColor: {r: 0.01, g: 0.9, b: 0.72, a: 0.94}
+    - _ShallowColor: {r: 0.015, g: 0.98, b: 0.78, a: 0.82}
     - _SunGlitterColor: {r: 1, g: 0.98, b: 0.88, a: 1}
     - _WaveSpeed1: {r: 0.025, g: 0.015, b: 0, a: 0}
     - _WaveSpeed2: {r: -0.02, g: 0.03, b: 0, a: 0}

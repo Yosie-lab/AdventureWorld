@@ -95,11 +95,11 @@ public static class AdventureSetupParadiseOceanTool
         if (n1 != null) mat.SetTexture("_NormalMap1", n1);
         if (n2 != null) mat.SetTexture("_NormalMap2", n2);
 
-        // 美しい色彩パレット（浅瀬クリスタルエメラルド 〜 沿岸ターコイズ 〜 沖合ディープエメラルド 〜 水平線ミント）
-        mat.SetColor("_ShallowColor", new Color(0.05f, 0.96f, 0.75f, 0.82f));
-        mat.SetColor("_MidColor", new Color(0.02f, 0.82f, 0.68f, 0.94f));
-        mat.SetColor("_DeepColor", new Color(0.01f, 0.48f, 0.50f, 0.99f));
-        mat.SetColor("_HorizonColor", new Color(0.35f, 0.85f, 0.82f, 1.0f));
+        // 美しい色彩パレット（鮮やかなクリスタルエメラルド 〜 ターコイズ 〜 ディープエメラルド 〜 水平線ミント）
+        mat.SetColor("_ShallowColor", new Color(0.015f, 0.98f, 0.78f, 0.82f));
+        mat.SetColor("_MidColor", new Color(0.01f, 0.90f, 0.72f, 0.94f));
+        mat.SetColor("_DeepColor", new Color(0.005f, 0.62f, 0.55f, 0.99f));
+        mat.SetColor("_HorizonColor", new Color(0.22f, 0.90f, 0.84f, 1.0f));
         mat.SetColor("_SunGlitterColor", new Color(1.0f, 0.98f, 0.88f, 1.0f));
 
         mat.SetFloat("_WaveScale1", 0.035f);
