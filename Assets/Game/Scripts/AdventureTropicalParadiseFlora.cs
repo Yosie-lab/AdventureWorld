@@ -19,6 +19,18 @@ public class AdventureTropicalParadiseFlora : MonoBehaviour
     public const string RootGameObjectName = "Island_Tropical_Flora_Root";
     private const string PrefabRoot = "Assets/Idyllic Fantasy Nature/Prefabs/";
 
+#if UNITY_EDITOR
+    [InitializeOnLoadMethod]
+    private static void OnEditorInit()
+    {
+        EditorApplication.delayCall += () =>
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+            RemoveExistingTropicalButterflies();
+        };
+    }
+#endif
+
     // 花プレハブ一覧（多彩な色彩の南国花畑）
     private static readonly string[] FlowerPrefabs =
     {
@@ -62,17 +74,8 @@ public class AdventureTropicalParadiseFlora : MonoBehaviour
         "Plant_08.prefab"
     };
 
-    // 蝶々プレハブ（黄、青、赤）
-    private static readonly string[] ButterflyPrefabs =
-    {
-        "Code Related/Butterfly_01.prefab",
-        "Code Related/Butterfly_02.prefab",
-        "Code Related/Butterfly_03.prefab"
-    };
-
     private static GameObject[] _cachedFlowers;
     private static GameObject[] _cachedTropicalPlants;
-    private static GameObject[] _cachedButterflies;
 
     public static void Ensure()
     {
@@ -96,11 +99,49 @@ public class AdventureTropicalParadiseFlora : MonoBehaviour
             return;
         }
         _instance = this;
+        RemoveExistingTropicalButterflies();
     }
 
     private void Start()
     {
+        RemoveExistingTropicalButterflies();
         BuildTropicalParadiseFloraIfNeeded();
+    }
+
+    /// <summary>
+    /// 南国の花とともに追加された蝶々（Island_ButterfliesおよびIslandButterfly_*）の設定・オブジェクトを全て削除
+    /// </summary>
+    public static void RemoveExistingTropicalButterflies()
+    {
+        // 1. "Island_Butterflies" フォルダオブジェクトの削除
+        var butterflyFolder = GameObject.Find("Island_Butterflies");
+        if (butterflyFolder != null)
+        {
+            if (Application.isPlaying) Destroy(butterflyFolder);
+            else DestroyImmediate(butterflyFolder);
+        }
+
+        // 2. ルート階層またはシーン内から IslandButterfly_* を全て削除
+        var root = GameObject.Find(RootGameObjectName);
+        if (root != null)
+        {
+            var bTransforms = new List<Transform>();
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (child != null && (child.name.StartsWith("IslandButterfly") || child.name == "Island_Butterflies"))
+                {
+                    bTransforms.Add(child);
+                }
+            }
+            for (int i = bTransforms.Count - 1; i >= 0; i--)
+            {
+                if (bTransforms[i] != null)
+                {
+                    if (Application.isPlaying) Destroy(bTransforms[i].gameObject);
+                    else DestroyImmediate(bTransforms[i].gameObject);
+                }
+            }
+        }
     }
 
     private static void PreloadPrefabs()
@@ -118,24 +159,20 @@ public class AdventureTropicalParadiseFlora : MonoBehaviour
             for (int i = 0; i < TropicalPlantPrefabs.Length; i++)
                 _cachedTropicalPlants[i] = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoot + TropicalPlantPrefabs[i]);
         }
-        if (_cachedButterflies == null || _cachedButterflies.Length == 0)
-        {
-            _cachedButterflies = new GameObject[ButterflyPrefabs.Length];
-            for (int i = 0; i < ButterflyPrefabs.Length; i++)
-                _cachedButterflies[i] = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoot + ButterflyPrefabs[i]);
-        }
 #endif
     }
 
     /// <summary>
-    /// 島全体に南国の花々と蝶々を一括配置
+    /// 島全体に南国の花々と熱帯植物を一括配置（蝶々の生成は除外）
     /// </summary>
     public static void BuildTropicalParadiseFloraIfNeeded()
     {
+        RemoveExistingTropicalButterflies();
+
         var existingRoot = GameObject.Find(RootGameObjectName);
         if (existingRoot != null && existingRoot.transform.childCount > 10)
         {
-            // 既に十分な花畑・蝶々が存在する場合はスキップ
+            // 既に十分な花畑が存在する場合はスキップ
             return;
         }
 
@@ -162,12 +199,8 @@ public class AdventureTropicalParadiseFlora : MonoBehaviour
         var tropicalFolder = new GameObject("Island_TropicalPlants");
         tropicalFolder.transform.SetParent(root.transform, false);
 
-        var butterflyFolder = new GameObject("Island_Butterflies");
-        butterflyFolder.transform.SetParent(root.transform, false);
-
         int totalFlowers = 0;
         int totalTropicalPlants = 0;
-        int totalButterflies = 0;
 
         for (int i = 0; i < patchCenters.Count; i++)
         {
@@ -216,48 +249,9 @@ public class AdventureTropicalParadiseFlora : MonoBehaviour
                     totalTropicalPlants++;
                 }
             }
-
-            // 各拠点に 1〜3 匹の蝶々を配置（島全体で200匹以上）
-            int butterflyInPatch = rng.Next(1, 4);
-            for (int b = 0; b < butterflyInPatch; b++)
-            {
-                float bx = (float)(rng.NextDouble() * 12.0 - 6.0);
-                float bz = (float)(rng.NextDouble() * 12.0 - 6.0);
-                Vector3 bPos = center + new Vector3(bx, 0f, bz);
-                float gh = land.SampleHeight(bPos) + land.transform.position.y;
-                bPos.y = gh + 1.8f + (float)rng.NextDouble() * 1.8f;
-
-                var bPrefab = GetButterflyPrefab(totalButterflies);
-                if (bPrefab != null)
-                {
-                    var bGo = InstantiateObject(bPrefab, butterflyFolder.transform, bPos, Quaternion.identity);
-                    bGo.name = $"IslandButterfly_{totalButterflies + 1:D3}";
-                    bGo.transform.localScale = Vector3.one * 12.0f; // 見栄えの良い優雅なサイズ
-
-                    var bSpawn = bGo.GetComponent<IdyllicFantasyNature.ButterflySpawn>();
-                    if (bSpawn != null)
-                    {
-                        if (Application.isPlaying) Destroy(bSpawn);
-                        else DestroyImmediate(bSpawn);
-                    }
-
-                    var anim = bGo.GetComponent<Animator>();
-                    if (anim != null) anim.enabled = true;
-
-                    foreach (var t in bGo.GetComponentsInChildren<Transform>(true))
-                        t.gameObject.SetActive(true);
-
-                    var drift = bGo.GetComponent<AdventureButterflyDrift>() ?? bGo.AddComponent<AdventureButterflyDrift>();
-                    drift.radius = 5.2f + (float)rng.NextDouble() * 4.2f;
-                    drift.speed = 0.60f + (float)rng.NextDouble() * 0.40f;
-                    drift.bob = 0.70f + (float)rng.NextDouble() * 0.50f;
-
-                    totalButterflies++;
-                }
-            }
         }
 
-        Debug.Log($"🌺 【Tropical Paradise Flora】島全体に色彩豊かな南国の花（{totalFlowers}株）、南国植物（{totalTropicalPlants}株）、蝶々（{totalButterflies}匹）の配置が完了しました！");
+        Debug.Log($"🌺 【Tropical Paradise Flora】島全体に色彩豊かな南国の花（{totalFlowers}株）および南国植物（{totalTropicalPlants}株）の配置が完了しました！");
     }
 
     /// <summary>
@@ -347,13 +341,6 @@ public class AdventureTropicalParadiseFlora : MonoBehaviour
         return _cachedTropicalPlants[rng.Next(_cachedTropicalPlants.Length)];
     }
 
-    private static GameObject GetButterflyPrefab(int index)
-    {
-        if (_cachedButterflies == null || _cachedButterflies.Length == 0) PreloadPrefabs();
-        if (_cachedButterflies == null || _cachedButterflies.Length == 0) return null;
-        return _cachedButterflies[index % _cachedButterflies.Length];
-    }
-
     private static GameObject InstantiateObject(GameObject prefab, Transform parent, Vector3 pos, Quaternion rot)
     {
 #if UNITY_EDITOR
@@ -369,7 +356,7 @@ public class AdventureTropicalParadiseFlora : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    [MenuItem("Adventure/🌺 Island Wide Tropical Flowers & Butterflies (島全体に南国の花＆蝶々を一括配置)", false, 16)]
+    [MenuItem("Adventure/🌺 Island Wide Tropical Flora (島全体に南国の花＆熱帯植物を一括配置)", false, 16)]
     public static void EditorDecorateIslandTropicalFlora()
     {
         if (EditorApplication.isPlaying)
@@ -391,6 +378,7 @@ public class AdventureTropicalParadiseFlora : MonoBehaviour
             Undo.DestroyObjectImmediate(existingRoot);
         }
 
+        RemoveExistingTropicalButterflies();
         BuildTropicalParadiseFloraIfNeeded();
 
         var newRoot = GameObject.Find(RootGameObjectName);
@@ -401,7 +389,7 @@ public class AdventureTropicalParadiseFlora : MonoBehaviour
             EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
         }
 
-        Debug.Log("🌺 【Tropical Paradise Flora】シーン保存完了！島全体に花々と蝶々が美しく咲き誇りました！");
+        Debug.Log("🌺 【Tropical Paradise Flora】シーン保存完了！島全体に南国の花々と熱帯植物が美しく咲き誇りました！");
     }
 #endif
 }
