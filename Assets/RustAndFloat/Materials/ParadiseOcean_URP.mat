@@ -124,7 +124,7 @@ Material:
     - _Cull: 2
     - _Cutoff: 0.5
     - _Depth: 3.5
-    - _Depth_Distance: 0.18
+    - _Depth_Distance: 0.22
     - _DetailAlbedoMapScale: 1
     - _DetailNormalMapScale: 1
     - _Displacement: 1.2
@@ -191,8 +191,8 @@ Material:
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _DeepColor: {r: 0.02, g: 0.38, b: 0.78, a: 0.85}
-    - _Deep_Color: {r: 0.01, g: 0.35, b: 0.75, a: 0.88}
+    - _DeepColor: {r: 0.015, g: 0.48, b: 0.58, a: 0.88}
+    - _Deep_Color: {r: 0.015, g: 0.48, b: 0.58, a: 0.88}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _FoamColor: {r: 1, g: 1, b: 1, a: 0.98}
     - _FoamScale: {r: 100, g: 400, b: 0, a: 0}
@@ -206,14 +206,14 @@ Material:
     - _RippleScale: {r: 50, g: 200, b: 0, a: 0}
     - _Ripple_Color: {r: 1, g: 1, b: 1, a: 1}
     - _Ripple_Scale: {r: 1000, g: 1000, b: 0, a: 0}
-    - _Shallow_Color: {r: 0.0, g: 0.94, b: 0.98, a: 0.06}
+    - _Shallow_Color: {r: 0.04, g: 0.92, b: 0.72, a: 0.22}
     - _SpecColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-    - _SurfaceColor: {r: 0.12, g: 0.72, b: 0.92, a: 0.65}
-    - _Surface_Color: {r: 0.15, g: 0.70, b: 0.88, a: 0.55}
+    - _SurfaceColor: {r: 0.06, g: 0.82, b: 0.68, a: 0.65}
+    - _Surface_Color: {r: 0.06, g: 0.82, b: 0.68, a: 0.60}
     - _Vector2: {r: 3, g: 3, b: 0, a: 0}
     - _Voronoi: {r: 0.20754719, g: 0.20754719, b: 0.20754719, a: 1}
-    - _WaterColor: {r: 0.05, g: 0.58, b: 0.95, a: 1}
-    - _WaterShallowColor: {r: 0, g: 0.95, b: 0.98, a: 1}
+    - _WaterColor: {r: 0.02, g: 0.62, b: 0.65, a: 1}
+    - _WaterShallowColor: {r: 0.05, g: 0.94, b: 0.75, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &6655890090268116128

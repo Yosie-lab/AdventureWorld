@@ -7,6 +7,20 @@ created: 2026-09-11
 
 次のエージェント（Antigravity 含む）は、このファイルを最初に読む。作業対象は **RustAndFloat**。元ゲーム **AdventureWorld は壊さない**。
 
+## Antigravity への引き継ぎ（2026-10-07）
+
+- **直径9km曲面水平線・煌めくエメラルドグリーン海面システム＆四角い台座の完全根絶**:
+  - `ParadiseCurvedOcean.shader`:
+    - URP対応・地球曲率ドロップオフ（半径4500m / 外周で約22m下降）をサポート。
+    - 浅瀬クリスタルエメラルドグリーン（`_ShallowColor`）から沿岸南国ターコイズ（`_MidColor`）、沖合ディープエメラルド（`_DeepColor`）、水平線ミントスカイ（`_HorizonColor`）への多層滑らかグラデーション。
+    - 太陽光に対するリアルタイムな波頭のきらめき（Sun Glitter / Sparkle: `_SunGlitterIntensity=4.8`）を実装。両面描画（`Cull Off`）によりあらゆる角度からの安定描画を確立。
+  - `AdventureCurvedHorizonOcean.cs` / `AdventureTweakOceanTransparency.cs`:
+    - 直径9,000m（半径4,500m）の巨大ラジアル曲面メッシュ `ParadiseCurvedOceanMesh.asset` を構築し、従来の四角形Planeの直線エッジを完全根絶。360度どこを見ても「なだらかな円弧を描く美しい水平線」を実現。
+    - カメラの `farClipPlane` を 5000m に拡張。
+  - `AdventureBeautifyIslandCoastline.cs`:
+    - 島の海岸線（標高5.5m〜8.5m）を、美しい白砂ビーチ（SandLayer）でぐるりと丸く囲むようAlphamapを刷新。
+    - 島の外側に露出していた四角い直線的な海底ポリゴンを、Unity標準の **Terrain Holes（SetHoles）** で完全くり抜き消去。島の下に見えていた「四角い台座」を完全根絶。
+
 ## Antigravity への引き継ぎ（2026-10-05）
 
 - **崩壊シーケンス〜エンドまでの包括リファクタリング**:
