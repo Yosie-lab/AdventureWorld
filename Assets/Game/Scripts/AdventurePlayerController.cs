@@ -436,10 +436,32 @@ public partial class AdventurePlayerController : MonoBehaviour
         InteractPressed = AdventureInputReader.InteractDown;
     }
 
-    /// <summary>Rキー押下でスポーン地点へリセット。trueを返したらUpdateを早期リターン。</summary>
+    /// <summary>Rキー押下でスポーン地点へリセット。滑空タイムアタック中はスタート台へ優先リトライ。</summary>
     bool TryHandleResetKey()
     {
+        // [T]キーでいつでもスカイダイブスタート台へテレポート
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        bool tPressed = (kb != null && kb.tKey.wasPressedThisFrame);
+        try { if (!tPressed && Input.GetKeyDown(KeyCode.T)) tPressed = true; } catch { }
+        if (tPressed)
+        {
+            var glidingMgr = AdventureGlidingTimeAttackManager.Instance;
+            if (glidingMgr != null)
+            {
+                glidingMgr.RetryAtStart();
+                return true;
+            }
+        }
+
         if (!AdventureInputReader.ResetDown) return false;
+
+        // 滑空タイムアタック中、またはリザルト中、または直近で滑空コース付近にいる場合、タイムアタック台へ即時リトライ
+        var gMgr = AdventureGlidingTimeAttackManager.Instance;
+        if (gMgr != null && (gMgr.isRunning || gMgr.IsGlidingActiveOrRecent))
+        {
+            gMgr.RetryAtStart();
+            return true;
+        }
 
         // エンディング途中のRで保留クライマックスが再点火しないよう演出を止める
         AdventureSanctuaryTowerManager.Ensure();

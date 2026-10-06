@@ -84,18 +84,34 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         AdventureWindRing.OnRingPassed -= HandleRingPassed;
     }
 
+    public bool IsGlidingActiveOrRecent
+    {
+        get
+        {
+            if (isRunning || _showResult) return true;
+            var player = AdventurePlayerController.Resolve();
+            if (player != null)
+            {
+                // スタート台周辺（北の崖周辺）にいる場合
+                if (Vector3.Distance(player.transform.position, START_POS) < 75f)
+                    return true;
+            }
+            return false;
+        }
+    }
+
     void Update()
     {
-        // [R]キーでいつでもスタート地点へ即時リトライ（新旧InputSystem両対応）
+        // [R]キーまたは[T]キーでいつでもスタート地点へ即時リトライ（新旧InputSystem両対応）
         bool rPressed = false;
         var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && kb.rKey.wasPressedThisFrame)
+        if (kb != null && (kb.rKey.wasPressedThisFrame || kb.tKey.wasPressedThisFrame))
         {
             rPressed = true;
         }
         else
         {
-            try { if (Input.GetKeyDown(KeyCode.R)) rPressed = true; } catch { }
+            try { if (Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.T)) rPressed = true; } catch { }
         }
 
         if (rPressed)
@@ -136,11 +152,15 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
             }
+
+            // カメラの向きもプレイヤー背後にスナップ
+            var cam = Object.FindAnyObjectByType<AdventureCameraFollow>();
+            if (cam != null) cam.SnapBehindTarget();
         }
 
         ResetTrial();
 
-        AdventureNotificationToast.Show("🪂 スタート台へ帰還！風を切って飛び出そう！ [R]でいつでもリトライ", 2.8f);
+        AdventureNotificationToast.Show("🪂 スタート台へ帰還！風を切って飛び出そう！ [Space]で滑空", 2.8f);
 
         var drone = AdventureRustDrone.Instance;
         if (drone != null)
@@ -309,6 +329,18 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
     void OnGUI()
     {
         EnsureStyles();
+
+        // 画面右上にいつでも即座にスタート台へ行けるボタン（クリックまたは [R] / [T] キー対応）
+        float sW = Screen.width;
+        float bW = 175f;
+        float bH = 36f;
+        Rect warpBtn = new Rect(sW - bW - 18f, 55f, bW, bH);
+        GUI.color = new Color(0.12f, 0.45f, 0.85f, 0.85f);
+        if (GUI.Button(warpBtn, "🪂 [R] スカイダイブ台"))
+        {
+            RetryAtStart();
+        }
+        GUI.color = Color.white;
 
         // 走行中のHUD
         if (isRunning)
