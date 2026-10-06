@@ -11,6 +11,8 @@ public class AdventureWindRing : MonoBehaviour
     public float boostDuration = 3.5f;
     public Color ringColor = new Color(0.15f, 1.0f, 0.70f); // 鮮烈なエメラルドシアン
 
+    public static event System.Action<AdventureWindRing, AdventurePlayerController> OnRingPassed;
+
     Transform _ringVisual;
     Transform _beaconPillar;
     Material _ringMat;
@@ -24,18 +26,29 @@ public class AdventureWindRing : MonoBehaviour
         CreateBeaconPillar();
         SetupAudio();
 
-        // 物理トリガーは補助のみ（狭い球）。本判定は Update のゲート判定
-        var col = gameObject.AddComponent<SphereCollider>();
-        col.isTrigger = true;
-        col.radius = 2.8f;
+        if (GetComponent<SphereCollider>() == null)
+        {
+            var col = gameObject.AddComponent<SphereCollider>();
+            col.isTrigger = true;
+            col.radius = 4.2f;
+        }
 
-        var rb = gameObject.AddComponent<Rigidbody>();
-        rb.isKinematic = true;
-        rb.useGravity = false;
+        if (GetComponent<Rigidbody>() == null)
+        {
+            var rb = gameObject.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
     }
 
-    void CreateRingVisual()
+    public void CreateRingVisual()
     {
+        if (transform.Find("RingVisual") != null)
+        {
+            _ringVisual = transform.Find("RingVisual");
+            return;
+        }
+
         var visualGo = new GameObject("RingVisual");
         visualGo.transform.SetParent(transform, false);
         _ringVisual = visualGo.transform;
@@ -44,13 +57,13 @@ public class AdventureWindRing : MonoBehaviour
         _ringMat = new Material(shader);
         _ringMat.SetColor("_BaseColor", ringColor);
         _ringMat.EnableKeyword("_EMISSION");
-        _ringMat.SetColor("_EmissionColor", ringColor * 2.8f); // 昼間でも圧倒的に目立つ強烈な発光
+        _ringMat.SetColor("_EmissionColor", ringColor * 3.5f); // 昼間でも圧倒的に目立つ強烈な発光
         _ringMat.SetFloat("_Metallic", 0.85f);
         _ringMat.SetFloat("_Smoothness", 0.95f);
 
-        // 直径約7.0m、太さ0.5mの迫力ある16セグメント円環
+        // 直径約8.0m、太さ0.65mの迫力ある20セグメント円環
         int segments = 20;
-        float radius = 3.5f;
+        float radius = 4.0f;
         for (int i = 0; i < segments; i++)
         {
             float angle = i * (Mathf.PI * 2f / segments);
@@ -59,11 +72,11 @@ public class AdventureWindRing : MonoBehaviour
             seg.name = "Seg_" + i;
             seg.transform.SetParent(_ringVisual, false);
             seg.transform.localPosition = pos;
-            seg.transform.localScale = new Vector3(0.55f, 0.65f, 0.55f);
+            seg.transform.localScale = new Vector3(0.65f, 0.75f, 0.65f);
 
             float deg = angle * Mathf.Rad2Deg;
             seg.transform.localRotation = Quaternion.Euler(0f, 0f, deg + 90f);
-            Destroy(seg.GetComponent<Collider>());
+            DestroyImmediate(seg.GetComponent<Collider>());
 
             var rend = seg.GetComponent<Renderer>();
             if (rend != null)
@@ -101,26 +114,32 @@ public class AdventureWindRing : MonoBehaviour
         }
     }
 
-    void CreateBeaconPillar()
+    public void CreateBeaconPillar()
     {
-        // 遠くからでも一目で場所がわかる天空への光の柱（高さ15m）
+        if (transform.Find("FlightBeacon") != null)
+        {
+            _beaconPillar = transform.Find("FlightBeacon");
+            return;
+        }
+
+        // 遠くからでも一目で場所がわかる天空への光の柱（高さ25m）
         var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         beacon.name = "FlightBeacon";
         beacon.transform.SetParent(transform, false);
-        beacon.transform.localPosition = new Vector3(0f, 7.5f, 0f);
-        beacon.transform.localScale = new Vector3(0.25f, 7.5f, 0.25f);
-        Destroy(beacon.GetComponent<Collider>());
+        beacon.transform.localPosition = new Vector3(0f, 12.5f, 0f);
+        beacon.transform.localScale = new Vector3(0.35f, 12.5f, 0.35f);
+        DestroyImmediate(beacon.GetComponent<Collider>());
 
         var rend = beacon.GetComponent<Renderer>();
         if (rend != null)
         {
-            var pShader = Shader.Find("RustAndFloat/WhiteSmoke") ?? Shader.Find("Sprites/Default");
+            var pShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             var pMat = new Material(pShader);
-            pMat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
             Color bCol = ringColor;
-            bCol.a = 0.55f;
-            pMat.SetColor("_BaseColor", bCol);
-            pMat.renderQueue = 3150;
+            bCol.a = 0.8f;
+            pMat.color = bCol;
+            pMat.EnableKeyword("_EMISSION");
+            pMat.SetColor("_EmissionColor", ringColor * 3.0f);
             rend.material = pMat;
         }
         _beaconPillar = beacon.transform;
@@ -212,6 +231,8 @@ public class AdventureWindRing : MonoBehaviour
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
             drone.OnFloatWindCaught();
+
+        try { OnRingPassed?.Invoke(this, player); } catch (System.Exception ex) { Debug.LogWarning($"[AdventureWindRing] OnRingPassed callback error: {ex.Message}"); }
 
         StartCoroutine(ShockwaveAndCooldown());
     }
