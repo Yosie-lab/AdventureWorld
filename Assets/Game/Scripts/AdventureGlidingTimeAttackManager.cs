@@ -86,8 +86,19 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
 
     void Update()
     {
-        // [R]キーでいつでもスタート地点へ即時リトライ
-        if (Input.GetKeyDown(KeyCode.R))
+        // [R]キーでいつでもスタート地点へ即時リトライ（新旧InputSystem両対応）
+        bool rPressed = false;
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null && kb.rKey.wasPressedThisFrame)
+        {
+            rPressed = true;
+        }
+        else
+        {
+            try { if (Input.GetKeyDown(KeyCode.R)) rPressed = true; } catch { }
+        }
+
+        if (rPressed)
         {
             RetryAtStart();
         }
