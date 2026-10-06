@@ -160,12 +160,18 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
         }
     }
 
+    private static bool _isInitialized = false;
+
     void LateUpdate()
     {
-        // プッシュバック二重防御：トンネリングやすり抜けが発生した瞬間に押し戻す
+        // プレイヤーから 6m 以上離れているカピタは処理を即スキップ（ゼロコスト距離カリング）
         EnsurePlayerReference();
         if (_cachedCharacterController == null || !_cachedCharacterController.enabled) return;
 
+        Vector3 delta = _cachedCharacterController.transform.position - transform.position;
+        if (delta.sqrMagnitude > 36f) return;
+
+        // プッシュバック二重防御：トンネリングやすり抜けが発生した瞬間に押し戻す
         PushBackPlayerIfIntersecting();
     }
 
@@ -246,18 +252,6 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
 
             Vector3 pushVector = pushDir * pushDist;
             _cachedCharacterController.Move(pushVector);
-
-            // ハードフェイルセーフ：Move()が他の物理コライダー等で阻まれた場合でも、確実にカピタの外側へ押し戻す
-            Vector3 postPlayerPos = _cachedCharacterController.transform.position;
-            Vector3 postDelta = postPlayerPos - center;
-            postDelta.y = 0f;
-            float postDistFwd = Mathf.Abs(Vector3.Dot(postDelta, fwd));
-            float postDistRgt = Mathf.Abs(Vector3.Dot(postDelta, rgt));
-            if (postDistRgt < halfW && postDistFwd < halfL)
-            {
-                _cachedCharacterController.transform.position += pushDir * 0.12f;
-                Physics.SyncTransforms();
-            }
         }
     }
 
@@ -284,16 +278,39 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
 
     /// <summary>
     /// シーン内のすべてのカピタ（ピアノカピタ・野生カピタ・NPCカピタ）を走査し、
-    /// すり抜け防止コライダーが存在することを100%保証する。
+    /// すり抜け防止コライダーが存在することを100%保証する（初回1回のみ走査で高効率化）。
     /// </summary>
-    public static void EnsureAllCapytasInScene()
+    public static void EnsureAllCapytasInScene(bool force = false)
     {
-        var allTransforms = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include);
-        int count = 0;
-        for (int i = 0; i < allTransforms.Length; i++)
+        if (_isInitialized && !force) return;
+        _isInitialized = true;
+
+        var targetRoots = new List<Transform>();
+
+        // カピタが存在する主要親ノードを優先的に収集
+        string[] containerNames = { "Animals", "Capyta_Beach_Root", "PianistCapyta" };
+        foreach (var name in containerNames)
         {
-            var t = allTransforms[i];
-            if (t == null) continue;
+            var go = GameObject.Find(name);
+            if (go != null)
+            {
+                targetRoots.AddRange(go.GetComponentsInChildren<Transform>(true));
+            }
+        }
+
+        // NPCコンポーネント経由でも検索
+        foreach (var npc in Object.FindObjectsByType<AdventureNpc>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (npc != null) targetRoots.Add(npc.transform);
+        }
+
+        int count = 0;
+        var processed = new HashSet<Transform>();
+        for (int i = 0; i < targetRoots.Count; i++)
+        {
+            var t = targetRoots[i];
+            if (t == null || processed.Contains(t)) continue;
+            processed.Add(t);
 
             if (IsCapytaRoot(t))
             {
@@ -307,7 +324,7 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
             }
         }
 
-        Debug.Log($"[AdventureCapytaBodyCollider] 🐾 シーン内の全カピタ（{count}頭）にすり抜け防止コライダー（BoxCollider + プッシュバック防御）を適用しました。");
+        Debug.Log($"[AdventureCapytaBodyCollider] 🐾 シーン内のカピタ（{count}頭）にすり抜け防止コライダーを高速保証しました。");
     }
 
     /// <summary>

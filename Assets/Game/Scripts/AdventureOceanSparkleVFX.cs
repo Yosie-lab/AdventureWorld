@@ -75,12 +75,13 @@ public class AdventureOceanSparkleVFX : MonoBehaviour
             pGo.transform.SetParent(transform, false);
         }
 
-        _particleSystem = pGo.GetComponent<ParticleSystem>() ?? pGo.AddComponent<ParticleSystem>();
-        _particleRenderer = pGo.GetComponent<ParticleSystemRenderer>() ?? pGo.AddComponent<ParticleSystemRenderer>();
+        _particleSystem = pGo.GetComponent<ParticleSystem>();
+        if (_particleSystem == null) _particleSystem = pGo.AddComponent<ParticleSystem>();
+        _particleRenderer = pGo.GetComponent<ParticleSystemRenderer>();
 
 #if UNITY_EDITOR
         var glitterMat = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath);
-        if (glitterMat != null)
+        if (glitterMat != null && _particleRenderer != null)
         {
             _particleRenderer.sharedMaterial = glitterMat;
         }

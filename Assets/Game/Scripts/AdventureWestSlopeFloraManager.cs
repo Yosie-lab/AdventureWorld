@@ -301,26 +301,13 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
         var butterflyGroup = new GameObject("Butterflies");
         butterflyGroup.transform.SetParent(root, false);
 
-        // 斜面の小道や花畑の上空に点在する蝶々のホーム位置（全12箇所）
+        // 斜面の花畑・小川アプローチの上空に優雅に舞う厳選蝶々（4箇所）
         Vector3[] butterflyHomes =
         {
-            // メインスロープ沿い（プレイヤーの視界に入る斜面中央）
-            new Vector3(188f, 0f, 275f),
-            new Vector3(202f, 0f, 282f),
-            new Vector3(218f, 0f, 275f),
-            new Vector3(232f, 0f, 285f),
-
-            // 南西斜面・小川アプローチ
-            new Vector3(195f, 0f, 240f),
-            new Vector3(212f, 0f, 230f),
-            new Vector3(228f, 0f, 245f),
-            new Vector3(205f, 0f, 215f),
-
-            // 北西斜面・木道・段々池アプローチ
-            new Vector3(185f, 0f, 325f),
-            new Vector3(205f, 0f, 335f),
-            new Vector3(222f, 0f, 320f),
-            new Vector3(235f, 0f, 345f),
+            new Vector3(202f, 0f, 282f), // メインスロープ花畑中央
+            new Vector3(212f, 0f, 230f), // 南西斜面・小川花壇
+            new Vector3(205f, 0f, 335f), // 北西斜面・木道花畑
+            new Vector3(228f, 0f, 245f), // 斜面テラス
         };
 
         for (int i = 0; i < butterflyHomes.Length; i++)
@@ -480,40 +467,19 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
         }
     }
 
-    /// <summary>台地（西側大草原〜せせらぎ池〜高原）の上空を優雅に群れ飛ぶ蝶々（18匹）</summary>
+    /// <summary>台地（西側大草原〜せせらぎ池〜高原）の上空を優雅に群れ飛ぶ蝶々（厳選4匹）</summary>
     private static void SpawnPlateauButterflies(Transform root, Terrain land, System.Random rng)
     {
         var butterflyGroup = new GameObject("Plateau_Butterflies");
         butterflyGroup.transform.SetParent(root, false);
 
-        // 台地大草原・池・高原の上空に点在する蝶々のホーム位置（全18箇所）
+        // 台地大草原・池・高原の花密集スポット上空に舞う厳選蝶々（4箇所）
         Vector3[] plateauButterflyHomes =
         {
-            // 中央大草原（風に舞う蝶たち）
-            new Vector3(265f, 0f, 280f),
-            new Vector3(282f, 0f, 295f),
-            new Vector3(298f, 0f, 275f),
-            new Vector3(315f, 0f, 290f),
-            new Vector3(275f, 0f, 315f),
-            new Vector3(310f, 0f, 310f),
-
-            // せせらぎ池・小川のほとり（水面と花畑を優雅に周回）
-            new Vector3(272f, 0f, 340f),
-            new Vector3(288f, 0f, 355f),
-            new Vector3(305f, 0f, 345f),
-            new Vector3(282f, 0f, 370f),
-            new Vector3(318f, 0f, 365f),
-            new Vector3(298f, 0f, 380f),
-
-            // 北部高台・草原の丘（見晴らしの良い高空を舞う）
-            new Vector3(268f, 0f, 400f),
-            new Vector3(292f, 0f, 415f),
-            new Vector3(325f, 0f, 405f),
-
-            // 南部草原・陽だまりの小道
-            new Vector3(265f, 0f, 225f),
-            new Vector3(290f, 0f, 230f),
-            new Vector3(320f, 0f, 218f),
+            new Vector3(285f, 0f, 295f), // 中央大草原の花畑絨毯
+            new Vector3(290f, 0f, 355f), // せせらぎ池・小川のほとり
+            new Vector3(288f, 0f, 410f), // 北部高台・風薫る高原
+            new Vector3(285f, 0f, 228f), // 南部草原・陽だまり花畑
         };
 
         for (int i = 0; i < plateauButterflyHomes.Length; i++)

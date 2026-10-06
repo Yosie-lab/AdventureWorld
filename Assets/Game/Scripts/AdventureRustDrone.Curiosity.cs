@@ -285,17 +285,18 @@ public partial class AdventureRustDrone
         }
 
         // B. 周囲14m以内の蝶（AdventureButterflyDrift）を探して螺旋ダンス
-        var butterflies = Object.FindObjectsByType<AdventureButterflyDrift>(FindObjectsInactive.Exclude);
+        var butterflies = AdventureButterflyDrift.ActiveButterflies;
         AdventureButterflyDrift nearestButterfly = null;
         float minBfDist = 14.0f;
-        for (int i = 0; i < butterflies.Length; i++)
+        for (int i = 0; i < butterflies.Count; i++)
         {
-            if (butterflies[i] == null) continue;
-            float d = Vector3.Distance(nikoPos, butterflies[i].transform.position);
+            var b = butterflies[i];
+            if (b == null) continue;
+            float d = Vector3.Distance(nikoPos, b.transform.position);
             if (d < minBfDist)
             {
                 minBfDist = d;
-                nearestButterfly = butterflies[i];
+                nearestButterfly = b;
             }
         }
 

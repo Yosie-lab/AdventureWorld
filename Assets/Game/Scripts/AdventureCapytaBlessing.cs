@@ -422,17 +422,8 @@ public class AdventureCapytaBlessing : MonoBehaviour
         AdventureScrapManager.Instance?.PlayCelebrationChime(0.22f);
     }
 
-    private float _nextColliderCheckTime = 0f;
-
     void Update()
     {
-        // 4秒おきに全カピタのコライダー存在を安全保証（新規生成カピタ対応）
-        if (Time.unscaledTime >= _nextColliderCheckTime)
-        {
-            _nextColliderCheckTime = Time.unscaledTime + 4.0f;
-            AdventureCapytaBodyCollider.EnsureAllCapytasInScene();
-        }
-
         var player = AdventurePlayerController.Resolve();
         if (player == null)
         {

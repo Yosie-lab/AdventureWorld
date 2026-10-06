@@ -51,6 +51,8 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
     private static AudioClip _goalFanfareClip;
 
     private readonly HashSet<AdventureWindRing> _passedRings = new HashSet<AdventureWindRing>();
+    private string _cachedRingDots = "";
+    private int _cachedRingDotsPassed = -1;
 
     void Awake()
     {
@@ -364,12 +366,17 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
 
             // リング数
             int total = courseRings.Count > 0 ? courseRings.Count : 10;
-            string ringDots = "";
-            for (int i = 0; i < total; i++)
+            if (_cachedRingDotsPassed != ringsPassedCount)
             {
-                ringDots += (i < ringsPassedCount) ? "◆" : "◇";
+                _cachedRingDotsPassed = ringsPassedCount;
+                var sb = new System.Text.StringBuilder(total);
+                for (int i = 0; i < total; i++)
+                {
+                    sb.Append(i < ringsPassedCount ? "◆" : "◇");
+                }
+                _cachedRingDots = sb.ToString();
             }
-            GUI.Label(new Rect(panelRect.x, panelRect.y + 40, panelW, 26), $"リング: {ringsPassedCount}/{total}  {ringDots}", _ringStyle);
+            GUI.Label(new Rect(panelRect.x, panelRect.y + 40, panelW, 26), $"リング: {ringsPassedCount}/{total}  {_cachedRingDots}", _ringStyle);
 
             // リトライ案内
             GUI.Label(new Rect(panelRect.x, panelRect.y + panelH + 5, panelW, 22), "🔄 [R]キーでいつでもスタート台へ即時リトライ", _retryStyle);

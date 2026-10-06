@@ -16,6 +16,7 @@ public static class AdventureRestoreClassicSkyTool
     {
         EditorApplication.delayCall += () =>
         {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
             var scene = EditorSceneManager.GetActiveScene();
             if (scene.isLoaded && scene.path.Contains("RustAndFloat"))
                 ApplyClassicSkySettings(save: false);
@@ -80,6 +81,7 @@ public static class AdventureRestoreClassicSkyTool
     /// </summary>
     public static void ApplyClassicSkySettings(bool save = true)
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode) return;
         // スカイボックス（エディタ専用パス）
         var skyMat = AssetDatabase.LoadAssetAtPath<Material>(AdventureClassicSkyRuntime.SkyboxPath);
         if (skyMat != null)
