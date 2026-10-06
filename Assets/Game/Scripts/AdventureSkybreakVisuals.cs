@@ -886,8 +886,8 @@ public static class AdventureSkybreakVisuals
             }
         }
 
-        Color originalSunColor = new Color(1.0f, 0.94f, 0.80f); // 暖かく輝く黄金日光
-        float originalSunIntensity = 2.25f; // 燦々と降り注ぐ力強い光量
+        Color originalSunColor = new Color(1.0f, 0.99f, 0.96f); // 澄み渡るクリアな自然陽光
+        float originalSunIntensity = 2.15f; // 燦々と降り注ぐ力強い光量
 
         Color coldSunColor = new Color(0.92f, 0.96f, 1.0f);
         float coldSunIntensity = 2.05f;
@@ -1383,17 +1383,17 @@ public static class AdventureSkybreakVisuals
 
                         if (isGreenFoliage)
                         {
-                            // 頂部カラー：暖かな木漏れ日を浴びた自然な若葉色
+                            // 頂部カラー：澄んだ陽光を浴びたみずみずしい若葉エメラルドグリーン
                             if (mat.HasProperty("_TopColor"))
-                                mat.SetColor("_TopColor", new Color(0.58f, 0.76f, 0.18f, 1f));
+                                mat.SetColor("_TopColor", new Color(0.32f, 0.82f, 0.36f, 1f));
                             if (mat.HasProperty("_Top_Color"))
-                                mat.SetColor("_Top_Color", new Color(0.58f, 0.76f, 0.18f, 1f));
+                                mat.SetColor("_Top_Color", new Color(0.32f, 0.82f, 0.36f, 1f));
 
-                            // 下部カラー：落ち着いた深みのあるフォレストグリーン
+                            // 下部カラー：落ち着いた深みのあるみずみずしいフォレストグリーン
                             if (mat.HasProperty("_BottomColor"))
-                                mat.SetColor("_BottomColor", new Color(0.30f, 0.52f, 0.15f, 1f));
+                                mat.SetColor("_BottomColor", new Color(0.18f, 0.56f, 0.24f, 1f));
                             if (mat.HasProperty("_Bottom_Color"))
-                                mat.SetColor("_Bottom_Color", new Color(0.30f, 0.52f, 0.15f, 1f));
+                                mat.SetColor("_Bottom_Color", new Color(0.18f, 0.56f, 0.24f, 1f));
 
                             // 基本カラー
                             if (mat.HasProperty("_BaseColor"))
@@ -1401,7 +1401,7 @@ public static class AdventureSkybreakVisuals
                                 Color cur = mat.GetColor("_BaseColor");
                                 if (cur.g >= cur.r * 0.85f && cur.g >= cur.b * 0.85f)
                                 {
-                                    mat.SetColor("_BaseColor", new Color(0.42f, 0.75f, 0.25f, cur.a));
+                                    mat.SetColor("_BaseColor", new Color(0.28f, 0.78f, 0.35f, cur.a));
                                 }
                             }
                             if (mat.HasProperty("_Color"))
@@ -1409,7 +1409,7 @@ public static class AdventureSkybreakVisuals
                                 Color cur = mat.GetColor("_Color");
                                 if (cur.g >= cur.r * 0.85f && cur.g >= cur.b * 0.85f)
                                 {
-                                    mat.SetColor("_Color", new Color(0.42f, 0.75f, 0.25f, cur.a));
+                                    mat.SetColor("_Color", new Color(0.28f, 0.78f, 0.35f, cur.a));
                                 }
                             }
                         }

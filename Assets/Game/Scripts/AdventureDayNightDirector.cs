@@ -147,12 +147,12 @@ public class AdventureDayNightDirector : MonoBehaviour
 
         if (progress < 0.35f)
         {
-            // 【昼】爽やかな青空と眩しい太陽光
+            // 【昼】爽やかな青空と澄んだピュアな太陽光
             float t = progress / 0.35f;
-            targetSunColor = Color.Lerp(new Color(1f, 0.98f, 0.92f), new Color(1f, 0.92f, 0.78f), t);
-            targetAmbient = Color.Lerp(new Color(0.55f, 0.65f, 0.78f), new Color(0.62f, 0.60f, 0.70f), t);
-            targetFog = Color.Lerp(new Color(0.68f, 0.82f, 0.95f), new Color(0.75f, 0.74f, 0.85f), t);
-            targetIntensity = Mathf.Lerp(1.25f, 1.15f, t);
+            targetSunColor = Color.Lerp(new Color(1f, 1f, 0.98f), new Color(1f, 0.98f, 0.94f), t);
+            targetAmbient = Color.Lerp(new Color(0.58f, 0.70f, 0.85f), new Color(0.62f, 0.68f, 0.78f), t);
+            targetFog = Color.Lerp(new Color(0.70f, 0.88f, 1.0f), new Color(0.75f, 0.85f, 0.98f), t);
+            targetIntensity = Mathf.Lerp(1.35f, 1.25f, t);
             targetSunAngles = Vector3.Lerp(new Vector3(50f, -30f, 0f), new Vector3(32f, -15f, 0f), t);
         }
         else if (progress < 0.75f)
@@ -257,11 +257,11 @@ public class AdventureDayNightDirector : MonoBehaviour
 
     void ApplyDawnSky()
     {
-        // 天蓋崩壊時：未知の世界の神々しい夜明け・黄金の朝陽
+        // 天蓋崩壊時：未知の世界の神々しい夜明け・澄み渡る朝陽
         float dt = Time.deltaTime * 1.2f;
-        Color dawnSun = new Color(1f, 0.95f, 0.82f);
-        Color dawnAmbient = new Color(0.62f, 0.68f, 0.82f);
-        Color dawnFog = new Color(0.88f, 0.82f, 0.72f);
+        Color dawnSun = new Color(1f, 0.99f, 0.95f);
+        Color dawnAmbient = new Color(0.68f, 0.78f, 0.92f);
+        Color dawnFog = new Color(0.72f, 0.88f, 0.98f);
 
         _mainSunLight.color = Color.Lerp(_mainSunLight.color, dawnSun, dt);
         _mainSunLight.intensity = Mathf.Lerp(_mainSunLight.intensity, 1.45f, dt);
@@ -269,6 +269,6 @@ public class AdventureDayNightDirector : MonoBehaviour
 
         RenderSettings.ambientLight = Color.Lerp(RenderSettings.ambientLight, dawnAmbient, dt);
         RenderSettings.fogColor = Color.Lerp(RenderSettings.fogColor, dawnFog, dt);
-        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, 0.0022f, dt);
+        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, 0.0012f, dt);
     }
 }

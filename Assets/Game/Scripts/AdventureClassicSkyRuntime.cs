@@ -23,13 +23,14 @@ public class AdventureClassicSkyRuntime : MonoBehaviour
     public static readonly Color  AmbientEquator     = new Color(0.92f, 0.94f, 0.88f, 1f);    // 水平線の柔らかい光
     public static readonly Color  AmbientGround      = new Color(0.55f, 0.68f, 0.48f, 1f);    // 白砂・草原の照り返し
 
-    // 太陽光
-    public static readonly Color  SunColor           = new Color(1f, 0.98f, 0.90f, 1f);
-    public const  float           SunIntensity       = 1.65f; // 暖かく明るい南国の陽光
+    // 太陽光（黄色味を排した澄んだピュアホワイトの陽光）
+    public static readonly Color  SunColor           = new Color(1f, 0.99f, 0.96f, 1f);
+    public const  float           SunIntensity       = 1.55f; // 暖かく明るい南国の陽光
 
     // ポストプロセス
-    public const  float           PostExposure       = 0.35f; // 全体の露出を底上げして明るく爽やかな画面に
-    public const  float           Contrast           = -4f;
+    public const  float           PostExposure       = 0.28f; // 全体の露出を底上げして明るく爽やかな画面に
+    public const  float           Contrast           = 2f;
+    public const  float           Saturation         = 14f; // 色鮮やかな草花と海の美しさを引き出す
     public const  float           BloomIntensity     = 0.28f;
     public const  float           BloomThreshold     = 1.18f;
     // ─────────────────────────────────────────────────────────────
@@ -120,6 +121,7 @@ public class AdventureClassicSkyRuntime : MonoBehaviour
         {
             ca.postExposure.Override(PostExposure);
             ca.contrast.Override(Contrast);
+            ca.saturation.Override(Saturation);
         }
         if (vol.profile.TryGet<Bloom>(out var bloom))
         {
