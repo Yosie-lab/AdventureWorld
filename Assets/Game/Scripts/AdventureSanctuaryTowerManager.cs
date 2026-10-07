@@ -1894,7 +1894,13 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         updraft.liftSpeed = 36.0f;
         updraft.pullToCenter = true;
 
-        // 天を衝く超巨大な天空光柱（シアン＆黄金に輝く半透明シリンダー）
+        // 天を衝く超巨大な天空光柱（シアン＆黄金に輝く美しい半透明ビーム）
+        var pShader = Shader.Find("Universal Render Pipeline/Unlit")
+                      ?? Shader.Find("Sprites/Default")
+                      ?? Shader.Find("RustAndFloat/WhiteSmoke");
+        var smokeTex = AdventureRustDrone.GetSoftSmokeTexture();
+
+        // 1. 外周の天空光柱（半透明加算で背後の空やタワーが美しく透ける）
         var pillarGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         pillarGo.name = "SkybreakHyperBeam";
         pillarGo.transform.SetParent(_hyperUpdraftGo.transform, false);
@@ -1908,10 +1914,67 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         var pRend = pillarGo.GetComponent<Renderer>();
         if (pRend != null)
         {
-            var pShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
             var pMat = new Material(pShader);
-            pMat.SetColor("_BaseColor", new Color(0.40f, 0.95f, 1.0f, 0.35f));
+            var outerColor = new Color(0.40f, 0.95f, 1.0f, 0.20f); // 透き通る淡いシアン半透明
+            pMat.color = outerColor;
+            pMat.SetColor("_BaseColor", outerColor);
+            pMat.SetColor("_Color", outerColor);
+            if (smokeTex != null)
+            {
+                pMat.mainTexture = smokeTex;
+                pMat.SetTexture("_BaseMap", smokeTex);
+                pMat.SetTexture("_MainTex", smokeTex);
+            }
+            if (pMat.HasProperty("_Surface")) pMat.SetFloat("_Surface", 1f); // 1 = Transparent
+            if (pMat.HasProperty("_Blend")) pMat.SetFloat("_Blend", 1f); // 1 = Additive
+            if (pMat.HasProperty("_Cull")) pMat.SetFloat("_Cull", 0f); // Double Sided (両面描画で中に入っても透ける)
+            if (pMat.HasProperty("_ZWrite")) pMat.SetFloat("_ZWrite", 0f); // 半透明ZWriteオフ
+            pMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            pMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            pMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            pMat.EnableKeyword("_BLENDMODE_ADD");
+            pMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 150;
             pRend.material = pMat;
+            pRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            pRend.receiveShadows = false;
+        }
+
+        // 2. 内側のコア光柱（中心部がほのかに黄金色に透き通る多層半透明構造）
+        var coreGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        coreGo.name = "SkybreakHyperBeam_Core";
+        coreGo.transform.SetParent(_hyperUpdraftGo.transform, false);
+        coreGo.transform.localPosition = new Vector3(0f, 120f, 0f);
+        coreGo.transform.localScale = new Vector3(9f, 120f, 9f);
+
+        var cCol = coreGo.GetComponent<Collider>();
+        if (cCol != null) Destroy(cCol);
+
+        var cRend = coreGo.GetComponent<Renderer>();
+        if (cRend != null)
+        {
+            var cMat = new Material(pShader);
+            var coreColor = new Color(1.0f, 0.95f, 0.70f, 0.22f); // 柔らかく透ける温かいゴールド半透明
+            cMat.color = coreColor;
+            cMat.SetColor("_BaseColor", coreColor);
+            cMat.SetColor("_Color", coreColor);
+            if (smokeTex != null)
+            {
+                cMat.mainTexture = smokeTex;
+                cMat.SetTexture("_BaseMap", smokeTex);
+                cMat.SetTexture("_MainTex", smokeTex);
+            }
+            if (cMat.HasProperty("_Surface")) cMat.SetFloat("_Surface", 1f);
+            if (cMat.HasProperty("_Blend")) cMat.SetFloat("_Blend", 1f);
+            if (cMat.HasProperty("_Cull")) cMat.SetFloat("_Cull", 0f);
+            if (cMat.HasProperty("_ZWrite")) cMat.SetFloat("_ZWrite", 0f);
+            cMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            cMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            cMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            cMat.EnableKeyword("_BLENDMODE_ADD");
+            cMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 160;
+            cRend.material = cMat;
+            cRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            cRend.receiveShadows = false;
         }
 
         // 光柱の中心コアライト

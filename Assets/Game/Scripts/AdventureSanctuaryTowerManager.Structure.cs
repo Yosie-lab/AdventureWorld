@@ -233,7 +233,10 @@ public partial class AdventureSanctuaryTowerManager
             ?? Shader.Find("Sprites/Default");
         var bMat = new Material(bShader);
         bMat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
-        bMat.SetColor("_BaseColor", new Color(0.45f, 0.98f, 1.0f, 0.82f));
+        var bColor = new Color(0.45f, 0.98f, 1.0f, 0.30f);
+        bMat.color = bColor;
+        bMat.SetColor("_BaseColor", bColor);
+        bMat.SetColor("_Color", bColor);
         if (bMat.HasProperty("_Surface")) bMat.SetFloat("_Surface", 1f);
         if (bMat.HasProperty("_Blend")) bMat.SetFloat("_Blend", 1f);
         if (bMat.HasProperty("_Cull")) bMat.SetFloat("_Cull", 0f);
@@ -241,7 +244,7 @@ public partial class AdventureSanctuaryTowerManager
         bMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
         bMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
         bMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-        bMat.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+        bMat.EnableKeyword("_BLENDMODE_ADD");
         bMat.renderQueue = 3150;
 
         // 南側正面メインレバー1基のみを堂々と配備（白亜テラスの特等席）
