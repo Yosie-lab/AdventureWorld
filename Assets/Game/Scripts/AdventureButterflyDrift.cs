@@ -75,19 +75,19 @@ public class AdventureButterflyDrift : MonoBehaviour
         ActiveButterflies.Remove(this);
     }
 
+    private static readonly Collider[] _flowerCheckBuffer = new Collider[16];
+
     private void SnapToNearbyFlower()
     {
-        // 周囲4m以内に花オブジェクトがあれば、その直上（0.5m上）をHomeに設定
-        Collider[] hits = Physics.OverlapSphere(transform.position, 4.0f);
-        if (hits != null)
+        // 周囲4m以内に花オブジェクトがあれば、その直上（0.5m上）をHomeに設定（GC Alloc ゼロ）
+        int count = Physics.OverlapSphereNonAlloc(transform.position, 4.0f, _flowerCheckBuffer);
+        for (int i = 0; i < count; i++)
         {
-            foreach (var hit in hits)
+            var hit = _flowerCheckBuffer[i];
+            if (hit != null && (hit.name.Contains("Flower") || (hit.transform.parent != null && hit.transform.parent.name.Contains("Flower"))))
             {
-                if (hit != null && (hit.name.Contains("Flower") || (hit.transform.parent != null && hit.transform.parent.name.Contains("Flower"))))
-                {
-                    _home = hit.transform.position + Vector3.up * 0.5f;
-                    break;
-                }
+                _home = hit.transform.position + Vector3.up * 0.5f;
+                break;
             }
         }
     }
