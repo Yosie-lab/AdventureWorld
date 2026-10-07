@@ -12,6 +12,28 @@ public static class AdventureResetAllPointsTool
     {
         Debug.Log("[AdventureResetAllPointsTool] === 全探索ポイントの完全リセットを開始 ===");
 
+        // 0. Rustの装備PlayerPrefs削除＆未装備化
+        var cosmeticIds = System.Enum.GetValues(typeof(AdventureRustCosmetics.CosmeticId));
+        foreach (AdventureRustCosmetics.CosmeticId cid in cosmeticIds)
+        {
+            PlayerPrefs.DeleteKey("RustCosmetic_Unlocked_" + cid.ToString());
+            PlayerPrefs.DeleteKey("RustCosmetic_Equipped_" + cid.ToString());
+            PlayerPrefs.SetInt("RustCosmetic_Equipped_" + cid.ToString(), 0);
+        }
+        var allDrones = Object.FindObjectsByType<AdventureRustDrone>(FindObjectsInactive.Include);
+        foreach (var drone in allDrones)
+        {
+            if (drone == null) continue;
+            var children = drone.GetComponentsInChildren<Transform>(true);
+            foreach (var t in children)
+            {
+                if (t != null && t.gameObject != null && t.gameObject.name.StartsWith("Cosmetic_"))
+                {
+                    Object.DestroyImmediate(t.gameObject);
+                }
+            }
+        }
+
         // 1. ドリフトボックス（1〜5）のPlayerPrefs削除と未開封化
         for (int i = 1; i <= 5; i++)
         {
@@ -51,7 +73,12 @@ public static class AdventureResetAllPointsTool
             shellMgr.ResetForNewGame();
         }
 
-        Debug.Log("[AdventureResetAllPointsTool] ✅ 漂着パーツ(0/12)、ドリフトボックス(0/5)、ピアノ古代遺物、貝殻・シーグラス(48個)をすべて初期化しました！");
+        // 6. Rustの着せ替えアクセサリー完全解除（未装備初期化）
+        AdventureRustCosmetics.Ensure();
+        AdventureRustCosmetics.Instance?.ResetForNewGame();
+        AdventureRustCosmetics.Instance?.UnequipAll();
+
+        Debug.Log("[AdventureResetAllPointsTool] ✅ 漂着パーツ(0/12)、ドリフトボックス(0/5)、ピアノ古代遺物、貝殻・シーグラス(48個)、Rustの装備をすべて初期化しました！");
     }
 
     [MenuItem("Adventure/🐚 砂浜の貝殻・シーグラスを全リスポーン（再配置）")]
@@ -63,5 +90,13 @@ public static class AdventureResetAllPointsTool
             shellMgr.ResetForNewGame();
             Debug.Log("[AdventureResetAllPointsTool] 🐚 砂浜の全貝殻・シーグラスをリスポーンしました！");
         }
+    }
+
+    [MenuItem("Adventure/Unequip All Rust Cosmetics")]
+    public static void UnequipAllRustCosmeticsNow()
+    {
+        AdventureRustCosmetics.Ensure();
+        AdventureRustCosmetics.Instance?.UnequipAll();
+        Debug.Log("[AdventureResetAllPointsTool] 🎀 Rustの装備をすべて外しました！");
     }
 }

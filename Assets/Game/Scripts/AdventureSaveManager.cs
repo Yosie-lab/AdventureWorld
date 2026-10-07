@@ -715,6 +715,7 @@ public class AdventureSaveManager : MonoBehaviour
         AdventureBeachSeashellManager.Instance?.ResetForNewGame();
         AdventureRustCosmetics.Ensure();
         AdventureRustCosmetics.Instance?.ResetForNewGame();
+        AdventureRustCosmetics.Instance?.UnequipAll();
         AdventureWestSlopeFloraManager.Ensure();
         AdventureWestSlopeFloraManager.Instance?.ResetFloraForNewGame();
 

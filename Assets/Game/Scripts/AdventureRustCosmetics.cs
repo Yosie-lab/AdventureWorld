@@ -1,5 +1,4 @@
-using UnityEngine;
-using System.Collections.Generic;
+using System.IO;
 
 /// <summary>
 /// 相棒Rustのドレスアップ・アクセサリー装飾システム。
@@ -106,6 +105,7 @@ public class AdventureRustCosmetics : MonoBehaviour
     // 太陽コア用の元のライト色バックアップ
     Light _rustLightRef;
     Color _defaultLightColor = new Color(0.3f, 0.85f, 1f);
+    AdventureRustDrone _lastSyncedRust;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void AutoInit()
@@ -124,7 +124,7 @@ public class AdventureRustCosmetics : MonoBehaviour
         }
 
         var go = new GameObject("AdventureRustCosmetics");
-        DontDestroyOnLoad(go);
+        if (Application.isPlaying) DontDestroyOnLoad(go);
         Instance = go.AddComponent<AdventureRustCosmetics>();
     }
 
@@ -140,15 +140,25 @@ public class AdventureRustCosmetics : MonoBehaviour
 
     void Start()
     {
-        ApplyAllSavedCosmetics();
+        // セーブデータが存在しない（新規プレイ／リスタート）場合は、前回のセッションの古い装備を引き継がず全装備解除（未装備）で開始
+        string savePath = Path.Combine(Application.persistentDataPath, "rust_and_float_save.json");
+        if (!File.Exists(savePath))
+        {
+            UnequipAll();
+        }
+        else
+        {
+            ApplyAllSavedCosmetics();
+        }
     }
 
     void Update()
     {
-        // Rustが後から生成・リスポーンされた場合の追従・適用保証
+        // Rustが後から生成・リスポーンされた場合の追従・適用保証（インスタンス切り替え時のみ1度実行）
         var rust = AdventureRustDrone.Instance;
-        if (rust != null && _spawnedVisuals.Count == 0)
+        if (rust != null && rust != _lastSyncedRust)
         {
+            _lastSyncedRust = rust;
             ApplyAllSavedCosmetics();
         }
     }
@@ -278,7 +288,20 @@ public class AdventureRustCosmetics : MonoBehaviour
         }
     }
 
-    /// <summary>ニューゲーム初期化：コスメティクスのアンロック・装備状態をリセット</summary>
+    /// <summary>すべてのアクセサリーをRustから外し、未装備状態にする（アンロック状況は維持）</summary>
+    public void UnequipAll()
+    {
+        for (int i = 0; i < AllDefs.Length; i++)
+        {
+            var def = AllDefs[i];
+            PlayerPrefs.SetInt("RustCosmetic_Equipped_" + def.id.ToString(), 0);
+        }
+        PlayerPrefs.Save();
+        ClearAllCosmeticVisuals();
+        Debug.Log("[AdventureRustCosmetics] 🎀 Rustの装備をすべて外しました（未装備初期状態）");
+    }
+
+    /// <summary>ニューゲーム初期化：コスメティクスのアンロック・装備状態を完全リセット＆全装備解除</summary>
     public void ResetForNewGame()
     {
         for (int i = 0; i < AllDefs.Length; i++)
@@ -286,10 +309,42 @@ public class AdventureRustCosmetics : MonoBehaviour
             var def = AllDefs[i];
             PlayerPrefs.DeleteKey("RustCosmetic_Unlocked_" + def.id.ToString());
             PlayerPrefs.DeleteKey("RustCosmetic_Equipped_" + def.id.ToString());
-            ApplyCosmeticVisual(def.id, false);
+            PlayerPrefs.SetInt("RustCosmetic_Unlocked_" + def.id.ToString(), 0);
+            PlayerPrefs.SetInt("RustCosmetic_Equipped_" + def.id.ToString(), 0);
         }
         PlayerPrefs.Save();
-        Debug.Log("[AdventureRustCosmetics] 🎀 Rustの着せ替えアクセサリーを完全リセットしました");
+        ClearAllCosmeticVisuals();
+        Debug.Log("[AdventureRustCosmetics] 🎀 Rustの着せ替えアクセサリーを完全リセット・外しました");
+    }
+
+    /// <summary>Rust本体に生成された全アクセサリーオブジェクトを完全に削除・消去</summary>
+    public void ClearAllCosmeticVisuals()
+    {
+        foreach (var kvp in _spawnedVisuals)
+        {
+            if (kvp.Value != null)
+            {
+                SafeDestroy(kvp.Value);
+            }
+        }
+        _spawnedVisuals.Clear();
+
+        // Rust階層下のCosmetic_*オブジェクトを完全検索して完全Destroy
+        var rust = AdventureRustDrone.Instance;
+        if (rust != null)
+        {
+            var allChildren = rust.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < allChildren.Length; i++)
+            {
+                var t = allChildren[i];
+                if (t != null && t.gameObject != null && t.gameObject.name.StartsWith("Cosmetic_"))
+                {
+                    SafeDestroy(t.gameObject);
+                }
+            }
+        }
+
+        RevertRustLightColor();
     }
 
     /// <summary>各アクセサリーの3Dビジュアル生成・破棄</summary>
@@ -303,12 +358,29 @@ public class AdventureRustCosmetics : MonoBehaviour
             if (existing != null)
             {
                 existing.SetActive(active);
-                if (!active) return;
+                if (!active)
+                {
+                    SafeDestroy(existing);
+                    _spawnedVisuals.Remove(id);
+                    if (id == CosmeticId.AmberSunCore) RevertRustLightColor();
+                    return;
+                }
+            }
+            else
+            {
+                _spawnedVisuals.Remove(id);
             }
         }
 
         if (!active)
         {
+            // 辞書に入っていなくてもRust階層下に残っている同名オブジェクトを削除
+            string rootName = GetCosmeticRootName(id);
+            var orphan = FindCosmeticChild(rust.transform, rootName);
+            if (orphan != null)
+            {
+                SafeDestroy(orphan);
+            }
             if (id == CosmeticId.AmberSunCore) RevertRustLightColor();
             return;
         }
@@ -580,6 +652,37 @@ public class AdventureRustCosmetics : MonoBehaviour
             if (Application.isPlaying) Destroy(col);
             else DestroyImmediate(col);
         }
+    }
+
+    static string GetCosmeticRootName(CosmeticId id)
+    {
+        switch (id)
+        {
+            case CosmeticId.SakuragaiCrown: return "Cosmetic_SakuragaiCrown";
+            case CosmeticId.EmeraldBeacon: return "Cosmetic_EmeraldBeacon";
+            case CosmeticId.SapphireWings: return "Cosmetic_SapphireWings";
+            case CosmeticId.AmberSunCore: return "Cosmetic_AmberSunCore";
+            case CosmeticId.SeashellConch: return "Cosmetic_SeashellConch";
+            default: return "Cosmetic_Unknown";
+        }
+    }
+
+    static GameObject FindCosmeticChild(Transform root, string name)
+    {
+        if (root == null) return null;
+        var all = root.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] != null && all[i].name == name) return all[i].gameObject;
+        }
+        return null;
+    }
+
+    static void SafeDestroy(Object obj)
+    {
+        if (obj == null) return;
+        if (Application.isPlaying) Destroy(obj);
+        else DestroyImmediate(obj);
     }
     #endregion
 }
