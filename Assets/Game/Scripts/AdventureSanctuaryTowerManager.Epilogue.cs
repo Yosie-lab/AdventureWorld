@@ -124,6 +124,8 @@ public partial class AdventureSanctuaryTowerManager
         // 「わぁぁ……！見て、Niko！」からは風の音をごくわずかなそよ風（0.04f）まで下げて映画の余韻とウミネコを際立たせる
         SetSkybreakWindVolume(0.04f, 1.2f);
         StartEpilogueSeagullAmbience();
+        // エピローグ冒頭：Rustが「世界はこんなにも広かったんだ……！！」と感動する瞬間から大空正面に大虹（二重虹）を架橋
+        SpawnEpilogueRainbow();
         Debug.Log($"[RustAndFloat] シネマエピローグ開始（Update） lines={EpilogueFilmLines.Length} subtitle={(_filmSubtitleUi != null)}");
     }
 
@@ -168,12 +170,6 @@ public partial class AdventureSanctuaryTowerManager
         PresentFilmLineContent(line.Text, line.Color);
         _filmPhase = 1;
         _filmPhaseAt = Time.unscaledTime;
-
-        // 「箱庭の外には、凍えるほどリアルで、優しい風が吹いていた。」で正面に美しい大虹を架橋
-        if (index == 2 || (line.Text != null && line.Text.Contains("箱庭の外には")))
-        {
-            SpawnEpilogueRainbow();
-        }
     }
 
     void PresentFilmLineContent(string text, Color color)
@@ -227,10 +223,6 @@ public partial class AdventureSanctuaryTowerManager
                 PresentFilmLineContent(line.Text, line.Color);
                 _filmPhase = 1;
                 _filmPhaseAt = Time.unscaledTime;
-                if (_filmIndex == 2 || (line.Text != null && line.Text.Contains("箱庭の外には")))
-                {
-                    SpawnEpilogueRainbow();
-                }
             }
             return;
         }
@@ -550,7 +542,7 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         AdventureSkybreakRainbow.Spawn(origin, forward);
-        Debug.Log("[RustAndFloat] 「箱庭の外には」のシーン：正面に大空の二重虹（Grand Rainbow）を架橋");
+        Debug.Log("[RustAndFloat] エピローグ冒頭「世界はこんなにも広かったんだ」：正面大空に二重虹（Grand Rainbow）を架橋");
     }
 
     #endregion

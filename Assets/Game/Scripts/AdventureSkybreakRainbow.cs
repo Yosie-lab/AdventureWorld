@@ -2,9 +2,10 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// エピローグ「箱庭の外には」のシーンで大空の正面に架かる雄大で美しい大虹（主虹＋副虹のダブルレインボー）。
+/// エピローグ冒頭「わぁぁ……！見て、Niko！世界はこんなにも広かったんだ……！！」のシーンで
+/// 大空の正面に神々しく架かる雄大な大虹（主虹＋副虹のダブルレインボー）。
 /// プロシージャルな大円弧メッシュと7色スペクトルグラデーションにより、
-/// 青空と雲の彼方に神々しくフェードインする。
+/// 青空と雲の彼方にゆっくりと幻想的にフェードインする。
 /// </summary>
 public class AdventureSkybreakRainbow : MonoBehaviour
 {
@@ -35,7 +36,7 @@ public class AdventureSkybreakRainbow : MonoBehaviour
 
     float _currentAlpha = 0f;
     float _targetAlpha = 1f;
-    float _fadeDuration = 3.2f;
+    float _fadeDuration = 4.2f;
     float _fadeTimer = 0f;
     bool _isFading = false;
 
@@ -47,7 +48,7 @@ public class AdventureSkybreakRainbow : MonoBehaviour
         if (_instance != null && _instance.gameObject != null)
         {
             _instance.Reposition(playerPos, forwardDir);
-            _instance.StartFadeIn(3.0f);
+            _instance.StartFadeIn(4.2f);
             return _instance;
         }
 
@@ -58,7 +59,7 @@ public class AdventureSkybreakRainbow : MonoBehaviour
         var root = new GameObject("EpilogueGrandRainbow");
         _instance = root.AddComponent<AdventureSkybreakRainbow>();
         _instance.BuildRainbow(playerPos, forwardDir);
-        _instance.StartFadeIn(3.2f);
+        _instance.StartFadeIn(4.2f);
         return _instance;
     }
 
@@ -87,9 +88,7 @@ public class AdventureSkybreakRainbow : MonoBehaviour
 
         // 1. 主虹（Primary Rainbow）の生成
         _primaryTex = GenerateSpectrumTexture(isSecondary: false);
-        _primaryMat = new Material(unlitSh);
-        _primaryMat.mainTexture = _primaryTex;
-        _primaryMat.color = new Color(1f, 1f, 1f, 0f);
+        _primaryMat = CreateRainbowMaterial(unlitSh, _primaryTex);
 
         _primaryGo = new GameObject("PrimaryRainbowArch");
         _primaryGo.transform.SetParent(transform, false);
@@ -104,9 +103,7 @@ public class AdventureSkybreakRainbow : MonoBehaviour
 
         // 2. 副虹（Secondary Rainbow）の生成（外側に淡く色の順序が逆転して架かる）
         _secondaryTex = GenerateSpectrumTexture(isSecondary: true);
-        _secondaryMat = new Material(unlitSh);
-        _secondaryMat.mainTexture = _secondaryTex;
-        _secondaryMat.color = new Color(1f, 1f, 1f, 0f);
+        _secondaryMat = CreateRainbowMaterial(unlitSh, _secondaryTex);
 
         _secondaryGo = new GameObject("SecondaryRainbowArch");
         _secondaryGo.transform.SetParent(transform, false);
@@ -120,6 +117,25 @@ public class AdventureSkybreakRainbow : MonoBehaviour
         mrSecondary.receiveShadows = false;
     }
 
+    static Material CreateRainbowMaterial(Shader sh, Texture2D tex)
+    {
+        var mat = new Material(sh);
+        mat.mainTexture = tex;
+        mat.SetTexture("_BaseMap", tex);
+        mat.SetTexture("_MainTex", tex);
+        var c = new Color(1f, 1f, 1f, 0f);
+        mat.color = c;
+        mat.SetColor("_BaseColor", c);
+        mat.SetFloat("_Surface", 1f); // Transparent
+        mat.SetFloat("_Blend", 0f); // Alpha blend
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        mat.SetInt("_ZWrite", 0);
+        mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 50;
+        return mat;
+    }
+
     void Reposition(Vector3 playerPos, Vector3 forwardDir)
     {
         Vector3 forwardFlat = Vector3.ProjectOnPlane(forwardDir, Vector3.up);
@@ -127,8 +143,8 @@ public class AdventureSkybreakRainbow : MonoBehaviour
             forwardFlat = Vector3.forward;
         forwardFlat.Normalize();
 
-        // プレイヤーの視界正面290m先、地平線近く（Y=15m）を着地点として配置
-        Vector3 center = playerPos + forwardFlat * 290f;
+        // プレイヤーの視界正面330m先、地平線近く（Y=15m）を着地点として配置（エピローグ全体を飛んでもアーチの全景が美しく保たれる距離）
+        Vector3 center = playerPos + forwardFlat * 330f;
         center.y = 15f;
         transform.position = center;
 
@@ -162,13 +178,17 @@ public class AdventureSkybreakRainbow : MonoBehaviour
         if (_primaryMat != null)
         {
             float a = _currentAlpha * PrimaryBaseAlpha * shimmer;
-            _primaryMat.color = new Color(1f, 1f, 1f, Mathf.Clamp01(a));
+            var c = new Color(1f, 1f, 1f, Mathf.Clamp01(a));
+            _primaryMat.color = c;
+            _primaryMat.SetColor("_BaseColor", c);
         }
 
         if (_secondaryMat != null)
         {
             float a = _currentAlpha * SecondaryBaseAlpha * shimmer;
-            _secondaryMat.color = new Color(1f, 1f, 1f, Mathf.Clamp01(a));
+            var c = new Color(1f, 1f, 1f, Mathf.Clamp01(a));
+            _secondaryMat.color = c;
+            _secondaryMat.SetColor("_BaseColor", c);
         }
     }
 
