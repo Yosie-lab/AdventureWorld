@@ -120,13 +120,13 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
 #endif
     }
 
-    /// <summary>西の斜面の草花・蝶々が未生成なら動的に生成・配置</summary>
-    public static void BuildWestSlopeFloraIfNeeded()
+    /// <summary>西と南の大地の草花・蝶々が未生成なら動的に生成・配置</summary>
+    public static void BuildWestSlopeFloraIfNeeded(bool forceRebuild = false)
     {
         var existingRoot = GameObject.Find(RootGameObjectName);
-        if (existingRoot != null && existingRoot.transform.Find("Plateau_Butterflies") != null)
+        if (!forceRebuild && existingRoot != null && existingRoot.transform.Find("SouthMeadow_Butterflies") != null)
         {
-            // 既に斜面および台地の大草原・蝶々が配置されていればスキップ
+            // 既に斜面および台地・南の大地の蝶々が配置されていればスキップ
             return;
         }
 
@@ -152,7 +152,7 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
         // 2. 西の斜面：色とりどりの花畑（約50株の野花パッチ）
         SpawnSlopeFlowerPatches(root.transform, land, rng);
 
-        // 3. 西の斜面：優雅に舞う蝶々（12匹）
+        // 3. 西の斜面：優雅に舞う色鮮やかな蝶々（9箇所）
         SpawnSlopeButterflies(root.transform, land, rng);
 
         // 4. 台地（西側大草原〜せせらぎ池〜高原）：広大な草原クラスター（約130株の波打つ草原）
@@ -161,10 +161,13 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
         // 5. 台地：咲き誇る高原の花畑（約100株の野花絨毯）
         SpawnPlateauFlowerPatches(root.transform, land, rng);
 
-        // 6. 台地：高原の空と草原を舞う蝶々（18匹、合計30匹の群舞）
+        // 6. 台地（西側大草原〜せせらぎ池）：花々の間を優美に舞う蝶々（12箇所）
         SpawnPlateauButterflies(root.transform, land, rng);
 
-        Debug.Log("[AdventureWestSlopeFloraManager] 🌸 西の斜面および台地の大草原に豊かな草地・花畑・蝶々（全30匹）を配置しました");
+        // 7. 南の大地（南草原〜陽だまり花畑〜南ビーチ）：南国風に舞う色鮮やかな蝶々（10箇所）
+        SpawnSouthMeadowButterflies(root.transform, land, rng);
+
+        Debug.Log("[AdventureWestSlopeFloraManager] 🌸 西と南の大地に豊かな草地・花畑・色鮮やかな蝶々（合計31匹）を配置しました");
     }
 
     /// <summary>草地クラスターの生成（X: 175〜250, Z: 200〜360）</summary>
@@ -301,21 +304,26 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
         var butterflyGroup = new GameObject("Butterflies");
         butterflyGroup.transform.SetParent(root, false);
 
-        // 斜面の花畑・小川アプローチの上空に優雅に舞う厳選蝶々（4箇所）
+        // 斜面の花畑・小川アプローチの直上を優雅に舞う蝶々（9箇所）
         Vector3[] butterflyHomes =
         {
-            new Vector3(202f, 0f, 282f), // メインスロープ花畑中央
+            new Vector3(185f, 0f, 280f), // メインスロープ登り口花畑
+            new Vector3(190f, 0f, 265f), // スロープ南寄り野花
+            new Vector3(198f, 0f, 275f), // スロープ中間・岩陰の花畑
+            new Vector3(205f, 0f, 288f), // メインスロープ中央花畑
+            new Vector3(212f, 0f, 272f), // スロープ上部・陽だまり花畑
+            new Vector3(220f, 0f, 285f), // 尾根手前・野花パッチ
             new Vector3(212f, 0f, 230f), // 南西斜面・小川花壇
             new Vector3(205f, 0f, 335f), // 北西斜面・木道花畑
-            new Vector3(228f, 0f, 245f), // 斜面テラス
+            new Vector3(228f, 0f, 245f), // 斜面テラス花壇
         };
 
         for (int i = 0; i < butterflyHomes.Length; i++)
         {
             Vector3 pos = butterflyHomes[i];
             float groundY = land.SampleHeight(pos) + land.transform.position.y;
-            // 地面から 1.4m〜2.2m 上空をふわりと舞う
-            pos.y = groundY + 1.6f + (float)rng.NextDouble() * 0.6f;
+            // 花の上空 0.7m〜1.3m をふわりと舞う（花の蜜を探す自然な高さ）
+            pos.y = groundY + 0.85f + (float)rng.NextDouble() * 0.45f;
 
             var prefab = GetButterflyPrefab(i);
             if (prefab == null) continue;
@@ -339,9 +347,10 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
                 t.gameObject.SetActive(true);
 
             var drift = go.GetComponent<AdventureButterflyDrift>() ?? go.AddComponent<AdventureButterflyDrift>();
-            drift.radius = 4.0f + (float)rng.NextDouble() * 2.5f;
-            drift.speed = 0.65f + (float)rng.NextDouble() * 0.35f;
-            drift.bob = 0.55f + (float)rng.NextDouble() * 0.3f;
+            drift.radius = 1.6f + (float)rng.NextDouble() * 1.0f;
+            drift.speed = 0.60f + (float)rng.NextDouble() * 0.30f;
+            drift.bob = 0.35f + (float)rng.NextDouble() * 0.30f;
+            drift.ApplyVividWingColor();
         }
     }
 
@@ -467,34 +476,42 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
         }
     }
 
-    /// <summary>台地（西側大草原〜せせらぎ池〜高原）の上空を優雅に群れ飛ぶ蝶々（厳選4匹）</summary>
+    /// <summary>台地（西側大草原〜せせらぎ池〜高原）の花々の上を優雅に舞う蝶々（12箇所）</summary>
     private static void SpawnPlateauButterflies(Transform root, Terrain land, System.Random rng)
     {
         var butterflyGroup = new GameObject("Plateau_Butterflies");
         butterflyGroup.transform.SetParent(root, false);
 
-        // 台地大草原・池・高原の花密集スポット上空に舞う厳選蝶々（4箇所）
+        // 台地大草原・池・高原の花密集スポット直上に舞う蝶々（12箇所）
         Vector3[] plateauButterflyHomes =
         {
+            new Vector3(268f, 0f, 280f), // 中央大草原・入口花畑
             new Vector3(285f, 0f, 295f), // 中央大草原の花畑絨毯
-            new Vector3(290f, 0f, 355f), // せせらぎ池・小川のほとり
-            new Vector3(288f, 0f, 410f), // 北部高台・風薫る高原
-            new Vector3(285f, 0f, 228f), // 南部草原・陽だまり花畑
+            new Vector3(302f, 0f, 275f), // 大草原東側・野花パッチ
+            new Vector3(318f, 0f, 290f), // 大草原奥・木立ち前の花畑
+            new Vector3(275f, 0f, 320f), // 西台地・草花群生
+            new Vector3(295f, 0f, 310f), // 大草原中央・色鮮やかな野花
+            new Vector3(315f, 0f, 325f), // せせらぎ池への小径沿い
+            new Vector3(270f, 0f, 345f), // せせらぎ池・下流のほとり
+            new Vector3(290f, 0f, 355f), // せせらぎ池・中州の野花
+            new Vector3(305f, 0f, 345f), // せせらぎ池・東岸花畑
+            new Vector3(280f, 0f, 375f), // 小川上流・飛び石のほとり
+            new Vector3(315f, 0f, 370f), // 北部高原へのアプローチ花畑
         };
 
         for (int i = 0; i < plateauButterflyHomes.Length; i++)
         {
             Vector3 pos = plateauButterflyHomes[i];
             float groundY = land.SampleHeight(pos) + land.transform.position.y;
-            // 地面から 1.8m〜3.2m 上空を優美に舞う
-            pos.y = groundY + 1.8f + (float)rng.NextDouble() * 1.2f;
+            // 花の上空 0.7m〜1.4m を優美にホバリング
+            pos.y = groundY + 0.90f + (float)rng.NextDouble() * 0.45f;
 
             var prefab = GetButterflyPrefab(i);
             if (prefab == null) continue;
 
             var go = InstantiateObject(prefab, butterflyGroup.transform, pos, Quaternion.identity);
             go.name = $"PlateauButterfly_{i + 1:D2}";
-            go.transform.localScale = Vector3.one * 10.5f;
+            go.transform.localScale = Vector3.one * 10f;
 
             var bSpawn = go.GetComponent<IdyllicFantasyNature.ButterflySpawn>();
             if (bSpawn != null)
@@ -510,9 +527,66 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
                 t.gameObject.SetActive(true);
 
             var drift = go.GetComponent<AdventureButterflyDrift>() ?? go.AddComponent<AdventureButterflyDrift>();
-            drift.radius = 4.5f + (float)rng.NextDouble() * 3.5f;
-            drift.speed = 0.60f + (float)rng.NextDouble() * 0.40f;
-            drift.bob = 0.60f + (float)rng.NextDouble() * 0.4f;
+            drift.radius = 1.8f + (float)rng.NextDouble() * 1.0f;
+            drift.speed = 0.60f + (float)rng.NextDouble() * 0.30f;
+            drift.bob = 0.40f + (float)rng.NextDouble() * 0.30f;
+            drift.ApplyVividWingColor();
+        }
+    }
+
+    /// <summary>南の大地（南草原〜陽だまり花畑〜南ビーチ）の花々の上を舞う蝶々（10箇所）</summary>
+    private static void SpawnSouthMeadowButterflies(Transform root, Terrain land, System.Random rng)
+    {
+        var butterflyGroup = new GameObject("SouthMeadow_Butterflies");
+        butterflyGroup.transform.SetParent(root, false);
+
+        // 南部草原・陽だまり花畑・南ビーチ登り口の花スポット（10箇所）
+        Vector3[] southHomes =
+        {
+            new Vector3(240f, 0f, 215f), // 南西ビーチからの登り口花畑
+            new Vector3(255f, 0f, 230f), // 南西斜面・草花パッチ
+            new Vector3(262f, 0f, 220f), // 南部草原・陽だまり花畑西
+            new Vector3(275f, 0f, 205f), // 南部草原・南側見晴らし台花畑
+            new Vector3(285f, 0f, 228f), // 南部草原・陽だまり花畑中央
+            new Vector3(308f, 0f, 215f), // 南部草原・東側野花パッチ
+            new Vector3(325f, 0f, 230f), // 南部草原・段々池アプローチ
+            new Vector3(345f, 0f, 215f), // 南段々池・下流のほとり花畑
+            new Vector3(370f, 0f, 235f), // 南段々池・中段の草花
+            new Vector3(395f, 0f, 225f), // 南東渓流沿い・木陰の花畑
+        };
+
+        for (int i = 0; i < southHomes.Length; i++)
+        {
+            Vector3 pos = southHomes[i];
+            float groundY = land.SampleHeight(pos) + land.transform.position.y;
+            // 花の上空 0.7m〜1.3m をふわりと舞う
+            pos.y = groundY + 0.85f + (float)rng.NextDouble() * 0.45f;
+
+            var prefab = GetButterflyPrefab(i);
+            if (prefab == null) continue;
+
+            var go = InstantiateObject(prefab, butterflyGroup.transform, pos, Quaternion.identity);
+            go.name = $"SouthButterfly_{i + 1:D2}";
+            go.transform.localScale = Vector3.one * 10f;
+
+            var bSpawn = go.GetComponent<IdyllicFantasyNature.ButterflySpawn>();
+            if (bSpawn != null)
+            {
+                if (Application.isPlaying) Destroy(bSpawn);
+                else DestroyImmediate(bSpawn);
+            }
+
+            var anim = go.GetComponent<Animator>();
+            if (anim != null) anim.enabled = true;
+
+            foreach (var t in go.GetComponentsInChildren<Transform>(true))
+                t.gameObject.SetActive(true);
+
+            var drift = go.GetComponent<AdventureButterflyDrift>() ?? go.AddComponent<AdventureButterflyDrift>();
+            drift.radius = 1.6f + (float)rng.NextDouble() * 1.0f;
+            drift.speed = 0.60f + (float)rng.NextDouble() * 0.30f;
+            drift.bob = 0.35f + (float)rng.NextDouble() * 0.30f;
+            drift.ApplyVividWingColor();
         }
     }
 
@@ -574,17 +648,18 @@ public class AdventureWestSlopeFloraManager : MonoBehaviour
             Undo.DestroyObjectImmediate(existingRoot);
         }
 
-        BuildWestSlopeFloraIfNeeded();
+        BuildWestSlopeFloraIfNeeded(forceRebuild: true);
 
         var newRoot = GameObject.Find(RootGameObjectName);
         if (newRoot != null)
         {
-            Undo.RegisterCreatedObjectUndo(newRoot, "Decorate West Slope & Plateau Flora");
+            Undo.RegisterCreatedObjectUndo(newRoot, "Decorate West & South Slope Flora");
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
                 UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
+            UnityEditor.SceneManagement.EditorSceneManager.SaveOpenScenes();
         }
 
-        Debug.Log("🌸 【WestSlope & Plateau】西の斜面および台地の大草原に豊かな草地・花畑・蝶々（30匹）の配置が完了しました！");
+        Debug.Log("🌸 【West & South Meadow】西と南の大地に豊かな草地・花畑・色鮮やかな蝶々（31匹）の配置とシーン保存が完了しました！");
     }
 #endif
 }
