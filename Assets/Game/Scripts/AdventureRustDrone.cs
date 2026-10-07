@@ -2212,10 +2212,18 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
     }
 
-    void SpawnGoldSparkles(Vector3 pos, int count)
+    void SpawnGoldSparkles(Vector3 pos, int count, Transform parent = null)
     {
         var go = new GameObject("Rust_GoldSparkles");
-        go.transform.position = pos;
+        if (parent != null)
+        {
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = Vector3.zero;
+        }
+        else
+        {
+            go.transform.position = pos;
+        }
         var ps = go.AddComponent<ParticleSystem>();
         ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = ps.main;
@@ -2223,10 +2231,11 @@ public partial class AdventureRustDrone : MonoBehaviour
         main.duration = 0.8f;
         main.loop = false;
         main.startLifetime = 1.4f;
-        main.startSpeed = 3.6f;
+        main.startSpeed = parent != null ? 1.5f : 3.6f;
         main.startSize = 0.35f;
         main.startColor = new Color(1f, 0.90f, 0.35f, 0.95f); // 鮮やかなゴールド
-        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.simulationSpace = parent != null ? ParticleSystemSimulationSpace.Local : ParticleSystemSimulationSpace.World;
+        main.scalingMode = ParticleSystemScalingMode.Hierarchy;
 
         var emission = ps.emission;
         emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, count) });
@@ -2247,10 +2256,26 @@ public partial class AdventureRustDrone : MonoBehaviour
         var rend = go.GetComponent<ParticleSystemRenderer>();
         if (rend != null)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                         ?? Shader.Find("Universal Render Pipeline/Unlit")
+                         ?? Shader.Find("Sprites/Default");
             var mat = new Material(shader);
-            mat.SetTexture("_BaseMap", GetSoftSmokeTexture());
-            rend.material = mat;
+            mat.SetColor("_BaseColor", new Color(1f, 0.90f, 0.35f, 0.95f));
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetInt("_ZWrite", 0);
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            var tex = GetSoftSmokeTexture();
+            if (tex != null)
+            {
+                mat.SetTexture("_BaseMap", tex);
+                mat.SetTexture("_MainTex", tex);
+            }
+            rend.sharedMaterial = mat;
+            rend.renderMode = ParticleSystemRenderMode.Billboard;
         }
 
         ps.Play();

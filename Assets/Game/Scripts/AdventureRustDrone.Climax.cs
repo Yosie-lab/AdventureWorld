@@ -365,7 +365,7 @@ public partial class AdventureRustDrone
             _velocity = Vector3.zero;
         }
 
-        SpawnGoldSparkles(transform.position, 48);
+        SpawnGoldSparkles(transform.position, 48, transform);
         SpawnClimaxHealAura();
 
         if (_climaxIceFx != null) _climaxIceFx.Stop();
@@ -601,6 +601,7 @@ public partial class AdventureRustDrone
         shape.shapeType = ParticleSystemShapeType.Sphere;
         shape.radius = 0.35f;
         ApplySoftParticleMaterial(go, new Color(0.7f, 0.9f, 1f, 0.45f));
+        _climaxIceFx.Play();
     }
 
     void SpawnClimaxSparkFx()
@@ -628,6 +629,7 @@ public partial class AdventureRustDrone
         shape.shapeType = ParticleSystemShapeType.Sphere;
         shape.radius = 0.2f;
         ApplySoftParticleMaterial(go, new Color(0.55f, 0.85f, 1f, 1f));
+        _climaxSparkFx.Play();
     }
 
     void SpawnClimaxHealAura()
@@ -635,25 +637,50 @@ public partial class AdventureRustDrone
         if (_climaxHealFx != null)
         {
             _climaxHealFx.Play();
+            _climaxHealFx.Emit(25);
             return;
         }
         var go = new GameObject("Rust_ClimaxHealAura");
         go.transform.SetParent(transform, false);
+        go.transform.localPosition = Vector3.zero;
         _climaxHealFx = go.AddComponent<ParticleSystem>();
         _climaxHealFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
         var main = _climaxHealFx.main;
+        main.playOnAwake = true;
         main.duration = 2f;
         main.loop = true;
-        main.startLifetime = 1.4f;
-        main.startSpeed = 0.35f;
-        main.startSize = 0.12f;
-        main.startColor = new Color(1f, 0.85f, 0.35f, 0.9f);
+        main.startLifetime = 1.6f;
+        main.startSpeed = 0.42f;
+        main.startSize = 0.18f;
+        main.startColor = new Color(1f, 0.88f, 0.38f, 0.95f);
+        main.simulationSpace = ParticleSystemSimulationSpace.Local;
+        main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+
         var emission = _climaxHealFx.emission;
-        emission.rateOverTime = 55f;
+        emission.rateOverTime = 60f;
+
         var shape = _climaxHealFx.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.45f;
-        ApplySoftParticleMaterial(go, new Color(1f, 0.85f, 0.35f, 0.9f));
+        shape.radius = 0.48f;
+
+        // 油がじわっと染み込みながら周囲へ優しく広がるグラデーション演出
+        var col = _climaxHealFx.colorOverLifetime;
+        col.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new GradientColorKey[] { new GradientColorKey(new Color(1f, 0.95f, 0.5f), 0f), new GradientColorKey(new Color(1f, 0.72f, 0.2f), 1f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(0.95f, 0f), new GradientAlphaKey(0f, 1f) }
+        );
+        col.color = grad;
+
+        var size = _climaxHealFx.sizeOverLifetime;
+        size.enabled = true;
+        size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.6f, 1f, 1.25f));
+
+        ApplySoftParticleMaterial(go, new Color(1f, 0.88f, 0.38f, 0.95f));
+        _climaxHealFx.Play();
+        _climaxHealFx.Emit(30); // 注油直後に周囲へ即時バースト展開
     }
 
     void SpawnClimaxJetFx()
@@ -726,6 +753,13 @@ public partial class AdventureRustDrone
         var mat = new Material(sh);
         mat.SetColor("_BaseColor", color);
         mat.SetColor("_Color", color);
+        mat.SetFloat("_Surface", 1f);
+        mat.SetFloat("_Blend", 0f);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        mat.SetInt("_ZWrite", 0);
+        mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
         var tex = GetSoftSmokeTexture();
         if (tex != null)
         {
