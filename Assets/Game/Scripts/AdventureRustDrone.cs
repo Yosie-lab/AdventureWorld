@@ -399,6 +399,7 @@ public partial class AdventureRustDrone : MonoBehaviour
     {
         // セリフ進行は lookAt 無しでも回す（吹き出しが見えない事故防止）
         UpdateSpeech();
+        TickClimaxOverdriveBooster();
 
         if (_lookAt == null)
             return;

@@ -164,6 +164,7 @@ public partial class AdventureRustDrone
     ParticleSystem _climaxHealFx;
     TrailRenderer _climaxTrail;
     Light _climaxEyeLight;
+    Light _climaxBoosterLight;
     Color _savedEmission = Color.black;
 
     /// <summary>天蓋開放〜エンディング：Nikoのそば（カメラから見える位置）に常時寄り添う</summary>
@@ -320,7 +321,17 @@ public partial class AdventureRustDrone
         if (_climaxIceFx != null) _climaxIceFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         if (_climaxSparkFx != null) _climaxSparkFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         if (_climaxHealFx != null) _climaxHealFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-        if (_climaxJetFx != null) _climaxJetFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        if (_climaxJetFx != null)
+        {
+            _climaxJetFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            Destroy(_climaxJetFx.gameObject);
+            _climaxJetFx = null;
+        }
+        if (_climaxBoosterLight != null)
+        {
+            Destroy(_climaxBoosterLight.gameObject);
+            _climaxBoosterLight = null;
+        }
         DestroyClimaxTrail();
         if (_climaxEyeLight != null) _climaxEyeLight.enabled = false;
 
@@ -691,28 +702,260 @@ public partial class AdventureRustDrone
             Destroy(_climaxJetFx.gameObject);
             _climaxJetFx = null;
         }
+        if (_climaxBoosterLight != null)
+        {
+            Destroy(_climaxBoosterLight.gameObject);
+            _climaxBoosterLight = null;
+        }
+
         var go = new GameObject("Rust_ClimaxJetFx");
         go.transform.SetParent(transform, false);
-        go.transform.localPosition = new Vector3(0f, -0.05f, -0.32f);
-        go.transform.localRotation = Quaternion.Euler(180f, 0f, 0f);
+        // Rust底面後方のノズル位置
+        go.transform.localPosition = new Vector3(0f, -0.06f, -0.38f);
+        // 後方斜め下（15度下向き）に噴射することで、Rustの頭や体へのめり込みを防ぎ、カメラから噴射流全体がドラマチックに見える角度に
+        go.transform.localRotation = Quaternion.Euler(165f, 0f, 0f);
+
+        // 1. 【超高輝度・高速コア推進ジェット】（直進する強烈なプラズマ炎の柱）
         _climaxJetFx = go.AddComponent<ParticleSystem>();
         _climaxJetFx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = _climaxJetFx.main;
-        main.duration = 10f;
+        main.duration = 5f;
         main.loop = true;
-        main.startLifetime = 0.35f;
-        main.startSpeed = 12f;
-        main.startSize = 0.22f;
-        main.startColor = new Color(1f, 0.92f, 0.55f, 0.92f);
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.40f, 0.60f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(16f, 22f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.35f, 0.55f);
+        main.startColor = new Color(1f, 0.96f, 0.70f, 1f); // 黄金コア
         main.simulationSpace = ParticleSystemSimulationSpace.Local;
+        main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+
         var emission = _climaxJetFx.emission;
-        emission.rateOverTime = 90f;
+        emission.rateOverTime = 130f;
+
         var shape = _climaxJetFx.shape;
         shape.shapeType = ParticleSystemShapeType.Cone;
-        shape.angle = 8f;
-        shape.radius = 0.05f;
-        ApplySoftParticleMaterial(go, new Color(1f, 0.88f, 0.42f, 0.9f));
+        shape.angle = 6f; // 収束した力強いジェットビーム
+        shape.radius = 0.04f;
+
+        var sizeLife = _climaxJetFx.sizeOverLifetime;
+        sizeLife.enabled = true;
+        sizeLife.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.45f, 1f, 1.25f));
+
+        var colLife = _climaxJetFx.colorOverLifetime;
+        colLife.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(new Color(1f, 1f, 0.85f), 0f),
+                new GradientColorKey(new Color(1f, 0.75f, 0.20f), 0.4f),
+                new GradientColorKey(new Color(1f, 0.45f, 0.05f), 1f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(0.95f, 0.6f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+        colLife.color = grad;
+
+        ApplyAdditiveParticleMaterial(go, new Color(2.4f, 1.9f, 0.7f, 1f), true, 0.07f, 1.8f);
+
+        // 2. 【元気いっぱいに飛び散る高エネルギー・プラズマスパーク】（火花粒子）
+        var sparksGo = new GameObject("Rust_ClimaxSparks");
+        sparksGo.transform.SetParent(go.transform, false);
+        sparksGo.transform.localPosition = Vector3.zero;
+        sparksGo.transform.localRotation = Quaternion.identity;
+
+        var sparksPs = sparksGo.AddComponent<ParticleSystem>();
+        sparksPs.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        var sMain = sparksPs.main;
+        sMain.duration = 5f;
+        sMain.loop = true;
+        sMain.startLifetime = new ParticleSystem.MinMaxCurve(0.40f, 0.75f);
+        sMain.startSpeed = new ParticleSystem.MinMaxCurve(14f, 26f);
+        sMain.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.20f);
+        sMain.startColor = new Color(1f, 0.98f, 0.50f, 1f);
+        sMain.simulationSpace = ParticleSystemSimulationSpace.World; // 空間に飛び散る
+        sMain.scalingMode = ParticleSystemScalingMode.Hierarchy;
+
+        var sEmission = sparksPs.emission;
+        sEmission.rateOverTime = 85f;
+
+        var sShape = sparksPs.shape;
+        sShape.shapeType = ParticleSystemShapeType.Cone;
+        sShape.angle = 18f;
+        sShape.radius = 0.06f;
+
+        var sColLife = sparksPs.colorOverLifetime;
+        sColLife.enabled = true;
+        var sGrad = new Gradient();
+        sGrad.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(new Color(1f, 1f, 0.9f), 0f),
+                new GradientColorKey(new Color(1f, 0.7f, 0.1f), 0.7f),
+                new GradientColorKey(new Color(1f, 0.3f, 0.0f), 1f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 0.7f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+        sColLife.color = sGrad;
+
+        ApplyAdditiveParticleMaterial(sparksGo, new Color(2.5f, 2.0f, 0.5f, 1f), false);
+
+        // 3. 【大空をたなびく黄金のアフターバーナー推進噴流】（World空間で後ろに長く残る雲気流）
+        var plumeGo = new GameObject("Rust_ClimaxPlume");
+        plumeGo.transform.SetParent(go.transform, false);
+        plumeGo.transform.localPosition = Vector3.zero;
+        plumeGo.transform.localRotation = Quaternion.identity;
+
+        var plumePs = plumeGo.AddComponent<ParticleSystem>();
+        plumePs.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        var pMain = plumePs.main;
+        pMain.duration = 5f;
+        pMain.loop = true;
+        pMain.startLifetime = new ParticleSystem.MinMaxCurve(0.85f, 1.40f);
+        pMain.startSpeed = new ParticleSystem.MinMaxCurve(4f, 8f);
+        pMain.startSize = new ParticleSystem.MinMaxCurve(0.40f, 0.70f);
+        pMain.startColor = new Color(1f, 0.85f, 0.35f, 0.85f);
+        pMain.simulationSpace = ParticleSystemSimulationSpace.World; // 大空に軌跡を描く
+        pMain.scalingMode = ParticleSystemScalingMode.Hierarchy;
+
+        var pEmission = plumePs.emission;
+        pEmission.rateOverTime = 50f;
+
+        var pShape = plumePs.shape;
+        pShape.shapeType = ParticleSystemShapeType.Cone;
+        pShape.angle = 12f;
+        pShape.radius = 0.08f;
+
+        var pSizeLife = plumePs.sizeOverLifetime;
+        pSizeLife.enabled = true;
+        pSizeLife.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.6f, 1f, 2.5f)); // 後方でふわっと大きく広がる
+
+        var pColLife = plumePs.colorOverLifetime;
+        pColLife.enabled = true;
+        var pGrad = new Gradient();
+        pGrad.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(new Color(1f, 0.92f, 0.50f), 0f),
+                new GradientColorKey(new Color(1f, 0.65f, 0.15f), 0.5f),
+                new GradientColorKey(new Color(0.95f, 0.45f, 0.10f), 1f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(0.85f, 0f),
+                new GradientAlphaKey(0.60f, 0.4f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+        pColLife.color = pGrad;
+
+        ApplyAdditiveParticleMaterial(plumeGo, new Color(1.8f, 1.2f, 0.35f, 0.85f), false);
+
+        // 4. 【噴射口の超動的ブースターライト】（Rustの背面と周囲の空間を照らし、ジェットの存在感を爆発的に向上）
+        var lightGo = new GameObject("Rust_ClimaxBoosterLight");
+        lightGo.transform.SetParent(go.transform, false);
+        lightGo.transform.localPosition = new Vector3(0f, 0f, 0.05f);
+        _climaxBoosterLight = lightGo.AddComponent<Light>();
+        _climaxBoosterLight.type = LightType.Point;
+        _climaxBoosterLight.range = 6.0f;
+        _climaxBoosterLight.intensity = 5.2f;
+        _climaxBoosterLight.color = new Color(1f, 0.80f, 0.30f);
+
+        // 一斉開始
         _climaxJetFx.Play();
+        sparksPs.Play();
+        plumePs.Play();
+
+        // 5. 黄金のオーバードライブ推進リボン（TrailRenderer）
+        EnsureClimaxOverdriveTrail();
+    }
+
+    /// <summary>オーバードライブ中のブースターライト高速脈動（推進エンジンの唸りを光で表現）</summary>
+    public void TickClimaxOverdriveBooster()
+    {
+        if (!IsClimaxOverdrive) return;
+        if (_climaxBoosterLight != null && _climaxBoosterLight.enabled)
+        {
+            _climaxBoosterLight.intensity = 5.0f + Mathf.Sin(Time.time * 36f) * 0.9f + Mathf.PerlinNoise(Time.time * 24f, 0f) * 0.6f;
+        }
+    }
+
+    void EnsureClimaxOverdriveTrail()
+    {
+        if (_climaxTrail == null)
+            _climaxTrail = gameObject.AddComponent<TrailRenderer>();
+        _climaxTrail.emitting = true;
+        _climaxTrail.time = 0.65f;
+        _climaxTrail.startWidth = 0.38f;
+        _climaxTrail.endWidth = 0.03f;
+        _climaxTrail.minVertexDistance = 0.08f;
+        var sh = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                 ?? Shader.Find("Universal Render Pipeline/Unlit")
+                 ?? Shader.Find("Sprites/Default");
+        if (sh != null)
+        {
+            var mat = new Material(sh);
+            mat.SetColor("_BaseColor", new Color(1f, 0.88f, 0.35f, 0.95f));
+            mat.color = new Color(1f, 0.88f, 0.35f, 0.95f);
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 1f); // Additive
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.EnableKeyword("_BLENDMODE_ADD");
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            mat.SetInt("_ZWrite", 0);
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 150;
+            var tex = GetSoftSmokeTexture();
+            if (tex != null)
+            {
+                mat.SetTexture("_BaseMap", tex);
+                mat.SetTexture("_MainTex", tex);
+            }
+            _climaxTrail.material = mat;
+        }
+        _climaxTrail.startColor = new Color(1f, 0.92f, 0.45f, 0.95f);
+        _climaxTrail.endColor = new Color(1f, 0.50f, 0.10f, 0f);
+    }
+
+    static void ApplyAdditiveParticleMaterial(GameObject go, Color color, bool isStretched = false, float velocityScale = 0.07f, float lengthScale = 1.8f)
+    {
+        var renderer = go != null ? go.GetComponent<ParticleSystemRenderer>() : null;
+        if (renderer == null) return;
+        var sh = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                 ?? Shader.Find("Universal Render Pipeline/Unlit")
+                 ?? Shader.Find("Sprites/Default")
+                 ?? Shader.Find("Particles/Standard Unlit");
+        if (sh == null) return;
+        var mat = new Material(sh);
+        mat.SetColor("_BaseColor", color);
+        mat.SetColor("_Color", color);
+        mat.SetFloat("_Surface", 1f);
+        mat.SetFloat("_Blend", 1f); // 1 = Additive
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.EnableKeyword("_BLENDMODE_ADD");
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        mat.SetInt("_ZWrite", 0);
+        mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 100;
+        var tex = GetSoftSmokeTexture();
+        if (tex != null)
+        {
+            mat.SetTexture("_BaseMap", tex);
+            mat.SetTexture("_MainTex", tex);
+        }
+        renderer.sharedMaterial = mat;
+        if (isStretched)
+        {
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.velocityScale = velocityScale;
+            renderer.lengthScale = lengthScale;
+        }
+        else
+        {
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+        }
     }
 
     void EnsureClimaxTrail()
