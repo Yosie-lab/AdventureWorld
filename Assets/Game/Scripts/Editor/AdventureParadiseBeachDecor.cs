@@ -297,6 +297,13 @@ public static class AdventureParadiseBeachDecor
             var b = Object.Instantiate(prefab, spawnPositions[i], Quaternion.Euler(0f, i * 72f, 0f), holder.transform);
             b.name = $"Butterfly_{i + 1:D2}";
             b.transform.localScale = Vector3.one * 1.3f;
+            var bSpawn = b.GetComponent<IdyllicFantasyNature.ButterflySpawn>();
+            if (bSpawn != null) Object.DestroyImmediate(bSpawn);
+            var drift = b.GetComponent<AdventureButterflyDrift>() ?? b.AddComponent<AdventureButterflyDrift>();
+            drift.radius = 2.2f;
+            drift.bob = 0.5f;
+            drift.speed = 0.7f;
+            drift.ApplyVividWingColor();
         }
     }
 

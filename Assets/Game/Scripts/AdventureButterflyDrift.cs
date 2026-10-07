@@ -5,7 +5,7 @@ using UnityEngine;
 /// 『Rust & Float』蝶々の優雅な浮遊・旋回モーションコンポーネント。
 /// ・色鮮やかで美しい羽の極彩色カラーパレット（サファイア、トパーズ、ルビー、エメラルド、タンジェリン、アメジスト）
 /// ・花の上をふわりと優美に8の字に舞うホバリング軌道（花蜜を探すようなリアルで愛らしい動き）
-/// ・距離カリング（36m以遠の更新・アニメーション停止）による極めて高効率な負荷削減。
+/// ・距離カリング（150m以遠）時のRenderer完全非表示化（空中で静止したまま死骸のように残る現象を100%防止）
 /// ・Idyllic Fantasy Nature のアニメーションイベント 'AnimationEnded' の安全受信。
 /// ・静的リスト ActiveButterflies により、ドローン等からのポーリング負荷を完全排除。
 /// </summary>
@@ -20,11 +20,13 @@ public class AdventureButterflyDrift : MonoBehaviour
     private Vector3 _home;
     private float _t;
     private Animator _animator;
+    private Renderer[] _renderers;
     private bool _isCulled;
     private float _checkTimer;
     private bool _colorApplied;
 
-    private const float CULL_DISTANCE_SQR = 36f * 36f; // 36m以上でカリング
+    // 150m以上でカリング（遠景で完全に見えなくなる距離までアクティブ維持）
+    private const float CULL_DISTANCE_SQR = 150f * 150f;
     private static Transform _cameraTransform;
 
     // 鮮やかで美しい極彩色カラーパレット（BaseColor, EmissionColor）
@@ -47,6 +49,7 @@ public class AdventureButterflyDrift : MonoBehaviour
     private void Awake()
     {
         _animator = GetComponent<Animator>() ?? GetComponentInChildren<Animator>();
+        _renderers = GetComponentsInChildren<Renderer>(true);
     }
 
     private void OnEnable()
@@ -59,6 +62,9 @@ public class AdventureButterflyDrift : MonoBehaviour
         bob = Random.Range(0.35f, 0.65f);
         speed = Random.Range(0.55f, 0.85f);
         _checkTimer = Random.Range(0f, 0.4f);
+
+        // カリング状態を解除し、レンダラーとアニメーターを確実に有効化
+        SetCulled(false);
 
         // 最寄りの花にふわりと吸着・寄り添う
         SnapToNearbyFlower();
@@ -95,13 +101,16 @@ public class AdventureButterflyDrift : MonoBehaviour
     /// <summary>羽を色鮮やかに染め上げ、光の中でも美しく映えるエミッションを設定</summary>
     public void ApplyVividWingColor()
     {
-        var renderers = GetComponentsInChildren<Renderer>(true);
-        if (renderers == null || renderers.Length == 0) return;
+        if (_renderers == null || _renderers.Length == 0)
+        {
+            _renderers = GetComponentsInChildren<Renderer>(true);
+        }
+        if (_renderers == null || _renderers.Length == 0) return;
 
         int idx = Random.Range(0, VividPalettes.Length);
         var pal = VividPalettes[idx];
 
-        foreach (var rend in renderers)
+        foreach (var rend in _renderers)
         {
             if (rend == null) continue;
             var mats = rend.materials;
@@ -124,6 +133,30 @@ public class AdventureButterflyDrift : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// カリング状態の制御。
+    /// カリング時はAnimatorの停止だけでなく、Rendererも完全に非表示化することで、
+    /// 空中で静止した蝶々の死骸が見える不具合を完全に根絶する。
+    /// </summary>
+    public void SetCulled(bool culled)
+    {
+        _isCulled = culled;
+        if (_animator != null)
+        {
+            _animator.enabled = !culled;
+        }
+        if (_renderers != null)
+        {
+            for (int i = 0; i < _renderers.Length; i++)
+            {
+                if (_renderers[i] != null)
+                {
+                    _renderers[i].enabled = !culled;
+                }
+            }
+        }
+    }
+
     private void Update()
     {
         // 0.3秒ごとに距離カリング判定（GC Alloc ゼロ）
@@ -142,11 +175,15 @@ public class AdventureButterflyDrift : MonoBehaviour
                 bool shouldCull = distSqr > CULL_DISTANCE_SQR;
                 if (shouldCull != _isCulled)
                 {
-                    _isCulled = shouldCull;
-                    if (_animator != null)
-                    {
-                        _animator.enabled = !_isCulled;
-                    }
+                    SetCulled(shouldCull);
+                }
+            }
+            else
+            {
+                // カメラが見つからない場合は安全のため描画・動作を継続
+                if (_isCulled)
+                {
+                    SetCulled(false);
                 }
             }
         }
@@ -179,4 +216,3 @@ public class AdventureButterflyDrift : MonoBehaviour
         // アニメーション周期終端の正常受信
     }
 }
-
