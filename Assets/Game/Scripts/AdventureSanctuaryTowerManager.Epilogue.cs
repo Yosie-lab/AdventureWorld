@@ -57,7 +57,7 @@ public partial class AdventureSanctuaryTowerManager
         new FilmLine("真の生きている証(あかし)を得るんだ。", 4.4f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
         new FilmLine("傷つくかもしれない自由と、", 0.5f, 2.0f, 0.4f, 3, new Color(1f, 0.94f, 0.70f, 1f)),
         new FilmLine("生きることの重みを取り戻した二人の旅が、", 0.5f, 2.8f, 0.5f, 3, new Color(1f, 0.94f, 0.70f, 1f)),
-        new FilmLine("ここから、また始まる。—— 『Rust & Float』", 3.55f, 3, new Color(1f, 0.88f, 0.45f, 1f)),
+        new FilmLine("今 ーここから、また始まる。—— 『Rust & Float』", 3.55f, 3, new Color(1f, 0.88f, 0.45f, 1f)),
     };
 
     Font ResolveEpilogueFont()
