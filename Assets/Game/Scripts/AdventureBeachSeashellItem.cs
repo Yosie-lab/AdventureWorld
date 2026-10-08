@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
 /// 白砂ビーチの波打ち際に打ち上げられた貝殻・シーグラス・琥珀の採取アイテム。
