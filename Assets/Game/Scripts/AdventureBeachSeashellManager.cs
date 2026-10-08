@@ -214,8 +214,20 @@ public class AdventureBeachSeashellManager : MonoBehaviour
     /// <summary>白砂ビーチの波打ち際に貝殻・シーグラスを美しく配置</summary>
     void SpawnBeachSeashells()
     {
-        // 既存アイテムがあれば二重生成を防止
+        _items.RemoveAll(item => item == null);
         if (_items.Count > 0) return;
+
+        // シーン内に既存のRootが存在すれば再利用して二重生成を防止
+        var existingRoot = GameObject.Find("BeachSeashells_Root");
+        if (existingRoot != null)
+        {
+            var existingItems = existingRoot.GetComponentsInChildren<AdventureBeachSeashellItem>(true);
+            if (existingItems != null && existingItems.Length > 0)
+            {
+                _items.AddRange(existingItems);
+                return;
+            }
+        }
 
         var land = Terrain.activeTerrain;
 
@@ -456,15 +468,15 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         Debug.Log("[AdventureBeachSeashellManager] 🐚 貝殻・シーグラスの収集データを完全リセット＆位置を再配置しました");
     }
 
-    /// <summary>各アイテムの座標を地形に沿ってランダムに再配置・微小ジッター</summary>
+    /// <summary>各アイテムの座標を地形に沿ってランダムに再配置し、内部状態を完全初期化</summary>
     public void ReshuffleSeashellPositions()
     {
+        EnsureItemsValid();
         var land = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
         for (int i = 0; i < _items.Count; i++)
         {
             var item = _items[i];
             if (item == null) continue;
-            item.gameObject.SetActive(true);
 
             Vector3 current = item.transform.position;
             // 周囲 ±2.5m の範囲でランダムに揺らす
@@ -475,7 +487,24 @@ public class AdventureBeachSeashellManager : MonoBehaviour
                 float h = land.SampleHeight(nextPos) + land.transform.position.y;
                 nextPos.y = Mathf.Max(5.68f, h + 0.05f);
             }
-            item.transform.position = nextPos;
+            item.ResetItemState(nextPos);
+        }
+    }
+
+    void EnsureItemsValid()
+    {
+        _items.RemoveAll(item => item == null);
+        if (_items.Count == 0)
+        {
+            var sceneItems = Object.FindObjectsByType<AdventureBeachSeashellItem>(FindObjectsInactive.Include);
+            if (sceneItems != null && sceneItems.Length > 0)
+            {
+                _items.AddRange(sceneItems);
+            }
+            else
+            {
+                SpawnBeachSeashells();
+            }
         }
     }
 

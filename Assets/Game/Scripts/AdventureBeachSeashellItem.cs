@@ -49,7 +49,13 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         if (col == null)
             col = gameObject.AddComponent<SphereCollider>();
         col.isTrigger = true;
-        col.radius = 2.0f;
+        col.radius = 2.2f;
+
+        var rb = GetComponent<Rigidbody>();
+        if (rb == null)
+            rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity = false;
     }
 
     /// <summary>Managerから指定ID・種類を受け取って固有の見た目・効果を構築</summary>
@@ -70,6 +76,49 @@ public class AdventureBeachSeashellItem : MonoBehaviour
             _isCollected = true;
             gameObject.SetActive(false);
         }
+    }
+
+    void OnEnable()
+    {
+        if (!string.IsNullOrEmpty(itemId))
+        {
+            bool savedCollected = PlayerPrefs.GetInt("Seashell_Collected_" + itemId, 0) == 1;
+            if (!savedCollected && _isCollected)
+            {
+                ResetItemState(transform.position);
+            }
+        }
+    }
+
+    /// <summary>リスタート・ニューゲーム用：内部状態・外見・当たり判定を完全初期化</summary>
+    public void ResetItemState(Vector3 newPos)
+    {
+        _isCollected = false;
+        _isCollecting = false;
+        _isPlayerNear = false;
+        _collectAnimTimer = 0f;
+
+        transform.position = newPos;
+        _startPos = newPos;
+        transform.localScale = Vector3.one;
+
+        if (_pointLight != null)
+        {
+            _pointLight.enabled = true;
+        }
+
+        var col = GetComponent<SphereCollider>();
+        if (col != null)
+        {
+            col.enabled = true;
+        }
+
+        if (_visualRoot != null)
+        {
+            _visualRoot.gameObject.SetActive(true);
+        }
+
+        gameObject.SetActive(true);
     }
 
     void Start()
@@ -350,19 +399,19 @@ public class AdventureBeachSeashellItem : MonoBehaviour
             float flatDist = Vector2.Distance(new Vector2(itemPos.x, itemPos.z), new Vector2(playerPos.x, playerPos.z));
             float heightDiff = Mathf.Abs(itemPos.y - playerPos.y);
 
-            // すぐ近く（水平2.4m、高さ差2.0m以内）まで近づくと自動で手元へフワリと吸い込み採取！
-            const float autoPickupDist = 2.4f;
-            const float promptDist = 3.5f;
+            // すぐ近く（水平2.6m、高さ差3.0m以内）まで近づくと自動で手元へフワリと吸い込み採取！
+            const float autoPickupDist = 2.6f;
+            const float promptDist = 3.8f;
 
-            if (flatDist < autoPickupDist && heightDiff < 2.2f)
+            if (flatDist < autoPickupDist && heightDiff < 3.0f)
             {
                 _isPlayerNear = false;
                 StartCollecting();
                 return;
             }
 
-            // 少し離れた距離（2.4m〜3.5m）ではEキー/クリックでの手動採取も受付
-            _isPlayerNear = (flatDist < promptDist && heightDiff < 2.2f);
+            // 少し離れた距離（2.6m〜3.8m）ではEキー/クリックでの手動採取も受付
+            _isPlayerNear = (flatDist < promptDist && heightDiff < 3.0f);
 
             if (_isPlayerNear)
             {
