@@ -102,6 +102,24 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         _startPos = newPos;
         transform.localScale = Vector3.one;
 
+        // ビジュアルが旧形式なら高品質リアルモデルへ自動再生成
+        if (_visualRoot != null && _visualRoot.Find("Shell_Lower") == null && _visualRoot.Find("SeaGlass_Stone") == null && _visualRoot.Find("Amber_Stone") == null && _visualRoot.Find("Spiral_Shell") == null)
+        {
+            if (Application.isPlaying) Destroy(_visualRoot.gameObject);
+            else DestroyImmediate(_visualRoot.gameObject);
+            _visualRoot = null;
+            CreateVisual();
+        }
+        else if (_visualRoot == null)
+        {
+            CreateVisual();
+        }
+
+        if (_visualRoot != null)
+        {
+            _visualRoot.gameObject.SetActive(true);
+        }
+
         if (_pointLight != null)
         {
             _pointLight.enabled = true;
@@ -111,11 +129,6 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         if (col != null)
         {
             col.enabled = true;
-        }
-
-        if (_visualRoot != null)
-        {
-            _visualRoot.gameObject.SetActive(true);
         }
 
         gameObject.SetActive(true);
@@ -181,103 +194,596 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         _visualRoot = vGo.transform;
 
         var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-        var mat = new Material(shader);
-        mat.EnableKeyword("_EMISSION");
 
         switch (kind)
         {
             case ShellKind.Sakuragai:
                 itemName = "桜色のサクラガイ";
                 rustReaction = "わぁ、花びらみたいな貝殻だね！";
-                themeColor = new Color(1f, 0.72f, 0.85f, 1f);
-                mat.color = new Color(1f, 0.78f, 0.88f, 0.95f);
-                mat.SetColor("_EmissionColor", new Color(1f, 0.65f, 0.80f) * 1.5f);
-                mat.SetFloat("_Smoothness", 0.85f);
-                CreateShellMesh(vGo.transform, mat, isSakura: true);
+                themeColor = new Color(1f, 0.68f, 0.82f, 1f);
+                CreateRealisticSakuragai(vGo.transform, shader);
                 break;
 
             case ShellKind.SeaGlassEmerald:
                 itemName = "エメラルド・シーグラス";
                 rustReaction = "波に磨かれて角がすべすべだ！宝石みたい…！";
-                themeColor = new Color(0.20f, 0.98f, 0.65f, 1f);
-                mat.color = new Color(0.25f, 0.92f, 0.65f, 0.92f);
-                mat.SetColor("_EmissionColor", new Color(0.15f, 0.95f, 0.55f) * 1.6f);
-                mat.SetFloat("_Smoothness", 0.90f);
-                CreateGlassMesh(vGo.transform, mat);
+                themeColor = new Color(0.20f, 0.96f, 0.65f, 1f);
+                CreateRealisticSeaGlass(vGo.transform, shader, new Color(0.18f, 0.90f, 0.58f, 0.92f), "Emerald");
                 break;
 
             case ShellKind.SeaGlassSapphire:
                 itemName = "サファイア・シーグラス";
                 rustReaction = "深海みたいな綺麗な青色！空に透かすとキラキラするよ！";
-                themeColor = new Color(0.30f, 0.80f, 1f, 1f);
-                mat.color = new Color(0.20f, 0.72f, 0.98f, 0.92f);
-                mat.SetColor("_EmissionColor", new Color(0.20f, 0.75f, 1f) * 1.6f);
-                mat.SetFloat("_Smoothness", 0.90f);
-                CreateGlassMesh(vGo.transform, mat);
+                themeColor = new Color(0.25f, 0.78f, 1f, 1f);
+                CreateRealisticSeaGlass(vGo.transform, shader, new Color(0.20f, 0.72f, 0.98f, 0.92f), "Sapphire");
                 break;
 
             case ShellKind.AmberPebble:
                 itemName = "太陽の小琥珀";
                 rustReaction = "黄金色に光ってる…！昔の太陽の光を閉じ込めたみたい！";
-                themeColor = new Color(1f, 0.85f, 0.25f, 1f);
-                mat.color = new Color(1f, 0.80f, 0.18f, 0.95f);
-                mat.SetColor("_EmissionColor", new Color(1f, 0.78f, 0.20f) * 1.5f);
-                mat.SetFloat("_Smoothness", 0.85f);
-                CreateAmberMesh(vGo.transform, mat);
+                themeColor = new Color(1f, 0.82f, 0.22f, 1f);
+                CreateRealisticAmber(vGo.transform, shader);
                 break;
 
             case ShellKind.SpiralShell:
                 itemName = "純白の小巻貝";
                 rustReaction = "耳を当ててみて、Niko！遠くの波の音が聞こえるよ！";
-                themeColor = new Color(0.95f, 0.98f, 1f, 1f);
-                mat.color = new Color(0.98f, 0.97f, 0.92f, 1f);
-                mat.SetColor("_EmissionColor", new Color(0.90f, 0.95f, 1f) * 1.3f);
-                mat.SetFloat("_Smoothness", 0.80f);
-                CreateSpiralMesh(vGo.transform, mat);
+                themeColor = new Color(0.96f, 0.98f, 1f, 1f);
+                CreateRealisticSpiralShell(vGo.transform, shader);
                 break;
         }
 
-        // 砂浜に少し埋もれた自然な傾き
-        _visualRoot.localRotation = Quaternion.Euler(Random.Range(-10f, 10f), Random.Range(0f, 360f), Random.Range(-12f, 12f));
+        // 砂浜にコロンと自然に乗る緩やかな傾き
+        _visualRoot.localRotation = Quaternion.Euler(Random.Range(-4f, 6f), Random.Range(0f, 360f), Random.Range(-5f, 6f));
     }
 
-    void CreateShellMesh(Transform parent, Material mat, bool isSakura)
+    #region Realistic Visual Builders
+    // メッシュ＆テクスチャの共有キャッシュ（GC削減）
+    static Mesh _sakuragaiMesh;
+    static Mesh _seaGlassMesh;
+    static Mesh _amberMesh;
+    static Mesh _spiralMesh;
+    static Texture2D _sakuragaiTex;
+    static Texture2D _seaGlassEmeraldTex;
+    static Texture2D _seaGlassSapphireTex;
+    static Texture2D _amberTex;
+    static Texture2D _spiralTex;
+
+    void CreateRealisticSakuragai(Transform parent, Shader shader)
     {
-        var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        sphere.transform.SetParent(parent, false);
-        sphere.transform.localScale = new Vector3(0.26f, 0.055f, 0.32f); // 砂に埋もれずコロンと目立つ
-        sphere.GetComponent<Renderer>().material = mat;
-        Destroy(sphere.GetComponent<Collider>());
+        if (_sakuragaiMesh == null) _sakuragaiMesh = BuildSakuragaiMesh();
+        if (_sakuragaiTex == null) _sakuragaiTex = GenerateSakuragaiTexture();
+
+        var mat = new Material(shader) { name = "Sakuragai_Mat" };
+        mat.mainTexture = _sakuragaiTex;
+        mat.color = new Color(1f, 0.88f, 0.93f, 1f);
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", _sakuragaiTex);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", new Color(1f, 0.88f, 0.93f, 1f));
+        mat.SetFloat("_Smoothness", 0.90f); // 濡れた貝殻の上品なパール光沢
+        mat.SetFloat("_Metallic", 0.08f);
+        mat.EnableKeyword("_EMISSION");
+        // 実物の模様・陰影を優先するため、エミッションは輪郭をほんのり際立たせる程度に抑制
+        mat.SetColor("_EmissionColor", new Color(1f, 0.55f, 0.75f) * 0.18f);
+
+        // 下殻（砂に接地）
+        var lower = new GameObject("Shell_Lower");
+        lower.transform.SetParent(parent, false);
+        lower.transform.localPosition = new Vector3(0f, 0.02f, 0f);
+        lower.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
+        var mfLow = lower.AddComponent<MeshFilter>();
+        mfLow.sharedMesh = _sakuragaiMesh;
+        var mrLow = lower.AddComponent<MeshRenderer>();
+        mrLow.sharedMaterial = mat;
+
+        // 上殻（蝶番を基点にわずかに開いた二枚貝の立体造形）
+        var upper = new GameObject("Shell_Upper");
+        upper.transform.SetParent(parent, false);
+        upper.transform.localPosition = new Vector3(0f, 0.035f, -0.015f);
+        upper.transform.localRotation = Quaternion.Euler(-13f, 0f, 0f);
+        upper.transform.localScale = new Vector3(0.40f, 0.40f, 0.40f);
+        var mfUp = upper.AddComponent<MeshFilter>();
+        mfUp.sharedMesh = _sakuragaiMesh;
+        var mrUp = upper.AddComponent<MeshRenderer>();
+        mrUp.sharedMaterial = mat;
     }
 
-    void CreateGlassMesh(Transform parent, Material mat)
+    void CreateRealisticSeaGlass(Transform parent, Shader shader, Color baseCol, string variant)
     {
-        var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        cube.transform.SetParent(parent, false);
-        cube.transform.localScale = new Vector3(0.22f, 0.08f, 0.24f); // 宝石のように立体的に光る
-        cube.transform.localRotation = Quaternion.Euler(15f, 30f, 10f);
-        cube.GetComponent<Renderer>().material = mat;
-        Destroy(cube.GetComponent<Collider>());
+        if (_seaGlassMesh == null) _seaGlassMesh = BuildSeaGlassMesh();
+        Texture2D tex = null;
+        if (variant == "Emerald")
+        {
+            if (_seaGlassEmeraldTex == null) _seaGlassEmeraldTex = GenerateSeaGlassTexture(new Color(0.18f, 0.92f, 0.58f));
+            tex = _seaGlassEmeraldTex;
+        }
+        else
+        {
+            if (_seaGlassSapphireTex == null) _seaGlassSapphireTex = GenerateSeaGlassTexture(new Color(0.20f, 0.72f, 0.98f));
+            tex = _seaGlassSapphireTex;
+        }
+
+        var mat = new Material(shader) { name = $"SeaGlass_{variant}_Mat" };
+        mat.mainTexture = tex;
+        mat.color = baseCol;
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", baseCol);
+        mat.SetFloat("_Smoothness", 0.86f); // 波で洗われたすりガラス（フロスト）の自然な光沢
+        mat.SetFloat("_Metallic", 0.05f);
+        mat.EnableKeyword("_EMISSION");
+        mat.SetColor("_EmissionColor", baseCol * 0.22f);
+
+        var glassGo = new GameObject("SeaGlass_Stone");
+        glassGo.transform.SetParent(parent, false);
+        glassGo.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+        glassGo.transform.localScale = new Vector3(0.36f, 0.32f, 0.34f);
+        var mf = glassGo.AddComponent<MeshFilter>();
+        mf.sharedMesh = _seaGlassMesh;
+        var mr = glassGo.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = mat;
     }
 
-    void CreateAmberMesh(Transform parent, Material mat)
+    void CreateRealisticAmber(Transform parent, Shader shader)
     {
-        var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        sphere.transform.SetParent(parent, false);
-        sphere.transform.localScale = new Vector3(0.20f, 0.14f, 0.22f);
-        sphere.GetComponent<Renderer>().material = mat;
-        Destroy(sphere.GetComponent<Collider>());
+        if (_amberMesh == null) _amberMesh = BuildAmberMesh();
+        if (_amberTex == null) _amberTex = GenerateAmberTexture();
+
+        var mat = new Material(shader) { name = "Amber_Mat" };
+        mat.mainTexture = _amberTex;
+        mat.color = new Color(1f, 0.82f, 0.22f, 1f);
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", _amberTex);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", new Color(1f, 0.82f, 0.22f, 1f));
+        mat.SetFloat("_Smoothness", 0.94f); // 磨かれた琥珀のトロリとした高い平滑度
+        mat.SetFloat("_Metallic", 0.04f);
+        mat.EnableKeyword("_EMISSION");
+        mat.SetColor("_EmissionColor", new Color(1f, 0.75f, 0.15f) * 0.22f);
+
+        var amberGo = new GameObject("Amber_Stone");
+        amberGo.transform.SetParent(parent, false);
+        amberGo.transform.localPosition = new Vector3(0f, 0.06f, 0f);
+        amberGo.transform.localScale = new Vector3(0.34f, 0.30f, 0.38f);
+        var mf = amberGo.AddComponent<MeshFilter>();
+        mf.sharedMesh = _amberMesh;
+        var mr = amberGo.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = mat;
+
+        // 内部に輝く黄金色のコア（内包物・化石の光の核）
+        var coreGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        coreGo.name = "Amber_InnerCore";
+        coreGo.transform.SetParent(amberGo.transform, false);
+        coreGo.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+        coreGo.transform.localScale = new Vector3(0.24f, 0.20f, 0.24f);
+        Destroy(coreGo.GetComponent<Collider>());
+        var coreMat = new Material(shader);
+        coreMat.color = new Color(1f, 0.92f, 0.35f, 1f);
+        coreMat.EnableKeyword("_EMISSION");
+        coreMat.SetColor("_EmissionColor", new Color(1f, 0.85f, 0.2f) * 0.4f);
+        coreGo.GetComponent<Renderer>().sharedMaterial = coreMat;
     }
 
-    void CreateSpiralMesh(Transform parent, Material mat)
+    void CreateRealisticSpiralShell(Transform parent, Shader shader)
     {
-        var cap = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        cap.transform.SetParent(parent, false);
-        cap.transform.localScale = new Vector3(0.13f, 0.26f, 0.13f);
-        cap.transform.localRotation = Quaternion.Euler(0f, 0f, 65f);
-        cap.GetComponent<Renderer>().material = mat;
-        Destroy(cap.GetComponent<Collider>());
+        if (_spiralMesh == null) _spiralMesh = BuildSpiralMesh();
+        if (_spiralTex == null) _spiralTex = GenerateSpiralTexture();
+
+        var mat = new Material(shader) { name = "SpiralShell_Mat" };
+        mat.mainTexture = _spiralTex;
+        mat.color = new Color(0.98f, 0.97f, 0.94f, 1f);
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", _spiralTex);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", new Color(0.98f, 0.97f, 0.94f, 1f));
+        mat.SetFloat("_Smoothness", 0.82f); // 陶器・磁器のようなしっとりした質感
+        mat.SetFloat("_Metallic", 0.05f);
+        mat.EnableKeyword("_EMISSION");
+        mat.SetColor("_EmissionColor", new Color(0.92f, 0.95f, 1f) * 0.16f);
+
+        var shellGo = new GameObject("Spiral_Shell");
+        shellGo.transform.SetParent(parent, false);
+        shellGo.transform.localPosition = new Vector3(0f, 0.06f, 0f);
+        shellGo.transform.localRotation = Quaternion.Euler(6f, 0f, 72f);
+        shellGo.transform.localScale = new Vector3(0.35f, 0.38f, 0.35f);
+        var mf = shellGo.AddComponent<MeshFilter>();
+        mf.sharedMesh = _spiralMesh;
+        var mr = shellGo.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = mat;
     }
+    #endregion
+
+    #region Procedural Mesh Generators
+    /// <summary>扇形に広がる本物のサクラガイの薄いドーム二枚貝メッシュ</summary>
+    static Mesh BuildSakuragaiMesh()
+    {
+        var mesh = new Mesh { name = "Proc_SakuragaiMesh" };
+        int radSteps = 9;
+        int angSteps = 16;
+        var vertices = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        var normals = new List<Vector3>();
+        var triangles = new List<int>();
+
+        for (int r = 0; r <= radSteps; r++)
+        {
+            float rNorm = (float)r / radSteps;
+            float radius = rNorm * 0.55f;
+
+            for (int a = 0; a <= angSteps; a++)
+            {
+                float aNorm = (float)a / angSteps; // 0..1
+                float angleDeg = Mathf.Lerp(-52f, 52f, aNorm);
+                float rad = angleDeg * Mathf.Deg2Rad;
+
+                // 扇形の座標
+                float x = Mathf.Sin(rad) * radius * (1f + 0.15f * Mathf.Cos(rad));
+                float z = Mathf.Cos(rad) * radius;
+
+                // 貝殻のふっくらしたドーム湾曲
+                float dome = Mathf.Sin(rNorm * Mathf.PI * 0.85f) * 0.10f * (1f - Mathf.Abs(aNorm - 0.5f) * 0.6f);
+                // 放射条線（貝殻のリブ筋）
+                float rib = Mathf.Sin(aNorm * Mathf.PI * 14f) * 0.007f * rNorm;
+                float y = dome + rib;
+
+                vertices.Add(new Vector3(x, y, z));
+                uvs.Add(new Vector2(aNorm, rNorm));
+                normals.Add(Vector3.up);
+            }
+        }
+
+        // 面のインデックス
+        for (int r = 0; r < radSteps; r++)
+        {
+            for (int a = 0; a < angSteps; a++)
+            {
+                int cur = r * (angSteps + 1) + a;
+                int next = cur + angSteps + 1;
+
+                triangles.Add(cur);
+                triangles.Add(next);
+                triangles.Add(cur + 1);
+
+                triangles.Add(cur + 1);
+                triangles.Add(next);
+                triangles.Add(next + 1);
+
+                // 裏面（両面表示）
+                triangles.Add(cur + 1);
+                triangles.Add(next);
+                triangles.Add(cur);
+
+                triangles.Add(next + 1);
+                triangles.Add(next);
+                triangles.Add(cur + 1);
+            }
+        }
+
+        mesh.SetVertices(vertices);
+        mesh.SetUVs(0, uvs);
+        mesh.SetTriangles(triangles, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
+    /// <summary>波に磨かれて角が丸まったオーバル多面体シーグラス小石メッシュ</summary>
+    static Mesh BuildSeaGlassMesh()
+    {
+        var mesh = new Mesh { name = "Proc_SeaGlassMesh" };
+        var vertices = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        var triangles = new List<int>();
+
+        int ringSegments = 12;
+        // 上極、上リング、赤道リング、下リング、下極
+        Vector3 topPole = new Vector3(0f, 0.16f, 0f);
+        Vector3 botPole = new Vector3(0f, -0.12f, 0f);
+
+        // 頂点生成
+        vertices.Add(topPole);
+        uvs.Add(new Vector2(0.5f, 1f));
+
+        // Ring 1 (上部ドーム)
+        for (int i = 0; i < ringSegments; i++)
+        {
+            float ang = i * Mathf.PI * 2f / ringSegments;
+            float rX = 0.32f * (1f + 0.08f * Mathf.Cos(ang * 2f));
+            float rZ = 0.44f * (1f + 0.06f * Mathf.Sin(ang * 3f));
+            vertices.Add(new Vector3(Mathf.Cos(ang) * rX * 0.72f, 0.11f, Mathf.Sin(ang) * rZ * 0.72f));
+            uvs.Add(new Vector2((float)i / ringSegments, 0.75f));
+        }
+
+        // Ring 2 (中央エッジ・波の丸み)
+        for (int i = 0; i < ringSegments; i++)
+        {
+            float ang = i * Mathf.PI * 2f / ringSegments;
+            float rX = 0.36f * (1f + 0.08f * Mathf.Cos(ang * 2f));
+            float rZ = 0.48f * (1f + 0.06f * Mathf.Sin(ang * 3f));
+            vertices.Add(new Vector3(Mathf.Cos(ang) * rX, 0.02f, Mathf.Sin(ang) * rZ));
+            uvs.Add(new Vector2((float)i / ringSegments, 0.5f));
+        }
+
+        // Ring 3 (下部ドーム)
+        for (int i = 0; i < ringSegments; i++)
+        {
+            float ang = i * Mathf.PI * 2f / ringSegments;
+            float rX = 0.30f * (1f + 0.08f * Mathf.Cos(ang * 2f));
+            float rZ = 0.40f * (1f + 0.06f * Mathf.Sin(ang * 3f));
+            vertices.Add(new Vector3(Mathf.Cos(ang) * rX * 0.70f, -0.07f, Mathf.Sin(ang) * rZ * 0.70f));
+            uvs.Add(new Vector2((float)i / ringSegments, 0.25f));
+        }
+
+        int botPoleIndex = vertices.Count;
+        vertices.Add(botPole);
+        uvs.Add(new Vector2(0.5f, 0f));
+
+        // Top cap triangles
+        for (int i = 0; i < ringSegments; i++)
+        {
+            int next = (i + 1) % ringSegments;
+            triangles.Add(0);
+            triangles.Add(1 + i);
+            triangles.Add(1 + next);
+        }
+
+        // Ring 1 to Ring 2
+        int r1Base = 1;
+        int r2Base = 1 + ringSegments;
+        for (int i = 0; i < ringSegments; i++)
+        {
+            int next = (i + 1) % ringSegments;
+            triangles.Add(r1Base + i);
+            triangles.Add(r2Base + i);
+            triangles.Add(r1Base + next);
+
+            triangles.Add(r1Base + next);
+            triangles.Add(r2Base + i);
+            triangles.Add(r2Base + next);
+        }
+
+        // Ring 2 to Ring 3
+        int r3Base = 1 + ringSegments * 2;
+        for (int i = 0; i < ringSegments; i++)
+        {
+            int next = (i + 1) % ringSegments;
+            triangles.Add(r2Base + i);
+            triangles.Add(r3Base + i);
+            triangles.Add(r2Base + next);
+
+            triangles.Add(r2Base + next);
+            triangles.Add(r3Base + i);
+            triangles.Add(r3Base + next);
+        }
+
+        // Bottom cap triangles
+        for (int i = 0; i < ringSegments; i++)
+        {
+            int next = (i + 1) % ringSegments;
+            triangles.Add(botPoleIndex);
+            triangles.Add(r3Base + next);
+            triangles.Add(r3Base + i);
+        }
+
+        mesh.SetVertices(vertices);
+        mesh.SetUVs(0, uvs);
+        mesh.SetTriangles(triangles, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
+    /// <summary>なめらかな涙滴（ティアドロップ）オーバル琥珀メッシュ</summary>
+    static Mesh BuildAmberMesh()
+    {
+        var mesh = new Mesh { name = "Proc_AmberMesh" };
+        var vertices = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        var triangles = new List<int>();
+
+        int latLines = 10;
+        int lonLines = 14;
+
+        for (int lat = 0; lat <= latLines; lat++)
+        {
+            float v = (float)lat / latLines;
+            float pitch = (v - 0.5f) * Mathf.PI; // -PI/2 .. PI/2
+            float y = Mathf.Sin(pitch) * 0.22f;
+            float rBase = Mathf.Cos(pitch);
+
+            // 涙滴変形（先端にかけてなだらかに細くなる）
+            float taper = Mathf.Lerp(0.70f, 1.15f, v);
+
+            for (int lon = 0; lon <= lonLines; lon++)
+            {
+                float u = (float)lon / lonLines;
+                float yaw = u * Mathf.PI * 2f;
+
+                float x = Mathf.Cos(yaw) * rBase * 0.28f * taper;
+                float z = Mathf.Sin(yaw) * rBase * 0.38f * taper;
+
+                vertices.Add(new Vector3(x, y, z));
+                uvs.Add(new Vector2(u, v));
+            }
+        }
+
+        for (int lat = 0; lat < latLines; lat++)
+        {
+            for (int lon = 0; lon < lonLines; lon++)
+            {
+                int cur = lat * (lonLines + 1) + lon;
+                int next = cur + lonLines + 1;
+
+                triangles.Add(cur);
+                triangles.Add(next);
+                triangles.Add(cur + 1);
+
+                triangles.Add(cur + 1);
+                triangles.Add(next);
+                triangles.Add(next + 1);
+            }
+        }
+
+        mesh.SetVertices(vertices);
+        mesh.SetUVs(0, uvs);
+        mesh.SetTriangles(triangles, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
+    /// <summary>先端が尖り段差のある螺旋小巻貝メッシュ</summary>
+    static Mesh BuildSpiralMesh()
+    {
+        var mesh = new Mesh { name = "Proc_SpiralShellMesh" };
+        var vertices = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        var triangles = new List<int>();
+
+        int turns = 4;
+        int stepsPerTurn = 10;
+        int totalSteps = turns * stepsPerTurn;
+        int ringSegs = 8;
+
+        for (int s = 0; s <= totalSteps; s++)
+        {
+            float t = (float)s / totalSteps; // 0: 先端, 1: 開口部
+            float spiralAngle = s * (Mathf.PI * 2f / stepsPerTurn);
+
+            // 螺旋の芯線
+            float spiralRadius = t * 0.12f;
+            float tubeRadius = Mathf.Lerp(0.018f, 0.11f, t * t);
+            float spiralZ = t * 0.42f;
+
+            Vector3 center = new Vector3(Mathf.Cos(spiralAngle) * spiralRadius, Mathf.Sin(spiralAngle) * spiralRadius, spiralZ);
+
+            for (int r = 0; r <= ringSegs; r++)
+            {
+                float ringAngle = r * (Mathf.PI * 2f / ringSegs);
+                Vector3 offset = new Vector3(Mathf.Cos(ringAngle) * tubeRadius, Mathf.Sin(ringAngle) * tubeRadius, 0f);
+                vertices.Add(center + offset);
+                uvs.Add(new Vector2((float)r / ringSegs, t));
+            }
+        }
+
+        for (int s = 0; s < totalSteps; s++)
+        {
+            for (int r = 0; r < ringSegs; r++)
+            {
+                int cur = s * (ringSegs + 1) + r;
+                int next = cur + ringSegs + 1;
+
+                triangles.Add(cur);
+                triangles.Add(next);
+                triangles.Add(cur + 1);
+
+                triangles.Add(cur + 1);
+                triangles.Add(next);
+                triangles.Add(next + 1);
+            }
+        }
+
+        mesh.SetVertices(vertices);
+        mesh.SetUVs(0, uvs);
+        mesh.SetTriangles(triangles, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+    #endregion
+
+    #region Procedural Texture Generators
+    static Texture2D GenerateSakuragaiTexture()
+    {
+        int size = 128;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        var basePink = new Color(1f, 0.72f, 0.83f, 1f);
+        var whiteRib = new Color(1f, 0.94f, 0.97f, 1f);
+        var edgeRose = new Color(1f, 0.52f, 0.70f, 1f);
+
+        for (int y = 0; y < size; y++)
+        {
+            float v = (float)y / size; // 蝶番(0) -> 縁(1)
+            for (int x = 0; x < size; x++)
+            {
+                float u = (float)x / size; // 左 -> 右
+                // 放射条線
+                float ribSin = Mathf.Sin(u * Mathf.PI * 18f);
+                float ribFactor = Mathf.Clamp01(ribSin * 0.5f + 0.5f);
+
+                // 成長線の微小な縞
+                float ringFactor = Mathf.Sin(v * Mathf.PI * 22f) * 0.08f;
+
+                Color c = Color.Lerp(basePink, whiteRib, ribFactor * 0.45f);
+                c = Color.Lerp(c, edgeRose, v * 0.40f + ringFactor);
+                tex.SetPixel(x, y, c);
+            }
+        }
+        tex.Apply();
+        return tex;
+    }
+
+    static Texture2D GenerateSeaGlassTexture(Color mainColor)
+    {
+        int size = 128;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Color frostWhite = new Color(0.92f, 0.98f, 0.96f, 1f);
+
+        for (int y = 0; y < size; y++)
+        {
+            float v = (float)y / size;
+            for (int x = 0; x < size; x++)
+            {
+                float u = (float)x / size;
+                float d = Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.5f)) * 2f;
+                // すりガラスの縁取りフロスト感
+                float frost = Mathf.Clamp01(d * 0.65f + Random.Range(-0.04f, 0.04f));
+                Color c = Color.Lerp(mainColor, frostWhite, frost * 0.40f);
+                tex.SetPixel(x, y, c);
+            }
+        }
+        tex.Apply();
+        return tex;
+    }
+
+    static Texture2D GenerateAmberTexture()
+    {
+        int size = 128;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Color centerGold = new Color(1f, 0.92f, 0.40f, 1f);
+        Color edgeAmber = new Color(0.95f, 0.60f, 0.10f, 1f);
+
+        for (int y = 0; y < size; y++)
+        {
+            float v = (float)y / size;
+            for (int x = 0; x < size; x++)
+            {
+                float u = (float)x / size;
+                float dist = Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.5f)) * 2f;
+                Color c = Color.Lerp(centerGold, edgeAmber, Mathf.Clamp01(dist * 0.85f));
+                tex.SetPixel(x, y, c);
+            }
+        }
+        tex.Apply();
+        return tex;
+    }
+
+    static Texture2D GenerateSpiralTexture()
+    {
+        int size = 128;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Color ivoryWhite = new Color(0.98f, 0.98f, 0.95f, 1f);
+        Color creamLine = new Color(0.88f, 0.82f, 0.72f, 1f);
+
+        for (int y = 0; y < size; y++)
+        {
+            float v = (float)y / size;
+            for (int x = 0; x < size; x++)
+            {
+                float u = (float)x / size;
+                float stripe = Mathf.Sin((u + v * 3f) * Mathf.PI * 8f);
+                Color c = Color.Lerp(ivoryWhite, creamLine, Mathf.Clamp01(stripe * 0.35f + 0.15f));
+                tex.SetPixel(x, y, c);
+            }
+        }
+        tex.Apply();
+        return tex;
+    }
+    #endregion
 
     static Shader GetSafeUnlitShader()
     {
@@ -312,37 +818,41 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     {
         var smokeTex = AdventureRustDrone.GetSoftSmokeTexture();
 
-        // 1. 周囲の砂浜を優しく照らすポイントライト
+        // 1. 周囲の砂浜をほんのり染める上品なポイントライト（強すぎず実物の陰影を活かす）
         var lightGo = new GameObject("ItemPointLight");
         lightGo.transform.SetParent(transform, false);
-        lightGo.transform.localPosition = new Vector3(0f, 0.35f, 0f);
+        lightGo.transform.localPosition = new Vector3(0f, 0.18f, 0f);
         _pointLight = lightGo.AddComponent<Light>();
         _pointLight.type = LightType.Point;
-        _pointLight.range = 3.5f;
-        _pointLight.intensity = 1.8f;
+        _pointLight.range = 1.8f;
+        _pointLight.intensity = 0.45f;
         _pointLight.color = themeColor;
         _pointLight.shadows = LightShadows.None;
 
-        // 2. 上空にフワリと立ち上る光の蛍粒子（Rising Dust）
-        var dustGo = new GameObject("RisingDust");
+        // 2. 実物の周囲で時折キラッと小さく瞬くジュエリースパークル（実物を隠さない微小粒子）
+        var dustGo = new GameObject("JewelSparkle");
         dustGo.transform.SetParent(transform, false);
-        dustGo.transform.localPosition = Vector3.up * 0.12f;
+        dustGo.transform.localPosition = Vector3.up * 0.08f;
 
         _sparklePs = dustGo.AddComponent<ParticleSystem>();
         var mainDust = _sparklePs.main;
         mainDust.loop = true;
-        mainDust.startLifetime = 1.8f;
-        mainDust.startSpeed = 0.32f;
-        mainDust.startSize = 0.22f;
-        mainDust.startColor = themeColor;
+        mainDust.startLifetime = 1.2f;
+        mainDust.startSpeed = 0.12f;
+        mainDust.startSize = 0.06f; // 小さく可憐なきらめき
+        mainDust.startColor = new Color(themeColor.r, themeColor.g, themeColor.b, 0.85f);
 
         var emissionDust = _sparklePs.emission;
-        emissionDust.rateOverTime = 4.5f;
+        emissionDust.rateOverTime = 1.8f; // 控えめにキラッと瞬く
+
+        var shapeDust = _sparklePs.shape;
+        shapeDust.shapeType = ParticleSystemShapeType.Sphere;
+        shapeDust.radius = 0.28f;
 
         var rendDust = dustGo.GetComponent<ParticleSystemRenderer>();
         if (rendDust != null)
         {
-            rendDust.sharedMaterial = CreateSafeGlowMaterial(smokeTex, themeColor, "SeashellDust_Mat");
+            rendDust.sharedMaterial = CreateSafeGlowMaterial(smokeTex, themeColor, "JewelSparkle_Mat");
             rendDust.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             rendDust.receiveShadows = false;
         }

@@ -309,11 +309,11 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             if (land != null)
             {
                 float h = land.SampleHeight(pt) + land.transform.position.y;
-                pt.y = Mathf.Max(5.68f, h + 0.05f); // 砂浜表面にしっかり乗る高さ
+                pt.y = Mathf.Max(5.72f, h + 0.10f); // 砂浜表面にコロンとしっかり乗る高さ
             }
             else
             {
-                pt.y = 6.08f;
+                pt.y = 6.12f;
             }
 
             var itemGo = new GameObject($"Seashell_{i + 1:D2}");
@@ -485,7 +485,7 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             if (land != null)
             {
                 float h = land.SampleHeight(nextPos) + land.transform.position.y;
-                nextPos.y = Mathf.Max(5.68f, h + 0.05f);
+                nextPos.y = Mathf.Max(5.72f, h + 0.10f);
             }
             item.ResetItemState(nextPos);
         }
