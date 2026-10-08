@@ -134,19 +134,23 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
     void Update()
     {
-        bool prologueActive = AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsPrologueActive;
-        bool gameStarted = AdventureRustFloatOpening.IsGameStarted;
+        bool openingModal = AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen();
+        bool awakening = AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening;
+        bool pauseMenu = AdventurePauseMenu.IsOpen;
 
-        // Bキーで工房トグル開閉（新旧InputSystem両対応、プロローグ完了後のみ有効）
+        // Bキーで工房トグル開閉（新旧InputSystem両対応）
         bool bPressed = false;
-        try
+        var kb = Keyboard.current ?? AdventureInputReader.Keyboard;
+        if (kb != null && kb.bKey.wasPressedThisFrame)
         {
-            if (AdventureInputReader.Keyboard?.bKey.wasPressedThisFrame == true) bPressed = true;
-            if (Input.GetKeyDown(KeyCode.B)) bPressed = true;
+            bPressed = true;
         }
-        catch { }
+        else
+        {
+            try { if (Input.GetKeyDown(KeyCode.B)) bPressed = true; } catch { }
+        }
 
-        if (bPressed && !AdventurePauseMenu.IsOpen && gameStarted && !prologueActive)
+        if (bPressed && !pauseMenu && !openingModal && !awakening)
         {
             SetVisible(!isVisible);
         }
@@ -160,14 +164,14 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         // 工房が開いている時の数字キー【1】〜【5】ショートカット＆マウスクリック処理
         if (isVisible)
         {
-            var kb = Keyboard.current;
-            if (kb != null)
+            var curKb = Keyboard.current ?? AdventureInputReader.Keyboard;
+            if (curKb != null)
             {
-                if (kb.digit1Key.wasPressedThisFrame || kb.numpad1Key.wasPressedThisFrame) TriggerCardByIndex(0);
-                if (kb.digit2Key.wasPressedThisFrame || kb.numpad2Key.wasPressedThisFrame) TriggerCardByIndex(1);
-                if (kb.digit3Key.wasPressedThisFrame || kb.numpad3Key.wasPressedThisFrame) TriggerCardByIndex(2);
-                if (kb.digit4Key.wasPressedThisFrame || kb.numpad4Key.wasPressedThisFrame) TriggerCardByIndex(3);
-                if (kb.digit5Key.wasPressedThisFrame || kb.numpad5Key.wasPressedThisFrame) TriggerCardByIndex(4);
+                if (curKb.digit1Key.wasPressedThisFrame || curKb.numpad1Key.wasPressedThisFrame) TriggerCardByIndex(0);
+                if (curKb.digit2Key.wasPressedThisFrame || curKb.numpad2Key.wasPressedThisFrame) TriggerCardByIndex(1);
+                if (curKb.digit3Key.wasPressedThisFrame || curKb.numpad3Key.wasPressedThisFrame) TriggerCardByIndex(2);
+                if (curKb.digit4Key.wasPressedThisFrame || curKb.numpad4Key.wasPressedThisFrame) TriggerCardByIndex(3);
+                if (curKb.digit5Key.wasPressedThisFrame || curKb.numpad5Key.wasPressedThisFrame) TriggerCardByIndex(4);
             }
             try
             {
@@ -200,10 +204,12 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
     void OnGUI()
     {
-        bool prologueActive = AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsPrologueActive;
+        bool openingModal = AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen();
+        bool awakening = AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening;
+        bool pauseMenu = AdventurePauseMenu.IsOpen;
 
-        // 1. 工房が閉じている時：画面右上に常設の「👗 Rust工房 (B)」GUIボタン（プロローグ完了後のみ表示）
-        if (!isVisible && !AdventurePauseMenu.IsOpen && AdventureRustFloatOpening.IsGameStarted && !prologueActive)
+        // 1. 工房が閉じている時：画面右上に常設の「👗 Rust工房 (B)」GUIボタン
+        if (!isVisible && !pauseMenu && !openingModal && !awakening)
         {
             Rect btnRect = new Rect(Screen.width - 160, 56, 145, 34);
             GUI.color = new Color(0.2f, 0.85f, 1f, 0.95f);
@@ -268,25 +274,21 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         var player = AdventurePlayerController.Instance;
         if (player == null || _workbenchWorldObj == null) return;
 
-        // 1. オープニング前・プロローグドラマ中（Rust遭難・注油・蘇生中）は作業台を完全休止
-        if (!AdventureRustFloatOpening.IsGameStarted)
+        // 1. オープニングモーダル中や目覚め演出中は作業台を休止
+        bool openingModal = AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen();
+        bool awakening = AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening;
+        if (openingModal || awakening)
         {
             if (_promptCg != null) _promptCg.alpha = 0f;
             return;
         }
 
-        if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsPrologueActive)
-        {
-            if (_promptCg != null) _promptCg.alpha = 0f;
-            return;
-        }
-
-        // 2. Rustにプレイヤーが接近している時はRustへの注油・手当て・会話を最優先（作業台インタラクトを遮断）
+        // 2. Rustが要手当て（WaitOil）状態で接近している時は注油・手当てを最優先
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
-            float rustDist = Vector3.Distance(player.transform.position, drone.transform.position);
-            if (drone.IsPlayerNear || rustDist < 4.0f)
+            var drama = AdventurePrologueDrama.Instance;
+            if (drama != null && drama.IsWaitingForOil && drone.IsPlayerNear)
             {
                 if (_promptCg != null) _promptCg.alpha = 0f;
                 return;
@@ -317,6 +319,11 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
     public void SetVisible(bool visible)
     {
+        if (visible && _panelRoot == null)
+        {
+            CreateUI();
+        }
+
         isVisible = visible;
         if (_panelRoot != null)
             _panelRoot.SetActive(visible);
