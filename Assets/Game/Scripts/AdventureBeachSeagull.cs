@@ -13,24 +13,49 @@ public class AdventureBeachSeagull : MonoBehaviour
     private Transform _rightWing;
     private Transform _tail;
     private Transform _body;
+    private Transform _leftLeg;
+    private Transform _rightLeg;
     private Transform _player;
 
     private Vector3 _startPos;
     private Quaternion _startRot;
-    private float _idleTimer;
-    private float _headTargetAngle;
-    private float _currentHeadAngle;
+    private Vector3 _currentGroundPos;
 
-    private bool _isTakingOff = false;
+    // 地上行動ステートマシン
+    private enum IdleAction
+    {
+        LookAround,     // 首をかしげて見回し
+        Pecking,        // 砂浜をつつく（エサ探し）
+        WingFlutter,    // 羽根をパタパタと震わせる（毛づくろい）
+        Waddling        // トコトコ歩いて向きを変える
+    }
+    private IdleAction _currentAction = IdleAction.LookAround;
+    private float _actionTimer;
+    private float _actionSubTimer;
+    private float _headTargetYaw;
+    private float _headCurrentYaw;
+    private float _headTargetPitch;
+    private float _headCurrentPitch;
+
+    // 飛行・着地状態
+    private enum BirdState
+    {
+        Grounded,       // 地上
+        TakingOff,      // 飛び立ち上昇
+        Soaring,        // 上空旋回
+        Landing         // 着地アプローチ
+    }
+    private BirdState _state = BirdState.Grounded;
     private float _flightTime = 0f;
     private Vector3 _flightDirection;
+    private Vector3 _landingTargetPos;
     private float _wingDeployFactor = 0f; // 0=背中に折りたたみ、1=左右に全開展開
 
     // 地上佇み時の翼の折りたたみ回転（背中に沿って後ろへ）
     private static readonly Quaternion FoldedRotRight = Quaternion.Euler(8f, -76f, -12f);
     private static readonly Quaternion FoldedRotLeft = Quaternion.Euler(8f, 76f, 12f);
 
-    const float TakeoffDistance = 5.5f; // プレイヤーがこの距離に入ると飛び立つ
+    const float TakeoffDistance = 5.8f; // プレイヤーがこの距離に入ると飛び立つ
 
     [SerializeField] private AudioClip seagullCryClip;
     private AudioSource _audioSource;
@@ -39,14 +64,25 @@ public class AdventureBeachSeagull : MonoBehaviour
     {
         _startPos = transform.position;
         _startRot = transform.rotation;
+        _currentGroundPos = _startPos;
 
         EnsureBirdShape();
+        ResolvePlayer();
 
-        var niko = GameObject.Find("Niko");
-        if (niko != null) _player = niko.transform;
-
-        _idleTimer = Random.Range(1.5f, 4.0f);
+        _actionTimer = Random.Range(1.2f, 3.0f);
         _wingDeployFactor = 0f;
+    }
+
+    void ResolvePlayer()
+    {
+        if (_player != null) return;
+        var p = AdventurePlayerController.Instance ?? Object.FindAnyObjectByType<AdventurePlayerController>();
+        if (p != null) _player = p.transform;
+        else
+        {
+            var niko = GameObject.Find("Niko");
+            if (niko != null) _player = niko.transform;
+        }
     }
 
     /// <summary>
@@ -69,16 +105,16 @@ public class AdventureBeachSeagull : MonoBehaviour
             var rend = _body.GetComponent<Renderer>();
             if (rend != null) whiteFeatherMat = rend.sharedMaterial;
             // 胴体を流線型（前後長め、後ろが細くなる紡錘形）に
-            _body.localScale = new Vector3(0.22f, 0.20f, 0.48f);
-            _body.localPosition = new Vector3(0f, 0.12f, 0f);
+            _body.localScale = new Vector3(0.24f, 0.22f, 0.50f);
+            _body.localPosition = new Vector3(0f, 0.15f, 0f);
         }
 
         if (_head != null)
         {
             var rend = _head.GetComponent<Renderer>();
             if (rend != null && whiteFeatherMat == null) whiteFeatherMat = rend.sharedMaterial;
-            _head.localScale = new Vector3(0.15f, 0.16f, 0.19f);
-            _head.localPosition = new Vector3(0f, 0.22f, 0.17f);
+            _head.localScale = new Vector3(0.16f, 0.17f, 0.20f);
+            _head.localPosition = new Vector3(0f, 0.26f, 0.18f);
 
             var oldBeak = _head.Find("Beak");
             if (oldBeak != null)
@@ -87,8 +123,8 @@ public class AdventureBeachSeagull : MonoBehaviour
                 if (bRend != null) beakMat = bRend.sharedMaterial;
                 var mf = oldBeak.GetComponent<MeshFilter>();
                 if (mf != null) mf.sharedMesh = CreateConeMesh(6);
-                oldBeak.localScale = new Vector3(0.045f, 0.045f, 0.16f);
-                oldBeak.localPosition = new Vector3(0f, -0.01f, 0.12f);
+                oldBeak.localScale = new Vector3(0.05f, 0.05f, 0.18f);
+                oldBeak.localPosition = new Vector3(0f, -0.01f, 0.13f);
                 oldBeak.localRotation = Quaternion.identity;
                 _beak = oldBeak;
             }
@@ -104,7 +140,7 @@ public class AdventureBeachSeagull : MonoBehaviour
             if (rend != null) wingMat = rend.sharedMaterial;
             var mf = _rightWing.GetComponent<MeshFilter>();
             if (mf != null) mf.sharedMesh = rightWingMesh;
-            _rightWing.localPosition = new Vector3(0.09f, 0.14f, 0.02f);
+            _rightWing.localPosition = new Vector3(0.10f, 0.16f, 0.02f);
             _rightWing.localScale = new Vector3(0.55f, 1f, 1f);
             _rightWing.localRotation = FoldedRotRight;
         }
@@ -115,7 +151,7 @@ public class AdventureBeachSeagull : MonoBehaviour
             if (rend != null && wingMat == null) wingMat = rend.sharedMaterial;
             var mf = _leftWing.GetComponent<MeshFilter>();
             if (mf != null) mf.sharedMesh = leftWingMesh;
-            _leftWing.localPosition = new Vector3(-0.09f, 0.14f, 0.02f);
+            _leftWing.localPosition = new Vector3(-0.10f, 0.16f, 0.02f);
             _leftWing.localScale = new Vector3(0.55f, 1f, 1f);
             _leftWing.localRotation = FoldedRotLeft;
         }
@@ -125,15 +161,35 @@ public class AdventureBeachSeagull : MonoBehaviour
         {
             var tailGo = new GameObject("Tail");
             tailGo.transform.SetParent(transform, false);
-            tailGo.transform.localPosition = new Vector3(0f, 0.15f, -0.24f);
+            tailGo.transform.localPosition = new Vector3(0f, 0.18f, -0.26f);
             tailGo.transform.localRotation = Quaternion.Euler(14f, 0f, 0f);
-            tailGo.transform.localScale = new Vector3(0.16f, 0.02f, 0.22f);
+            tailGo.transform.localScale = new Vector3(0.18f, 0.02f, 0.24f);
 
             var mf = tailGo.AddComponent<MeshFilter>();
             mf.sharedMesh = CreateTailFanMesh();
             var mr = tailGo.AddComponent<MeshRenderer>();
             mr.sharedMaterial = wingMat ?? whiteFeatherMat;
             _tail = tailGo.transform;
+        }
+
+        // オレンジ色の小さな脚（Legs）を追加して砂浜の上にしっかり立たせる
+        if (_leftLeg == null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var legMat = beakMat ?? new Material(shader) { color = new Color(0.96f, 0.65f, 0.10f) };
+
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var legGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                legGo.name = side < 0 ? "LeftLeg" : "RightLeg";
+                legGo.transform.SetParent(transform, false);
+                legGo.transform.localPosition = new Vector3(side * 0.06f, 0.06f, -0.02f);
+                legGo.transform.localScale = new Vector3(0.022f, 0.06f, 0.022f);
+                legGo.GetComponent<Renderer>().sharedMaterial = legMat;
+                Destroy(legGo.GetComponent<Collider>());
+                if (side < 0) _leftLeg = legGo.transform;
+                else _rightLeg = legGo.transform;
+            }
         }
     }
 
@@ -274,175 +330,347 @@ public class AdventureBeachSeagull : MonoBehaviour
 
     void Update()
     {
-        if (_isTakingOff)
-        {
-            UpdateFlight();
-            return;
-        }
+        ResolvePlayer();
 
-        UpdateIdle();
-        CheckPlayerDistance();
+        switch (_state)
+        {
+            case BirdState.Grounded:
+                UpdateGrounded();
+                break;
+            case BirdState.TakingOff:
+            case BirdState.Soaring:
+            case BirdState.Landing:
+                UpdateFlightLifecycle();
+                break;
+        }
     }
 
-    void UpdateIdle()
+    #region Grounded Behaviors (Lively Idle Animation)
+    void UpdateGrounded()
     {
-        _idleTimer -= Time.deltaTime;
-        if (_idleTimer <= 0f)
+        // プレイヤー接近判定（5.8m以内で即座に飛び立つ）
+        if (_player != null)
         {
-            // 時折首をかしげる
-            _headTargetAngle = Random.Range(-28f, 28f);
-            _idleTimer = Random.Range(2.0f, 5.0f);
+            float dist = Vector3.Distance(transform.position, _player.position);
+            if (dist < TakeoffDistance)
+            {
+                TakeOff();
+                return;
+            }
+
+            // 接近警戒（5.8m〜8.5m）：プレイヤーの方向をキョロリと見て警戒
+            if (dist < 8.5f)
+            {
+                Vector3 toPlayer = (_player.position - transform.position).normalized;
+                float angleToPlayer = Vector3.SignedAngle(transform.forward, toPlayer, Vector3.up);
+                _headTargetYaw = Mathf.Clamp(angleToPlayer, -55f, 55f);
+                _headTargetPitch = -5f;
+            }
         }
 
-        _currentHeadAngle = Mathf.Lerp(_currentHeadAngle, _headTargetAngle, Time.deltaTime * 6f);
+        _actionTimer -= Time.deltaTime;
+        _actionSubTimer += Time.deltaTime;
+
+        if (_actionTimer <= 0f)
+        {
+            // 次の仕草へ切り替え
+            PickNextIdleAction();
+        }
+
+        ExecuteCurrentIdleAction();
+    }
+
+    void PickNextIdleAction()
+    {
+        float r = Random.value;
+        if (r < 0.38f)
+        {
+            _currentAction = IdleAction.LookAround;
+            _headTargetYaw = Random.Range(-45f, 45f);
+            _headTargetPitch = Random.Range(-10f, 15f);
+            _actionTimer = Random.Range(1.8f, 3.8f);
+        }
+        else if (r < 0.68f)
+        {
+            _currentAction = IdleAction.Pecking; // 砂浜をつつく！
+            _actionTimer = Random.Range(1.6f, 3.2f);
+            _headTargetYaw = Random.Range(-15f, 15f);
+        }
+        else if (r < 0.85f)
+        {
+            _currentAction = IdleAction.WingFlutter; // 羽ばたき毛づくろい！
+            _actionTimer = Random.Range(1.2f, 2.2f);
+        }
+        else
+        {
+            _currentAction = IdleAction.Waddling; // トコトコ小走り！
+            _actionTimer = Random.Range(1.4f, 2.6f);
+            // 向きを少し変える
+            transform.Rotate(Vector3.up, Random.Range(-40f, 40f), Space.World);
+        }
+        _actionSubTimer = 0f;
+    }
+
+    void ExecuteCurrentIdleAction()
+    {
+        float dt = Time.deltaTime;
+
+        switch (_currentAction)
+        {
+            case IdleAction.LookAround:
+                // 首を滑らかに回して見回す
+                _headCurrentYaw = Mathf.Lerp(_headCurrentYaw, _headTargetYaw, dt * 7f);
+                _headCurrentPitch = Mathf.Lerp(_headCurrentPitch, _headTargetPitch, dt * 7f);
+                ApplyHeadAngles(_headCurrentYaw, _headCurrentPitch, Mathf.Sin(Time.time * 2f) * 3f);
+
+                // 呼吸の微小揺れ
+                ApplyBreathBob(0.008f);
+                _wingDeployFactor = Mathf.MoveTowards(_wingDeployFactor, 0f, dt * 4f);
+                SetWingsFolded();
+                break;
+
+            case IdleAction.Pecking:
+                // 砂浜をつつく仕草（頭を地面に下げてチョンチョンと2〜3回突く）
+                float peckFreq = 9.0f;
+                float peckCycle = Mathf.Sin(_actionSubTimer * peckFreq);
+                float peckDown = Mathf.Clamp01(peckCycle) * 38f + 18f; // 下向き30〜56度
+
+                _headCurrentYaw = Mathf.Lerp(_headCurrentYaw, _headTargetYaw, dt * 6f);
+                ApplyHeadAngles(_headCurrentYaw, peckDown, 0f);
+
+                // つつく瞬間に尾羽がピクッと上がる
+                if (_tail != null)
+                {
+                    float tailLift = Mathf.Clamp01(peckCycle) * 16f + 12f;
+                    _tail.localRotation = Quaternion.Euler(tailLift, 0f, 0f);
+                }
+
+                // 胴体もわずかに前傾
+                if (_body != null)
+                {
+                    float bodyPitch = Mathf.Clamp01(peckCycle) * 8f;
+                    _body.localRotation = Quaternion.Euler(bodyPitch, 0f, 0f);
+                }
+                _wingDeployFactor = Mathf.MoveTowards(_wingDeployFactor, 0f, dt * 4f);
+                SetWingsFolded();
+                break;
+
+            case IdleAction.WingFlutter:
+                // 翼を背中から少し浮かせてパタパタパタッと高速に震わせる（毛づくろい）
+                _wingDeployFactor = Mathf.MoveTowards(_wingDeployFactor, 0.28f, dt * 5f);
+                float flutterAngle = Mathf.Sin(_actionSubTimer * 26f) * 18f;
+
+                Quaternion flutterR = FoldedRotRight * Quaternion.Euler(0f, 0f, -flutterAngle);
+                Quaternion flutterL = FoldedRotLeft * Quaternion.Euler(0f, 0f, flutterAngle);
+                if (_rightWing != null) _rightWing.localRotation = flutterR;
+                if (_leftWing != null) _leftWing.localRotation = flutterL;
+
+                // 頭を少し横に向けて羽毛を見る
+                _headCurrentYaw = Mathf.Lerp(_headCurrentYaw, 25f, dt * 6f);
+                _headCurrentPitch = Mathf.Lerp(_headCurrentPitch, 15f, dt * 6f);
+                ApplyHeadAngles(_headCurrentYaw, _headCurrentPitch, flutterAngle * 0.2f);
+                break;
+
+            case IdleAction.Waddling:
+                // トコトコと波打ち際を小刻みステップで歩く
+                float walkSpeed = 0.45f;
+                transform.position += transform.forward * (walkSpeed * dt);
+                KeepOnTerrainSurface();
+
+                // 左右の足踏み・お尻フリフリ横揺れ（Roll）
+                float waddleRoll = Mathf.Sin(_actionSubTimer * 10f) * 5.5f;
+                float waddlePitch = Mathf.Abs(Mathf.Sin(_actionSubTimer * 10f)) * 3f;
+                if (_body != null)
+                {
+                    _body.localRotation = Quaternion.Euler(waddlePitch, 0f, waddleRoll);
+                }
+
+                // 首を前後にピョコピョコ振る（鳩・カモメ特有の歩行ヘッドボブ）
+                float headBob = Mathf.Sin(_actionSubTimer * 10f) * 12f;
+                ApplyHeadAngles(0f, headBob, -waddleRoll * 0.5f);
+
+                _wingDeployFactor = Mathf.MoveTowards(_wingDeployFactor, 0f, dt * 4f);
+                SetWingsFolded();
+                break;
+        }
+    }
+
+    void ApplyHeadAngles(float yaw, float pitch, float roll)
+    {
         if (_head != null)
         {
-            _head.localRotation = Quaternion.Euler(0f, _currentHeadAngle, Mathf.Sin(Time.time * 2f) * 4f);
+            _head.localRotation = Quaternion.Euler(pitch, yaw, roll);
         }
+    }
 
-        // 呼吸のような微小な上下揺れ
-        transform.position = _startPos + Vector3.up * (Mathf.Sin(Time.time * 2.8f) * 0.012f);
+    void ApplyBreathBob(float amplitude)
+    {
+        float bob = Mathf.Sin(Time.time * 2.8f) * amplitude;
+        transform.position = _currentGroundPos + Vector3.up * bob;
+    }
 
-        // 地上佇み時は翼を背中に美しく折りたたむ
-        _wingDeployFactor = Mathf.MoveTowards(_wingDeployFactor, 0f, Time.deltaTime * 3.5f);
+    void SetWingsFolded()
+    {
         if (_rightWing != null) _rightWing.localRotation = FoldedRotRight;
         if (_leftWing != null) _leftWing.localRotation = FoldedRotLeft;
     }
 
-    void CheckPlayerDistance()
+    void KeepOnTerrainSurface()
     {
-        if (_player == null) return;
-
-        // 【ユーザー指示】ウミネコの飛行は「ピピッ！ありがとう、Niko！」から。それまでのウミネコ飛行はなし
-        if (!AdventureSoaringSeagullsManager.IsSeagullFlightAllowed()) return;
-
-        float dist = Vector3.Distance(transform.position, _player.position);
-        if (dist < TakeoffDistance)
+        var land = Terrain.activeTerrain;
+        if (land != null)
         {
-            TakeOff();
+            float h = land.SampleHeight(transform.position) + land.transform.position.y;
+            Vector3 pos = transform.position;
+            pos.y = h;
+            transform.position = pos;
+            _currentGroundPos = pos;
         }
     }
+    #endregion
 
+    #region Flight & Landing Lifecycle
     public void SetCryClip(AudioClip clip)
     {
         seagullCryClip = clip;
     }
 
+    /// <summary>プレイヤー接近時に力強く大空へ飛び立つ</summary>
     public void TakeOff()
     {
-        if (_isTakingOff) return;
-        if (!AdventureSoaringSeagullsManager.IsSeagullFlightAllowed()) return;
-        _isTakingOff = true;
-        _flightTime = 0f;
+        if (_state != BirdState.Grounded) return;
 
-        // 飛び立つ瞬間にウミネコの鳴き声を再生（崩壊シーケンス〜エピローグ前はミュート）
-        if (seagullCryClip != null && !AdventureSoaringSeagullsManager.ShouldMuteSeagullCries())
+        _state = BirdState.TakingOff;
+        _flightTime = 0f;
+        _wingDeployFactor = 0f;
+
+        // 飛び立つ瞬間にウミネコの鳴き声を再生
+        if (seagullCryClip != null)
         {
             if (_audioSource == null)
             {
                 _audioSource = gameObject.AddComponent<AudioSource>();
                 _audioSource.spatialBlend = 1.0f; // 3D音響
                 _audioSource.minDistance = 3f;
-                _audioSource.maxDistance = 25f;
+                _audioSource.maxDistance = 28f;
                 _audioSource.rolloffMode = AudioRolloffMode.Linear;
             }
-            _audioSource.PlayOneShot(seagullCryClip, 0.7f);
+            _audioSource.pitch = Random.Range(0.96f, 1.06f);
+            _audioSource.PlayOneShot(seagullCryClip, 0.75f);
         }
 
-        // 海側・上空へ向かって飛び立つ（緩やかな放物線上昇）
+        // 海・大空側へ向かって飛び立つ（斜め前方＋上方）
         Vector3 fromCenter = (transform.position - new Vector3(512f, transform.position.y, 512f)).normalized;
-        _flightDirection = (fromCenter + Vector3.up * 0.48f + transform.forward * 0.65f).normalized;
-
+        _flightDirection = (fromCenter * 0.45f + Vector3.up * 0.55f + transform.forward * 0.60f).normalized;
         transform.rotation = Quaternion.LookRotation(_flightDirection);
+
+        // 次の再着地点（周囲の波打ち際 ±10m）をあらかじめ決定
+        Vector2 landOffset = Random.insideUnitCircle * 8f;
+        _landingTargetPos = new Vector3(_startPos.x + landOffset.x, _startPos.y, _startPos.z + landOffset.y);
+        var land = Terrain.activeTerrain;
+        if (land != null)
+        {
+            _landingTargetPos.y = land.SampleHeight(_landingTargetPos) + land.transform.position.y;
+        }
     }
 
-    void UpdateFlight()
+    void UpdateFlightLifecycle()
     {
         _flightTime += Time.deltaTime;
+        float dt = Time.deltaTime;
 
-        // 翼を背中から左右水平へ素早くバッと展開（0.25秒で全開）
-        _wingDeployFactor = Mathf.MoveTowards(_wingDeployFactor, 1f, Time.deltaTime * 4.0f);
+        // 翼を背中から左右水平へ素早くバッと全開展開（0.2秒で展開）
+        _wingDeployFactor = Mathf.MoveTowards(_wingDeployFactor, 1f, dt * 5.0f);
 
-        // 前進＆上昇飛行
-        float speed = Mathf.Lerp(4.5f, 10.5f, _flightTime * 0.35f);
-        transform.position += _flightDirection * (speed * Time.deltaTime);
-
-        // 羽ばたき周期とアニメーション
-        // 離陸直後（0〜3.2秒）: 力強くバサバサと羽ばたく
-        // 上昇後（3.2秒〜）: 優雅な滑空（グライディング）と周期的な羽ばたき
-        float flapSpeed = _flightTime < 3.2f ? 16f : 9.5f;
-        float flapPhase = _flightTime * flapSpeed;
-
-        // 上昇巡航時は滑空モード（風に乗って羽ばたきを休止）を交互に挟む
-        bool isGliding = (_flightTime >= 3.2f) && (Mathf.Repeat(_flightTime, 6.0f) > 3.2f);
-
-        float flapRoll;
-        float flapPitch;
-        float flapYaw;
-
-        if (isGliding)
+        if (_flightTime < 3.5f)
         {
-            // 滑空時: 翼を水平に保ち、風のうねりでわずかに左右に揺れる
-            float windBob = Mathf.Sin(_flightTime * 2.2f) * 4f;
-            flapRoll = windBob;
-            flapPitch = -3f; // 少し迎え角をつけて浮力を得る
-            flapYaw = 0f;
+            _state = BirdState.TakingOff;
+            // 離陸直後：力強くバサバサと羽ばたきながら急上昇
+            float speed = Mathf.Lerp(4.5f, 9.5f, _flightTime / 3.5f);
+            transform.position += _flightDirection * (speed * dt);
+            AnimateWings(isGliding: false, flapSpeed: 16.5f, rollAmp: 40f, pitchAmp: 14f);
+        }
+        else if (_flightTime < 11.0f)
+        {
+            _state = BirdState.Soaring;
+            // 上空巡航：海風に乗って旋回＆滑空（グライディング）
+            float soarTime = _flightTime - 3.5f;
+            transform.Rotate(Vector3.up, 16f * dt, Space.World);
+            transform.position += transform.forward * (8.5f * dt) + Vector3.up * (Mathf.Sin(soarTime * 1.5f) * 0.8f * dt);
+
+            bool isGliding = Mathf.Repeat(soarTime, 5.0f) > 2.2f;
+            AnimateWings(isGliding: isGliding, flapSpeed: 10.0f, rollAmp: 25f, pitchAmp: 8f);
         }
         else
         {
-            // 羽ばたき時: 上下に力強くダイナミックにストローク
-            float rollAmplitude = _flightTime < 3.2f ? 38f : 24f;
-            flapRoll = Mathf.Sin(flapPhase) * rollAmplitude;
+            _state = BirdState.Landing;
+            // 再着地アプローチ：着地点に向かって翼を広げエアブレーキをかけながら舞い降りる
+            Vector3 toTarget = _landingTargetPos - transform.position;
+            float distToTarget = toTarget.magnitude;
 
-            // 羽のひねり（打ち下ろし時は前傾・推進力、打ち上げ時は後傾）
-            float pitchAmplitude = _flightTime < 3.2f ? 14f : 8f;
-            flapPitch = Mathf.Cos(flapPhase) * pitchAmplitude;
+            if (distToTarget > 0.4f && _flightTime < 16.0f)
+            {
+                Vector3 landDir = toTarget.normalized;
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(new Vector3(landDir.x, 0f, landDir.z)), dt * 3.5f);
+                float landSpeed = Mathf.Clamp(distToTarget * 0.85f, 1.8f, 6.0f);
+                transform.position += landDir * (landSpeed * dt);
 
-            // 前後スイング
-            flapYaw = Mathf.Sin(flapPhase) * 6f;
+                // ブレーキ羽ばたき
+                AnimateWings(isGliding: false, flapSpeed: 12.0f, rollAmp: 28f, pitchAmp: 16f);
+            }
+            else
+            {
+                // タッチダウン（着地完了）！
+                FinishLanding();
+            }
         }
+    }
 
-        // 飛行時の目標回転角（左右で反転）
+    void FinishLanding()
+    {
+        _state = BirdState.Grounded;
+        _flightTime = 0f;
+        _wingDeployFactor = 0f;
+        transform.position = _landingTargetPos;
+        _currentGroundPos = _landingTargetPos;
+        KeepOnTerrainSurface();
+        SetWingsFolded();
+
+        if (_body != null) _body.localRotation = Quaternion.identity;
+        if (_tail != null) _tail.localRotation = Quaternion.Euler(14f, 0f, 0f);
+
+        _currentAction = IdleAction.LookAround;
+        _actionTimer = Random.Range(2.0f, 4.0f);
+        _actionSubTimer = 0f;
+    }
+
+    void AnimateWings(bool isGliding, float flapSpeed, float rollAmp, float pitchAmp)
+    {
+        float flapPhase = _flightTime * flapSpeed;
+
+        float flapRoll = isGliding ? (Mathf.Sin(_flightTime * 2.2f) * 4f) : (Mathf.Sin(flapPhase) * rollAmp);
+        float flapPitch = isGliding ? -3f : (Mathf.Cos(flapPhase) * pitchAmp);
+        float flapYaw = isGliding ? 0f : (Mathf.Sin(flapPhase) * 6f);
+
         Quaternion activeRotRight = Quaternion.Euler(flapPitch, flapYaw, -flapRoll);
         Quaternion activeRotLeft = Quaternion.Euler(flapPitch, -flapYaw, flapRoll);
 
-        // 折りたたみ姿勢から全開飛行姿勢へのスムーズな展開ブレンド
         if (_rightWing != null)
-        {
             _rightWing.localRotation = Quaternion.Slerp(FoldedRotRight, activeRotRight, _wingDeployFactor);
-        }
         if (_leftWing != null)
-        {
             _leftWing.localRotation = Quaternion.Slerp(FoldedRotLeft, activeRotLeft, _wingDeployFactor);
-        }
 
-        // 胴体（Body）も羽ばたきに合わせて上下にフワフワとリアルに連動
         if (_body != null)
         {
-            float bodyBob = isGliding ? 0f : Mathf.Sin(flapPhase) * 0.022f;
-            _body.localPosition = new Vector3(0f, 0.12f + bodyBob, 0f);
+            float bodyBob = isGliding ? 0f : Mathf.Sin(flapPhase) * 0.024f;
+            _body.localPosition = new Vector3(0f, 0.15f + bodyBob, 0f);
         }
 
-        // 尾羽（Tail）も上昇時は少し広がり羽ばたきに合わせて小さくピッチ
         if (_tail != null)
         {
             float tailPitch = 12f + (isGliding ? 0f : Mathf.Sin(flapPhase) * 8f);
             _tail.localRotation = Quaternion.Euler(tailPitch, 0f, 0f);
         }
-
-        // 旋回しながら海の上空へ優雅に遠ざかっていく
-        transform.Rotate(Vector3.up, 10f * Time.deltaTime, Space.World);
-
-        // 十分上空へ行ったら元の位置へ戻して再着地
-        if (_flightTime > 15f)
-        {
-            _isTakingOff = false;
-            _flightTime = 0f;
-            _wingDeployFactor = 0f;
-            transform.position = _startPos;
-            transform.rotation = _startRot;
-            if (_rightWing != null) _rightWing.localRotation = FoldedRotRight;
-            if (_leftWing != null) _leftWing.localRotation = FoldedRotLeft;
-        }
     }
+    #endregion
 }
