@@ -346,9 +346,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         float horizontal = new Vector2(diff.x, diff.z).magnitude;
         if (horizontal > 6.5f) return;
 
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        bool pressed = (kb != null && kb.eKey.wasPressedThisFrame) || player.InteractPressed;
-        try { if (Input.GetKeyDown(KeyCode.E)) pressed = true; } catch { }
+        bool pressed = AdventureInputReader.InteractDown || player.InteractPressed;
         if (!pressed) return;
 
         drone.CompletePrologueOil();

@@ -773,13 +773,13 @@ public class AdventureCapytaBlessing : MonoBehaviour
         string tip;
         if (shellCount > 0)
         {
-            tip = $"🐾 【E】ふれあう  |  🐚 【Q】貝殻を渡して物々交換（所持: {shellCount}個）";
+            tip = $"🐾 【E / クリック】ふれあう  |  🐚 【Q】貝殻を渡して物々交換（所持: {shellCount}個）";
         }
         else
         {
             tip = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.hasCapytaSuperJump
-                ? "🐾 【E】カピタとふれあう（スキンシップ＆潤滑油）"
-                : "🐾 【E】カピタと話す（スーパージャンプ＆潤滑油）";
+                ? "🐾 【E / クリック】カピタとふれあう（スキンシップ＆潤滑油）"
+                : "🐾 【E / クリック】カピタと話す（スーパージャンプ＆潤滑油）";
         }
 
         GUI.Label(new Rect(x, y, w, h), tip, style);

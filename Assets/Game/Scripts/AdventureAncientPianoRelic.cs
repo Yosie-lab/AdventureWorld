@@ -213,9 +213,7 @@ public class AdventureAncientPianoRelic : MonoBehaviour
             // 3. ピアノ＆カピタの前（3.2m以内）での連弾インタラクション
             if (dist < 3.2f)
             {
-                var kb = Keyboard.current;
-                bool interactPressed = (kb != null && kb.eKey.wasPressedThisFrame);
-                try { if (Input.GetKeyDown(KeyCode.E)) interactPressed = true; } catch { }
+                bool interactPressed = AdventureInputReader.InteractDown;
 
                 if (interactPressed)
                 {

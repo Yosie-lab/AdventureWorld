@@ -786,7 +786,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             int pts = AdventureScrapManager.Instance != null ? AdventureScrapManager.Instance.TotalProgressPoints : 0;
             _leverUiLabel.text = ready
-                ? "【ここを押す / E】巨大真鍮レバーを引く"
+                ? "【ここを押す / E / クリック】巨大真鍮レバーを引く"
                 : $"レバーはロック中（20ポイントが必要 / 現在: {pts} pt）";
             _leverUiLabel.color = ready
                 ? new Color(0.35f, 0.98f, 0.88f, 1f)

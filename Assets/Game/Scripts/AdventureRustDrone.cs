@@ -2143,7 +2143,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(player.transform.position))
             return;
 
-        DrawCenterPrompt(0.68f, "【E】Rustと話す");
+        DrawCenterPrompt(0.68f, "【E / クリック】Rustと話す");
     }
 
     static void DrawCenterPrompt(float yFrac, string label)

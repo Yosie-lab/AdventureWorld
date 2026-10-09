@@ -973,7 +973,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         _promptText.fontSize = 22;
         _promptText.alignment = TextAnchor.MiddleCenter;
         _promptText.color = new Color(1f, 0.95f, 0.65f);
-        _promptText.text = "<b>[E] Rustの着せ替え工房</b>\n<size=16><color=#DDEEFF>または [B]キーでどこでも開く</color></size>";
+        _promptText.text = "<b>[E / クリック] Rustの着せ替え工房</b>\n<size=16><color=#DDEEFF>または [B]キーでどこでも開く</color></size>";
 
         // ビルボード（常にカメラの方を向く）
         promptCanvasGo.AddComponent<BillboardLookAtCamera>();

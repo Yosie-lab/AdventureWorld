@@ -211,11 +211,12 @@ public static class AdventureInputReader
         }
     }
 
-    /// <summary>Eキーがこのフレームに押された（インタラクト）</summary>
+    /// <summary>Eキーまたは左クリックがこのフレームに押された（インタラクト）</summary>
     public static bool InteractDown
     {
         get
         {
+            if (MouseLeftDown) return true;
             try { if (Input.GetKeyDown(KeyCode.E)) return true; } catch { }
             var kb = Keyboard;
             if (kb != null && kb.eKey.wasPressedThisFrame) return true;
