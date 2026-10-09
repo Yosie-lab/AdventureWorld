@@ -7,6 +7,54 @@ created: 2026-09-11
 
 次のエージェント（Antigravity 含む）は、このファイルを最初に読む。作業対象は **RustAndFloat**。元ゲーム **AdventureWorld は壊さない**。
 
+## Cursor / 次のエージェントへの引き継ぎ（2026-10-09）
+
+### 1. 直近で完了した対応内容
+- **マウス左クリック対応の全域拡張（Eキーとの完全二重化）**:
+  - `AdventureInputReader.cs`:
+    - `InteractDown` プロパティに `if (MouseLeftDown) return true;` を追加。
+    - ゲーム内の主要システム（カピタ、工房、タワーレバー、Rust、古代ピアノ、漂着ボックス）はすべて `AdventureInputReader.InteractDown` または `AdventurePlayerController.InteractPressed` を参照しているため、**Eキーと同様にマウス左クリックでも全インタラクトが動作可能**になった。
+  - `AdventureCapytaBlessing.cs`:
+    - カピタに近づいて左クリックで話しかける／ふれあう。
+    - UIプロンプト表記を `🐾 【E / クリック】ふれあう` に統一。
+  - `AdventureRustWorkshopUI.cs`:
+    - 工房の机の前に立って左クリックで着せ替え工房を開く。
+    - 工房UI内の「✦ 作成する」ボタンもマウス直接クリック可能。
+    - ワールドプロンプト表記を `<b>[E / クリック] Rustの着せ替え工房</b>` に更新。
+  - `AdventureSanctuaryTowerManager.cs`:
+    - タワーの白亜テラスで左クリックで巨大真鍮レバーを引く。
+    - レバー操作UI表記を `【ここを押す / E / クリック】巨大真鍮レバーを引く` に更新。
+  - `AdventureRustDrone.cs`:
+    - 近づいて左クリックでRustと話す／手当する。プロンプト表記を `【E / クリック】Rustと話す` に更新。
+  - `AdventureAncientPianoRelic.cs`:
+    - カピタ＆ピアノ前で左クリックで連弾。`Input.GetKeyDown(KeyCode.E)` 直書きから `AdventureInputReader.InteractDown` に統合。
+  - `AdventurePrologueDrama.cs`:
+    - 目覚め後のRustへの注油手当てを左クリックで実行可能。
+
+- **白砂ビーチ焚き火（Bonfire）の癒やしリニューアル（映像・音響・位置・波）**:
+  - `AdventureBeachBonfire.cs`:
+    - **位置とサイズ**: 渡し板の近くから海に向かって左側手前（`Position: (138.5, 6.45, 269.0)`）へ移設。直径2.3mの天然丸石サークルと井桁組みの流木薪を配置し、炎サイズを1.5倍に拡大。
+    - **映像・パーティクル**: 従来の四角い板ポリゴンや黒い煙を全廃。プロシージャルな高解像度円形ガウステクスチャ＋加算ブレンドにより、黄金・琥珀色の優しい炎の揺らめき、パチパチ飛ぶ火の粉スパークル、夕日に溶け込む柔らかな消え入る白煙を実装。暖色Point Lightで周囲の砂浜をチラチラ照らす。
+    - **環境音（サウンド合成）**: ポコポコ・ピロピロした不自然音を完全撤去。パチパチと薪が爆ぜる癒やしのクラックル音＋静かに燃える重低音のプロシージャル合成（音量0.62f、16秒ループ）。
+    - **波の満ち引き**: 焚き火近くの波打ち際エフェクトの満ち引き周期を4.2秒から10.5秒へとゆったり化。
+    - **着火操作**: 近づいてEキーまたは左クリックで火をつけられる（着火後は常時燃焼）。
+
+### 2. Cursor開発時の厳守ルール
+1. **シーン・地形の不可侵原則**:
+   - 元ゲーム `Assets/Scenes/AdventureWorld.unity` や `Assets/Idyllic Fantasy Nature/Demo/Settings/Land_Terrain.asset` は**絶対に改変・保存しない**。
+   - 作業対象シーンは **`Assets/RustAndFloat/Scenes/RustAndFloat.unity`**（Unityメニュー: `Adventure → Open RustAndFloat Scene (new island)`）。
+2. **Play Mode中の保存厳禁**:
+   - Unity EditorでPlay Mode（再生中）のままシーンやPrefabを保存しない（必ず停止してから保存）。
+3. **対話・コミットルール**:
+   - ユーザーとの対話は日本語、結論先行、1ステップずつ進める。
+   - 巨大アセット（`Assets/Art` など）や不要なメタファイル、秘密情報をコミットしない。
+
+### 3. 現在のGit状態
+- ブランチ: `main`（最新コミット: `221e08d` まで push 済み）
+- コンパイルエラー: 0件。
+
+---
+
 ## Antigravity への引き継ぎ（2026-10-07）
 
 - **直径9km曲面水平線・煌めくエメラルドグリーン海面システム＆四角い台座の完全根絶**:
