@@ -93,13 +93,16 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
     }
 
-    // 連携アクション（Fキー指示・遠隔回収・偵察・宙返り・撫でスキンシップ）
-    public enum RustState { Follow, Fetching, Returning, Scouting, Celebrating, Petting }
+    // 連携アクション（Fキー指示・遠隔回収・偵察・宙返り・撫でスキンシップ・焚き火チル）
+    public enum RustState { Follow, Fetching, Returning, Scouting, Celebrating, Petting, CampfireChill }
     public RustState CurrentState { get; private set; } = RustState.Follow;
     AdventureScrapItem _targetScrap;
     Vector3 _scoutTargetPos;
     float _stateTimer = 0f;
     AdventureScrapItem _aimedScrap;
+
+    Vector3 _campfireSeatPos;
+    Vector3 _campfireLookDir;
 
     public void SetPettingState(bool active, float duration)
     {
@@ -113,6 +116,27 @@ public partial class AdventureRustDrone : MonoBehaviour
         {
             if (CurrentState == RustState.Petting)
                 CurrentState = RustState.Follow;
+        }
+    }
+
+    /// <summary>砂浜の焚き火でNikoと並んで腰掛け、海と炎を眺めてチルする</summary>
+    public void SetCampfireChill(bool active, Vector3 seatPos = default, Vector3 lookDir = default)
+    {
+        if (active)
+        {
+            CurrentState = RustState.CampfireChill;
+            _campfireSeatPos = seatPos;
+            _campfireLookDir = lookDir.sqrMagnitude > 0.01f ? lookDir.normalized : transform.forward;
+            _velocity = Vector3.zero;
+            PlayHappyBeep();
+        }
+        else
+        {
+            if (CurrentState == RustState.CampfireChill)
+            {
+                CurrentState = RustState.Follow;
+                _velocity = Vector3.up * 1.2f; // ふわりと浮き上がって復帰
+            }
         }
     }
 
@@ -516,6 +540,13 @@ public partial class AdventureRustDrone : MonoBehaviour
                     CurrentState = RustState.Follow;
             }
         }
+        else if (CurrentState == RustState.CampfireChill)
+        {
+            goal = _campfireSeatPos;
+            // 焚き火にあたって心地よい微細な呼吸パルス
+            goal.y += Mathf.Sin(Time.time * 2.2f) * 0.012f;
+            _lagTarget = goal;
+        }
         else // Follow
         {
             goal = FollowPoint();
@@ -541,7 +572,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
 
         _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-2.2f * Time.deltaTime));
-        float smoothTime = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning || CurrentState == RustState.Petting) ? 0.24f : (wellOiled ? 0.38f : 0.52f);
+        float smoothTime = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning || CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill) ? 0.28f : (wellOiled ? 0.38f : 0.52f);
         if (_climaxHealing)
             smoothTime = 0.14f;
         else if (IsClimaxOverdrive)
@@ -605,11 +636,22 @@ public partial class AdventureRustDrone : MonoBehaviour
                 : GetNikoChestPosition() + Vector3.up * 0.32f;
             to = lookTarget - transform.position;
         }
+        else if (CurrentState == RustState.CampfireChill)
+        {
+            to = _campfireLookDir;
+        }
 
         if (to.sqrMagnitude > 0.04f)
         {
             Quaternion look = Quaternion.LookRotation(to);
-            if (CurrentState == RustState.Celebrating)
+            if (CurrentState == RustState.CampfireChill)
+            {
+                // 焚き火を見つめながら、火の粉を目で追ったりNikoを優しく見やる首かしげ
+                float headBob = Mathf.Sin(Time.time * 1.5f) * 4f;
+                float lookNikoBlend = Mathf.Clamp01(Mathf.Sin(Time.time * 0.35f) * 1.8f - 0.9f);
+                look *= Quaternion.Euler(headBob, lookNikoBlend * 20f, 0f);
+            }
+            else if (CurrentState == RustState.Celebrating)
             {
                 // 流麗な360度宙返り＆ハッピーバウンス！
                 look = GetCelebrationRotation(look);
