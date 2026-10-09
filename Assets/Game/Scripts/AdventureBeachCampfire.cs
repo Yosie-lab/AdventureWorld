@@ -121,7 +121,7 @@ public class AdventureBeachCampfire : MonoBehaviour
         _emberMat = new Material(litShader);
         _emberMat.SetColor("_BaseColor", new Color(0.14f, 0.10f, 0.08f));
         _emberMat.EnableKeyword("_EMISSION");
-        _emberMat.SetColor("_EmissionColor", new Color(2.4f, 0.55f, 0.08f));
+        _emberMat.SetColor("_EmissionColor", new Color(2.8f, 1.2f, 0.25f)); // 夕日のような黄金アンバー赤熱
         _emberMat.SetFloat("_Smoothness", 0.15f);
 
         // プロシージャルテクスチャの生成
@@ -129,7 +129,7 @@ public class AdventureBeachCampfire : MonoBehaviour
         var smokeTex = CreateProceduralSmokeTexture();
         var sparkTex = CreateProceduralSparkTexture();
 
-        // パーティクル用マテリアル
+        // パーティクル用マテリアル（加算発光シェーダー & アルファ煙シェーダー）
         _flameTongueMat = CreateParticleMaterial(flameTex, isAdditive: true);
         _flameCoreMat = CreateParticleMaterial(flameTex, isAdditive: true);
         _sparksMat = CreateParticleMaterial(sparkTex, isAdditive: true);
@@ -161,13 +161,14 @@ public class AdventureBeachCampfire : MonoBehaviour
                 float core = Mathf.Clamp01(1f - dist);
                 core = Mathf.Pow(core, 1.8f);
 
+                // 夕日に映える黄金・琥珀・白熱のグラデーション（変な赤みを排除）
                 Color col;
                 if (core > 0.65f)
-                    col = Color.Lerp(new Color(1f, 0.95f, 0.75f, 1f), Color.white, (core - 0.65f) / 0.35f);
+                    col = Color.Lerp(new Color(1f, 0.98f, 0.85f, 1f), Color.white, (core - 0.65f) / 0.35f);
                 else if (core > 0.25f)
-                    col = Color.Lerp(new Color(1f, 0.45f, 0.08f, 0.95f), new Color(1f, 0.92f, 0.45f, 1f), (core - 0.25f) / 0.4f);
+                    col = Color.Lerp(new Color(1f, 0.68f, 0.20f, 0.95f), new Color(1f, 0.95f, 0.60f, 1f), (core - 0.25f) / 0.4f);
                 else
-                    col = Color.Lerp(new Color(0.85f, 0.15f, 0.02f, 0f), new Color(1f, 0.42f, 0.08f, 0.9f), core / 0.25f);
+                    col = Color.Lerp(new Color(0.96f, 0.45f, 0.10f, 0f), new Color(1f, 0.65f, 0.18f, 0.9f), core / 0.25f);
 
                 float edgeFade = Mathf.Sin(ny * Mathf.PI);
                 col.a *= edgeFade;
@@ -200,7 +201,7 @@ public class AdventureBeachCampfire : MonoBehaviour
                 else
                 {
                     float a = Mathf.SmoothStep(1f, 0f, d);
-                    a = Mathf.Pow(a, 2.2f) * 0.65f;
+                    a = Mathf.Pow(a, 2.5f) * 0.5f; // ふんわり極めて優しい半透明
                     tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
                 }
             }
@@ -231,7 +232,7 @@ public class AdventureBeachCampfire : MonoBehaviour
                 else
                 {
                     float a = Mathf.Pow(Mathf.Clamp01(1f - d), 2.5f);
-                    tex.SetPixel(x, y, new Color(1f, 0.9f, 0.6f, a));
+                    tex.SetPixel(x, y, new Color(1f, 0.95f, 0.7f, a));
                 }
             }
         }
@@ -241,9 +242,11 @@ public class AdventureBeachCampfire : MonoBehaviour
 
     Material CreateParticleMaterial(Texture2D tex, bool isAdditive)
     {
-        var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                  ?? Shader.Find("Particles/Standard Unlit")
-                  ?? Shader.Find("Sprites/Default");
+        // 炎・火の粉には完全加算シェーダー、煙には実績のあるWhiteSmoke透過シェーダーを使用
+        Shader shader = isAdditive
+            ? (Shader.Find("RustAndFloat/FireGlow") ?? Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default"))
+            : (Shader.Find("RustAndFloat/WhiteSmoke") ?? Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default"));
+
         var mat = new Material(shader);
         if (tex != null)
         {
@@ -251,24 +254,7 @@ public class AdventureBeachCampfire : MonoBehaviour
             if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
         }
 
-        if (isAdditive)
-        {
-            mat.SetFloat("_Surface", 1);
-            mat.SetFloat("_Blend", 1);
-            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
-            mat.SetInt("_ZWrite", 0);
-            mat.renderQueue = 3100;
-        }
-        else
-        {
-            mat.SetFloat("_Surface", 1);
-            mat.SetFloat("_Blend", 0);
-            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            mat.SetInt("_ZWrite", 0);
-            mat.renderQueue = 3000;
-        }
+        mat.SetColor("_BaseColor", Color.white);
         return mat;
     }
 
@@ -392,7 +378,7 @@ public class AdventureBeachCampfire : MonoBehaviour
         ltGo.transform.localPosition = new Vector3(0f, 0.65f, 0f);
         _fireLight = ltGo.AddComponent<Light>();
         _fireLight.type = LightType.Point;
-        _fireLight.color = new Color(1.0f, 0.62f, 0.22f);
+        _fireLight.color = new Color(1.0f, 0.72f, 0.32f);
         _fireLight.intensity = 5.2f;
         _fireLight.range = 19.0f;
 
@@ -495,15 +481,15 @@ public class AdventureBeachCampfire : MonoBehaviour
         var grad = new Gradient();
         grad.SetKeys(
             new GradientColorKey[] {
-                new GradientColorKey(new Color(1f, 0.88f, 0.45f), 0.0f),
-                new GradientColorKey(new Color(1f, 0.50f, 0.10f), 0.35f),
-                new GradientColorKey(new Color(0.95f, 0.22f, 0.04f), 0.75f),
-                new GradientColorKey(new Color(0.3f, 0.08f, 0.05f), 1.0f)
+                new GradientColorKey(new Color(1f, 0.98f, 0.75f), 0.0f),  // シャンパン白熱
+                new GradientColorKey(new Color(1f, 0.85f, 0.32f), 0.30f), // 輝くサンゴールド
+                new GradientColorKey(new Color(1f, 0.62f, 0.15f), 0.70f), // 温かな夕日アンバー
+                new GradientColorKey(new Color(0.96f, 0.45f, 0.08f), 1.0f) // 夕焼けオレンジ
             },
             new GradientAlphaKey[] {
-                new GradientAlphaKey(0.2f, 0.0f),
+                new GradientAlphaKey(0.0f, 0.0f),
                 new GradientAlphaKey(0.85f, 0.2f),
-                new GradientAlphaKey(0.6f, 0.7f),
+                new GradientAlphaKey(0.65f, 0.7f),
                 new GradientAlphaKey(0.0f, 1.0f)
             }
         );
@@ -545,14 +531,14 @@ public class AdventureBeachCampfire : MonoBehaviour
         grad.SetKeys(
             new GradientColorKey[] {
                 new GradientColorKey(Color.white, 0.0f),
-                new GradientColorKey(new Color(1f, 0.95f, 0.7f), 0.4f),
-                new GradientColorKey(new Color(1f, 0.65f, 0.2f), 0.8f),
-                new GradientColorKey(new Color(0.9f, 0.3f, 0.05f), 1.0f)
+                new GradientColorKey(new Color(1f, 0.98f, 0.85f), 0.35f),
+                new GradientColorKey(new Color(1f, 0.88f, 0.45f), 0.75f),
+                new GradientColorKey(new Color(1f, 0.70f, 0.20f), 1.0f)
             },
             new GradientAlphaKey[] {
-                new GradientAlphaKey(0.4f, 0.0f),
-                new GradientAlphaKey(0.95f, 0.25f),
-                new GradientAlphaKey(0.4f, 0.8f),
+                new GradientAlphaKey(0.2f, 0.0f),
+                new GradientAlphaKey(0.95f, 0.2f),
+                new GradientAlphaKey(0.6f, 0.7f),
                 new GradientAlphaKey(0.0f, 1.0f)
             }
         );
@@ -599,15 +585,15 @@ public class AdventureBeachCampfire : MonoBehaviour
         var grad = new Gradient();
         grad.SetKeys(
             new GradientColorKey[] {
-                new GradientColorKey(new Color(1f, 0.9f, 0.45f), 0.0f),
-                new GradientColorKey(new Color(1f, 0.65f, 0.20f), 0.5f),
-                new GradientColorKey(new Color(0.9f, 0.35f, 0.08f), 0.85f),
-                new GradientColorKey(new Color(0.5f, 0.15f, 0.05f), 1.0f)
+                new GradientColorKey(new Color(1f, 0.96f, 0.75f), 0.0f), // 白金のきらめき
+                new GradientColorKey(new Color(1f, 0.82f, 0.35f), 0.5f), // 黄金の星くず
+                new GradientColorKey(new Color(1f, 0.60f, 0.15f), 0.85f), // 夕焼けの火の粉
+                new GradientColorKey(new Color(0.9f, 0.45f, 0.10f), 1.0f)
             },
             new GradientAlphaKey[] {
                 new GradientAlphaKey(0.8f, 0.0f),
                 new GradientAlphaKey(1.0f, 0.2f),
-                new GradientAlphaKey(0.7f, 0.7f),
+                new GradientAlphaKey(0.8f, 0.7f),
                 new GradientAlphaKey(0.0f, 1.0f)
             }
         );
@@ -658,14 +644,14 @@ public class AdventureBeachCampfire : MonoBehaviour
         var grad = new Gradient();
         grad.SetKeys(
             new GradientColorKey[] {
-                new GradientColorKey(new Color(0.40f, 0.38f, 0.42f), 0.0f),
-                new GradientColorKey(new Color(0.48f, 0.48f, 0.52f), 0.5f),
-                new GradientColorKey(new Color(0.55f, 0.55f, 0.58f), 1.0f)
+                new GradientColorKey(new Color(0.96f, 0.94f, 0.92f), 0.0f),
+                new GradientColorKey(new Color(0.98f, 0.95f, 0.90f), 0.5f),
+                new GradientColorKey(new Color(1.0f, 0.96f, 0.92f), 1.0f)
             },
             new GradientAlphaKey[] {
                 new GradientAlphaKey(0.0f, 0.0f),
-                new GradientAlphaKey(0.14f, 0.2f),
-                new GradientAlphaKey(0.10f, 0.6f),
+                new GradientAlphaKey(0.055f, 0.25f), // 極めて淡く優しい半透明
+                new GradientAlphaKey(0.035f, 0.65f),
                 new GradientAlphaKey(0.0f, 1.0f)
             }
         );
@@ -800,7 +786,7 @@ public class AdventureBeachCampfire : MonoBehaviour
             if (_emberMat != null)
             {
                 float pulse = 0.65f + 0.35f * Mathf.Sin(Time.time * 1.8f) + 0.15f * Mathf.PerlinNoise(Time.time * 2.5f, 0f);
-                Color emberCol = new Color(2.4f * pulse, 0.55f * pulse, 0.08f * pulse);
+                Color emberCol = new Color(2.8f * pulse, 1.2f * pulse, 0.25f * pulse);
                 _emberMat.SetColor("_EmissionColor", emberCol);
             }
         }
