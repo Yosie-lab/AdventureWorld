@@ -346,24 +346,24 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
         CleanExpiredFootprints();
     }
 
-    /// <summary>コースティクス光の揺らぎと波打ち際の寄せては返すアニメーション（夕暮れ反射・夜光虫連動）</summary>
+    /// <summary>コースティクス光の揺らぎと波打ち際の寄せては返すアニメーション（ゆったりとした南国の波周期）</summary>
     void UpdateWaterAnimations()
     {
         float t = Time.time;
         float night = AdventureDayNightDirector.NightFactor;
         float sunset = AdventureDayNightDirector.SunsetFactor;
 
-        // 1. コースティクスのUVスクロール（2方向ブレンド感）
+        // 1. コースティクスのUVスクロール（穏やかで上品なゆらめき）
         if (_causticsMat != null)
         {
             Vector2 offset = new Vector2(
-                Mathf.Repeat(t * 0.045f, 1f),
-                Mathf.Repeat(t * 0.028f, 1f)
+                Mathf.Repeat(t * 0.022f, 1f),
+                Mathf.Repeat(t * 0.014f, 1f)
             );
             _causticsMat.mainTextureOffset = offset;
 
             // 太陽光の微かなゆらめき輝度変化（夜は月光で微かに透き通り、昼は輝く）
-            float glow = 0.38f + 0.08f * Mathf.Sin(t * 1.8f) + 0.04f * Mathf.Cos(t * 2.7f);
+            float glow = 0.38f + 0.08f * Mathf.Sin(t * 1.0f) + 0.04f * Mathf.Cos(t * 1.5f);
             Color causticsBase = Color.Lerp(
                 new Color(0.65f, 0.95f, 1.0f),
                 new Color(1.0f, 0.80f, 0.55f),
@@ -374,15 +374,34 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
             _causticsMat.color = new Color(causticsBase.r, causticsBase.g, causticsBase.b, glow);
         }
 
-        // 2. 波打ち際の寄せては返す白波＆夜光虫（周期 約4.2秒）
+        // 2. 波打ち際の寄せては返す白波＆夜光虫（ゆったりとした深呼吸のような周期 約10.5秒）
         if (_shoreWaveMat != null)
         {
-            // 寄せる波（急）と引く波（ゆるやか）の非線形ウェーブ
-            float wavePhase = (t % 4.2f) / 4.2f;
-            float surge = Mathf.SmoothStep(0f, 1f, Mathf.Sin(wavePhase * Mathf.PI));
+            // 周期を4.2秒から約10.5秒へ大幅にゆったり延長（約2.5倍の穏やかな満ち引き）
+            const float wavePeriod = 10.5f;
+            float wavePhase = (t % wavePeriod) / wavePeriod; // 0.0 〜 1.0
 
-            // UVオフセットで波が砂浜に押し寄せて引く
-            _shoreWaveMat.mainTextureOffset = new Vector2(surge * 0.65f, Mathf.Repeat(t * 0.015f, 1f));
+            // 満ちる波（約4.5秒）➔ 渚での穏やかな滞留（約1.4秒）➔ 静かに時間をかけて引く波（約4.6秒）
+            float surge;
+            if (wavePhase < 0.44f)
+            {
+                float p = wavePhase / 0.44f;
+                surge = Mathf.SmoothStep(0f, 1f, p);
+            }
+            else if (wavePhase < 0.57f)
+            {
+                // 最高到達点でのふわりとした留まり
+                surge = 1f;
+            }
+            else
+            {
+                // 静かに引いていく波
+                float p = (wavePhase - 0.57f) / 0.43f;
+                surge = Mathf.SmoothStep(1f, 0f, p);
+            }
+
+            // UVオフセットで波が砂浜にゆったり押し寄せて引く
+            _shoreWaveMat.mainTextureOffset = new Vector2(surge * 0.65f, Mathf.Repeat(t * 0.006f, 1f));
 
             // 昼は純白、夕暮れは茜色、夜は神秘的な「夜光虫（ネオンシアンの幻想発光）」！
             Color dayWaveColor = new Color(1f, 1f, 1f);
@@ -393,7 +412,7 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
             curWaveColor = Color.Lerp(curWaveColor, bioluminescentColor, night);
 
             // 満ちたときに白く/青白く際立ち、引くときに透き通る
-            float waveAlpha = Mathf.Lerp(0.15f, 0.85f, surge);
+            float waveAlpha = Mathf.Lerp(0.12f, 0.82f, surge);
             _shoreWaveMat.color = new Color(curWaveColor.r, curWaveColor.g, curWaveColor.b, waveAlpha);
         }
     }
