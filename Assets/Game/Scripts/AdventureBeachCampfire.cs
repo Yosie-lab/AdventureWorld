@@ -384,14 +384,14 @@ public class AdventureBeachCampfire : MonoBehaviour
 
         // 焚き火ASMRパチパチ音（8秒シームレス高音質ASMR）
         _fireAudio = _flameRoot.AddComponent<AudioSource>();
-        _fireAudio.spatialBlend = 0.80f;
-        _fireAudio.minDistance = 3.5f;
-        _fireAudio.maxDistance = 32f;
+        _fireAudio.spatialBlend = 0.65f; // 2D/3Dブレンドで耳元に心地よくしっかり響く
+        _fireAudio.minDistance = 5.0f;   // 丸太ベンチ（距離約2m）でも100%の音量を維持
+        _fireAudio.maxDistance = 35f;
         _fireAudio.rolloffMode = AudioRolloffMode.Linear;
         _fireAudio.dopplerLevel = 0f; // カメラ移動によるピッチ揺らぎを防止
         _fireAudio.loop = true;
         _fireAudio.clip = CreateCracklingAudioClip();
-        _fireAudio.volume = 0.85f;
+        _fireAudio.volume = 1.0f; // 明瞭に聴こえる音量
 
         _flameRoot.SetActive(false);
 
@@ -772,11 +772,11 @@ public class AdventureBeachCampfire : MonoBehaviour
             samples[lengthSamples - fadeLen + i] = blend;
         }
 
-        // 6. ウォームリミッティング（耳触りの良いソフトサチュレーション）
+        // 6. ウォームリミッティング（耳触りの良いソフトサチュレーション：適正ゲイン）
         for (int i = 0; i < lengthSamples; i++)
         {
             float s = samples[i];
-            samples[i] = Mathf.Clamp(Mathf.Sin(s * 1.3f) * 0.75f, -0.90f, 0.90f);
+            samples[i] = Mathf.Clamp(Mathf.Sin(s * 1.35f) * 0.92f, -0.96f, 0.96f);
         }
 
         var clip = AudioClip.Create("RealCampfireASMR_Loop", lengthSamples, 1, sampleRate, false);
