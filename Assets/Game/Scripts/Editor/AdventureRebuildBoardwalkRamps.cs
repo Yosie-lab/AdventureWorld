@@ -56,8 +56,15 @@ public static class AdventureRebuildBoardwalkRamps
         rampsRoot.transform.SetParent(root.transform, false);
 
         float[] angles = {
-            180f, 205f, 228f, 245f, 270f, 315f, 0f, 60f
+            180f, // 西側ビーチ
+            205f, // 南西ビーチ（スタート海岸南）
+            270f, // 南側ビーチ
+            315f, // 北西ビーチ
+            0f,   // 東側ビーチ
+            60f,  // 北東ビーチ
         };
+
+        const float PlankThickness = 0.14f;
 
         for (int i = 0; i < angles.Length; i++)
         {
@@ -65,10 +72,22 @@ public static class AdventureRebuildBoardwalkRamps
             float rad = deg * Mathf.Deg2Rad;
             Vector3 dir = new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad)).normalized;
 
-            float rBeach = 452f;
-            float rInland = 320f;
-            while (rBeach > 390f && (land.SampleHeight(center + dir * rBeach) + land.transform.position.y) < waterY + 0.25f)
-                rBeach -= 3f;
+            float rBeach = 448f;
+            while (rBeach > 390f && (land.SampleHeight(center + dir * rBeach) + land.transform.position.y) < waterY + 0.35f)
+                rBeach -= 2f;
+
+            float rInland = rBeach - 65f;
+            for (float r = rBeach - 30f; r >= 280f; r -= 5f)
+            {
+                Vector3 checkP = center + dir * r;
+                float h = land.SampleHeight(checkP) + land.transform.position.y;
+                if (r < 220f || h >= 22f)
+                {
+                    rInland = r;
+                    break;
+                }
+                rInland = r;
+            }
 
             Vector3 beachPoint = center + dir * rBeach;
             Vector3 inlandPoint = center + dir * rInland;
@@ -76,29 +95,37 @@ public static class AdventureRebuildBoardwalkRamps
             beachPoint.y = land.SampleHeight(beachPoint) + land.transform.position.y;
             inlandPoint.y = land.SampleHeight(inlandPoint) + land.transform.position.y;
 
-            if (Mathf.Abs(inlandPoint.y - beachPoint.y) < 0.6f && inlandPoint.y < waterY + 3.5f)
+            if (Mathf.Abs(inlandPoint.y - beachPoint.y) < 0.8f && inlandPoint.y < waterY + 3.0f)
                 continue;
 
-            // 最大約8°になるよう水平距離を確保
+            // 勾配調整
             {
+                const float maxGrade = 0.20f;
                 Vector3 flat = inlandPoint - beachPoint; flat.y = 0f;
                 float horiz = flat.magnitude;
                 float rise = inlandPoint.y - beachPoint.y;
-                float need = Mathf.Abs(rise) / 0.14f;
-                if (need > horiz && horiz > 0.1f)
+                if (horiz > 0.1f)
                 {
-                    inlandPoint = beachPoint - dir * need; // dir外向き → 内陸は -dir
-                    inlandPoint.y = land.SampleHeight(inlandPoint) + land.transform.position.y;
+                    float need = Mathf.Abs(rise) / maxGrade;
+                    if (need > horiz)
+                    {
+                        Vector3 flatDir = flat / horiz;
+                        Vector3 testInland = beachPoint + flatDir * need;
+                        float testY = land.SampleHeight(testInland) + land.transform.position.y;
+                        if (testY <= 24f)
+                        {
+                            inlandPoint = testInland;
+                            inlandPoint.y = testY;
+                        }
+                    }
                 }
             }
 
             var rampGo = new GameObject($"BoardwalkRamp_{Mathf.RoundToInt(deg)}deg");
             rampGo.transform.SetParent(rampsRoot.transform, false);
 
-            int segments = 36;
-            float width = 4.2f;
-            float startY = beachPoint.y;
-            float endY = inlandPoint.y;
+            int segments = 32;
+            float width = 3.8f;
 
             Vector3[] points = new Vector3[segments + 1];
             for (int s = 0; s <= segments; s++)
@@ -106,10 +133,17 @@ public static class AdventureRebuildBoardwalkRamps
                 float t = (float)s / segments;
                 float u = t * t * (3f - 2f * t);
                 Vector3 p = Vector3.Lerp(beachPoint, inlandPoint, t);
-                float smoothY = Mathf.Lerp(startY, endY, u);
+                float smoothY = Mathf.Lerp(beachPoint.y, inlandPoint.y, u);
                 float ty = land.SampleHeight(p) + land.transform.position.y;
-                float lift = Mathf.Lerp(-0.06f, 0.06f, Mathf.Clamp01(t * 5f));
-                p.y = Mathf.Max(ty + lift, smoothY + lift);
+                if (s == 0 || s == segments)
+                {
+                    p.y = ty - 0.01f;
+                }
+                else
+                {
+                    float groundTarget = ty + 0.06f;
+                    p.y = Mathf.Max(smoothY, groundTarget);
+                }
                 points[s] = p;
             }
 
@@ -125,24 +159,38 @@ public static class AdventureRebuildBoardwalkRamps
                 Vector3 fwdNorm = forward.normalized;
                 Vector3 right = Vector3.Cross(Vector3.up, fwdNorm).normalized;
 
-                float groundUnder = segCenter.y;
-                if (land != null)
-                    groundUnder = land.SampleHeight(segCenter) + land.transform.position.y;
-
-                float topY = segCenter.y + 0.15f;
-                float bottomY = Mathf.Min(segCenter.y - 1.2f, groundUnder - 1.2f);
-                float segHeight = Mathf.Max(1.5f, topY - bottomY);
-                float segCenterY = topY - segHeight * 0.5f;
+                float groundUnder = land.SampleHeight(segCenter) + land.transform.position.y;
+                float plankCenterY = segCenter.y + PlankThickness * 0.5f;
 
                 var plank = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 plank.name = $"Plank_{s}";
                 plank.transform.SetParent(rampGo.transform, false);
-                plank.transform.position = new Vector3(segCenter.x, segCenterY, segCenter.z);
+                plank.transform.position = new Vector3(segCenter.x, plankCenterY, segCenter.z);
                 plank.transform.rotation = Quaternion.LookRotation(fwdNorm, Vector3.up);
-                plank.transform.localScale = new Vector3(width, segHeight, length * 1.08f);
+                plank.transform.localScale = new Vector3(width, PlankThickness, length * 1.04f);
 
                 var mr = plank.GetComponent<MeshRenderer>();
                 if (mr != null) mr.sharedMaterial = woodMat;
+
+                float gap = segCenter.y - groundUnder;
+                if (gap > 0.35f && (s % 3 == 0 || s == segments - 1))
+                {
+                    for (int side = -1; side <= 1; side += 2)
+                    {
+                        float pileHeight = gap + PlankThickness;
+                        var pile = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                        pile.name = $"WoodenPile_{s}_{(side < 0 ? "L" : "R")}";
+                        pile.transform.SetParent(rampGo.transform, false);
+                        pile.transform.position = segCenter + right * (side * (width * 0.5f - 0.25f)) - Vector3.up * (pileHeight * 0.5f - PlankThickness);
+                        pile.transform.localScale = new Vector3(0.24f, pileHeight * 0.5f, 0.24f);
+
+                        var pileMr = pile.GetComponent<MeshRenderer>();
+                        if (pileMr != null) pileMr.sharedMaterial = postMat;
+
+                        var pcol = pile.GetComponent<Collider>();
+                        if (pcol != null) Object.DestroyImmediate(pcol);
+                    }
+                }
 
                 if (s % 4 == 0 || s == segments - 1)
                 {
@@ -151,8 +199,8 @@ public static class AdventureRebuildBoardwalkRamps
                         var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                         post.name = $"RailingPost_{s}_{(side < 0 ? "L" : "R")}";
                         post.transform.SetParent(rampGo.transform, false);
-                        post.transform.position = segCenter + right * (side * (width * 0.5f - 0.15f)) + Vector3.up * 0.55f;
-                        post.transform.localScale = new Vector3(0.18f, 0.55f, 0.18f);
+                        post.transform.position = segCenter + right * (side * (width * 0.5f - 0.15f)) + Vector3.up * (PlankThickness + 0.45f);
+                        post.transform.localScale = new Vector3(0.18f, 0.45f, 0.18f);
 
                         var postMr = post.GetComponent<MeshRenderer>();
                         if (postMr != null) postMr.sharedMaterial = postMat;
@@ -166,10 +214,10 @@ public static class AdventureRebuildBoardwalkRamps
 
         // スタート西浜ピン留め1本
         PlaceEditorPinnedRamp(rampsRoot.transform, land, waterY, woodMat, postMat,
-            new Vector2(152f, 268f), new Vector2(300f, 355f), "BoardwalkRamp_SpawnWest");
+            new Vector2(152f, 268f), new Vector2(240f, 310f), "BoardwalkRamp_SpawnWest");
 
         EditorUtility.SetDirty(go);
-        Debug.Log("Successfully rebuilt gentle boardwalk ramps (~half count, ~8° max grade)!");
+        Debug.Log("Successfully rebuilt gentle boardwalk ramps (~half count, ~10° grade, thin planks)!");
     }
 
     static void PlaceEditorPinnedRamp(
@@ -178,23 +226,33 @@ public static class AdventureRebuildBoardwalkRamps
         Vector2 beachXZ, Vector2 inlandXZ, string name)
     {
         Vector3 beachPoint = new Vector3(beachXZ.x, waterY + 0.35f, beachXZ.y);
-        Vector3 inlandPoint = new Vector3(inlandXZ.x, waterY + 8f, inlandXZ.y);
-        beachPoint.y = Mathf.Max(waterY + 0.2f, land.SampleHeight(beachPoint) + land.transform.position.y);
+        Vector3 inlandPoint = new Vector3(inlandXZ.x, waterY + 12f, inlandXZ.y);
+        beachPoint.y = land.SampleHeight(beachPoint) + land.transform.position.y;
         inlandPoint.y = land.SampleHeight(inlandPoint) + land.transform.position.y;
 
         var rampGo = new GameObject(name);
         rampGo.transform.SetParent(parent, false);
-        int segments = 28;
-        float width = 4.2f;
+        int segments = 32;
+        float width = 3.8f;
+        const float PlankThickness = 0.14f;
+
         Vector3[] points = new Vector3[segments + 1];
         for (int s = 0; s <= segments; s++)
         {
             float t = (float)s / segments;
+            float u = t * t * (3f - 2f * t);
             Vector3 p = Vector3.Lerp(beachPoint, inlandPoint, t);
+            float smoothY = Mathf.Lerp(beachPoint.y, inlandPoint.y, u);
             float ty = land.SampleHeight(p) + land.transform.position.y;
-            float lift = Mathf.Lerp(-0.08f, 0.08f, Mathf.Clamp01(t * 6f));
-            if (t > 0.85f) lift = Mathf.Lerp(0.08f, 0.02f, (t - 0.85f) / 0.15f);
-            p.y = ty + lift;
+            if (s == 0 || s == segments)
+            {
+                p.y = ty - 0.01f;
+            }
+            else
+            {
+                float groundTarget = ty + 0.06f;
+                p.y = Mathf.Max(smoothY, groundTarget);
+            }
             points[s] = p;
         }
         for (int s = 0; s < segments; s++)
@@ -207,23 +265,38 @@ public static class AdventureRebuildBoardwalkRamps
             if (length < 0.01f) continue;
             Vector3 fwdNorm = forward.normalized;
             Vector3 right = Vector3.Cross(Vector3.up, fwdNorm).normalized;
-            float groundUnder = segCenter.y;
-            if (land != null)
-                groundUnder = land.SampleHeight(segCenter) + land.transform.position.y;
-
-            float topY = segCenter.y + 0.15f;
-            float bottomY = Mathf.Min(segCenter.y - 1.2f, groundUnder - 1.2f);
-            float segHeight = Mathf.Max(1.5f, topY - bottomY);
-            float segCenterY = topY - segHeight * 0.5f;
+            float groundUnder = land.SampleHeight(segCenter) + land.transform.position.y;
+            float plankCenterY = segCenter.y + PlankThickness * 0.5f;
 
             var plank = GameObject.CreatePrimitive(PrimitiveType.Cube);
             plank.name = $"Plank_{s}";
             plank.transform.SetParent(rampGo.transform, false);
-            plank.transform.position = new Vector3(segCenter.x, segCenterY, segCenter.z);
+            plank.transform.position = new Vector3(segCenter.x, plankCenterY, segCenter.z);
             plank.transform.rotation = Quaternion.LookRotation(fwdNorm, Vector3.up);
-            plank.transform.localScale = new Vector3(width, segHeight, length * 1.08f);
+            plank.transform.localScale = new Vector3(width, PlankThickness, length * 1.04f);
             var mr = plank.GetComponent<MeshRenderer>();
             if (mr != null) mr.sharedMaterial = woodMat;
+
+            float gap = segCenter.y - groundUnder;
+            if (gap > 0.35f && (s % 3 == 0 || s == segments - 1))
+            {
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    float pileHeight = gap + PlankThickness;
+                    var pile = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    pile.name = $"WoodenPile_{s}_{(side < 0 ? "L" : "R")}";
+                    pile.transform.SetParent(rampGo.transform, false);
+                    pile.transform.position = segCenter + right * (side * (width * 0.5f - 0.25f)) - Vector3.up * (pileHeight * 0.5f - PlankThickness);
+                    pile.transform.localScale = new Vector3(0.24f, pileHeight * 0.5f, 0.24f);
+
+                    var pileMr = pile.GetComponent<MeshRenderer>();
+                    if (pileMr != null) pileMr.sharedMaterial = postMat;
+
+                    var pcol = pile.GetComponent<Collider>();
+                    if (pcol != null) Object.DestroyImmediate(pcol);
+                }
+            }
+
             if (s % 4 == 0 || s == segments - 1)
             {
                 for (int side = -1; side <= 1; side += 2)
@@ -231,8 +304,8 @@ public static class AdventureRebuildBoardwalkRamps
                     var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                     post.name = $"RailingPost_{s}_{(side < 0 ? "L" : "R")}";
                     post.transform.SetParent(rampGo.transform, false);
-                    post.transform.position = segCenter + right * (side * (width * 0.5f - 0.15f)) + Vector3.up * 0.55f;
-                    post.transform.localScale = new Vector3(0.18f, 0.55f, 0.18f);
+                    post.transform.position = segCenter + right * (side * (width * 0.5f - 0.15f)) + Vector3.up * (PlankThickness + 0.45f);
+                    post.transform.localScale = new Vector3(0.18f, 0.45f, 0.18f);
                     var postMr = post.GetComponent<MeshRenderer>();
                     if (postMr != null) postMr.sharedMaterial = postMat;
                     var col = post.GetComponent<Collider>();
@@ -240,5 +313,6 @@ public static class AdventureRebuildBoardwalkRamps
                 }
             }
         }
+
     }
 }
