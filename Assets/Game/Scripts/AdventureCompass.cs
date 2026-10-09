@@ -29,10 +29,27 @@ public class AdventureCompass : MonoBehaviour
         BuildUi();
     }
 
+    float _dialYaw;
+    float _dialYawVel;
+    bool _dialInit;
+
     void LateUpdate()
     {
         if (_yawSource != null && _dial != null)
-            _dial.localEulerAngles = new Vector3(0f, 0f, -_yawSource.eulerAngles.y);
+        {
+            float target = _yawSource.eulerAngles.y;
+            if (!_dialInit)
+            {
+                _dialYaw = target;
+                _dialInit = true;
+            }
+            else
+            {
+                _dialYaw = Mathf.SmoothDampAngle(
+                    _dialYaw, target, ref _dialYawVel, 0.07f, Mathf.Infinity, Time.unscaledDeltaTime);
+            }
+            _dial.localEulerAngles = new Vector3(0f, 0f, -_dialYaw);
+        }
 
         if (_posSource != null && _coordsText != null)
         {
