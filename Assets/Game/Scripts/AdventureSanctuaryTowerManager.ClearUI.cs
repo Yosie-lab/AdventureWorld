@@ -154,7 +154,7 @@ public partial class AdventureSanctuaryTowerManager
             "天蓋の檻を打ち破り、二人は蒼い風が吹く空へ羽ばたいた。\n\n" +
             "✦ 漂着古代パーツ回収： 12 / 12\n" +
             "✦ 相棒Rust： 二段ジャンプ・超滑空・探知ソナー\n\n" +
-            "「ありがとう、Niko。僕たちの翼で、どこまでも行こう……！」\n\n" +
+            "「ありがとう、Float。僕たちの翼で、どこまでも行こう……！」\n\n" +
             "【Space】大空へ　【N】はじめから　【E / Esc】閉じる";
         PrepareFontForText(font, body.text, 24);
 

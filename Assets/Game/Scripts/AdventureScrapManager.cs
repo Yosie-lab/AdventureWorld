@@ -650,7 +650,7 @@ public class AdventureScrapManager : MonoBehaviour
                 var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
                 if (drone != null)
                 {
-                    drone.SpeakCustom("20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Niko！！", 8.0f);
+                    drone.SpeakCustom("20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Float！！", 8.0f);
                     drone.TriggerTowerLeadGuidance();
                 }
             }

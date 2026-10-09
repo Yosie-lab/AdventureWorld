@@ -64,7 +64,7 @@ public partial class AdventureRustDrone
                 "ピピッ♪ 大事な手がかりゲット！",
                 "えへへ、順調順調！",
                 "これでまた島を出る準備が進んだね！",
-                "ピロリン！見つけてくれてありがとう、Niko！"
+                "ピロリン！見つけてくれてありがとう、Float！"
             };
             SpeakCustom(cheers[Random.Range(0, cheers.Length)], 3.0f);
         }
@@ -177,7 +177,7 @@ public partial class AdventureRustDrone
                     _panicSpeechCooldown = Time.time + 4.5f;
                     string[] panicLines = {
                         "ヒャッ！水だ！濡れちゃう濡れちゃう！",
-                        "Niko、水はダメだよ〜！ギアが錆びちゃう…！",
+                        "Float、水はダメだよ〜！ギアが錆びちゃう…！",
                         "た、高いところ！抱っこして〜！",
                         "ピピッ！ギギッ！水滴が…！"
                     };
@@ -197,7 +197,7 @@ public partial class AdventureRustDrone
             string[] reliefLines = {
                 "ふぅ……助かったぁ……！",
                 "ギアに水が入らなくてよかった…！",
-                "乾いた地面って最高だね、Niko！"
+                "乾いた地面って最高だね、Float！"
             };
             SpeakCustom(reliefLines[Random.Range(0, reliefLines.Length)], 2.8f);
             return;
@@ -251,7 +251,9 @@ public partial class AdventureRustDrone
         }
 
         // プレイヤーが一定時間立ち止まっている時の自律アクション抽選
-        if (_playerRestTime > 1.4f && Time.time >= _nextCuriosityCheck && CurrentState == RustState.Follow)
+        var curiosityBlock = AdventurePrologueDrama.Instance;
+        bool prologueTalking = curiosityBlock != null && curiosityBlock.IsBlockingSpeech;
+        if (_playerRestTime > 1.4f && Time.time >= _nextCuriosityCheck && CurrentState == RustState.Follow && !prologueTalking)
         {
             _nextCuriosityCheck = Time.time + Random.Range(6.0f, 11.0f);
             TryStartCuriosityInvestigation(nikoPos);
@@ -338,7 +340,7 @@ public partial class AdventureRustDrone
                 string[] floraLines = {
                     "わぁ、小さな花が咲いてる…！",
                     "ピピッ♪ すごくいい匂いがするよ",
-                    "誰が植えたのかな…？綺麗だね、Niko",
+                    "誰が植えたのかな…？綺麗だね、Float",
                     "ふふっ、風に揺れてご挨拶してるみたい！"
                 };
                 SpeakCustom(floraLines[Random.Range(0, floraLines.Length)], 2.8f);
@@ -354,9 +356,9 @@ public partial class AdventureRustDrone
         if (Random.value < 0.5f)
         {
             string[] nikoLines = {
-                "どうしたの、Niko？疲れてない？",
-                "ふふっ、Nikoの顔を見てると安心するな",
-                "ずっと一緒だよ、Niko！",
+                "どうしたの、Float？疲れてない？",
+                "ふふっ、Floatの顔を見てると安心するな",
+                "ずっと一緒だよ、Float！",
                 "ピピッ♪ 準備ができたら、いつでも合図してね"
             };
             SpeakCustom(nikoLines[Random.Range(0, nikoLines.Length)], 2.8f);
@@ -397,7 +399,7 @@ public partial class AdventureRustDrone
         string[] sleepLines = {
             "すぅ……すぅ……",
             "ぽかぽかして……きもちいい……Zzz",
-            "Nikoのそば……安心するな……すぅ……",
+            "Floatのそば……安心するな……すぅ……",
             "……すやぁ……"
         };
         SpeakCustom(sleepLines[Random.Range(0, sleepLines.Length)], 3.5f);
@@ -437,7 +439,7 @@ public partial class AdventureRustDrone
             string[] wakeLines = {
                 "ハッ！寝てないよ！起きてるよ！",
                 "ピピッ！ふぁ…びっくりしたぁ！",
-                "いつでも行けるよ、Niko！えへへ…",
+                "いつでも行けるよ、Float！えへへ…",
                 "シャキーン！準備かんりょう！"
             };
             SpeakCustom(wakeLines[Random.Range(0, wakeLines.Length)], 2.5f);

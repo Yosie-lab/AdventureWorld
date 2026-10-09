@@ -198,7 +198,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         var drone = AdventureRustDrone.Instance;
         if (drone != null)
         {
-            drone.SetSpeech("スカイダイブスタート！風を掴め、Niko！全速前進だーっ！", 3.5f);
+            drone.SetSpeech("スカイダイブスタート！風を掴め、Float！全速前進だーっ！", 3.5f);
         }
     }
 
@@ -315,7 +315,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         {
             if (_currentResultRank.StartsWith("S"))
             {
-                drone.SetSpeech($"信じられないスピードだ、Niko！Sランク達成！！お前、翼が生えてるんじゃないか！？（タイム: {_resultTimer:F2}秒）", 5.5f);
+                drone.SetSpeech($"信じられないスピードだ、Float！Sランク達成！！お前、翼が生えてるんじゃないか！？（タイム: {_resultTimer:F2}秒）", 5.5f);
             }
             else if (_currentResultRank.StartsWith("A"))
             {

@@ -163,6 +163,41 @@ public partial class AdventureSanctuaryTowerManager
 
     #region レバー物理構造・台座・アプローチステップ
 
+    static readonly string[] OrphanLeverNames =
+    {
+        "SanctuaryLeverStructure",
+        "SanctuaryWestLeverStructure",
+        "SanctuaryNorthLeverStructure",
+        "SanctuaryEastLeverStructure",
+        "SanctuaryTopLeverStructure",
+    };
+
+    /// <summary>
+    /// 指定名のアクティブなレバーだけを消す。keep は作動中の本体なので残す。
+    /// シーン全オブジェクトの配列化を避け、レバーを引いた瞬間の停止を防ぐ。
+    /// </summary>
+    void DestroyOrphanLevers(GameObject keep)
+    {
+        bool restore = keep != null && keep.activeSelf;
+        if (restore)
+            keep.SetActive(false);
+
+        for (int n = 0; n < OrphanLeverNames.Length; n++)
+        {
+            string leverName = OrphanLeverNames[n];
+            for (int i = 0; i < 8; i++)
+            {
+                var go = GameObject.Find(leverName);
+                if (go == null || go == keep)
+                    break;
+                DestroyImmediate(go);
+            }
+        }
+
+        if (restore)
+            keep.SetActive(true);
+    }
+
     void BuildTowerLever()
     {
         // 1. 自階層配下にある古いレバーオブジェクトを即座に完全一掃
@@ -175,18 +210,8 @@ public partial class AdventureSanctuaryTowerManager
             }
         }
 
-        // 2. シーン内にあるすべての古いレバーオブジェクトを根こそぎ即時完全消去
-        var allObjects = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include);
-        foreach (var go in allObjects)
-        {
-            if (go == null) continue;
-            if (go.name == "SanctuaryLeverStructure" || go.name == "SanctuaryWestLeverStructure" ||
-                go.name == "SanctuaryNorthLeverStructure" || go.name == "SanctuaryEastLeverStructure" ||
-                go.name == "SanctuaryTopLeverStructure")
-            {
-                DestroyImmediate(go);
-            }
-        }
+        // 2. マネージャー配下にいない古いレバーだけを名前で消す（全GameObject走査はしない）
+        DestroyOrphanLevers(keep: null);
 
         _allLeverHandles.Clear();
         _allLeverLights.Clear();

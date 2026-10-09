@@ -75,7 +75,7 @@ public class AdventureRustCosmetics : MonoBehaviour
             requiredKind = AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire,
             requiredCount = 1,
             themeColor = new Color(0.25f, 0.75f, 1f),
-            rustReaction = "見て見てNiko！飛ぶたびに青い光がキラキラついてくるよ！"
+            rustReaction = "見て見てFloat！飛ぶたびに青い光がキラキラついてくるよ！"
         },
         new CosmeticDef
         {

@@ -228,7 +228,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
 
             case ShellKind.SpiralShell:
                 itemName = "純白の小巻貝";
-                rustReaction = "耳を当ててみて、Niko！遠くの波の音が聞こえるよ！";
+                rustReaction = "耳を当ててみて、Float！遠くの波の音が聞こえるよ！";
                 themeColor = new Color(0.96f, 0.98f, 1f, 1f);
                 CreateRealisticSpiralShell(vGo.transform, shader);
                 break;

@@ -365,7 +365,7 @@ public class AdventureAncientPianoRelic : MonoBehaviour
             if (drone != null)
             {
                 drone.SpeakCustom(
-                    "…見て、Niko！島じゅうに流れていたあの優しいメロディ…カピタがピアノを弾いていたんだね…！\nすごく気持ちよさそうに弾いてる…ふふ、癒やされるなぁ♪",
+                    "…見て、Float！島じゅうに流れていたあの優しいメロディ…カピタがピアノを弾いていたんだね…！\nすごく気持ちよさそうに弾いてる…ふふ、癒やされるなぁ♪",
                     8.5f);
             }
         }

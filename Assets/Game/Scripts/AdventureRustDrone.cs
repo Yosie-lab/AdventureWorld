@@ -250,7 +250,7 @@ public partial class AdventureRustDrone : MonoBehaviour
     /// <summary>ゲーム開始／再開時のあたたかい挨拶</summary>
     public void PlayStartupGreeting()
     {
-        SetSpeech("ピピッ…！起動したよ、Niko。一緒に行こう！", 4.5f);
+        SetSpeech("ピピッ…！起動したよ、Float。一緒に行こう！", 4.5f);
         _nextIdleTalk = Time.unscaledTime + 30f;
         _lastIdleLine = "";
     }
@@ -458,7 +458,7 @@ public partial class AdventureRustDrone : MonoBehaviour
                 {
                     _targetScrap.AttachToDrone(transform);
                     CurrentState = RustState.Returning;
-                    SpeakCustom("キャッチしたよ！……Nikoのところへ、大事に持ってくね", 3.0f);
+                    SpeakCustom("キャッチしたよ！……Floatのところへ、大事に持ってくね", 3.0f);
                     if (_audio != null && _happyBeepClip != null)
                     {
                         _audio.pitch = 1.4f;
@@ -554,12 +554,11 @@ public partial class AdventureRustDrone : MonoBehaviour
         else // Follow
         {
             goal = FollowPoint();
-            bool isEpilogue = AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.EpilogueTriggered;
-            var playerCtrl = AdventurePlayerController.Instance;
-            if (playerCtrl != null && (playerCtrl.IsAutoGliding || playerCtrl.transform.position.y > 85f))
-                isEpilogue = true;
+            // 北崖（標高92m）の探索までヒッチ停止に巻き込まない。止めるのはエンディングとオート滑空だけ
+            bool suppressHitch = AdventureStoryFlow.IsEndingArc
+                || (AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.IsAutoGliding);
 
-            if (!isEpilogue && !wellOiled && !hitching && Time.time >= _nextHitch && FlatDistance(goal) > 2.4f)
+            if (!suppressHitch && !wellOiled && !hitching && Time.time >= _nextHitch && FlatDistance(goal) > 2.4f)
             {
                 _hitchUntil = Time.time + Random.Range(0.22f, 0.5f);
                 _nextHitch = Time.time + Random.Range(3.5f, 6.5f);
@@ -861,7 +860,7 @@ public partial class AdventureRustDrone : MonoBehaviour
                 // スクラップ回収を指示！
                 _targetScrap = _aimedScrap;
                 CurrentState = RustState.Fetching;
-                SpeakCustom("了解！あのパーツを取ってくるね、Niko！", 3.2f);
+                SpeakCustom("了解！あのパーツを取ってくるね、Float！", 3.2f);
                 if (_audio != null && _happyBeepClip != null)
                 {
                     _audio.pitch = 1.3f;
@@ -900,6 +899,11 @@ public partial class AdventureRustDrone : MonoBehaviour
             return;
         }
 
+        // 目覚め〜注油の台詞中は探知セリフで上書きしない
+        var prologueBlock = AdventurePrologueDrama.Instance;
+        if (prologueBlock != null && prologueBlock.IsBlockingSpeech)
+            return;
+
         Vector3 nikoPos = _lookAt.position;
 
         // 1. 中央タワーへの先導誘導（20pt達成〜天蓋開放前：最優先！）
@@ -921,7 +925,7 @@ public partial class AdventureRustDrone : MonoBehaviour
                 if (!_nearTowerNotified)
                 {
                     _nearTowerNotified = true;
-                    SetSpeech("タワーに着いたよ！白亜のテラスに黄金のレバーがある！引いてみて、Niko！！", 5.0f);
+                    SetSpeech("タワーに着いたよ！白亜のテラスに黄金のレバーがある！引いてみて、Float！！", 5.0f);
                     if (_audio != null && _happyBeepClip != null)
                     {
                         _audio.pitch = 1.45f;
@@ -1400,7 +1404,8 @@ public partial class AdventureRustDrone : MonoBehaviour
     public void AddOil(int amount, bool announce = true)
     {
         oilCount = Mathf.Max(0, oilCount) + amount;
-        if (announce)
+        var oilTalk = AdventurePrologueDrama.Instance;
+        if (announce && (oilTalk == null || !oilTalk.IsBlockingSpeech))
             SpeakCustom($"✦ 潤滑油を採取した！（+{amount}／所持: {oilCount}）", 3.2f);
         if (_happyBeepClip != null && _audio != null)
             _audio.PlayOneShot(_happyBeepClip, 0.45f);
@@ -1438,6 +1443,11 @@ public partial class AdventureRustDrone : MonoBehaviour
 
         // シネマティック中は通常インタラクトを出さない
         if (ShouldHideInteractionPrompt(towerMgr))
+            return;
+
+        // プロローグの注油・台詞中は E をドラマ側へ渡す（通常手当てが油とセリフを奪わない）
+        var prologue = AdventurePrologueDrama.Instance;
+        if (prologue != null && prologue.IsBlockingSpeech)
             return;
 
         // 押しっぱなし連打を防ぐ（wasPressed のみ / AdventureInputReader 統合）
@@ -1707,7 +1717,7 @@ public partial class AdventureRustDrone : MonoBehaviour
                 scrapSpeech = "ピキーン！歯車がカチリと噛み合ったよ…！僕ら、自分の足で走れる……！";
                 break;
             case 4:
-                scrapSpeech = "ピピッ！また見つけたよ！寄り道の先で、Nikoと一緒に宝物を拾えたね";
+                scrapSpeech = "ピピッ！また見つけたよ！寄り道の先で、Floatと一緒に宝物を拾えたね";
                 break;
             case 5:
                 scrapSpeech = "煤けてるけど大丈夫。優しく拭いてあげたら、青く澄んだ光が戻ってきたよ…！";
@@ -1797,7 +1807,7 @@ public partial class AdventureRustDrone : MonoBehaviour
     {
         _velocity += Vector3.up * 1.5f;
         string[] glideStartLines = {
-            "わぁ…！風が気持ちいいね、Niko",
+            "わぁ…！風が気持ちいいね、Float",
             "ふわりと浮いたよ…！",
             "風を掴んだね…！いいね"
         };
@@ -1817,14 +1827,14 @@ public partial class AdventureRustDrone : MonoBehaviour
         string[] windLines = oilBonus > 0
             ? new[]
             {
-                $"わぁ…！風が気持ちいいね、Niko！油も +{oilBonus}（所持: {oilCount}）",
+                $"わぁ…！風が気持ちいいね、Float！油も +{oilBonus}（所持: {oilCount}）",
                 $"ふわりと浮いたよ…！リングの光が油になったよ +{oilBonus}",
                 $"風に乗って……ピピッ！潤滑油 +{oilBonus}／所持: {oilCount}",
                 $"島を見下ろすと綺麗……油も増えたよ +{oilBonus}、えへへ"
             }
             : new[]
             {
-                "わぁ…！風が気持ちいいね、Niko",
+                "わぁ…！風が気持ちいいね、Float",
                 "ふわりと浮いたよ…！",
                 "風に乗って、どこまでも行けそう",
                 "島を見下ろすと、すごく綺麗だね"
@@ -1853,7 +1863,7 @@ public partial class AdventureRustDrone : MonoBehaviour
     /// <summary>Nikoのセリフを下部吹き出しで表示（ネームタグをNikoに切替）</summary>
     public void SpeakAsNiko(string text, float duration = 4.5f)
     {
-        SpeakAs("✦ Niko", new Color(1f, 0.88f, 0.45f, 1f), text, duration);
+        SpeakAs("✦ Float", new Color(1f, 0.88f, 0.45f, 1f), text, duration);
     }
 
     public void SpeakAs(string speaker, Color speakerColor, string text, float duration = 4.5f)
@@ -2000,7 +2010,7 @@ public partial class AdventureRustDrone : MonoBehaviour
 
     string PickIdleLine(string[] pool)
     {
-        if (pool == null || pool.Length == 0) return "……Niko";
+        if (pool == null || pool.Length == 0) return "……Float";
         if (pool.Length == 1) return pool[0];
         string line = pool[Random.Range(0, pool.Length)];
         // 直前と同じ台詞は避ける
@@ -2014,14 +2024,14 @@ public partial class AdventureRustDrone : MonoBehaviour
         "……ギアが少し重い。油か手当てがあると助かるよ",
         "ピロッ……調子が落ちてる。【E】で整備して",
         "油がほしいな。カピタのところか、地面の油でも",
-        "関節がきしむ……でも、Nikoがそばなら平気",
+        "関節がきしむ……でも、Floatがそばなら平気",
     };
 
     static readonly string[] IdleGlideLines =
     {
         "風に乗って、どこまでも行けそう",
         "島を見下ろすと、すごく綺麗だね",
-        "わぁ…！風が気持ちいいね、Niko",
+        "わぁ…！風が気持ちいいね、Float",
         "この高度、ちょうどいいね",
         "ヒューッ……いいフライトだ",
         "昔はこんな風、シミュレーションでしか知らなかった",
@@ -2030,24 +2040,24 @@ public partial class AdventureRustDrone : MonoBehaviour
 
     static readonly string[] IdlePastLines =
     {
-        "昔は倉庫の棚で眠ってた。Nikoが連れ出した日、いちばん覚えてる",
+        "昔は倉庫の棚で眠ってた。Floatが連れ出した日、いちばん覚えてる",
         "最適化の街では、僕の声も『不要』ってラベルだったんだ",
-        "塩水に濡れた最初の夜、怖かった。でもNikoの手が温かかった",
-        "スクラップ寸前の僕を、Nikoは『相棒』って呼んでくれた",
+        "塩水に濡れた最初の夜、怖かった。でもFloatの手が温かかった",
+        "スクラップ寸前の僕を、Floatは『相棒』って呼んでくれた",
         "あの波……逃げてきた海の音、まだ耳の奥に残ってる",
         "管理されるだけの日々より、今の不確かさのほうが好き",
-        "昔の記憶データ、ところどころ欠落してる。でもNikoの顔は鮮明だよ",
+        "昔の記憶データ、ところどころ欠落してる。でもFloatの顔は鮮明だよ",
     };
 
     static readonly string[] IdleFutureLines =
     {
         "翼が直ったら、蒼い空のてっぺんまで行こうね",
         "天蓋の向こう……どんな景色が待ってるんだろう",
-        "これからも、Nikoのそばで飛びたい",
+        "これからも、Floatのそばで飛びたい",
         "パーツが揃ったら、もっと遠くまで案内できるよ",
         "いつか、怖がらずに笑いながら飛べるようになりたい",
         "この島のあとにも、冒険はあるのかな……ワクワクする",
-        "Nikoと見つけたもの、全部覚えておくね。未来の僕の宝物だ",
+        "Floatと見つけたもの、全部覚えておくね。未来の僕の宝物だ",
     };
 
     static readonly string[] IdleBodyLines =
@@ -2057,17 +2067,17 @@ public partial class AdventureRustDrone : MonoBehaviour
         "センサーは快調。潮の匂いまで拾えてるよ",
         "少し眠い……でも、そばにいると元気が出る",
         "ギアが軽やか。今ならどこまでもついていける",
-        "胸のコアが温かい。Nikoのペース、ちょうどいい",
+        "胸のコアが温かい。Floatのペース、ちょうどいい",
         "バランスいいね。転びそうな気配、いまはないよ",
     };
 
     static readonly string[] IdleHappyLines =
     {
-        "えへへ……Nikoと歩くの、楽しい",
+        "えへへ……Floatと歩くの、楽しい",
         "今、すごく安心してる。ここにいていいんだって感じ",
         "ピキーッ……嬉しい。言葉にすると恥ずかしいけど",
         "風も光も、全部が優しいね。今日はいい日だ",
-        "Nikoの足音、好き。リズムが落ち着く",
+        "Floatの足音、好き。リズムが落ち着く",
         "見つかるたびに、胸がふくらむ。幸せのセンサーが鳴ってる",
         "一緒にいるだけで、充電されてるみたい",
     };
@@ -2188,7 +2198,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 26);
 
         string[] treatLines = {
-            "ありがとうNiko、身体が軽くなったよ",
+            "ありがとうFloat、身体が軽くなったよ",
             "油を差してくれてありがとう。ギアが滑らかだ",
             "ピピッ…！手当てありがとう。もうギシギシしないよ",
             "整備完了。よし進もう"

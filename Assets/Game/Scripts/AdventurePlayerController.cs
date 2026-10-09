@@ -634,7 +634,7 @@ public partial class AdventurePlayerController : MonoBehaviour
                 boostDur:  LakeBoostDur,
                 escapeDir: (transform.position - LakeCenter).SetY(0f),
                 escapeSpd: 7.5f, fwdSpd: 4.5f, totalSpd: 9.5f,
-                voice:     "ナイスジャンプ！風に乗って岸へ戻ろう、Niko！", voiceDur: 4.0f);
+                voice:     "ナイスジャンプ！風に乗って岸へ戻ろう、Float！", voiceDur: 4.0f);
         }
         else if (!openingGuarded && IsInBeachOrCoastZone(transform.position)
                  && (Time.time - _spawnTime > 5.0f)
@@ -646,7 +646,7 @@ public partial class AdventurePlayerController : MonoBehaviour
                 boostDur:  BeachBoostDur,
                 escapeDir: inwardDir,
                 escapeSpd: 8.5f, fwdSpd: 3.5f, totalSpd: 11.5f,
-                voice:     "海風の上昇気流をつかまえたよ！島の内陸へ飛んで帰ろう、Niko！", voiceDur: 4.5f);
+                voice:     "海風の上昇気流をつかまえたよ！島の内陸へ飛んで帰ろう、Float！", voiceDur: 4.5f);
         }
         else if (CheckCliffSurround(out float cliffHop, out Vector3 cliffDir))
         {
@@ -655,7 +655,7 @@ public partial class AdventurePlayerController : MonoBehaviour
                 boostDur:  CliffBoostDur,
                 escapeDir: cliffDir,
                 escapeSpd: 8.5f, fwdSpd: 4.5f, totalSpd: CliffFwdSpeed,
-                voice:     "崖の上昇気流をつかまえたよ！一気に上へ登ろう、Niko！", voiceDur: 4.2f);
+                voice:     "崖の上昇気流をつかまえたよ！一気に上へ登ろう、Float！", voiceDur: 4.2f);
         }
         else if (_grounded)
         {

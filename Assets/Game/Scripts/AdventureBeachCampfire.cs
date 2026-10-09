@@ -975,12 +975,12 @@ public class AdventureBeachCampfire : MonoBehaviour
             if (drone != null)
             {
                 string[] dialogues = {
-                    "……あったかいね、Niko。",
+                    "……あったかいね、Float。",
                     "パチパチって、なんだか落ち着く音だね……",
                     "波の音がきれいに聴こえるよ……",
                     "ずっとこうして、海を眺めていたいな……",
                     "ふぅ……少し休んでいこう……",
-                    "Nikoと一緒にいると、心があったかくなるよ。"
+                    "Floatと一緒にいると、心があったかくなるよ。"
                 };
 
                 string msg = dialogues[_dialogueIndex % dialogues.Length];

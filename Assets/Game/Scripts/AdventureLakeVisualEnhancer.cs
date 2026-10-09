@@ -742,7 +742,7 @@ public class OasisThermalVent : MonoBehaviour
                     var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
                     if (drone != null)
                     {
-                        drone.SpeakCustom("わぁっ！温かい上昇気流だ！風に乗って大空へ行こう、Niko！", 4.5f);
+                        drone.SpeakCustom("わぁっ！温かい上昇気流だ！風に乗って大空へ行こう、Float！", 4.5f);
                     }
                 }
             }
