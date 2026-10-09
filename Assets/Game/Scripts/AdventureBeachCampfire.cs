@@ -13,8 +13,8 @@ public class AdventureBeachCampfire : MonoBehaviour
 {
     public static AdventureBeachCampfire Instance { get; private set; }
 
-    [Header("配置座標（スタート地点の白砂ビーチ）")]
-    public Vector3 campfirePos = new Vector3(161.5f, 6.3f, 268.0f);
+    [Header("配置座標（スタート地点の白砂ビーチ：渡し板から離れた安全な海辺）")]
+    public Vector3 campfirePos = new Vector3(168.0f, 6.3f, 254.0f);
 
     private bool _isLit = false;
     public bool IsLit => _isLit;
@@ -128,18 +128,18 @@ public class AdventureBeachCampfire : MonoBehaviour
         pitGo.transform.localPosition = Vector3.zero;
         _firePit = pitGo.transform;
 
-        // 丸石サークル（12個の石が円形に並ぶ）
-        int stoneCount = 12;
-        float pitRadius = 0.85f;
+        // 丸石サークル（15個の大きめの丸石が円形に並ぶ：直径約2.5m）
+        int stoneCount = 15;
+        float pitRadius = 1.25f;
         for (int i = 0; i < stoneCount; i++)
         {
             float rad = (i / (float)stoneCount) * Mathf.PI * 2f;
-            Vector3 sPos = new Vector3(Mathf.Cos(rad) * pitRadius, 0.08f, Mathf.Sin(rad) * pitRadius);
+            Vector3 sPos = new Vector3(Mathf.Cos(rad) * pitRadius, 0.12f, Mathf.Sin(rad) * pitRadius);
             var stone = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             stone.name = $"PitStone_{i}";
             stone.transform.SetParent(_firePit, false);
             stone.transform.localPosition = sPos;
-            stone.transform.localScale = new Vector3(0.32f, 0.22f, 0.32f);
+            stone.transform.localScale = new Vector3(0.48f, 0.34f, 0.48f);
             stone.transform.rotation = Random.rotation;
 
             var mr = stone.GetComponent<MeshRenderer>();
@@ -152,24 +152,24 @@ public class AdventureBeachCampfire : MonoBehaviour
         var ash = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         ash.name = "CampfireAsh";
         ash.transform.SetParent(_firePit, false);
-        ash.transform.localPosition = new Vector3(0f, 0.04f, 0f);
-        ash.transform.localScale = new Vector3(1.2f, 0.04f, 1.2f);
+        ash.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+        ash.transform.localScale = new Vector3(1.8f, 0.05f, 1.8f);
         var ashMr = ash.GetComponent<MeshRenderer>();
         if (ashMr != null) ashMr.material = _ashMat;
         var ashCol = ash.GetComponent<Collider>();
         if (ashCol != null) Destroy(ashCol);
 
-        // 円錐状に組まれた薪（6本の流木）
-        int logCount = 6;
+        // 円錐状に組まれた薪（8本の立派な流木）
+        int logCount = 8;
         for (int i = 0; i < logCount; i++)
         {
-            float angle = i * (360f / logCount) + 15f;
+            float angle = i * (360f / logCount) + 12f;
             float rad = angle * Mathf.Deg2Rad;
             var log = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             log.name = $"FireLog_{i}";
             log.transform.SetParent(_firePit, false);
-            log.transform.localPosition = new Vector3(Mathf.Cos(rad) * 0.32f, 0.22f, Mathf.Sin(rad) * 0.32f);
-            log.transform.localScale = new Vector3(0.12f, 0.42f, 0.12f);
+            log.transform.localPosition = new Vector3(Mathf.Cos(rad) * 0.46f, 0.30f, Mathf.Sin(rad) * 0.46f);
+            log.transform.localScale = new Vector3(0.18f, 0.58f, 0.18f);
             log.transform.rotation = Quaternion.Euler(38f, -angle + 90f, 0f);
 
             var lmr = log.GetComponent<MeshRenderer>();
@@ -181,17 +181,17 @@ public class AdventureBeachCampfire : MonoBehaviour
         // 2. 炎と演出エフェクト（初期は非アクティブ）
         _flameRoot = new GameObject("FlameVisuals");
         _flameRoot.transform.SetParent(_firePit, false);
-        _flameRoot.transform.localPosition = new Vector3(0f, 0.15f, 0f);
+        _flameRoot.transform.localPosition = new Vector3(0f, 0.20f, 0f);
 
-        // 炎メッシュ（立体的に交差する炎のビルボード）
+        // 炎メッシュ（立体的に交差する炎のビルボード：大きめ）
         for (int f = 0; f < 3; f++)
         {
             var flamePlane = GameObject.CreatePrimitive(PrimitiveType.Quad);
             flamePlane.name = $"FlameMesh_{f}";
             flamePlane.transform.SetParent(_flameRoot.transform, false);
-            flamePlane.transform.localPosition = new Vector3(0f, 0.35f, 0f);
+            flamePlane.transform.localPosition = new Vector3(0f, 0.50f, 0f);
             flamePlane.transform.localRotation = Quaternion.Euler(0f, f * 60f, 0f);
-            flamePlane.transform.localScale = new Vector3(0.65f, 0.85f, 1f);
+            flamePlane.transform.localScale = new Vector3(1.10f, 1.40f, 1f);
 
             var mr = flamePlane.GetComponent<MeshRenderer>();
             if (mr != null) mr.material = _flameMat;
@@ -202,57 +202,57 @@ public class AdventureBeachCampfire : MonoBehaviour
         // 火の粉パーティクル
         var psGo = new GameObject("CampfireSparks");
         psGo.transform.SetParent(_flameRoot.transform, false);
-        psGo.transform.localPosition = new Vector3(0f, 0.25f, 0f);
+        psGo.transform.localPosition = new Vector3(0f, 0.35f, 0f);
         _sparksParticle = psGo.AddComponent<ParticleSystem>();
         var main = _sparksParticle.main;
         main.startColor = new Color(1.0f, 0.72f, 0.25f, 0.9f);
-        main.startSize = 0.08f;
-        main.startLifetime = 2.2f;
-        main.startSpeed = 0.8f;
-        main.maxParticles = 45;
+        main.startSize = 0.11f;
+        main.startLifetime = 2.4f;
+        main.startSpeed = 1.1f;
+        main.maxParticles = 60;
         var emission = _sparksParticle.emission;
-        emission.rateOverTime = 16f;
+        emission.rateOverTime = 22f;
         var shape = _sparksParticle.shape;
         shape.shapeType = ParticleSystemShapeType.Circle;
-        shape.radius = 0.35f;
+        shape.radius = 0.52f;
 
-        // 焚き火ライト
+        // 焚き火ライト（より暖かく広範囲を照らす）
         var ltGo = new GameObject("CampfireLight");
         ltGo.transform.SetParent(_flameRoot.transform, false);
-        ltGo.transform.localPosition = new Vector3(0f, 0.45f, 0f);
+        ltGo.transform.localPosition = new Vector3(0f, 0.65f, 0f);
         _fireLight = ltGo.AddComponent<Light>();
         _fireLight.type = LightType.Point;
         _fireLight.color = new Color(1.0f, 0.62f, 0.22f);
-        _fireLight.intensity = 3.6f;
-        _fireLight.range = 13.5f;
+        _fireLight.intensity = 5.0f;
+        _fireLight.range = 18.0f;
 
         // 焚き火ASMRパチパチ音
         _fireAudio = _flameRoot.AddComponent<AudioSource>();
         _fireAudio.spatialBlend = 1.0f;
-        _fireAudio.minDistance = 2.0f;
-        _fireAudio.maxDistance = 22f;
+        _fireAudio.minDistance = 2.5f;
+        _fireAudio.maxDistance = 26f;
         _fireAudio.rolloffMode = AudioRolloffMode.Linear;
         _fireAudio.loop = true;
         _fireAudio.clip = CreateCracklingAudioClip();
-        _fireAudio.volume = 0.65f;
+        _fireAudio.volume = 0.68f;
 
         _flameRoot.SetActive(false);
 
         // 3. 流木丸太ベンチ（Driftwood Log Bench）
-        // 焚き火の南東（陸側）約1.7mに配置。座ると北西（海と波打ち際・夕日）を正面に見渡せる
+        // 焚き火の背後（南東）約2.1mに配置。座ると北西（海と波打ち際・夕日）を正面に見渡せる
         var benchGo = new GameObject("DriftwoodLogBench");
         benchGo.transform.SetParent(transform, false);
-        Vector3 benchOffset = new Vector3(-0.45f, 0.24f, -1.65f); // 焚き火の背後
+        Vector3 benchOffset = new Vector3(-0.55f, 0.28f, -2.15f); // 焚き火の背後
         benchGo.transform.localPosition = benchOffset;
         _logBench = benchGo.transform;
 
-        // 丸太本体（長さ2.6m、直径0.48m）
+        // 丸太本体（長さ約3.5m、直径0.58mのどっしりとした流木ベンチ）
         var logMesh = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         logMesh.name = "BenchLogMesh";
         logMesh.transform.SetParent(_logBench, false);
         logMesh.transform.localPosition = Vector3.zero;
         logMesh.transform.localRotation = Quaternion.Euler(0f, 0f, 90f); // 横倒し
-        logMesh.transform.localScale = new Vector3(0.46f, 1.3f, 0.46f);
+        logMesh.transform.localScale = new Vector3(0.58f, 1.75f, 0.58f);
         var bmr = logMesh.GetComponent<MeshRenderer>();
         if (bmr != null) bmr.material = _woodMat;
 
@@ -266,10 +266,10 @@ public class AdventureBeachCampfire : MonoBehaviour
         Vector3 right = Vector3.Cross(Vector3.up, _lookDirection).normalized;
 
         // Nikoの座席（丸太の中央やや左）
-        _benchSeatNiko = benchWorld - right * 0.28f + Vector3.up * 0.38f;
+        _benchSeatNiko = benchWorld - right * 0.36f + Vector3.up * 0.46f;
 
-        // Rustの座席（Nikoのすぐ右隣 0.62m）
-        _benchSeatRust = benchWorld + right * 0.42f + Vector3.up * 0.42f;
+        // Rustの座席（Nikoのすぐ右隣 0.72m）
+        _benchSeatRust = benchWorld + right * 0.50f + Vector3.up * 0.48f;
     }
 
     /// <summary>パチパチとはぜる焚き火のプロシージャルASMRオーディオクリップ</summary>
@@ -311,13 +311,13 @@ public class AdventureBeachCampfire : MonoBehaviour
             if (_fireLight != null)
             {
                 float noise = Mathf.PerlinNoise(Time.time * 7.5f, 0.0f);
-                _fireLight.intensity = Mathf.Lerp(3.2f, 4.8f, noise);
+                _fireLight.intensity = Mathf.Lerp(4.0f, 6.2f, noise);
             }
 
             if (_flameRoot != null)
             {
-                float flameScaleY = 0.85f + Mathf.Sin(Time.time * 12f) * 0.12f + Mathf.PerlinNoise(Time.time * 5f, 1f) * 0.15f;
-                float flameScaleXZ = 0.65f + Mathf.Cos(Time.time * 9f) * 0.08f;
+                float flameScaleY = 1.35f + Mathf.Sin(Time.time * 12f) * 0.18f + Mathf.PerlinNoise(Time.time * 5f, 1f) * 0.22f;
+                float flameScaleXZ = 1.15f + Mathf.Cos(Time.time * 9f) * 0.12f;
                 _flameRoot.transform.localScale = new Vector3(flameScaleXZ, flameScaleY, flameScaleXZ);
             }
         }
@@ -325,11 +325,11 @@ public class AdventureBeachCampfire : MonoBehaviour
         Vector3 pPos = player.transform.position;
         float xzDistToFire = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(transform.position.x, transform.position.z));
         float yDistToFire = Mathf.Abs(pPos.y - transform.position.y);
-        bool inFireZone = xzDistToFire < 4.2f && yDistToFire < 2.8f;
+        bool inFireZone = xzDistToFire < 4.8f && yDistToFire < 3.2f;
 
         float xzDistToBench = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(_benchSeatNiko.x, _benchSeatNiko.z));
         float yDistToBench = Mathf.Abs(pPos.y - _benchSeatNiko.y);
-        bool inBenchZone = xzDistToBench < 3.2f && yDistToBench < 2.8f;
+        bool inBenchZone = xzDistToBench < 3.8f && yDistToBench < 3.2f;
 
         bool interactPressed = CheckInteractInput();
 
