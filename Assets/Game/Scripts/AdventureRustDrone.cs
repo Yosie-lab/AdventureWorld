@@ -128,7 +128,11 @@ public partial class AdventureRustDrone : MonoBehaviour
             _campfireSeatPos = seatPos;
             _campfireLookDir = lookDir.sqrMagnitude > 0.01f ? lookDir.normalized : transform.forward;
             _velocity = Vector3.zero;
-            PlayHappyBeep();
+            if (_audio != null && _happyBeepClip != null)
+            {
+                _audio.pitch = 1.25f;
+                _audio.PlayOneShot(_happyBeepClip, 0.75f);
+            }
         }
         else
         {
