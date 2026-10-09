@@ -1,0 +1,28 @@
+{
+    "git.ignoreLimitWarning": true,
+    "files.exclude": {
+        "**/Library": true,
+        "**/Temp": true,
+        "**/Obj": true,
+        "**/Logs": true,
+        "**/Build": true,
+        "**/Builds": true,
+        "**/UserSettings": true
+    },
+    "search.exclude": {
+        "**/Library": true,
+        "**/Temp": true,
+        "**/Obj": true,
+        "**/Logs": true,
+        "**/Build": true,
+        "**/Builds": true
+    },
+    "files.watcherExclude": {
+        "**/Library/**": true,
+        "**/Temp/**": true,
+        "**/Obj/**": true,
+        "**/Logs/**": true
+    },
+    "dotnet.defaultSolution": "RustAndFloat.slnx",
+    "omnisharp.enableRoslynAnalyzers": true
+}
