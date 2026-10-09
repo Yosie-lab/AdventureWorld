@@ -305,15 +305,33 @@ public class AdventureBeachCampfire : MonoBehaviour
         var player = AdventurePlayerController.Instance;
         if (player == null) return;
 
-        // 炎の揺らめきフリッカー演出
-        if (_isLit && _fireLight != null)
+        // 炎の揺らめきフリッカー演出＆メッシュ拡大縮小アニメーション
+        if (_isLit)
         {
-            float noise = Mathf.PerlinNoise(Time.time * 6.5f, 0.0f);
-            _fireLight.intensity = Mathf.Lerp(3.2f, 4.4f, noise);
+            if (_fireLight != null)
+            {
+                float noise = Mathf.PerlinNoise(Time.time * 7.5f, 0.0f);
+                _fireLight.intensity = Mathf.Lerp(3.2f, 4.8f, noise);
+            }
+
+            if (_flameRoot != null)
+            {
+                float flameScaleY = 0.85f + Mathf.Sin(Time.time * 12f) * 0.12f + Mathf.PerlinNoise(Time.time * 5f, 1f) * 0.15f;
+                float flameScaleXZ = 0.65f + Mathf.Cos(Time.time * 9f) * 0.08f;
+                _flameRoot.transform.localScale = new Vector3(flameScaleXZ, flameScaleY, flameScaleXZ);
+            }
         }
 
-        float distToBench = Vector3.Distance(player.transform.position, _benchSeatNiko);
-        float distToFire = Vector3.Distance(player.transform.position, transform.position);
+        Vector3 pPos = player.transform.position;
+        float xzDistToFire = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(transform.position.x, transform.position.z));
+        float yDistToFire = Mathf.Abs(pPos.y - transform.position.y);
+        bool inFireZone = xzDistToFire < 4.2f && yDistToFire < 2.8f;
+
+        float xzDistToBench = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(_benchSeatNiko.x, _benchSeatNiko.z));
+        float yDistToBench = Mathf.Abs(pPos.y - _benchSeatNiko.y);
+        bool inBenchZone = xzDistToBench < 3.2f && yDistToBench < 2.8f;
+
+        bool interactPressed = CheckInteractInput();
 
         if (_isSitting)
         {
@@ -321,23 +339,29 @@ public class AdventureBeachCampfire : MonoBehaviour
         }
         else
         {
-            // 未点火時：焚き火に近づいて【E】で点火
-            if (!_isLit && distToFire < 3.2f)
+            // 未点火時：焚き火に近づいて【E】または左クリックで点火
+            if (!_isLit && inFireZone)
             {
-                if (Input.GetKeyDown(KeyCode.E))
+                if (interactPressed)
                 {
                     IgniteCampfire();
                 }
             }
-            // 点火後（またはベンチ付近）：【E】で腰掛ける
-            else if (distToBench < 2.4f)
+            // 点火後（またはベンチ付近）：【E】または左クリックで腰掛ける
+            else if (inBenchZone)
             {
-                if (Input.GetKeyDown(KeyCode.E))
+                if (interactPressed)
                 {
                     SitDown(player);
                 }
             }
         }
+    }
+
+    /// <summary>Eキー、左クリック、ゲームパッドのアクションボタンを包括的に判定</summary>
+    bool CheckInteractInput()
+    {
+        return AdventureInputReader.InteractDown || AdventureInputReader.MouseLeftDown;
     }
 
     public void IgniteCampfire()
@@ -346,7 +370,11 @@ public class AdventureBeachCampfire : MonoBehaviour
         _isLit = true;
 
         if (_flameRoot != null)
+        {
             _flameRoot.SetActive(true);
+            if (_sparksParticle != null)
+                _sparksParticle.Play();
+        }
 
         if (_fireAudio != null)
             _fireAudio.Play();
@@ -364,7 +392,7 @@ public class AdventureBeachCampfire : MonoBehaviour
         if (_isSitting) return;
         _isSitting = true;
         _chillTimer = 0f;
-        _nextDialogueTime = 6.0f; // 6秒後に最初のチル台詞
+        _nextDialogueTime = 5.0f; // 5秒後に最初のチル台詞
         _dialogueIndex = 0;
 
         // もし火が点いていなければ自動的に点火
@@ -438,10 +466,11 @@ public class AdventureBeachCampfire : MonoBehaviour
         player.transform.position = _benchSeatNiko;
         player.transform.rotation = Quaternion.LookRotation(_lookDirection, Vector3.up);
 
-        // 立ち上がり判定（移動キー・ジャンプキー・Eキー）
-        if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.A) ||
-            Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.D) ||
-            Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.E))
+        // 立ち上がり判定（移動キー・ジャンプキー・Eキー・クリック）
+        bool movePressed = AdventureInputReader.HasAnyMove || AdventureInputReader.SpaceOrJDown;
+
+        // 座り始め0.5秒以降に立ち上がりを受け付ける
+        if (_chillTimer > 0.5f && (movePressed || CheckInteractInput()))
         {
             StandUp(player);
             return;
@@ -475,8 +504,14 @@ public class AdventureBeachCampfire : MonoBehaviour
         var player = AdventurePlayerController.Instance;
         if (player == null) return;
 
-        float distToBench = Vector3.Distance(player.transform.position, _benchSeatNiko);
-        float distToFire = Vector3.Distance(player.transform.position, transform.position);
+        Vector3 pPos = player.transform.position;
+        float xzDistToFire = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(transform.position.x, transform.position.z));
+        float yDistToFire = Mathf.Abs(pPos.y - transform.position.y);
+        bool inFireZone = xzDistToFire < 4.2f && yDistToFire < 2.8f;
+
+        float xzDistToBench = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(_benchSeatNiko.x, _benchSeatNiko.z));
+        float yDistToBench = Mathf.Abs(pPos.y - _benchSeatNiko.y);
+        bool inBenchZone = xzDistToBench < 3.2f && yDistToBench < 2.8f;
 
         var skin = GUI.skin;
         var style = new GUIStyle(skin.label);
@@ -492,7 +527,7 @@ public class AdventureBeachCampfire : MonoBehaviour
         {
             // 座っている時の控えめなプロンプト
             string sitPrompt = "【 W / A / S / D 】または【 Space 】立ち上がる";
-            float w = 480f;
+            float w = 500f;
             float h = 40f;
             float x = (Screen.width - w) * 0.5f;
             float y = Screen.height - 90f;
@@ -502,10 +537,10 @@ public class AdventureBeachCampfire : MonoBehaviour
         }
         else
         {
-            if (!_isLit && distToFire < 3.2f)
+            if (!_isLit && inFireZone)
             {
-                string prompt = "🔥 【E】焚き火に火を点ける";
-                float w = 360f;
+                string prompt = "🔥 【E / クリック】焚き火に火を点ける";
+                float w = 420f;
                 float h = 40f;
                 float x = (Screen.width - w) * 0.5f;
                 float y = Screen.height * 0.65f;
@@ -513,10 +548,10 @@ public class AdventureBeachCampfire : MonoBehaviour
                 GUI.Label(new Rect(x + 1, y + 1, w, h), prompt, shadow);
                 GUI.Label(new Rect(x, y, w, h), prompt, style);
             }
-            else if (distToBench < 2.4f)
+            else if (inBenchZone)
             {
-                string prompt = "🪵 【E】丸太に腰掛ける（海と炎を眺める）";
-                float w = 440f;
+                string prompt = "🪵 【E / クリック】丸太に腰掛ける（海と炎を眺める）";
+                float w = 480f;
                 float h = 40f;
                 float x = (Screen.width - w) * 0.5f;
                 float y = Screen.height * 0.65f;
@@ -526,4 +561,5 @@ public class AdventureBeachCampfire : MonoBehaviour
             }
         }
     }
+
 }
