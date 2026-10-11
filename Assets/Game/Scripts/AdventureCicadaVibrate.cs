@@ -14,6 +14,11 @@ public class AdventureCicadaVibrate : MonoBehaviour
     float buzzTimer;
     bool isBuzzing;
 
+    private static Transform _camTransform;
+    private float _cullTimer;
+    private bool _isCulled;
+    private const float CullDistanceSqr = 22f * 22f; // 22m以遠でスリープ
+
     void Start()
     {
         basePos = transform.localPosition;
@@ -24,6 +29,18 @@ public class AdventureCicadaVibrate : MonoBehaviour
 
     void Update()
     {
+        _cullTimer -= Time.deltaTime;
+        if (_cullTimer <= 0f)
+        {
+            _cullTimer = 0.4f + Random.value * 0.15f;
+            if (_camTransform == null && Camera.main != null) _camTransform = Camera.main.transform;
+            if (_camTransform != null)
+            {
+                _isCulled = (transform.position - _camTransform.position).sqrMagnitude > CullDistanceSqr;
+            }
+        }
+        if (_isCulled) return;
+
         float t = Time.time;
 
         // 呼吸のようなわずかな体の上下微動

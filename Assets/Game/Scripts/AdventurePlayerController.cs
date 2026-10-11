@@ -204,6 +204,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         EnsureAllManagers();
         InitSpawnPosition();
         shortJumpHeight = Mathf.Max(shortJumpHeight, 2.6f);
+        AdventureBeachDriftBox.ForceCloseModal();
     }
 
     void Update()

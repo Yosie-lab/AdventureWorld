@@ -163,12 +163,12 @@ public class AdventureAncientPianoRelic : MonoBehaviour
             }
         }
 
-        // ピアノ自動演奏の継続再生を保証（再生落ちの防止）
-        if (_pianoAudioSource != null && _pianoPerformanceClip != null && !_isSilencedForEnding)
+        // ピアノ自動演奏の継続再生を保証（ドメインリロード等によるClip消失・再生落ちの自己修復）
+        if (!_isSilencedForEnding)
         {
-            if (!_pianoAudioSource.isPlaying)
+            if (_pianoAudioSource == null || _pianoPerformanceClip == null || !_pianoAudioSource.isPlaying)
             {
-                _pianoAudioSource.Play();
+                EnsureAudioComponents();
             }
         }
 
@@ -417,6 +417,12 @@ public class AdventureAncientPianoRelic : MonoBehaviour
     /// <summary>ピアノの澄んだ美しい和音を奏でる</summary>
     public void PlayPianoMelody()
     {
+        if (_pianoChordClip == null)
+            _pianoChordClip = CreateFeltPianoChord();
+
+        if (_pianoAudioSource == null)
+            EnsureAudioComponents();
+
         if (_pianoAudioSource != null && _pianoChordClip != null)
         {
             _pianoAudioSource.pitch = 1.0f; // ループ演奏のピッチを正常値に維持
@@ -426,6 +432,55 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         if (_relicParticles != null)
         {
             _relicParticles.Emit(18);
+        }
+    }
+
+    /// <summary>オーディオソースと演奏クリップ・和音クリップの存在を保証し、自動演奏を開始する自己修復メソッド</summary>
+    public void EnsureAudioComponents()
+    {
+        // ピアノ専用のオーディオソース設定（カピタが弾く穏やかで温かいピアノ3D音響）
+        if (_pianoAudioSource == null)
+        {
+            _pianoAudioSource = gameObject.GetComponent<AudioSource>();
+            if (_pianoAudioSource == null) _pianoAudioSource = gameObject.AddComponent<AudioSource>();
+
+            // 3D定位（カピタの位置から音が聴こえる）を保ちつつ、カメラ（後方8.5m）による極端な音量消失を防ぐため適度なダイレクト成分を確保
+            _pianoAudioSource.spatialBlend = 0.55f;
+            _pianoAudioSource.minDistance = 6.0f;   // カピタの木陰周辺で豊かに響く
+            _pianoAudioSource.maxDistance = 75.0f;  // 75m手前から木漏れ日の奥に音が優しく漂い始める
+            _pianoAudioSource.rolloffMode = AudioRolloffMode.Logarithmic;
+            _pianoAudioSource.volume = 0.15f;
+            _pianoAudioSource.pitch = 1.0f;
+            _pianoAudioSource.playOnAwake = false;
+        }
+
+        if (_pianoPerformanceClip == null)
+        {
+            _pianoPerformanceClip = CreateFeltPianoPerformanceClip();
+            if (_pianoAudioSource != null && _pianoPerformanceClip != null)
+            {
+                _pianoAudioSource.clip = _pianoPerformanceClip;
+                _pianoAudioSource.loop = true;
+            }
+        }
+        else if (_pianoAudioSource != null && _pianoAudioSource.clip != _pianoPerformanceClip)
+        {
+            _pianoAudioSource.clip = _pianoPerformanceClip;
+            _pianoAudioSource.loop = true;
+        }
+
+        if (_pianoChordClip == null)
+        {
+            _pianoChordClip = CreateFeltPianoChord();
+        }
+
+        // カピタがピアノの前で奏でる美しい自動演奏ループを開始
+        if (_pianoAudioSource != null && _pianoPerformanceClip != null && !_isSilencedForEnding)
+        {
+            if (!_pianoAudioSource.isPlaying)
+            {
+                _pianoAudioSource.Play();
+            }
         }
     }
 
@@ -458,32 +513,7 @@ public class AdventureAncientPianoRelic : MonoBehaviour
             bodyCol.EnsureCollider();
         }
 
-        // ピアノ専用のオーディオソース設定（カピタが弾く穏やかで温かいピアノ3D音響）
-        _pianoAudioSource = gameObject.GetComponent<AudioSource>();
-        if (_pianoAudioSource == null) _pianoAudioSource = gameObject.AddComponent<AudioSource>();
-
-        // 3D定位（カピタの位置から音が聴こえる）を保ちつつ、カメラ（後方8.5m）による極端な音量消失を防ぐため適度なダイレクト成分を確保
-        _pianoAudioSource.spatialBlend = 0.55f;
-        _pianoAudioSource.minDistance = 6.0f;   // カピタの木陰周辺で豊かに響く
-        _pianoAudioSource.maxDistance = 75.0f;  // 75m手前から木漏れ日の奥に音が優しく漂い始める
-        _pianoAudioSource.rolloffMode = AudioRolloffMode.Logarithmic;
-        _pianoAudioSource.volume = 0.15f;
-        _pianoAudioSource.pitch = 1.0f;
-        _pianoAudioSource.playOnAwake = false;
-
-        _pianoPerformanceClip = CreateFeltPianoPerformanceClip();
-        _pianoChordClip = CreateFeltPianoChord();
-
-        // カピタがピアノの前で奏でる美しい自動演奏ループを開始
-        if (_pianoPerformanceClip != null)
-        {
-            _pianoAudioSource.clip = _pianoPerformanceClip;
-            _pianoAudioSource.loop = true;
-            if (!_pianoAudioSource.isPlaying)
-            {
-                _pianoAudioSource.Play();
-            }
-        }
+        EnsureAudioComponents();
     }
 
     /// <summary>ランダムな候補地へピアノと遺物をスポーン配置する</summary>

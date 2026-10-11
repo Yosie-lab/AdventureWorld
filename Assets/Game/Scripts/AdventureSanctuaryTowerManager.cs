@@ -510,6 +510,34 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             var mc = podium.AddComponent<MeshCollider>();
             var mf = podium.GetComponent<MeshFilter>();
             if (mf != null && mf.sharedMesh != null) mc.sharedMesh = mf.sharedMesh;
+
+            // 過去の古い基壇コライダーをクリーンアップ
+            var oldBase = tower.transform.Find("WhiteMarblePodium_SolidBase");
+            if (oldBase != null) Destroy(oldBase.gameObject);
+
+            // 南側階段出口（x∈[508, 516], z∈[475, 485]）はプレイヤーの主要進入路のため開口部として100%確保！
+            // 階段の左右両脇（x < 508, x > 516）から台座の真下に潜り込めないよう、左右に袖壁（ウィングウォール）のみ配置
+            var wingRoot = new GameObject("WhiteMarblePodium_SolidBase");
+            wingRoot.transform.SetParent(tower.transform, false);
+
+            var pmr = podium.GetComponent<MeshRenderer>();
+            var marbleMat = pmr != null ? pmr.material : null;
+
+            // 階段出口の左側（西側）袖壁ブロック
+            var westWing = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            westWing.name = "PodiumWing_West";
+            westWing.transform.SetParent(wingRoot.transform, false);
+            westWing.transform.position = new Vector3(502f, 57.5f, 479f);
+            westWing.transform.localScale = new Vector3(12f, 11f, 4f);
+            if (marbleMat != null) westWing.GetComponent<MeshRenderer>().material = marbleMat;
+
+            // 階段出口の右側（東側）袖壁ブロック
+            var eastWing = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            eastWing.name = "PodiumWing_East";
+            eastWing.transform.SetParent(wingRoot.transform, false);
+            eastWing.transform.position = new Vector3(522f, 57.5f, 479f);
+            eastWing.transform.localScale = new Vector3(12f, 11f, 4f);
+            if (marbleMat != null) eastWing.GetComponent<MeshRenderer>().material = marbleMat;
         }
 
         // SanctuaryGridFloor（金属格子床）はコライダーを削除（テラス面と18cm重複してジッターするのを防止）
@@ -654,9 +682,19 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
         if (IsGameCleared)
         {
-            var kb = UnityEngine.InputSystem.Keyboard.current;
+            var kb = AdventureInputReader.Keyboard;
             if (kb != null && kb.tabKey.wasPressedThisFrame)
                 SetGameClearModalVisible(!_showGameClearModal);
+
+            // クリア後（大空飛行中・自由探索中問わず）Nキーで直接ニューゲーム開始可能
+            bool nPressedGlobal = false;
+            if (kb != null && kb.nKey.wasPressedThisFrame) nPressedGlobal = true;
+            try { if (Input.GetKeyDown(KeyCode.N)) nPressedGlobal = true; } catch { }
+            if (nPressedGlobal)
+            {
+                StartNewGameFromClearModal();
+                return;
+            }
         }
 
         // 全パーツ回収済み・天蓋未開放ならレバー操作を最優先（誤った危機フラグを解除）

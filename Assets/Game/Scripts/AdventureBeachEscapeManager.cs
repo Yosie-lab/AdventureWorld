@@ -66,6 +66,9 @@ public class AdventureBeachEscapeManager : MonoBehaviour
 
     void Start()
     {
+        // シーン全体の描画・物理統合最適化（低木トリガー・草花シャドウ・URPシャドウ距離）
+        AdventureBushOptimizer.ApplyAllOptimizations();
+
         var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
         float waterY = 5.5f;
         var bounds = AdventureIslandBoundary.Instance;
@@ -77,6 +80,29 @@ public class AdventureBeachEscapeManager : MonoBehaviour
 
         BuildBeachThermalVents(root.transform, land, waterY);
         BuildBeachBoardwalkRamps(root.transform, land, waterY);
+        ReinforceExistingRampPlanks();
+    }
+
+    /// <summary>シーン内のすべての木道渡し板（Plank）のコライダーを厚み1.2mに深層化補強し、すり抜け・落下を完全根絶</summary>
+    void ReinforceExistingRampPlanks()
+    {
+        var allTransforms = FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < allTransforms.Length; i++)
+        {
+            var t = allTransforms[i];
+            if (t == null) continue;
+            if (!t.name.StartsWith("Plank_")) continue;
+
+            var pCol = t.GetComponent<BoxCollider>();
+            if (pCol != null && pCol.size.y < 2.0f)
+            {
+                const float solidDepth = 1.2f;
+                float currentThickness = Mathf.Max(0.05f, t.localScale.y);
+                float localDepth = solidDepth / currentThickness;
+                pCol.size = new Vector3(1f, localDepth, 1.06f);
+                pCol.center = new Vector3(0f, 0.5f - localDepth * 0.5f, 0f);
+            }
+        }
     }
 
     void Update()
@@ -396,6 +422,16 @@ public class AdventureBeachEscapeManager : MonoBehaviour
 
             var mr = plank.GetComponent<MeshRenderer>();
             if (mr != null) mr.material = _cachedWoodMat;
+
+            // 見た目は14cmの美しい木板のまま、足元コライダーだけを下面方向へ厚み1.2m深く食い込ませて裏抜け・落下を完全遮断
+            var pCol = plank.GetComponent<BoxCollider>();
+            if (pCol != null)
+            {
+                const float solidDepth = 1.2f;
+                float localDepth = solidDepth / PlankThickness;
+                pCol.size = new Vector3(1f, localDepth, 1.06f);
+                pCol.center = new Vector3(0f, 0.5f - localDepth * 0.5f, 0f);
+            }
 
             // 板が地面から浮いている（0.3m以上の落差がある）場合は、
             // 「壁」で塞ぐのではなく、本物の桟橋・木道のように木製丸太支柱（Wooden Piles）を地面まで下ろす

@@ -17,11 +17,17 @@ public class AdventureBeachCampfire : MonoBehaviour
     [Header("配置座標（スタート地点の白砂ビーチ：渡し板から離れた安全な海辺）")]
     public Vector3 campfirePos = new Vector3(168.0f, 6.3f, 254.0f);
 
+    public const int RequiredPointsToLight = 10; // 点火に必要な探索ポイント数
+    public static int CurrentProgressPoints => AdventureScrapManager.Instance != null ? AdventureScrapManager.Instance.TotalProgressPoints : 0;
+    public static bool CanLightCampfire => CurrentProgressPoints >= RequiredPointsToLight;
+
     private bool _isLit = false;
     public bool IsLit => _isLit;
 
     private bool _isSitting = false;
     public bool IsSitting => _isSitting;
+
+    private float _rustRemindNearCooldown = 0f; // 焚き火接近時のRust催促クールダウン
 
     private Transform _firePit;
     private Transform _logBench;
@@ -432,6 +438,7 @@ public class AdventureBeachCampfire : MonoBehaviour
         var go = new GameObject(name);
         go.transform.SetParent(parentGo.transform, false);
         var ps = go.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var psr = go.GetComponent<ParticleSystemRenderer>();
         if (psr != null)
         {
@@ -817,6 +824,18 @@ public class AdventureBeachCampfire : MonoBehaviour
         float yDistToFire = Mathf.Abs(pPos.y - transform.position.y);
         bool inFireZone = xzDistToFire < 4.8f && yDistToFire < 3.2f;
 
+        // 10ポイント以上獲得済みで未点火の場合、焚き火に近づいた時にRustが焚き火と工房を催促
+        _rustRemindNearCooldown -= Time.deltaTime;
+        if (!_isLit && CanLightCampfire && xzDistToFire < 18.0f && yDistToFire < 5.0f && _rustRemindNearCooldown <= 0f)
+        {
+            _rustRemindNearCooldown = 50.0f; // 50秒クールダウン
+            var drone = AdventureRustDrone.Instance;
+            if (drone != null)
+            {
+                drone.SpeakCustom("あ、砂浜の焚き火だ！10ポイント貯まったから火が点けられるよ！\n【Bキー】の工房で何かクラフトしてから、ここで温まりに行こうよ、Float！", 6.0f);
+            }
+        }
+
         float xzDistToBench = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(_benchSeatNiko.x, _benchSeatNiko.z));
         float yDistToBench = Mathf.Abs(pPos.y - _benchSeatNiko.y);
         bool inBenchZone = xzDistToBench < 3.8f && yDistToBench < 3.2f;
@@ -834,7 +853,20 @@ public class AdventureBeachCampfire : MonoBehaviour
             {
                 if (interactPressed)
                 {
-                    IgniteCampfire();
+                    if (CanLightCampfire)
+                    {
+                        IgniteCampfire();
+                    }
+                    else
+                    {
+                        // 10ポイント未満：まだ火を点けられない催促・案内
+                        var drone = AdventureRustDrone.Instance;
+                        if (drone != null)
+                        {
+                            int need = RequiredPointsToLight - CurrentProgressPoints;
+                            drone.SpeakCustom($"火を点けるには、探索ポイントがあと {need}pt 必要みたい！（現在: {CurrentProgressPoints}/{RequiredPointsToLight} pt）\nパーツ集めや漂流ボックスを開けてみよう！", 5.0f);
+                        }
+                    }
                 }
             }
             // 点火後（またはベンチ付近）：【E】または左クリックで腰掛ける
@@ -857,6 +889,7 @@ public class AdventureBeachCampfire : MonoBehaviour
     public void IgniteCampfire()
     {
         if (_isLit) return;
+        if (!CanLightCampfire) return; // 10ポイント以上必須ガード
         _isLit = true;
 
         if (_flameRoot != null)
@@ -871,11 +904,11 @@ public class AdventureBeachCampfire : MonoBehaviour
         if (_fireAudio != null)
             _fireAudio.Play();
 
-        // 点火時のRustのリアクション
+        // 点火時のRustのリアクション（焚き火と工房の催促・連携）
         var drone = AdventureRustDrone.Instance;
         if (drone != null)
         {
-            drone.SpeakCustom("わぁ……！火が点いた！すごくあったかいね……！", 4.0f);
+            drone.SpeakCustom("わぁ……！火が点いた！すごくあったかいね……！\n【Bキー】の工房で新しいアクセサリーを作って、ここでゆっくり眺めるのも最高だね！", 6.0f);
         }
     }
 
@@ -887,8 +920,8 @@ public class AdventureBeachCampfire : MonoBehaviour
         _nextDialogueTime = 5.0f; // 5秒後に最初のチル台詞
         _dialogueIndex = 0;
 
-        // もし火が点いていなければ自動的に点火
-        if (!_isLit)
+        // 10ポイント以上集まっていれば自動的に点火
+        if (!_isLit && CanLightCampfire)
         {
             IgniteCampfire();
         }
@@ -1031,8 +1064,17 @@ public class AdventureBeachCampfire : MonoBehaviour
         {
             if (!_isLit && inFireZone)
             {
-                string prompt = "🔥 【E / クリック】焚き火に火を点ける";
-                float w = 420f;
+                string prompt;
+                if (CanLightCampfire)
+                {
+                    prompt = "🔥 【E / クリック】焚き火に火を点ける";
+                }
+                else
+                {
+                    prompt = $"🔥 砂浜の焚き火（探索 10pt で点火可能 / 現在: {CurrentProgressPoints}/{RequiredPointsToLight} pt）";
+                }
+
+                float w = 540f;
                 float h = 40f;
                 float x = (Screen.width - w) * 0.5f;
                 float y = Screen.height * 0.65f;

@@ -19,6 +19,12 @@ public class CrabWander : MonoBehaviour
     private float _facingAngle;
     private const float MaxRadius = 2.2f;
 
+    // 距離カリング用キャッシュ
+    private static Transform _camTransform;
+    private float _cullTimer;
+    private bool _isCulled;
+    private const float CullDistanceSqr = 36f * 36f; // 36m以上で完全スリープ
+
     void Start()
     {
         _terrain = Terrain.activeTerrain;
@@ -39,6 +45,19 @@ public class CrabWander : MonoBehaviour
 
     void Update()
     {
+        // 0.4秒おきに距離カリングを評価（毎フレームの距離計算負荷をカット）
+        _cullTimer -= Time.deltaTime;
+        if (_cullTimer <= 0f)
+        {
+            _cullTimer = 0.35f + Random.value * 0.15f;
+            if (_camTransform == null && Camera.main != null) _camTransform = Camera.main.transform;
+            if (_camTransform != null)
+            {
+                _isCulled = (transform.position - _camTransform.position).sqrMagnitude > CullDistanceSqr;
+            }
+        }
+        if (_isCulled) return;
+
         _timer += Time.deltaTime;
 
         if (_moving)
@@ -164,6 +183,11 @@ public class FrogHop : MonoBehaviour
     float _hopTime;
     Vector3 _hopTarget;
 
+    private static Transform _camTransform;
+    private float _cullTimer;
+    private bool _isCulled;
+    private const float CullDistanceSqr = 30f * 30f; // 30m以遠でスリープ
+
     void Start()
     {
         _basePos = transform.position;
@@ -172,6 +196,18 @@ public class FrogHop : MonoBehaviour
 
     void Update()
     {
+        _cullTimer -= Time.deltaTime;
+        if (_cullTimer <= 0f)
+        {
+            _cullTimer = 0.4f + Random.value * 0.15f;
+            if (_camTransform == null && Camera.main != null) _camTransform = Camera.main.transform;
+            if (_camTransform != null)
+            {
+                _isCulled = (transform.position - _camTransform.position).sqrMagnitude > CullDistanceSqr;
+            }
+        }
+        if (_isCulled) return;
+
         if (_isHopping)
         {
             _hopTime += Time.deltaTime * 3.2f;
@@ -224,6 +260,11 @@ public class DragonflyFlight : MonoBehaviour
     static Material _sharedWingMat;
     static Material _sharedEyeMat;
 
+    private static Transform _camTransform;
+    private float _cullTimer;
+    private bool _isCulled;
+    private const float CullDistanceSqr = 42f * 42f; // 42m以遠で羽ばたき・AIスリープ
+
     void Awake()
     {
         RebuildDragonflyVisuals();
@@ -244,6 +285,18 @@ public class DragonflyFlight : MonoBehaviour
 
     void Update()
     {
+        _cullTimer -= Time.deltaTime;
+        if (_cullTimer <= 0f)
+        {
+            _cullTimer = 0.35f + Random.value * 0.15f;
+            if (_camTransform == null && Camera.main != null) _camTransform = Camera.main.transform;
+            if (_camTransform != null)
+            {
+                _isCulled = (transform.position - _camTransform.position).sqrMagnitude > CullDistanceSqr;
+            }
+        }
+        if (_isCulled) return;
+
         // 昆虫特有の超高速・前後位相差羽ばたき
         float t = Time.time * 60f;
         float flapFore = Mathf.Sin(t) * 26f;

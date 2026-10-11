@@ -281,40 +281,24 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
     /// シーン内のすべてのカピタ（ピアノカピタ・野生カピタ・NPCカピタ）を走査し、
     /// すり抜け防止コライダーが存在することを100%保証する（初回1回のみ走査で高効率化）。
     /// </summary>
+    /// <summary>
+    /// シーン内のすべてのカピタ（ピアノカピタ・野生カピタ・ビーチカピタ・NPCカピタ等）を走査し、
+    /// すり抜け防止コライダーが存在することを100%保証する。
+    /// </summary>
     public static void EnsureAllCapytasInScene(bool force = false)
     {
-        if (_isInitialized && !force) return;
-        _isInitialized = true;
-
-        var targetRoots = new List<Transform>();
-
-        // カピタが存在する主要親ノードを優先的に収集
-        string[] containerNames = { "Animals", "Capyta_Beach_Root", "PianistCapyta" };
-        foreach (var name in containerNames)
-        {
-            var go = GameObject.Find(name);
-            if (go != null)
-            {
-                targetRoots.AddRange(go.GetComponentsInChildren<Transform>(true));
-            }
-        }
-
-        // NPCコンポーネント経由でも検索
-        foreach (var npc in Object.FindObjectsByType<AdventureNpc>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-        {
-            if (npc != null) targetRoots.Add(npc.transform);
-        }
-
+        var allTransforms = Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         int count = 0;
         var processed = new HashSet<Transform>();
-        for (int i = 0; i < targetRoots.Count; i++)
+
+        for (int i = 0; i < allTransforms.Length; i++)
         {
-            var t = targetRoots[i];
+            var t = allTransforms[i];
             if (t == null || processed.Contains(t)) continue;
-            processed.Add(t);
 
             if (IsCapytaRoot(t))
             {
+                processed.Add(t);
                 var col = t.GetComponent<AdventureCapytaBodyCollider>();
                 if (col == null)
                 {
