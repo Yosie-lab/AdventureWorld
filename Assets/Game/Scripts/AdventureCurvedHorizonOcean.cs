@@ -85,10 +85,17 @@ public class AdventureCurvedHorizonOcean : MonoBehaviour
         SetupOcean();
     }
 
+    private float _camCheckTimer = 2.0f;
+
     private void Update()
     {
-        // カメラの描画距離を5000mに維持（水平線が見切れるのを防止）
-        EnsureCameraClipDistance();
+        // 2秒おきにカメラ描画距離をチェック（毎フレームのCamera.allCameras配列GCアロケーションを完全排除）
+        _camCheckTimer -= Time.deltaTime;
+        if (_camCheckTimer <= 0f)
+        {
+            _camCheckTimer = 2.0f;
+            EnsureCameraClipDistance();
+        }
     }
 
     public void SetupOcean()

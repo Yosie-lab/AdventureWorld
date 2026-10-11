@@ -342,6 +342,7 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
         pGo.transform.SetParent(boxGo.transform, false);
         pGo.transform.localPosition = new Vector3(0f, 0.5f, 0f);
         var ps = pGo.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = ps.main;
         main.playOnAwake = false;
         main.loop = false;

@@ -110,7 +110,7 @@ public class AdventureBeachFlotsamManager : MonoBehaviour
                 era = AdventureBeachFlotsam.FlotsamEra.Era2040,
                 eraLabel = "2042年・生体管理機器",
                 description = "「体調不良を事前に検知し出勤を最適化する」と刻まれた半透明樹脂バンド。",
-                dialogue = "心拍数を測るバンドだ…身につけていると息が詰まりそうだね、Niko",
+                dialogue = "心拍数を測るバンドだ…身につけていると息が詰まりそうだね、Float",
                 angleDeg = 200f,
                 distRatio = 0.91f // 砂浜の真ん中
             },

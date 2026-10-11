@@ -30,6 +30,7 @@ public class AdventureScrapManager : MonoBehaviour
 
     private const string PrefKeyPianoRelic = "AncientPiano_Relic_Collected";
     private const string PrefKeyLeverUnlockedNotified = "RustAndFloat_LeverUnlockedNotified";
+    private const string PrefKeyCampfireUnlockedNotified = "RustAndFloat_CampfireUnlockedNotified";
     const string PrefKeyScrapLayout = "RustAndFloat_ScrapLayoutXZ_v7";
     const float MinDistFromPrevious = 28f;
     const float MinDistBetweenScraps = 22f;
@@ -599,6 +600,9 @@ public class AdventureScrapManager : MonoBehaviour
         // 冒頭ドラマ：1個目蘇生／3個目ダッシュ祝福
         AdventurePrologueDrama.Instance?.NotifyScrapCollected(CollectedCount);
 
+        // 10ポイント達成判定：砂浜の焚き火点火解禁＆工房の催促
+        CheckPointsAndNotifyCampfireUnlock();
+
         // 20ポイント達成判定：巨大レバーのロックを解除（※実際にタワーで引くまで天蓋は開放されない）
         CheckPointsAndNotifyLeverUnlock();
 
@@ -621,6 +625,35 @@ public class AdventureScrapManager : MonoBehaviour
     {
         var tower = AdventureSanctuaryTowerManager.Instance ?? Object.FindAnyObjectByType<AdventureSanctuaryTowerManager>();
         if (tower != null) tower.DebugSetup20PointsState(true);
+    }
+
+    /// <summary>総合ポイントを判定し、10pt達成時に砂浜の焚き火点火解禁と工房の催促を通知</summary>
+    public void CheckPointsAndNotifyCampfireUnlock()
+    {
+        if (TotalProgressPoints >= AdventureBeachCampfire.RequiredPointsToLight)
+        {
+            bool alreadyNotified = PlayerPrefs.GetInt(PrefKeyCampfireUnlockedNotified, 0) == 1;
+            if (!alreadyNotified)
+            {
+                PlayerPrefs.SetInt(PrefKeyCampfireUnlockedNotified, 1);
+                PlayerPrefs.Save();
+
+                // 10pt達成チャイム
+                PlayCelebrationChime(0.42f);
+
+                var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
+                if (hud != null)
+                {
+                    hud.ShowUpgradeBanner($"✦ 総合10ポイント達成！砂浜の焚き火＆工房解放！ ✦\n💡 砂浜の焚き火で暖まったり、【Bキー】でRust着せ替え工房を開いてみよう！");
+                }
+
+                var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
+                if (drone != null)
+                {
+                    drone.SpeakCustom("ピピッ！探索ポイントが10pt貯まったよ！\n砂浜の焚き火に火を点けられるようになったよ！【Bキー】で工房を開いて新しいアクセサリーを作るのもおすすめだよ、Float！", 7.0f);
+                }
+            }
+        }
     }
 
     /// <summary>総合ポイントを判定し、20pt達成時にレバーロック解除を通知（※レバーを実際に引くまでは開放されない）</summary>
@@ -650,7 +683,7 @@ public class AdventureScrapManager : MonoBehaviour
                 var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
                 if (drone != null)
                 {
-                    drone.SpeakCustom("20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Niko！！", 8.0f);
+                    drone.SpeakCustom("20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Float！！", 8.0f);
                     drone.TriggerTowerLeadGuidance();
                 }
             }
@@ -677,6 +710,7 @@ public class AdventureScrapManager : MonoBehaviour
             drone.SpeakCustom("わぁぁ！ピアノの上に光るパーツがあったよ！これで3ポイントゲットだね！", 5.5f);
         }
 
+        CheckPointsAndNotifyCampfireUnlock();
         CheckPointsAndNotifyLeverUnlock();
 
         if (AdventureSaveManager.Instance != null)
@@ -690,6 +724,7 @@ public class AdventureScrapManager : MonoBehaviour
     {
         InvalidateDriftBoxCache();
         PlayCelebrationChime(0.40f);
+        CheckPointsAndNotifyCampfireUnlock();
         CheckPointsAndNotifyLeverUnlock();
     }
 
@@ -974,9 +1009,10 @@ public class AdventureScrapManager : MonoBehaviour
         PlayerPrefs.DeleteKey("AncientPiano_Discovered");
         AdventureAncientPianoRelic.ResetAllPianoRelicsStatic();
 
-        // 4. レバーロック解除通知フラグをクリア
+        // 4. レバーロック解除＆焚き火通知フラグをクリア
         PlayerPrefs.DeleteKey(PrefKeyLeverUnlockedNotified);
         PlayerPrefs.DeleteKey("Adventure_LeverUnlockedNotified");
+        PlayerPrefs.DeleteKey(PrefKeyCampfireUnlockedNotified);
         PlayerPrefs.Save();
         AdventureFieldLesson.ClearForNewGame();
 
@@ -1013,6 +1049,7 @@ public class AdventureScrapManager : MonoBehaviour
             AdventureAncientPianoRelic.ResetAllPianoRelicsStatic();
             PlayerPrefs.DeleteKey(PrefKeyLeverUnlockedNotified);
             PlayerPrefs.DeleteKey("Adventure_LeverUnlockedNotified");
+            PlayerPrefs.DeleteKey(PrefKeyCampfireUnlockedNotified);
             PlayerPrefs.Save();
             Debug.Log("[AdventureScrapManager] PlayerPrefsの全ポイントを0にクリアしました。");
         }

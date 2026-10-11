@@ -25,8 +25,8 @@ public class AdventureButterflyDrift : MonoBehaviour
     private float _checkTimer;
     private bool _colorApplied;
 
-    // 150m以上でカリング（遠景で完全に見えなくなる距離までアクティブ維持）
-    private const float CULL_DISTANCE_SQR = 150f * 150f;
+    // 55m以上でカリング（遠景で完全に見えなくなる距離までアクティブ維持）
+    private const float CULL_DISTANCE_SQR = 55f * 55f;
     private static Transform _cameraTransform;
 
     // 鮮やかで美しい極彩色カラーパレット（BaseColor, EmissionColor）

@@ -270,7 +270,7 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         // ① 極寒・しがみつき → Nikoのいたわり → Rustの甘えお願い
         yield return SpeakRust(drone,
-            "キキッ……Niko……塩水で古いギアが……凍りついて動かない……", 4.8f);
+            "キキッ……Float……塩水で古いギアが……凍りついて動かない……", 4.8f);
         yield return SpeakNiko(drone,
             "大丈夫だよ、Rust。ここにいるから。ぎゅっとしてていいよ", 4.6f);
         yield return SpeakRust(drone,
@@ -278,7 +278,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         yield return SpeakNiko(drone,
             "よしよし。怖かったね。油をさして、ゆっくり温めてあげる", 4.6f);
         yield return SpeakRust(drone,
-            "……お願い……【E】で油をさして……Nikoの手、必要……", 5.2f);
+            "……お願い……【E】で油をさして……Floatの手、必要……", 5.2f);
 
         _phase = Phase.WaitOil;
 
@@ -292,9 +292,9 @@ public class AdventurePrologueDrama : MonoBehaviour
             {
                 string[] reminds =
                 {
-                    "……うぅ……まだ冷たいよ……Nikoの手、ほしい……【E】で……",
+                    "……うぅ……まだ冷たいよ……Floatの手、ほしい……【E】で……",
                     "……そばにいて……油を……さして……お願い……ぎゅっ……",
-                    "ピピッ……か、硬い……Niko……手当て……して……",
+                    "ピピッ……か、硬い……Float……手当て……して……",
                 };
                 drone.SpeakCustom(reminds[Random.Range(0, reminds.Length)], 4.2f);
                 nextRemind = 20f;
@@ -316,7 +316,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         drone.SetPettingState(true, 22f);
 
         yield return SpeakRust(drone,
-            "……あ……温かい……回路が戻ってきた……！ありがとう、Niko……", 5.2f);
+            "……あ……温かい……回路が戻ってきた……！ありがとう、Float……", 5.2f);
         yield return SpeakNiko(drone,
             "よかった……また声が聞けて安心したよ。よしよし、いい子だね", 4.8f);
         yield return SpeakRust(drone,
@@ -324,7 +324,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         yield return SpeakNiko(drone,
             "もちろん。ずっと一緒だよ。怖かったら、すぐくっついてていいからね", 4.8f);
         yield return SpeakRust(drone,
-            "……うん。Nikoの手の匂い、好き……もうギシギシしないよ", 4.6f);
+            "……うん。Floatの手の匂い、好き……もうギシギシしないよ", 4.6f);
         yield return SpeakNiko(drone,
             "さぁ、光るギアを取りに行こう。一歩ずつ、僕がそばにいるよ", 4.6f);
 
@@ -366,7 +366,7 @@ public class AdventurePrologueDrama : MonoBehaviour
             yield return SpeakNiko(drone,
                 "すごいよ、Rust。一歩ずつ、ちゃんと戻ってきてるね", 4.4f);
             yield return SpeakRust(drone,
-                "……Nikoがいてくれるから、怖くないよ。もっとくっついててもいい……？", 5.0f);
+                "……Floatがいてくれるから、怖くないよ。もっとくっついててもいい……？", 5.0f);
             yield return SpeakNiko(drone,
                 "いいよ。甘えてて。あと2個集めよう——砂浜の光る柱を探そう", 4.8f);
         }
@@ -430,7 +430,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (drone != null)
         {
             yield return SpeakRust(drone,
-                "ピキーン！足が軽い……！ダッシュが戻ったよ、Niko！！", 4.8f);
+                "ピキーン！足が軽い……！ダッシュが戻ったよ、Float！！", 4.8f);
             yield return SpeakNiko(drone,
                 "やったね！一緒に草原へ駆け上がろう。手、離さないよ", 4.6f);
             yield return SpeakRust(drone,
@@ -641,8 +641,8 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         // Rustの遠い呼びかけ
         if (drone != null)
-            drone.SpeakCustom("……Niko？　……Niko……？", 2.5f);
-        yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「……Niko？　……Niko……？」", 1.8f);
+            drone.SpeakCustom("……Float？　……Float……？", 2.5f);
+        yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「……Float？　……Float……？」", 1.8f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
         yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
@@ -682,9 +682,9 @@ public class AdventurePrologueDrama : MonoBehaviour
         {
             Vector3 rustCloserPos = playerPos + Vector3.up * 0.65f + playerForward * 0.18f;
             drone.transform.position = rustCloserPos;
-            drone.SpeakCustom("Niko……！　目を覚まして、Niko……！！", 2.8f);
+            drone.SpeakCustom("Float……！　目を覚まして、Float……！！", 2.8f);
         }
-        yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「Niko……！　目を覚まして、Niko……！！」", 2.0f);
+        yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「Float……！　目を覚まして、Float……！！」", 2.0f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
         yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }

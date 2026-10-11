@@ -47,14 +47,14 @@ public class AdventureCapytaBlessing : MonoBehaviour
     {
         "ピロッ……油もらったよ。あとで整備しよう",
         "カピタ機嫌がいいね。油、ありがたい",
-        "わぁ……油がたくさん。助かるよ、Niko",
+        "わぁ……油がたくさん。助かるよ、Float",
         "ピキーッ……山盛りだ。これでしばらく安心だね",
     };
 
     static readonly string[] RustFirst =
     {
-        "わぁ…！カピタの祝福だ！スーパージャンプと油をもらったよ、Niko！！",
-        "ピキーッ！カピタ優しい…！ジャンプも油も…Niko、あとで撫でてね……？",
+        "わぁ…！カピタの祝福だ！スーパージャンプと油をもらったよ、Float！！",
+        "ピキーッ！カピタ優しい…！ジャンプも油も…Float、あとで撫でてね……？",
     };
 
     // 貝殻物々交換用のカピタリアクション
@@ -200,7 +200,12 @@ public class AdventureCapytaBlessing : MonoBehaviour
                     Object.Destroy(existingBeach[i].gameObject);
             }
             for (int i = 0; i < existingBeach.Count && i < BeachCapytaCandidatePools.Length; i++)
+            {
                 PlaceCapytaOnGround(existingBeach[i], GetCapytaSpot(i), land);
+                var bc = existingBeach[i].GetComponent<AdventureCapytaBodyCollider>();
+                if (bc == null) bc = existingBeach[i].gameObject.AddComponent<AdventureCapytaBodyCollider>();
+                bc.EnsureCollider();
+            }
             PushCapitasClearOfPoint(nikoSpawn, 20f, land);
             return;
         }
@@ -219,6 +224,11 @@ public class AdventureCapytaBlessing : MonoBehaviour
             var go = Object.Instantiate(prefab, p, Quaternion.Euler(0f, 40f + i * 70f, 0f), root.transform);
             go.name = "Capyta_Beach_" + i;
             go.transform.localScale = Vector3.one * (0.92f + i * 0.04f);
+
+            // カピタのすり抜け防止コライダーを確実にセットアップ
+            var bodyCol = go.GetComponent<AdventureCapytaBodyCollider>();
+            if (bodyCol == null) bodyCol = go.AddComponent<AdventureCapytaBodyCollider>();
+            bodyCol.EnsureCollider();
         }
 
         PushCapitasClearOfPoint(nikoSpawn, 20f, land);

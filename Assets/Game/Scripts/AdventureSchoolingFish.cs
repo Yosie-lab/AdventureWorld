@@ -207,8 +207,30 @@ public class AdventureSchoolingFish : MonoBehaviour
     // 浅瀬の遊泳深度定数
     public const float MaxFishSurfaceY = 5.15f; // 海面(5.50m)より深く潜らせ、水面突き抜けチカチカを防止
 
+    // 距離カリング用キャッシュ
+    private float _cullTimer;
+    private bool _isCulled;
+    private const float CullDistanceSqr = 36f * 36f; // 36m以遠でスリープ
+
     void Update()
     {
+        // 0.4秒おきに距離判定（50匹分の毎フレーム距離計算を回避）
+        _cullTimer -= Time.deltaTime;
+        if (_cullTimer <= 0f)
+        {
+            _cullTimer = 0.35f + Random.value * 0.15f;
+            if (_player == null)
+            {
+                var p = AdventurePlayerController.InstanceOrFind();
+                if (p != null) _player = p.transform;
+            }
+            if (_player != null)
+            {
+                _isCulled = (transform.position - _player.position).sqrMagnitude > CullDistanceSqr;
+            }
+        }
+        if (_isCulled) return;
+
         UpdateAI();
         UpdateSwimmingAnimation();
     }

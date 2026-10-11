@@ -49,9 +49,54 @@ created: 2026-09-11
    - ユーザーとの対話は日本語、結論先行、1ステップずつ進める。
    - 巨大アセット（`Assets/Art` など）や不要なメタファイル、秘密情報をコミットしない。
 
-### 3. 現在のGit状態
-- ブランチ: `main`（最新コミット: `221e08d` まで push 済み）
-- コンパイルエラー: 0件。
+### 3. 現在のGit状態（2026-10-09 夜・更新）
+- **`main`**: `8c9752a`（マウス左クリック・焚き火・波の調整まで push 済み）
+- **作業ブランチ**: `cursor/float-display-and-prologue-gates` — Float 表示名・プロローグ台詞保護・本線バグ修正・MCP ブートストラップ（このセッション分。マージ前）
+- コンパイルエラー: 0件（Unity 6000.5.8f1、Play Mode 検証済み）
+
+---
+
+## Antigravity への引き継ぎ（2026-10-09 夜・Cursor → Antigravity）
+
+**最初に読む**: ルート `/AGENTS.md`（Antigravity）または `RustAndFloat/AGENTS.md`（Cursor）。実体リポジトリは **`RustAndFloat/`**（git root）。Cursor で親フォルダ `Unity project/` を開いている場合、兄弟 **`Unity project/Unity project/`** は origin より古いコピーなので触らない。
+
+### ブランチに入っている変更（`cursor/float-display-and-prologue-gates`）
+
+| 領域 | 内容 |
+|------|------|
+| **表示名** | プレイヤー向け文言のみ **Niko → Float**（台詞・字幕・ネームタグ `✦ Float`）。**変更しない**: GameObject 名 `Niko`、`Find("Niko")`、Animator 状態 `NikoIdle/Walks/Runs`、足音 `NikoStep_*`、ボート prefab 名、`Assets/Niko&Capyta/`、メソッド名 `SpeakAsNiko` 等。商品タイトル『Rust & Float』はそのまま。 |
+| **プロローグ台詞** | `AdventurePrologueDrama.IsBlockingSpeech` 中は、油取得アナウンス（`AddOil`）、好奇心（蝶・花・居眠り）、レーダー/貝殻/宝箱の `UpdateGuide`、Rust への通常 E インタラクトが**台詞を上書き・横取りしない**。 |
+| **Rust 追従** | 北崖（y>85）を誤ってエピローグ扱いしてヒッチ停止していた条件を削除。抑制は **`AdventureStoryFlow.IsEndingArc`** と **`IsAutoGliding`** のみ。 |
+| **タワー** | `AdventureSanctuaryTowerManager.Structure.cs`: レバー演出時の `FindObjectsByType` 全シーン走査をやめ、`DestroyOrphanLevers` で名前指定の孤児のみ削除。 |
+| **Editor** | `Assets/Game/Scripts/Editor/RustAndFloatMcpBootstrap.cs`: GUI 起動 Unity 向けに `~/.local/bin/uvx` を EditorPrefs に設定、MCP HTTP 自動起動、存在する csproj だけ残す sln 生成（Cursor 外部スクリプトエディタ `~/Applications/Cursor Code.app` 想定）。 |
+
+### Play Mode で確認済み（2026-10-09）
+
+- 目覚め〜注油〜蘇生: Float 台詞のみ。油「採取した！」と蝶の好奇心セリフは**出ない**（意図どおり）。
+- **1個目**: `古代の推進黄金ギア`（座礁艇付近・レイアウト既定 `@172,252`）取得 → FirstGear 台詞（「砂浜の光る柱を探そう」まで）。
+- **2個目**: `耐熱スタビライザー`（南西砂浜プール・例 `@215,205`、子 `BeaconPillar` 光柱）取得 → SecondGear（「もうひとつ繋がった」「あと1個だよ！」まで）。`CollectedCount=2`。
+- **検証の注意**: `Collect()` は即 `SaveGame` する。テスト後はバックアップから戻すこと。  
+  セーブ: `~/Library/Application Support/DefaultCompany/Unity project/rust_and_float_save.json`  
+  このセッションの検証用バックアップ例: `/tmp/rust_and_float_save.before.json`（油 25 / パーツ 1）。
+- **自動テストの罠**: `ResetToCount(0)` ＋ セーブに `collectedScrapIds: [1]` があると **itemId 1 が再スポーンせず**、「最寄り BeaconPillar」探索が内陸パーツを拾うことがある。本番プレイでは **2個目は itemId 2（耐熱スタビライザー）・砂浜〜南西岬プール** を想定。
+
+### 未着手・次の候補（ユーザー指示待ち）
+
+- **3個目**取得 → `DashCelebrateRoutine`（ダッシュ解禁ボード）
+- **Skybreak → Climax → Epilogue → Clear → FreeFlight** の通し Play 検証
+- SecondGear 台詞の最中に、貝殻レーダー（例: サクラガイ）が一瞬割り込む可能性（要再現確認。`SecondGearBond` は `IsBlockingSpeech` 対象）
+
+### Antigravity / Unity 作業時のローカル設定（任意）
+
+- Unity MCP: Cursor `mcp.json` で `http://localhost:8080/mcp`。Unity パッケージ `com.coplaydev.unity-mcp` ＋ `RustAndFloatMcpBootstrap`。
+- C# IDE: `.vscode/settings.json` の `dotnet.defaultSolution` は `RustAndFloat.slnx`（生成物。`*.sln` は gitignore）。
+- **不可侵**: `Assets/Scenes/AdventureWorld.unity`、`Assets/Idyllic Fantasy Nature/Demo/Settings/Land_Terrain.asset`。作業シーン **`Assets/RustAndFloat/Scenes/RustAndFloat.unity`**。Play 中にシーン/Prefab 保存しない。
+
+### マージ後の推奨
+
+1. `cursor/float-display-and-prologue-gates` を `main` にマージ  
+2. HANDOFF の「作業ブランチ」を `main` 最新 SHA に差し替え  
+3. 続きは上記「未着手・次の候補」からユーザー優先度に従う  
 
 ---
 

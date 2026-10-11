@@ -86,9 +86,27 @@ public class AdventureBeachDriftBox : MonoBehaviour
     private static bool _isModalOpen = false;
     private static float _modalOpenTimestamp = 0f;
 
-    public static bool IsModalOpen => _isModalOpen;
+    /// <summary>
+    /// モーダルが実際に画面上に表示されているかどうか。
+    /// staticフラグの残留等で操作が永久ブロックされるのを防ぐため、実オブジェクトのアクティブ状態も検証する。
+    /// </summary>
+    public static bool IsModalOpen =>
+        _isModalOpen
+        && _modalCanvas != null
+        && _modalPanel != null
+        && _modalPanel.transform.parent != null
+        && _modalPanel.transform.parent.gameObject.activeInHierarchy;
+
     public static bool CanCloseModal =>
-        _isModalOpen && Time.unscaledTime - _modalOpenTimestamp >= 0.28f;
+        _isModalOpen && Time.unscaledTime - _modalOpenTimestamp >= 0.12f;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStaticState()
+    {
+        _isModalOpen = false;
+        _modalOpenTimestamp = 0f;
+        _activeBoxes.Clear();
+    }
 
     // ── アクティブインスタンス管理（コンパスHUD・Rustドローン連携用） ──
     private static readonly List<AdventureBeachDriftBox> _activeBoxes = new List<AdventureBeachDriftBox>();
@@ -1008,7 +1026,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     private static void EnsureModalUI()
     {
-        if (_modalCanvas != null && _modalPanel != null) return;
+        if (_modalCanvas != null && _modalPanel != null && _modalCanvas.renderMode == RenderMode.ScreenSpaceOverlay && _modalPanel.GetComponent<DriftBoxPanelClickForwarder>() != null)
+            return;
 
         // 孤児化した古いCanvasがあれば掃除
         var oldCanvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include);
@@ -1026,10 +1045,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var canvasGo = new GameObject("DriftBoxModalCanvas");
         DontDestroyOnLoad(canvasGo);
         _modalCanvas = canvasGo.AddComponent<Canvas>();
-        _modalCanvas.renderMode = RenderMode.ScreenSpaceCamera;
-        _modalCanvas.worldCamera = Camera.main;
-        _modalCanvas.planeDistance = 1.0f;
-        _modalCanvas.sortingOrder = 200; // 最前面表示
+        _modalCanvas.renderMode = RenderMode.ScreenSpaceOverlay; // カメラや3D遮蔽に影響されないオーバーレイモード
+        _modalCanvas.sortingOrder = 3000; // 最前面に表示
 
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -1046,6 +1063,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         overlay.transform.SetParent(canvasGo.transform, false);
         var overlayImg = overlay.AddComponent<Image>();
         overlayImg.color = new Color(0f, 0f, 0f, 0.50f);
+        overlayImg.raycastTarget = true;
         var overlayRt = overlay.GetComponent<RectTransform>();
         overlayRt.anchorMin = Vector2.zero;
         overlayRt.anchorMax = Vector2.one;
@@ -1053,15 +1071,18 @@ public class AdventureBeachDriftBox : MonoBehaviour
         var overlayBtn = overlay.AddComponent<Button>();
         overlayBtn.transition = Selectable.Transition.None;
         overlayBtn.onClick.AddListener(CloseModal);
+        overlay.AddComponent<DriftBoxPanelClickForwarder>();
 
-        // メインパネル
+        // メインパネル（ネスト競合を防ぐためButtonではなくPointerClickHandlerで全面クリック受付）
         _modalPanel = new GameObject("ModalPanel");
         _modalPanel.transform.SetParent(overlay.transform, false);
         var panelImg = _modalPanel.AddComponent<Image>();
         panelImg.color = new Color(0.12f, 0.15f, 0.20f, 0.96f); // 深いネイビーグレー
+        panelImg.raycastTarget = true;
         var panelRt = _modalPanel.GetComponent<RectTransform>();
         panelRt.sizeDelta = new Vector2(680, 420);
         panelRt.anchoredPosition = Vector2.zero;
+        _modalPanel.AddComponent<DriftBoxPanelClickForwarder>();
 
         // パネルの外枠（金色の飾り枠）
         AddOutline(_modalPanel, new Color(0.85f, 0.72f, 0.40f, 0.85f), new Vector2(2, -2));
@@ -1101,6 +1122,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         txt.color = color;
         txt.alignment = alignment;
         txt.lineSpacing = lineSpacing;
+        txt.raycastTarget = false; // テキストがボタンのクリック判定を吸い取らないよう透過
 
         var rt = go.GetComponent<RectTransform>();
         rt.anchoredPosition = pos;
@@ -1121,8 +1143,10 @@ public class AdventureBeachDriftBox : MonoBehaviour
         closeGo.transform.SetParent(parent, false);
         var closeImg = closeGo.AddComponent<Image>();
         closeImg.color = new Color(0.18f, 0.24f, 0.32f, 0.85f);
+        closeImg.raycastTarget = true;
         var closeBtn = closeGo.AddComponent<Button>();
         closeBtn.onClick.AddListener(CloseModal);
+        closeGo.AddComponent<DriftBoxPanelClickForwarder>();
         var closeColors = closeBtn.colors;
         closeColors.highlightedColor = new Color(0.28f, 0.38f, 0.50f, 1f);
         closeColors.pressedColor = new Color(0.10f, 0.15f, 0.22f, 1f);
@@ -1134,6 +1158,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
             new Color(0.65f, 0.92f, 1.0f), FontStyle.Bold, TextAnchor.MiddleCenter,
             Vector2.zero, Vector2.zero);
         closeText.text = "【 Space / Enter / クリックで閉じる 】";
+        closeText.raycastTarget = false;
         var closeTextRt = closeText.GetComponent<RectTransform>();
         closeTextRt.anchorMin = Vector2.zero;
         closeTextRt.anchorMax = Vector2.one;
@@ -1178,7 +1203,13 @@ public class AdventureBeachDriftBox : MonoBehaviour
     {
         if (!CanCloseModal && _isModalOpen) return;
 
-        if (_modalCanvas != null && _modalPanel != null)
+        ForceCloseModal();
+    }
+
+    /// <summary>クールダウン等の条件を無視して即座にモーダルを完全に閉じる</summary>
+    public static void ForceCloseModal()
+    {
+        if (_modalPanel != null && _modalPanel.transform.parent != null)
         {
             _modalPanel.transform.parent.gameObject.SetActive(false);
         }
@@ -1249,29 +1280,111 @@ public class AdventureBeachDriftBox : MonoBehaviour
 }
 
 /// <summary>
-/// 漂着ボックスモーダルの入力ハンドラー
-/// 新旧Input Systemの両方で、キー入力やクリックによるモーダル閉じを100%確実に処理する
+/// uGUIのポインタクリックを拾ってモーダルを確実に閉じるフォワーダー。
+/// パネル本体・暗幕・閉じるボタンのどこをクリックしても即座に閉じる。
 /// </summary>
-public class DriftBoxModalInputHandler : MonoBehaviour
+public class DriftBoxPanelClickForwarder : MonoBehaviour, UnityEngine.EventSystems.IPointerClickHandler
+{
+    public void OnPointerClick(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        if (AdventureBeachDriftBox.CanCloseModal)
+        {
+            AdventureBeachDriftBox.ForceCloseModal();
+        }
+    }
+}
+
+/// <summary>
+/// 漂着ボックスモーダルの高信頼入力ハンドラー。
+/// 新旧Input System・IMGUI(全画面透明GUI.Button/OnGUI)・uGUI EventSystemの多重網で、
+/// 画面のどこをクリックしても、またキー入力でも100%確実にモーダルを閉じる。
+/// </summary>
+public class DriftBoxModalInputHandler : MonoBehaviour, UnityEngine.EventSystems.IPointerClickHandler
 {
     void Update()
     {
+        if (!AdventureBeachDriftBox.IsModalOpen) return;
+
+        // モーダル表示中はマウスカーソルを確実に解放・可視化
+        if (Cursor.lockState != CursorLockMode.None)
+            Cursor.lockState = CursorLockMode.None;
+        if (!Cursor.visible)
+            Cursor.visible = true;
+
         if (!AdventureBeachDriftBox.CanCloseModal) return;
 
-        // AdventureInputReader に統合（Space/Enter/Esc/E/マウス左の任意で閉じる）
+        // キー入力でのクローズ（Space/Enter/Esc/E）
         bool closeTriggered = AdventureInputReader.SpaceDown
             || AdventureInputReader.EnterDown
             || AdventureInputReader.EscapeDown
             || AdventureInputReader.InteractDown;
 
+        // 新Input System：マウスの任意ボタン押下・解放を検出
         var mouse = Mouse.current;
-        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
-            closeTriggered = true;
-        try { if (Input.GetMouseButtonDown(0)) closeTriggered = true; } catch { }
+        if (mouse != null)
+        {
+            if (mouse.leftButton.wasPressedThisFrame
+                || mouse.leftButton.wasReleasedThisFrame
+                || mouse.rightButton.wasPressedThisFrame
+                || mouse.rightButton.wasReleasedThisFrame)
+            {
+                closeTriggered = true;
+            }
+        }
+
+        // 旧Input System（利用可能な環境での追加網）
+        try
+        {
+            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonUp(0) || Input.GetMouseButtonDown(1))
+                closeTriggered = true;
+        }
+        catch { }
 
         if (closeTriggered)
         {
-            AdventureBeachDriftBox.CloseModal();
+            AdventureBeachDriftBox.ForceCloseModal();
+        }
+    }
+
+    /// <summary>IMGUIレベルでのクリック検出（全画面透明ボタン＋イベント補足でUnity Editorのフォーカス獲得クリック等も100%確実にキャッチ）</summary>
+    void OnGUI()
+    {
+        if (!AdventureBeachDriftBox.IsModalOpen) return;
+        if (!AdventureBeachDriftBox.CanCloseModal) return;
+
+        // 全画面の不可視 GUI.Button：UnityのIMGUIパイプラインでどんなクリックも確実に拾う
+        Color origColor = GUI.color;
+        GUI.color = Color.clear;
+        if (GUI.Button(new Rect(0, 0, Screen.width, Screen.height), GUIContent.none, GUIStyle.none))
+        {
+            AdventureBeachDriftBox.ForceCloseModal();
+            GUI.color = origColor;
+            return;
+        }
+        GUI.color = origColor;
+
+        var ev = Event.current;
+        if (ev != null)
+        {
+            EventType t = ev.rawType;
+            if (t == EventType.MouseDown || t == EventType.MouseUp)
+            {
+                if (ev.button == 0 || ev.button == 1)
+                {
+                    AdventureBeachDriftBox.ForceCloseModal();
+                    ev.Use();
+                }
+            }
+        }
+    }
+
+    /// <summary>uGUI EventSystem経由でのポインタクリック補足</summary>
+    public void OnPointerClick(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        if (AdventureBeachDriftBox.CanCloseModal)
+        {
+            AdventureBeachDriftBox.ForceCloseModal();
         }
     }
 }
+

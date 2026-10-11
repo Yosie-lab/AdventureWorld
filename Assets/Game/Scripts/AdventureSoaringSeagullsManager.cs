@@ -245,7 +245,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
                 _birdsContainer.SetActive(allowed);
                 if (allowed)
                 {
-                    Debug.Log("[RustAndFloat] ✦ 「ピピッ！ありがとう、Niko！」大空への全開ダイブ開始：ウミネコたちの飛行解禁！");
+                    Debug.Log("[RustAndFloat] ✦ 「ピピッ！ありがとう、Float！」大空への全開ダイブ開始：ウミネコたちの飛行解禁！");
                 }
             }
         }

@@ -172,6 +172,15 @@ public static class AdventureRebuildBoardwalkRamps
                 var mr = plank.GetComponent<MeshRenderer>();
                 if (mr != null) mr.sharedMaterial = woodMat;
 
+                var pCol = plank.GetComponent<BoxCollider>();
+                if (pCol != null)
+                {
+                    const float solidDepth = 1.2f;
+                    float localDepth = solidDepth / PlankThickness;
+                    pCol.size = new Vector3(1f, localDepth, 1.06f);
+                    pCol.center = new Vector3(0f, 0.5f - localDepth * 0.5f, 0f);
+                }
+
                 float gap = segCenter.y - groundUnder;
                 if (gap > 0.35f && (s % 3 == 0 || s == segments - 1))
                 {
@@ -276,6 +285,15 @@ public static class AdventureRebuildBoardwalkRamps
             plank.transform.localScale = new Vector3(width, PlankThickness, length * 1.04f);
             var mr = plank.GetComponent<MeshRenderer>();
             if (mr != null) mr.sharedMaterial = woodMat;
+
+            var pCol = plank.GetComponent<BoxCollider>();
+            if (pCol != null)
+            {
+                const float solidDepth = 1.2f;
+                float localDepth = solidDepth / PlankThickness;
+                pCol.size = new Vector3(1f, localDepth, 1.06f);
+                pCol.center = new Vector3(0f, 0.5f - localDepth * 0.5f, 0f);
+            }
 
             float gap = segCenter.y - groundUnder;
             if (gap > 0.35f && (s % 3 == 0 || s == segments - 1))

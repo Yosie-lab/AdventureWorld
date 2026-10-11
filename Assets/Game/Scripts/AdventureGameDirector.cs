@@ -444,7 +444,7 @@ public class AdventureGameDirector : MonoBehaviour
             else if (step == 4)
                 ShowDialogue("カピタ「プヒヒ…。油缶、いくらでもあけてあげる。相棒のギアが喜ぶ音、好きなんだ。」", 5.5f);
             else
-                ShowDialogue("カピタ「Nikoの手が温かいと、Rustは安心して飛ぶよ。また話しにきて。」", 5.5f);
+                ShowDialogue("カピタ「Floatの手が温かいと、Rustは安心して飛ぶよ。また話しにきて。」", 5.5f);
             return;
         }
         if (!_foundCat)

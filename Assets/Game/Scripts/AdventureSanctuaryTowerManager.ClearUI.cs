@@ -8,6 +8,9 @@ public partial class AdventureSanctuaryTowerManager
 {
     #region ゲームクリアモーダルUI
 
+    float _clearModalOpenedAt = 0f;
+    bool _clearModalRequireRelease = false;
+
     void TickGameClearModal()
     {
         if (!_showGameClearModal)
@@ -26,27 +29,37 @@ public partial class AdventureSanctuaryTowerManager
             Cursor.visible = true;
         }
 
+        // 開いた直後の誤爆防止（エピローグ字幕送りSpaceの突き抜け防止）
+        float elapsedSinceOpen = Time.unscaledTime - _clearModalOpenedAt;
+        if (_clearModalRequireRelease)
+        {
+            if (!AdventureInputReader.SpaceOrJHeld)
+                _clearModalRequireRelease = false;
+        }
+
         // AdventureInputReader に委譲（新旧InputSystem統合）
-        bool spacePressed = AdventureInputReader.SpaceOrJDown;
         bool nPressed = false;
         var kb = AdventureInputReader.Keyboard;
         if (kb != null && kb.nKey.wasPressedThisFrame) nPressed = true;
         try { if (Input.GetKeyDown(KeyCode.N)) nPressed = true; } catch { }
-        bool closePressed = AdventureInputReader.InteractDown || AdventureInputReader.EscapeDown;
 
-        if (spacePressed)
-            RelaunchIntoSky();
-        else if (nPressed)
+        bool spacePressed = !_clearModalRequireRelease && elapsedSinceOpen >= 0.4f && AdventureInputReader.SpaceOrJDown;
+        bool closePressed = elapsedSinceOpen >= 0.3f && (AdventureInputReader.InteractDown || AdventureInputReader.EscapeDown);
+
+        // ★ニューゲーム（N）を最優先判定！
+        if (nPressed)
             StartNewGameFromClearModal();
+        else if (spacePressed)
+            RelaunchIntoSky();
         else if (closePressed)
             CloseGameClearModalForFreeExplore();
 
-        if (WasPointerPressedThisFrame(out Vector2 pointer))
+        if (elapsedSinceOpen >= 0.3f && WasPointerPressedThisFrame(out Vector2 pointer))
         {
-            if (PointerHits(_clearDiveBtn, pointer))
-                RelaunchIntoSky();
-            else if (PointerHits(_clearNewBtn, pointer))
+            if (PointerHits(_clearNewBtn, pointer))
                 StartNewGameFromClearModal();
+            else if (PointerHits(_clearDiveBtn, pointer))
+                RelaunchIntoSky();
             else if (PointerHits(_clearCloseBtn, pointer))
                 CloseGameClearModalForFreeExplore();
         }
@@ -86,6 +99,8 @@ public partial class AdventureSanctuaryTowerManager
         _showGameClearModal = visible;
         if (visible)
         {
+            _clearModalOpenedAt = Time.unscaledTime;
+            _clearModalRequireRelease = true;
             EnsureGameClearModalUI();
             if (!wasVisible)
             {
@@ -154,7 +169,7 @@ public partial class AdventureSanctuaryTowerManager
             "天蓋の檻を打ち破り、二人は蒼い風が吹く空へ羽ばたいた。\n\n" +
             "✦ 漂着古代パーツ回収： 12 / 12\n" +
             "✦ 相棒Rust： 二段ジャンプ・超滑空・探知ソナー\n\n" +
-            "「ありがとう、Niko。僕たちの翼で、どこまでも行こう……！」\n\n" +
+            "「ありがとう、Float。僕たちの翼で、どこまでも行こう……！」\n\n" +
             "【Space】大空へ　【N】はじめから　【E / Esc】閉じる";
         PrepareFontForText(font, body.text, 24);
 
@@ -182,6 +197,7 @@ public partial class AdventureSanctuaryTowerManager
         var btn = go.AddComponent<Button>();
         btn.targetGraphic = img;
         btn.transition = Selectable.Transition.None;
+        btn.navigation = new Navigation { mode = Navigation.Mode.None };
         btn.onClick.AddListener(onClick);
         var text = MakeScriptText(go.transform, "Label", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(260f, 48f), 20, TextAnchor.MiddleCenter, font);
         text.color = Color.white;
