@@ -302,7 +302,7 @@ public partial class AdventureSanctuaryTowerManager
         _epilogueSeagullCo = StartCoroutine(EpilogueSeagullRoutine());
     }
 
-    void StopEpilogueSeagullAmbience()
+    public void StopEpilogueSeagullAmbience()
     {
         if (_epilogueSeagullCo != null)
         {
