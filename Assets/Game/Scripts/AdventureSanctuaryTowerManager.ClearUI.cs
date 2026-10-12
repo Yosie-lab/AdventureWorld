@@ -46,22 +46,48 @@ public partial class AdventureSanctuaryTowerManager
         bool spacePressed = !_clearModalRequireRelease && elapsedSinceOpen >= 0.4f && AdventureInputReader.SpaceOrJDown;
         bool closePressed = elapsedSinceOpen >= 0.3f && (AdventureInputReader.InteractDown || AdventureInputReader.EscapeDown);
 
-        // ★ニューゲーム（N）を最優先判定！
+        // ★キーボード操作判定（N＝はじめから、Space＝大空へ、E/Esc＝閉じる）
         if (nPressed)
+        {
+            Debug.Log("[RustAndFloat] キーボード【N】検知 → StartNewGameFromClearModal 実行");
             StartNewGameFromClearModal();
-        else if (spacePressed)
+            return;
+        }
+        if (spacePressed)
+        {
+            Debug.Log("[RustAndFloat] キーボード【Space】検知 → RelaunchIntoSky 実行");
             RelaunchIntoSky();
-        else if (closePressed)
+            return;
+        }
+        if (closePressed)
+        {
+            Debug.Log("[RustAndFloat] キーボード【E/Esc】検知 → CloseGameClearModalForFreeExplore 実行");
             CloseGameClearModalForFreeExplore();
+            return;
+        }
 
+        // ★マウスクリックフォールバック（uGUI EventSystemが拾わなかった場合でも確実に発火）
         if (elapsedSinceOpen >= 0.3f && WasPointerPressedThisFrame(out Vector2 pointer))
         {
+            // ※【N】はじめからボタンを最優先でヒット判定！
             if (PointerHits(_clearNewBtn, pointer))
+            {
+                Debug.Log("[RustAndFloat] マウスクリック【N はじめから】検知 → StartNewGameFromClearModal 実行");
                 StartNewGameFromClearModal();
-            else if (PointerHits(_clearDiveBtn, pointer))
+                return;
+            }
+            if (PointerHits(_clearDiveBtn, pointer))
+            {
+                Debug.Log("[RustAndFloat] マウスクリック【Space 大空へダイブ】検知 → RelaunchIntoSky 実行");
                 RelaunchIntoSky();
-            else if (PointerHits(_clearCloseBtn, pointer))
+                return;
+            }
+            if (PointerHits(_clearCloseBtn, pointer))
+            {
+                Debug.Log("[RustAndFloat] マウスクリック【E 閉じる】検知 → CloseGameClearModalForFreeExplore 実行");
                 CloseGameClearModalForFreeExplore();
+                return;
+            }
         }
     }
 
@@ -69,11 +95,10 @@ public partial class AdventureSanctuaryTowerManager
     {
         pointer = Vector2.zero;
         var mouse = UnityEngine.InputSystem.Mouse.current;
-        if (mouse != null)
+        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
         {
             pointer = mouse.position.ReadValue();
-            if (mouse.leftButton.wasPressedThisFrame)
-                return true;
+            return true;
         }
         try
         {
@@ -101,6 +126,8 @@ public partial class AdventureSanctuaryTowerManager
         {
             _clearModalOpenedAt = Time.unscaledTime;
             _clearModalRequireRelease = true;
+            // 古いインスタンスが残っている場合はクリーンに再構築
+            DestroyClearModalUI();
             EnsureGameClearModalUI();
             if (!wasVisible)
             {
@@ -113,18 +140,30 @@ public partial class AdventureSanctuaryTowerManager
         }
     }
 
+    void DestroyClearModalUI()
+    {
+        if (_clearUiRoot != null)
+        {
+            Destroy(_clearUiRoot);
+            _clearUiRoot = null;
+            _clearDiveBtn = null;
+            _clearNewBtn = null;
+            _clearCloseBtn = null;
+        }
+        var orphans = GameObject.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < orphans.Length; i++)
+        {
+            if (orphans[i] != null && orphans[i].name == "GameClearModalCanvas")
+                Destroy(orphans[i]);
+        }
+    }
+
     void EnsureGameClearModalUI()
     {
         EnsureEventSystemForUi();
         if (_clearUiRoot != null)
         {
             _clearUiRoot.SetActive(true);
-            if (_clearDiveBtn == null)
-                _clearDiveBtn = _clearUiRoot.transform.Find("Panel/DiveBtn") as RectTransform;
-            if (_clearNewBtn == null)
-                _clearNewBtn = _clearUiRoot.transform.Find("Panel/NewBtn") as RectTransform;
-            if (_clearCloseBtn == null)
-                _clearCloseBtn = _clearUiRoot.transform.Find("Panel/CloseBtn") as RectTransform;
             return;
         }
 
@@ -191,14 +230,22 @@ public partial class AdventureSanctuaryTowerManager
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
         rt.pivot = new Vector2(0.5f, 0f);
         rt.anchoredPosition = anchoredPos;
-        rt.sizeDelta = new Vector2(280f, 56f);
+        rt.sizeDelta = new Vector2(280f, 58f);
         var img = go.AddComponent<Image>();
         img.color = color;
         var btn = go.AddComponent<Button>();
         btn.targetGraphic = img;
-        btn.transition = Selectable.Transition.None;
+        btn.transition = Selectable.Transition.ColorTint;
+        var colors = btn.colors;
+        colors.normalColor = color;
+        colors.highlightedColor = Color.Lerp(color, Color.white, 0.35f);
+        colors.pressedColor = Color.Lerp(color, Color.black, 0.25f);
+        colors.selectedColor = color;
+        btn.colors = colors;
         btn.navigation = new Navigation { mode = Navigation.Mode.None };
         btn.onClick.AddListener(onClick);
+        var forwarder = go.AddComponent<ClearModalButtonClickForwarder>();
+        forwarder.Init(onClick);
         var text = MakeScriptText(go.transform, "Label", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(260f, 48f), 20, TextAnchor.MiddleCenter, font);
         text.color = Color.white;
         text.fontStyle = FontStyle.Bold;
@@ -227,6 +274,7 @@ public partial class AdventureSanctuaryTowerManager
     void StartNewGameFromClearModal()
     {
         if (!ConsumeClearModalAction()) return;
+        Debug.Log("[RustAndFloat] ★★★ StartNewGameFromClearModal 実行開始 ★★★");
         _showGameClearModal = false;
         HideGameClearModalUI();
         var player = GetPlayer();
@@ -249,6 +297,7 @@ public partial class AdventureSanctuaryTowerManager
     void CloseGameClearModalForFreeExplore()
     {
         if (!ConsumeClearModalAction()) return;
+        Debug.Log("[RustAndFloat] ★ CloseGameClearModalForFreeExplore 実行（自由探索へ復帰）");
         _showGameClearModal = false;
         HideGameClearModalUI();
         AdventureMusicDirector.Ensure();
@@ -276,6 +325,7 @@ public partial class AdventureSanctuaryTowerManager
     public void RelaunchIntoSky()
     {
         if (!ConsumeClearModalAction()) return;
+        Debug.Log("[RustAndFloat] ★ RelaunchIntoSky 実行（大空へダイブ）");
         _showGameClearModal = false;
         HideGameClearModalUI();
         AdventureMusicDirector.Ensure();
@@ -299,4 +349,24 @@ public partial class AdventureSanctuaryTowerManager
     }
 
     #endregion
+}
+
+/// <summary>
+/// クリアモーダルの各ボタン専用クリックフォワーダー。
+/// uGUIのEventSystemから直接ポインタクリックを受け取り、割り当てられたコールバックを確実に実行する。
+/// 自前座標計算によるボタン誤ヒット・誤爆を完全防止。
+/// </summary>
+public class ClearModalButtonClickForwarder : MonoBehaviour, UnityEngine.EventSystems.IPointerClickHandler
+{
+    private UnityEngine.Events.UnityAction _callback;
+
+    public void Init(UnityEngine.Events.UnityAction callback)
+    {
+        _callback = callback;
+    }
+
+    public void OnPointerClick(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        _callback?.Invoke();
+    }
 }
