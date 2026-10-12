@@ -85,6 +85,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
     private static Text _modalCloseHintText;
     private static bool _isModalOpen = false;
     private static float _modalOpenTimestamp = 0f;
+    private static bool _pendingCampfireRemindOnModalClose = false;
 
     /// <summary>
     /// モーダルが実際に画面上に表示されているかどうか。
@@ -105,6 +106,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
     {
         _isModalOpen = false;
         _modalOpenTimestamp = 0f;
+        _pendingCampfireRemindOnModalClose = false;
         _activeBoxes.Clear();
     }
 
@@ -924,26 +926,48 @@ public class AdventureBeachDriftBox : MonoBehaviour
         }
 
         // 総合探索ポイント（+2 pt）加算とレバーロック解除チェック
+        bool unlockedCampfire = false;
+        bool unlockedLever = false;
         var scrapMgr = AdventureScrapManager.Instance;
         if (scrapMgr != null)
         {
-            scrapMgr.OnDriftBoxOpened(boxId, boxTitle);
+            scrapMgr.OnDriftBoxOpened(boxId, boxTitle, out unlockedCampfire, out unlockedLever);
         }
 
         // 相棒Rustのセリフと歓喜の宙返り＆星スパークル
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
-            drone.TriggerCelebration(rustDialogue, 2.2f);
+            if (unlockedLever)
+            {
+                // 20pt達成：タワー誘導セリフを優先維持（上書きしない）
+            }
+            else if (unlockedCampfire)
+            {
+                // 10pt達成：焚き火＆工房解放セリフを優先維持（上書きしない）
+            }
+            else
+            {
+                drone.TriggerCelebration(rustDialogue, 2.2f);
+            }
         }
 
         // クエストティッカーの更新（+2 pt 獲得と現在ポイント）
         var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
         if (hud != null)
         {
-            int pts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
-            string objText = !string.IsNullOrEmpty(nextObjective) ? $"\n💡 目標: {nextObjective}" : "";
-            hud.ShowUpgradeBanner($"📦 【{boxTitle}】を開封！ (+2 pt)\n✦ 探索ポイント: {pts} / {AdventureScrapManager.RequiredPointsForCanopy} pt{objText}");
+            if (!unlockedLever && !unlockedCampfire)
+            {
+                int pts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
+                string objText = !string.IsNullOrEmpty(nextObjective) ? $"\n💡 目標: {nextObjective}" : "";
+                hud.ShowUpgradeBanner($"📦 【{boxTitle}】を開封！ (+2 pt)\n✦ 探索ポイント: {pts} / {AdventureScrapManager.RequiredPointsForCanopy} pt{objText}");
+            }
+        }
+
+        // 10pt達成時、手記モーダルを閉じた後にも改めてRustにリマインドさせる
+        if (unlockedCampfire)
+        {
+            _pendingCampfireRemindOnModalClose = true;
         }
 
         // 情報モーダルUIの表示
@@ -1220,6 +1244,17 @@ public class AdventureBeachDriftBox : MonoBehaviour
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+        }
+
+        // モーダルを閉じた直後のフォローアップ（10pt達成直後、または10pt以上で未点火の場合のリマインド）
+        if (_pendingCampfireRemindOnModalClose)
+        {
+            _pendingCampfireRemindOnModalClose = false;
+            var scrap = AdventureScrapManager.Instance;
+            if (scrap != null)
+            {
+                scrap.RemindCampfireAndWorkshop(force: true);
+            }
         }
     }
 

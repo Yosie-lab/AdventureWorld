@@ -628,12 +628,12 @@ public class AdventureScrapManager : MonoBehaviour
     }
 
     /// <summary>総合ポイントを判定し、10pt達成時に砂浜の焚き火点火解禁と工房の催促を通知</summary>
-    public void CheckPointsAndNotifyCampfireUnlock()
+    public bool CheckPointsAndNotifyCampfireUnlock(bool force = false)
     {
         if (TotalProgressPoints >= AdventureBeachCampfire.RequiredPointsToLight)
         {
             bool alreadyNotified = PlayerPrefs.GetInt(PrefKeyCampfireUnlockedNotified, 0) == 1;
-            if (!alreadyNotified)
+            if (!alreadyNotified || force)
             {
                 PlayerPrefs.SetInt(PrefKeyCampfireUnlockedNotified, 1);
                 PlayerPrefs.Save();
@@ -652,12 +652,14 @@ public class AdventureScrapManager : MonoBehaviour
                 {
                     drone.SpeakCustom("ピピッ！探索ポイントが10pt貯まったよ！\n砂浜の焚き火に火を点けられるようになったよ！【Bキー】で工房を開いて新しいアクセサリーを作るのもおすすめだよ、Float！", 7.0f);
                 }
+                return true;
             }
         }
+        return false;
     }
 
     /// <summary>総合ポイントを判定し、20pt達成時にレバーロック解除を通知（※レバーを実際に引くまでは開放されない）</summary>
-    public void CheckPointsAndNotifyLeverUnlock()
+    public bool CheckPointsAndNotifyLeverUnlock(bool force = false)
     {
         if (TotalProgressPoints >= RequiredPointsForCanopy)
         {
@@ -666,7 +668,7 @@ public class AdventureScrapManager : MonoBehaviour
             tower?.OnLeverUnlockedByPoints();
 
             bool alreadyNotified = PlayerPrefs.GetInt(PrefKeyLeverUnlockedNotified, 0) == 1;
-            if (!alreadyNotified)
+            if (!alreadyNotified || force)
             {
                 PlayerPrefs.SetInt(PrefKeyLeverUnlockedNotified, 1);
                 PlayerPrefs.Save();
@@ -685,6 +687,31 @@ public class AdventureScrapManager : MonoBehaviour
                 {
                     drone.SpeakCustom("20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Float！！", 8.0f);
                     drone.TriggerTowerLeadGuidance();
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>10pt到達時の焚き火・工房リマインドをRustに再案内させる（未点火の場合）</summary>
+    public void RemindCampfireAndWorkshop(bool force = false)
+    {
+        if (TotalProgressPoints >= AdventureBeachCampfire.RequiredPointsToLight)
+        {
+            var campfire = AdventureBeachCampfire.Instance ?? Object.FindAnyObjectByType<AdventureBeachCampfire>();
+            bool campfireLit = campfire != null && campfire.IsLit;
+            if (!campfireLit || force)
+            {
+                var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
+                if (drone != null)
+                {
+                    drone.SpeakCustom("ピピッ！探索ポイントが10pt貯まってるよ！\n砂浜の焚き火に火を点けられるよ！【Bキー】で工房を開いて新しいアクセサリーを作るのもおすすめだよ、Float！", 7.0f);
+                }
+                var hud = AdventureScrapHUD.Instance ?? Object.FindAnyObjectByType<AdventureScrapHUD>();
+                if (hud != null)
+                {
+                    hud.ShowUpgradeBanner($"✦ 探索ポイント10pt到達済み！砂浜の焚き火＆工房利用可能！ ✦\n💡 砂浜の焚き火で暖まったり、【Bキー】でRust着せ替え工房を開いてみよう！");
                 }
             }
         }
@@ -719,13 +746,19 @@ public class AdventureScrapManager : MonoBehaviour
         }
     }
 
-    /// <summary>ドリフトボックス開封時のポイント加算通知と祝福チャイム再生</summary>
-    public void OnDriftBoxOpened(int boxId, string boxTitle)
+    /// <summary>ドリフトボックス開封時のポイント加算通知と祝福チャイム再生（10pt/20pt達成発火フラグ返却対応）</summary>
+    public void OnDriftBoxOpened(int boxId, string boxTitle, out bool unlockedCampfire, out bool unlockedLever)
     {
         InvalidateDriftBoxCache();
         PlayCelebrationChime(0.40f);
-        CheckPointsAndNotifyCampfireUnlock();
-        CheckPointsAndNotifyLeverUnlock();
+        unlockedCampfire = CheckPointsAndNotifyCampfireUnlock();
+        unlockedLever = CheckPointsAndNotifyLeverUnlock();
+    }
+
+    /// <summary>ドリフトボックス開封時のポイント加算通知と祝福チャイム再生</summary>
+    public void OnDriftBoxOpened(int boxId, string boxTitle)
+    {
+        OnDriftBoxOpened(boxId, boxTitle, out _, out _);
     }
 
     /// <summary>セーブデータから収集済みパーツ一覧を適用し、能力とHUDを復元</summary>

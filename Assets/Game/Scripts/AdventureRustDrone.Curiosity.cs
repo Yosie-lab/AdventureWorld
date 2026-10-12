@@ -353,7 +353,28 @@ public partial class AdventureRustDrone
         _curiosityEndTime = Time.time + Random.Range(3.2f, 4.8f);
         _targetIdleTiltAngle = (Random.value < 0.5f ? -1f : 1f) * 20f;
         PlayCuriosityBeep();
-        if (Random.value < 0.5f)
+
+        // 探索ポイントが10pt以上でまだ焚き火に火を点けていない場合、高確率で焚き火＆工房をリマインド
+        var campfire = AdventureBeachCampfire.Instance ?? Object.FindAnyObjectByType<AdventureBeachCampfire>();
+        var scrapMgr = AdventureScrapManager.Instance;
+        int pts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
+        bool campfireUnlit = campfire != null && !campfire.IsLit;
+
+        if (pts >= 10 && campfireUnlit && Random.value < 0.80f)
+        {
+            string[] campfireLines = {
+                "ねぇFloat、探索ポイントが10pt貯まってるよ！砂浜の焚き火に火を点けに行ってみない？",
+                "探索ポイントが10ptあるよ！【Bキー】で工房を開いて、ボクのアクセサリーを作ってみない？",
+                "砂浜の焚き火、10ポイントあるから火を点けられるよ！あったまりに行こうよ、Float！",
+                "【Bキー】を押すとボクの着せ替え工房が開くよ！新しいアクセサリーを作ってみようよ！"
+            };
+            SpeakCustom(campfireLines[Random.Range(0, campfireLines.Length)], 4.8f);
+        }
+        else if (pts >= 20 && Random.value < 0.65f)
+        {
+            SpeakCustom("20ポイント達成してるよ！中央タワーへ行って天蓋レバーを引こう、Float！", 4.8f);
+        }
+        else if (Random.value < 0.5f)
         {
             string[] nikoLines = {
                 "どうしたの、Float？疲れてない？",

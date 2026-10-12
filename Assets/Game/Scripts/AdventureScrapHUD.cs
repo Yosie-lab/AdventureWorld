@@ -505,6 +505,12 @@ public class AdventureScrapHUD : MonoBehaviour
             {
                 subInfo = "<color=#B0BEC5>📍 漂着パーツ(1pt)・ケース(2pt)・ピアノ(3pt)を集めよう！</color>";
             }
+
+            var campfire = AdventureBeachCampfire.Instance;
+            if (totalPts >= 10 && campfire != null && !campfire.IsLit)
+            {
+                subInfo += " <color=#FFD54F><b>【🔥砂浜の焚き火＆Bキー工房解放中！】</b></color>";
+            }
         }
         else if (leverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken)
         {
