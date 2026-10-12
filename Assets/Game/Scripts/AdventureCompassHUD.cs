@@ -443,34 +443,12 @@ public class AdventureCompassHUD : MonoBehaviour
 
         if (mgr != null && player != null)
         {
-            // 関門6：距離案内はソナー（9個）解禁まで出さない。滑空前は風の示唆のみ。
-            bool sonarUnlocked = mgr.hasPetRadar || mgr.CollectedCount >= 9;
-            bool guidingTower = mgr.IsLeverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken;
-            bool allowDistanceNav = guidingTower || (player.HasEverGlided && sonarUnlocked);
-            if (!allowDistanceNav)
-            {
-                if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(false);
-                if (_boxMarkerRt != null) _boxMarkerRt.gameObject.SetActive(false);
-                _scrapBearingInit = false;
-                _boxBearingInit = false;
-                if (_scrapNavText != null)
-                {
-                    if (!player.HasEverGlided)
-                    {
-                        _scrapNavText.text = "✦ 風に乗ると、次の手掛かりが見えてくる";
-                        _scrapNavText.color = new Color(0.75f, 0.9f, 1f, 0.9f);
-                    }
-                    else
-                    {
-                        _scrapNavText.text = "✦ 光る柱を、自分の目で探そう";
-                        _scrapNavText.color = new Color(0.85f, 0.88f, 0.7f, 0.9f);
-                    }
-                }
-                return;
-            }
-
             Vector3 playerPos = player.transform.position;
             bool isGuidingToTower = mgr.IsLeverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken;
+
+            // 古代クリスタルパズルの探知（未起動の場合に最優先案内）
+            var puzzle = AdventureRustCrystalPuzzle.Instance ?? FindAnyObjectByType<AdventureRustCrystalPuzzle>();
+            bool isGuidingToCrystal = puzzle != null && !puzzle.IsActivated;
 
             Vector3 targetPos;
             string targetName;
@@ -482,6 +460,14 @@ public class AdventureCompassHUD : MonoBehaviour
             {
                 targetPos = new Vector3(512f, 63.2f, 501.5f); // 南正面メイン巨大レバー
                 targetName = "白亜タワー（巨大レバー）";
+                targetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
+                dist = Vector3.Distance(playerPos, targetPos);
+                hasTarget = true;
+            }
+            else if (isGuidingToCrystal)
+            {
+                targetPos = puzzle.crystalBasePos;
+                targetName = "古代の送電クリスタル";
                 targetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
                 dist = Vector3.Distance(playerPos, targetPos);
                 hasTarget = true;
@@ -505,7 +491,7 @@ public class AdventureCompassHUD : MonoBehaviour
                 }
             }
 
-            // ── 漂着パーツ / タワーレバーのマーカー更新 ──
+            // ── 漂着パーツ / 古代クリスタル / タワーレバーのマーカー更新 ──
             if (hasTarget)
             {
                 Vector3 toTarget = targetPos - playerPos;
@@ -530,12 +516,14 @@ public class AdventureCompassHUD : MonoBehaviour
                     if (_scrapMarkerRt != null)
                     {
                         _scrapMarkerRt.gameObject.SetActive(true);
+                        string iconCenter = isGuidingToTower ? "🏛️" : (isGuidingToCrystal ? "⚡" : "★");
+                        string iconSub = isGuidingToTower ? "🏛️" : (isGuidingToCrystal ? "⚡" : "✦");
+                        string iconRight = isGuidingToTower ? "🏛️▶" : (isGuidingToCrystal ? "⚡▶" : "✦▶");
+                        string iconLeft = isGuidingToTower ? "◀🏛️" : (isGuidingToCrystal ? "◀⚡" : "◀✦");
+
                         PlaceEdgeMarker(
                             _scrapMarkerRt, _scrapMarkerText, _scrapBearing, targetColor,
-                            isGuidingToTower ? "🏛️" : "★",
-                            isGuidingToTower ? "🏛️" : "✦",
-                            isGuidingToTower ? "🏛️▶" : "✦▶",
-                            isGuidingToTower ? "◀🏛️" : "◀✦");
+                            iconCenter, iconSub, iconRight, iconLeft);
                     }
                 }
                 else
@@ -620,6 +608,27 @@ public class AdventureCompassHUD : MonoBehaviour
                         float towerYaw = YawFromForward(toTower);
                         string towerCard = GetCardinal(towerYaw);
                         _scrapNavText.text = $"✦ 白亜タワー（巨大レバー） 約{Mathf.RoundToInt(towerDist)}m（{towerCard}方角） 【天蓋開放へ】";
+                        _scrapNavText.color = new Color(0.25f, 0.95f, 1.0f, 1.0f);
+                    }
+                }
+                else if (isGuidingToCrystal)
+                {
+                    Vector3 toCrystal = targetPos - playerPos;
+                    toCrystal.y = 0f;
+                    float cryDist = toCrystal.magnitude;
+                    float cryYaw = YawFromForward(toCrystal);
+                    float cryAngle = Mathf.DeltaAngle(yaw, cryYaw);
+                    string cryCard = GetCardinal(cryYaw);
+                    string cryArrow = BearingHint(cryAngle, ref _scrapHint);
+
+                    if (cryDist <= 4.5f)
+                    {
+                        _scrapNavText.text = "⚡ 古代クリスタル 【FキーでRustに送電を指示！】";
+                        _scrapNavText.color = new Color(1.0f, 0.90f, 0.35f, 1.0f);
+                    }
+                    else
+                    {
+                        _scrapNavText.text = $"⚡ 古代クリスタル 約{Mathf.RoundToInt(cryDist)}m（{cryCard}方角） [{cryArrow}] 【Fキー送電ギミック】";
                         _scrapNavText.color = new Color(0.25f, 0.95f, 1.0f, 1.0f);
                     }
                 }

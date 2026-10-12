@@ -175,6 +175,21 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         _crystalLight.range = 8.5f;
         _crystalLight.intensity = 2.2f;
 
+        // 空高く立ち上る古代遺跡のシアン光柱（遠景ビーコン：遠くからでも場所がわかる）
+        var beaconPillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        beaconPillar.name = "CrystalBeaconPillar";
+        beaconPillar.transform.SetParent(crystalRoot.transform, false);
+        beaconPillar.transform.localPosition = new Vector3(0f, 22f, 0f);
+        beaconPillar.transform.localScale = new Vector3(0.55f, 22f, 0.55f);
+        var bpCol = beaconPillar.GetComponent<Collider>();
+        if (bpCol != null) Destroy(bpCol);
+        var bpRend = beaconPillar.GetComponent<Renderer>();
+        var beaconMat = new Material(litShader);
+        beaconMat.SetColor("_BaseColor", new Color(0.2f, 0.9f, 1f, 0.65f));
+        beaconMat.EnableKeyword("_EMISSION");
+        beaconMat.SetColor("_EmissionColor", new Color(0.3f, 1.2f, 2.2f) * 2.5f);
+        if (bpRend != null) bpRend.material = beaconMat;
+
         // ═══════════════════════════════════════════════════════════════
         // 2. 上昇気流送風孔ファン（Wind Vent）
         // ═══════════════════════════════════════════════════════════════

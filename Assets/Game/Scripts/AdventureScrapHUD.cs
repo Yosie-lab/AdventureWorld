@@ -506,6 +506,15 @@ public class AdventureScrapHUD : MonoBehaviour
                 subInfo = "<color=#B0BEC5>📍 漂着パーツ(1pt)・ケース(2pt)・ピアノ(3pt)を集めよう！</color>";
             }
 
+            var crystalPuzzle = AdventureRustCrystalPuzzle.Instance ?? Object.FindAnyObjectByType<AdventureRustCrystalPuzzle>();
+            if (crystalPuzzle != null && !crystalPuzzle.IsActivated)
+            {
+                Vector3 toCry = crystalPuzzle.crystalBasePos - player.transform.position;
+                var (cryCard, cryHint) = GetDirectionParts(toCry);
+                float cryDist = Vector3.Distance(player.transform.position, crystalPuzzle.crystalBasePos);
+                subInfo = $"<color=#00E5FF><b>⚡ 古代クリスタル: {cryCard}方角（{cryHint}） 約{Mathf.RoundToInt(cryDist)}m 【Fキー送電】</b></color>  |  " + subInfo;
+            }
+
             var campfire = AdventureBeachCampfire.Instance;
             if (totalPts >= 10 && campfire != null && !campfire.IsLit)
             {
