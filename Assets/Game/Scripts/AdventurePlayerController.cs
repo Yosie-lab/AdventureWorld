@@ -384,6 +384,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         AdventureLakeVisualEnhancer.Ensure();
         AdventureBeachEscapeManager.Ensure();
         AdventureBeachCampfire.Ensure();
+        AdventureRustCrystalPuzzle.Ensure();
         AdventureBeachNarrativeManager.Ensure();
         AdventureSanctuaryTowerManager.Ensure();
         AdventureMusicDirector.Ensure();

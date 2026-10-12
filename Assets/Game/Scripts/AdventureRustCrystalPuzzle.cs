@@ -55,11 +55,7 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     public static void AutoEnsure()
     {
-        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        if (sceneName == "RustAndFlat" || sceneName == "RustAndFloat")
-        {
-            Ensure();
-        }
+        Ensure();
     }
 
     public static void Ensure()

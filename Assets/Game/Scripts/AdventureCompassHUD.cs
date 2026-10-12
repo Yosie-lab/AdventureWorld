@@ -447,6 +447,7 @@ public class AdventureCompassHUD : MonoBehaviour
             bool isGuidingToTower = mgr.IsLeverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken;
 
             // 古代クリスタルパズルの探知（未起動の場合に最優先案内）
+            AdventureRustCrystalPuzzle.Ensure();
             var puzzle = AdventureRustCrystalPuzzle.Instance ?? FindAnyObjectByType<AdventureRustCrystalPuzzle>();
             bool isGuidingToCrystal = puzzle != null && !puzzle.IsActivated;
 

@@ -506,6 +506,7 @@ public class AdventureScrapHUD : MonoBehaviour
                 subInfo = "<color=#B0BEC5>📍 漂着パーツ(1pt)・ケース(2pt)・ピアノ(3pt)を集めよう！</color>";
             }
 
+            AdventureRustCrystalPuzzle.Ensure();
             var crystalPuzzle = AdventureRustCrystalPuzzle.Instance ?? Object.FindAnyObjectByType<AdventureRustCrystalPuzzle>();
             if (crystalPuzzle != null && !crystalPuzzle.IsActivated)
             {
