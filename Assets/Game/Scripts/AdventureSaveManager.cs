@@ -686,6 +686,9 @@ public class AdventureSaveManager : MonoBehaviour
     /// <summary>セーブデータを初期化し、西側砂浜からパーツ0個で始めるニューゲームを実行</summary>
     public void ResetToNewGame()
     {
+        Time.timeScale = 1f;
+        AdventurePauseMenu.CloseIfOpen();
+
         try
         {
             if (File.Exists(SaveFilePath))

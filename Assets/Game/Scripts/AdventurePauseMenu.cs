@@ -158,6 +158,13 @@ public class AdventurePauseMenu : MonoBehaviour
         }
     }
 
+    /// <summary>ポーズメニューが開いていれば即座に閉じる</summary>
+    public static void CloseIfOpen()
+    {
+        if (Instance != null && IsOpen)
+            Instance.SetMenuVisible(false, instant: true);
+    }
+
     public void TogglePause()
     {
         SetMenuVisible(!IsOpen);
