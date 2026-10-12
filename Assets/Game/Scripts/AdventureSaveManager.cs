@@ -706,6 +706,7 @@ public class AdventureSaveManager : MonoBehaviour
         var tower = AdventureSanctuaryTowerManager.Instance
                     ?? FindAnyObjectByType<AdventureSanctuaryTowerManager>();
         tower?.ResetProgressForNewGame();
+        AdventureStoryFlow.ResetFlowToNewGame();
 
         AdventurePrologueDrama.Ensure();
         AdventurePrologueDrama.Instance?.ResetForNewGame();

@@ -236,7 +236,7 @@ public partial class AdventureSanctuaryTowerManager
         _climaxOilWaiting = false;
         _filmIndex = -1;
         _filmPhase = 0;
-        AdventureStoryFlow.InvalidateCache();
+        AdventureStoryFlow.ResetFlowToNewGame();
 
         var player = GetPlayer();
         if (player != null)

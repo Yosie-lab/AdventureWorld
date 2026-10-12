@@ -47,6 +47,8 @@ public static class AdventureStoryFlow
                 _lastPhase = nextPhase;
                 try
                 {
+                    HandlePhaseExit(prev, nextPhase);
+                    HandlePhaseEnter(nextPhase, prev);
                     OnPhaseChanged?.Invoke(prev, nextPhase);
                 }
                 catch (System.Exception ex)
@@ -65,22 +67,81 @@ public static class AdventureStoryFlow
         _lastPhaseFrame = -1;
     }
 
+    /// <summary>ニューゲーム初期化時にストーリーフロー状態をリセット</summary>
+    public static void ResetFlowToNewGame()
+    {
+        _lastPhase = Phase.Opening;
+        _cachedPhase = Phase.Opening;
+        _lastPhaseFrame = -1;
+    }
+
+    /// <summary>前フェーズ退出時の自動クリーンアップ</summary>
+    static void HandlePhaseExit(Phase exiting, Phase entering)
+    {
+        switch (exiting)
+        {
+            case Phase.Opening:
+                // オープニング終了時の入力ガード解消
+                if (AdventureRustFloatOpening.IsInputGuarded)
+                    AdventureRustFloatOpening.DismissInputGuard();
+                break;
+            case Phase.Epilogue:
+                // エピローグ映画終了時の環境音・字幕クリーンアップ
+                var tower = AdventureSanctuaryTowerManager.Instance;
+                if (tower != null)
+                {
+                    tower.StopEpilogueSeagullAmbience();
+                }
+                break;
+            case Phase.Clear:
+                // クリアモーダル退出時の処理
+                break;
+        }
+    }
+
+    /// <summary>新フェーズ突入時の自動セットアップ</summary>
+    static void HandlePhaseEnter(Phase entering, Phase previous)
+    {
+        switch (entering)
+        {
+            case Phase.Explore:
+                // 自由探索復帰時に穏やかな探索テーマ曲を確実に復旧
+                if (previous == Phase.Clear || previous == Phase.FreeFlight)
+                {
+                    AdventureMusicDirector.Ensure();
+                    AdventureMusicDirector.Instance?.RestoreExplorationTheme();
+                }
+                break;
+        }
+    }
+
     static Phase ResolveCurrentPhase()
     {
+        // 1. 時代背景オープニングボード表示中
         var opening = AdventureRustFloatOpening.Instance;
         if (opening != null && opening.IsModalBoardOpen())
             return Phase.Opening;
 
+        // 2. 遭難目覚め・Rust手当（プロローグ）中
+        if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsPrologueActive)
+            return Phase.Prologue;
+
         var tower = AdventureSanctuaryTowerManager.Instance;
         if (tower != null)
         {
+            // 3. ゲームクリアリザルト画面
             if (tower.ShowGameClearModal)
                 return Phase.Clear;
-            if (tower.IsEpiloguePlaying)
+
+            // 4. エピローグ字幕映画再生中（※すでにクリア済みの場合やClearからの逆流は防護）
+            if (tower.IsEpiloguePlaying && _lastPhase != Phase.Clear && !AdventureSanctuaryTowerManager.IsGameCleared)
                 return Phase.Epilogue;
+
+            // 5. クライマックス（限界高度・凍結危機・ラスト注油）
             if (tower.ClimaxCrisisStarted || tower.IsClimaxOilPromptActive)
                 return Phase.Climax;
-            // 天蓋台本中、およびダイブ後の光の柱上昇中・クライマックス保留中も確実に Skybreak を維持
+
+            // 6. 天蓋台本中、およびダイブ後の光の柱上昇中・クライマックス保留中も確実に Skybreak を維持
             if (tower.IsSkybreakModalActive || tower.IsPendingClimax || tower.EndingSequenceActive)
                 return Phase.Skybreak;
         }
@@ -89,10 +150,11 @@ public static class AdventureStoryFlow
         if (player != null && player.IsSkybreakPillarAscending)
             return Phase.Skybreak;
 
-        if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsPrologueActive)
-            return Phase.Prologue;
+        // 7. クリア後の大空遊覧
         if (AdventureSanctuaryTowerManager.IsGameCleared)
             return Phase.FreeFlight;
+
+        // 8. 通常探索
         return Phase.Explore;
     }
 
