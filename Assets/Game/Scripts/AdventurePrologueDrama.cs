@@ -174,6 +174,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (scraps != null && scraps.CollectedCount > 0)
         {
             _phase = Phase.Complete;
+            AdventureStoryFlow.InvalidateCache();
             return;
         }
         if (_phase != Phase.Idle && _phase != Phase.Complete)
@@ -216,6 +217,7 @@ public class AdventurePrologueDrama : MonoBehaviour
             camFollow.SnapBehindTarget();
         }
         AdventureMusicDirector.Instance?.SetSpotDucking(0f);
+        AdventureStoryFlow.InvalidateCache();
     }
 
     /// <summary>Rustへの注油／手当て成功時</summary>
@@ -438,6 +440,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         }
 
         _phase = Phase.Complete;
+        AdventureStoryFlow.InvalidateCache();
     }
 
     void PollDashBoardAdvance()

@@ -210,79 +210,26 @@ public class AdventureRustFloatOpening : MonoBehaviour
             Cursor.visible = true;
         }
 
+        // キーボード・ゲームパッド・クリック操作検知（AdventureInputReader 統合）
         bool triggerPlay = false;
 
-        // 1. マウスによる「▶ PLAY」ボタンのダイレクトクリック＆ホバー判定
-        // EventSystemやInputModuleのバインド状態に関わらず、ボタンの四角形内をクリックしたら100%確実に反応する
-        Vector2 mousePos = Vector2.zero;
-        bool hasMouse = false;
-        var mouse = Mouse.current;
-        if (mouse != null)
+        // WASD/矢印キー移動、または決定キー（E, Space, Enter, Escape）
+        if (AdventureInputReader.HasAnyMove 
+            || AdventureInputReader.InteractDown 
+            || AdventureInputReader.SpaceOrJDown 
+            || AdventureInputReader.DialogAdvanceDown 
+            || AdventureInputReader.EscapeDown)
         {
-            mousePos = mouse.position.ReadValue();
-            hasMouse = true;
-        }
-        else
-        {
-            try
-            {
-                mousePos = Input.mousePosition;
-                hasMouse = true;
-            }
-            catch { }
+            triggerPlay = true;
         }
 
-        if (_playBtnRt != null && hasMouse)
-        {
-            // ボタン領域にマウスがあるか判定
-            bool isHovered = RectTransformUtility.RectangleContainsScreenPoint(_playBtnRt, mousePos, null);
-
-            // ホバー時のビジュアルフィードバック（明るく発光し、ボタンが少し弾む）
-            if (_playBtnImg != null)
-            {
-                _playBtnImg.color = isHovered 
-                    ? new Color(0.20f, 0.90f, 1.0f, 1.0f) 
-                    : new Color(0.10f, 0.55f, 0.68f, 0.96f);
-                _playBtnRt.localScale = isHovered ? Vector3.one * 1.06f : Vector3.one;
-            }
-
-            // ボタン上での左クリック検知
-            bool mouseLeftClicked = (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.leftButton.wasReleasedThisFrame));
-            try { if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonUp(0)) mouseLeftClicked = true; } catch { }
-
-            if (isHovered && mouseLeftClicked)
-            {
-                triggerPlay = true;
-            }
-        }
-
-        // 2. 行動を起こした時（WASD移動、Enter/Space決定、ゲームパッド移動/ボタン）
-        var kb = Keyboard.current;
+        // ゲームパッドでの操作
         var pad = Gamepad.current;
-
-        if (kb != null)
-        {
-            // WASD・矢印キーで行動（移動）を起こした時
-            if (kb.wKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame || 
-                kb.sKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame ||
-                kb.upArrowKey.wasPressedThisFrame || kb.downArrowKey.wasPressedThisFrame ||
-                kb.leftArrowKey.wasPressedThisFrame || kb.rightArrowKey.wasPressedThisFrame)
-            {
-                triggerPlay = true;
-            }
-
-            // 明示的な決定キー（Space, Enter, Escape）
-            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
-            {
-                triggerPlay = true;
-            }
-        }
-
         if (pad != null)
         {
-            // ゲームパッドで歩き出すかボタンを押した時
-            if (pad.leftStick.ReadValue().sqrMagnitude > 0.2f || 
-                pad.buttonSouth.wasPressedThisFrame || pad.startButton.wasPressedThisFrame)
+            if (pad.leftStick.ReadValue().sqrMagnitude > 0.2f 
+                || pad.buttonSouth.wasPressedThisFrame 
+                || pad.startButton.wasPressedThisFrame)
             {
                 triggerPlay = true;
             }
@@ -291,39 +238,6 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (triggerPlay)
         {
             OnPlayButtonClicked();
-        }
-    }
-
-    void OnGUI()
-    {
-        if (IsGameStarted || _isClosing)
-            return;
-
-        if (Time.realtimeSinceStartup - _openTime < 0.2f)
-            return;
-
-        Event e = Event.current;
-        if (e == null) return;
-
-        // OnGUIでのPLAYボタンクリック直接検知（保険）
-        if (e.type == EventType.MouseDown && e.button == 0 && _playBtnRt != null)
-        {
-            Vector2 screenPos = new Vector2(e.mousePosition.x, Screen.height - e.mousePosition.y);
-            if (RectTransformUtility.RectangleContainsScreenPoint(_playBtnRt, screenPos, null))
-            {
-                OnPlayButtonClicked();
-                return;
-            }
-        }
-
-        // キーボード入力検知
-        if (e.type == EventType.KeyDown)
-        {
-            if (e.keyCode == KeyCode.W || e.keyCode == KeyCode.A || e.keyCode == KeyCode.S || e.keyCode == KeyCode.D ||
-                e.keyCode == KeyCode.Space || e.keyCode == KeyCode.Return)
-            {
-                OnPlayButtonClicked();
-            }
         }
     }
 
@@ -389,6 +303,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (prologue != null)
         {
             prologue.BeginAfterOpening();
+            AdventureStoryFlow.InvalidateCache();
             if (!prologue.IsPrologueActive)
             {
                 var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
