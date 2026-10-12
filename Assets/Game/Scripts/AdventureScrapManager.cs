@@ -1050,6 +1050,8 @@ public class AdventureScrapManager : MonoBehaviour
         PlayerPrefs.Save();
         AdventureBeachCampfire.Ensure();
         AdventureBeachCampfire.Instance?.ResetForNewGame();
+        AdventureRustCrystalPuzzle.Ensure();
+        AdventureRustCrystalPuzzle.Instance?.ResetForNewGame();
         AdventureFieldLesson.ClearForNewGame();
 
         // 5. タワーレバーの状態をロック中へ再同期

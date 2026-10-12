@@ -738,6 +738,8 @@ public class AdventureSaveManager : MonoBehaviour
         AdventureWestSlopeFloraManager.Instance?.ResetFloraForNewGame();
         AdventureBeachCampfire.Ensure();
         AdventureBeachCampfire.Instance?.ResetForNewGame();
+        AdventureRustCrystalPuzzle.Ensure();
+        AdventureRustCrystalPuzzle.Instance?.ResetForNewGame();
 
         // 1. パーツおよび全探索ポイント（ドリフトボックス・古代遺物）を0に完全リセット
         var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
