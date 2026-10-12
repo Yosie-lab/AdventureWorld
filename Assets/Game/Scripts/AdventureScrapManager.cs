@@ -1046,7 +1046,10 @@ public class AdventureScrapManager : MonoBehaviour
         PlayerPrefs.DeleteKey(PrefKeyLeverUnlockedNotified);
         PlayerPrefs.DeleteKey("Adventure_LeverUnlockedNotified");
         PlayerPrefs.DeleteKey(PrefKeyCampfireUnlockedNotified);
+        PlayerPrefs.DeleteKey(AdventureBeachCampfire.PrefKeyCampfireLit);
         PlayerPrefs.Save();
+        AdventureBeachCampfire.Ensure();
+        AdventureBeachCampfire.Instance?.ResetForNewGame();
         AdventureFieldLesson.ClearForNewGame();
 
         // 5. タワーレバーの状態をロック中へ再同期

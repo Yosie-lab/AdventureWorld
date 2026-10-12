@@ -41,6 +41,7 @@ public class AdventureSaveManager : MonoBehaviour
         public int totalProgressPoints;
         public int oilCount;
         public bool isCanopyBroken;
+        public bool isCampfireLit;
         public string saveTime;
 
         public Vector3 Position
@@ -531,6 +532,10 @@ public class AdventureSaveManager : MonoBehaviour
             // 4. 天蓋レバーの進行状況
             data.isCanopyBroken = AdventureSanctuaryTowerManager.IsCanopyBroken;
 
+            // 5. 砂浜の焚き火の点火状況
+            data.isCampfireLit = (AdventureBeachCampfire.Instance != null && AdventureBeachCampfire.Instance.IsLit)
+                                 || PlayerPrefs.GetInt(AdventureBeachCampfire.PrefKeyCampfireLit, 0) == 1;
+
             // 直前ファイルの自動バックアップ（.bak）を作成
             if (File.Exists(SaveFilePath))
             {
@@ -643,7 +648,15 @@ public class AdventureSaveManager : MonoBehaviour
             drone.oilCount = Mathf.Max(1, Mathf.Max(drone.oilCount, data.oilCount));
         }
 
-        // 3. プレイヤー位置の復元（安全領域検証ガード）
+        // 3. 砂浜の焚き火の復元
+        var campfire = AdventureBeachCampfire.Instance ?? FindAnyObjectByType<AdventureBeachCampfire>();
+        if (campfire != null)
+        {
+            if (data.isCampfireLit) campfire.IgniteCampfire(silent: true);
+            else campfire.ResetForNewGame();
+        }
+
+        // 4. プレイヤー位置の復元（安全領域検証ガード）
         var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
         if (player != null && data.GetPosition() != Vector3.zero)
         {
@@ -723,6 +736,8 @@ public class AdventureSaveManager : MonoBehaviour
         AdventureRustWorkshopUI.Ensure();
         AdventureWestSlopeFloraManager.Ensure();
         AdventureWestSlopeFloraManager.Instance?.ResetFloraForNewGame();
+        AdventureBeachCampfire.Ensure();
+        AdventureBeachCampfire.Instance?.ResetForNewGame();
 
         // 1. パーツおよび全探索ポイント（ドリフトボックス・古代遺物）を0に完全リセット
         var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();

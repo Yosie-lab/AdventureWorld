@@ -18,6 +18,7 @@ public class AdventureBeachCampfire : MonoBehaviour
     public Vector3 campfirePos = new Vector3(168.0f, 6.3f, 254.0f);
 
     public const int RequiredPointsToLight = 10; // 点火に必要な探索ポイント数
+    public const string PrefKeyCampfireLit = "Adventure_BeachCampfire_IsLit";
     public static int CurrentProgressPoints => AdventureScrapManager.Instance != null ? AdventureScrapManager.Instance.TotalProgressPoints : 0;
     public static bool CanLightCampfire => CurrentProgressPoints >= RequiredPointsToLight;
 
@@ -105,6 +106,12 @@ public class AdventureBeachCampfire : MonoBehaviour
         InitMaterials();
         AlignToTerrain();
         BuildCampfireStructure();
+
+        // セーブデータ・PlayerPrefsから点火状態を復元（リスタート時等の整合性を担保）
+        if (PlayerPrefs.GetInt(PrefKeyCampfireLit, 0) == 1)
+        {
+            IgniteCampfire(silent: true);
+        }
     }
 
     void InitMaterials()
@@ -886,11 +893,13 @@ public class AdventureBeachCampfire : MonoBehaviour
         return AdventureInputReader.InteractDown || AdventureInputReader.MouseLeftDown;
     }
 
-    public void IgniteCampfire()
+    public void IgniteCampfire(bool silent = false)
     {
         if (_isLit) return;
-        if (!CanLightCampfire) return; // 10ポイント以上必須ガード
+        if (!silent && !CanLightCampfire) return; // 10ポイント以上必須ガード
         _isLit = true;
+        PlayerPrefs.SetInt(PrefKeyCampfireLit, 1);
+        PlayerPrefs.Save();
 
         if (_flameRoot != null)
         {
@@ -904,12 +913,63 @@ public class AdventureBeachCampfire : MonoBehaviour
         if (_fireAudio != null)
             _fireAudio.Play();
 
-        // 点火時のRustのリアクション（焚き火と工房の催促・連携）
-        var drone = AdventureRustDrone.Instance;
-        if (drone != null)
+        if (!silent)
         {
-            drone.SpeakCustom("わぁ……！火が点いた！すごくあったかいね……！\n【Bキー】の工房で新しいアクセサリーを作って、ここでゆっくり眺めるのも最高だね！", 6.0f);
+            // 点火時のRustのリアクション（焚き火と工房の催促・連携）
+            var drone = AdventureRustDrone.Instance;
+            if (drone != null)
+            {
+                drone.SpeakCustom("わぁ……！火が点いた！すごくあったかいね……！\n【Bキー】の工房で新しいアクセサリーを作って、ここでゆっくり眺めるのも最高だね！", 6.0f);
+            }
         }
+    }
+
+    /// <summary>焚き火を完全消火し、ニューゲーム時の初期未点火状態にリセット</summary>
+    public void ResetForNewGame()
+    {
+        _isLit = false;
+        _isSitting = false;
+        _rustRemindNearCooldown = 0f;
+        _chillTimer = 0f;
+        _dialogueIndex = 0;
+        PlayerPrefs.DeleteKey(PrefKeyCampfireLit);
+        PlayerPrefs.Save();
+
+        if (_flameRoot != null)
+        {
+            _flameRoot.SetActive(false);
+            if (_mainFlamePS != null) _mainFlamePS.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            if (_coreFlamePS != null) _coreFlamePS.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            if (_sparksParticle != null) _sparksParticle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            if (_smokePS != null) _smokePS.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        if (_fireAudio != null)
+        {
+            _fireAudio.Stop();
+        }
+
+        if (_fireLight != null)
+        {
+            _fireLight.intensity = 0f;
+        }
+
+        if (_emberMat != null)
+        {
+            _emberMat.SetColor("_EmissionColor", Color.black);
+        }
+
+        if (_hasOverriddenCamera)
+        {
+            var camFollow = Camera.main != null ? Camera.main.GetComponent<AdventureCameraFollow>() : null;
+            if (camFollow != null)
+            {
+                camFollow.SetCinematicMode(false);
+            }
+            _hasOverriddenCamera = false;
+        }
+
+        Debug.Log("[AdventureBeachCampfire] 🔄 焚き火を完全消火・初期状態へリセットしました。");
     }
 
     public void SitDown(AdventurePlayerController player)
