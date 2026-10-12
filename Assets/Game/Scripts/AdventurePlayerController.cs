@@ -1471,7 +1471,7 @@ public partial class AdventurePlayerController : MonoBehaviour
     }
 
     /// <summary>天蓋破壊後のハイパーサーマル等で、地上歩行からでも自動的に大空へ射出・滑空開始させる強力な打ち上げ</summary>
-    public void ApplyLaunchUpdraft(float liftSpeed, float initialHop = 22f)
+    public void ApplyLaunchUpdraft(float liftSpeed, float initialHop = 22f, Vector3 forwardAssist = default)
     {
         // 光の柱級の上昇中は高度ロック・オートグライドを切る（途中で止まる主因）
         if (liftSpeed >= 18f)
@@ -1485,6 +1485,18 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (_hop < hopTarget) _hop = hopTarget;
         _updraftLift     = liftSpeed;
         _updraftTimer    = 0.85f;
+
+        if (forwardAssist.sqrMagnitude > 0.001f)
+        {
+            Vector3 fwd = Vector3.ProjectOnPlane(forwardAssist, Vector3.up);
+            if (fwd.sqrMagnitude > 0.001f)
+            {
+                fwd.Normalize();
+                _airMomentum = fwd * Mathf.Max(8.0f, _airMomentum.magnitude);
+                _glideSpeedCurrent = _airMomentum.magnitude;
+                transform.rotation = Quaternion.LookRotation(fwd);
+            }
+        }
     }
 
     /// <summary>ダイブ完了時：物理上昇を待たず空中高度へ固定しオートグライド開始</summary>

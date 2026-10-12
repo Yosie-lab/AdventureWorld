@@ -296,11 +296,11 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         var main = ps.main;
         main.duration = 4f;
         main.loop = true;
-        main.startLifetime = 1.6f;
-        main.startSpeed = new ParticleSystem.MinMaxCurve(12f, 16f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.35f, 0.75f);
+        main.startLifetime = 2.2f;
+        main.startSpeed = new ParticleSystem.MinMaxCurve(14f, 19f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.4f, 0.85f);
         main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = 65;
+        main.maxParticles = 80;
 
         var emission = ps.emission;
         emission.rateOverTime = 32f;
@@ -404,17 +404,42 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // 上昇気流（サーマル）リフト判定
+        // 上昇気流（サーマル）リフト判定：高度32m崖上テラスへの確実な到達誘導
         // ═══════════════════════════════════════════════════════════════
         if (_isActivated)
         {
+            Vector3 toTerraceFlat = new Vector3(cliffTerracePos.x - ventBasePos.x, 0f, cliffTerracePos.z - ventBasePos.z).normalized;
             float distToVent = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(ventBasePos.x, ventBasePos.z));
             float yDiff = pPos.y - ventBasePos.y;
 
-            // ファン半径2.2m、高度+22m以内の空間にいる場合、強力な上昇気流を付与
-            if (distToVent < 2.3f && yDiff >= -0.2f && yDiff < 22f)
+            // 1. 送風ファン直上（地上歩行や通常ジャンプからでも一気に大空へ射出）
+            if (distToVent < 3.2f && yDiff >= -0.5f && yDiff < 5.5f)
             {
-                player.ApplyUpdraft(16.5f);
+                player.ApplyLaunchUpdraft(21.0f, 25.0f, toTerraceFlat);
+            }
+
+            // 2. 上昇気流コリドー（ファンから崖上テラスへ向かう風の通り道）
+            // X: 203〜213, Z: 291〜313, 高度: 地上〜テラス頭上(+4m)
+            float xMin = Mathf.Min(ventBasePos.x, cliffTerracePos.x) - 4.5f;
+            float xMax = Mathf.Max(ventBasePos.x, cliffTerracePos.x) + 4.5f;
+            float zMin = Mathf.Min(ventBasePos.z, cliffTerracePos.z) - 3.0f;
+            float zMax = Mathf.Max(ventBasePos.z, cliffTerracePos.z) + 3.0f;
+
+            bool inWindCorridor = pPos.x >= xMin && pPos.x <= xMax && pPos.z >= zMin && pPos.z <= zMax;
+            if (inWindCorridor && yDiff >= -0.5f && pPos.y < cliffTerracePos.y + 4.0f)
+            {
+                // 高度がテラス未満なら強力な浮力を維持
+                if (pPos.y < cliffTerracePos.y + 1.2f)
+                {
+                    player.ApplyLaunchUpdraft(18.5f, 21.0f);
+                }
+
+                // テラス方向への心地よい前進気流（自動誘導アシスト）
+                Vector3 toTerrace = new Vector3(cliffTerracePos.x - pPos.x, 0f, cliffTerracePos.z - pPos.z);
+                if (toTerrace.magnitude > 1.0f)
+                {
+                    player.ApplyGlideBoost(1.5f, 0.4f, toTerrace.normalized);
+                }
             }
         }
 

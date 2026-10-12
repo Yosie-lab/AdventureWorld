@@ -41,6 +41,8 @@ public partial class AdventureRustDrone : MonoBehaviour
     AudioClip _sonarBeepClip;
     AudioClip _pipiChimeClip;
     AudioClip _distressWhineClip;
+    AudioClip _oilPourClip;
+    AudioSource _uiAudio;
     float _nextDistressSound;
     float _sonarTimer = 0f;
     GUIStyle _speechStyle;
@@ -344,8 +346,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
         EnsureClimaxEyeLight(new Color(1f, 0.9f, 0.45f), 2.4f);
 
-        if (_audio != null && _happyBeepClip != null)
-            _audio.PlayOneShot(_happyBeepClip, 0.55f);
+        PlayOilAppliedSound();
 
         StartCoroutine(EndPrologueHealSoon());
     }
@@ -1250,6 +1251,94 @@ public partial class AdventureRustDrone : MonoBehaviour
         _pipiChimeClip = MakePipiChime();
         _distressWhineClip = MakeDistressWhine();
         _nextDistressSound = Time.time + 1.5f;
+
+        Ensure2DAudio();
+    }
+
+    void Ensure2DAudio()
+    {
+        if (_uiAudio == null)
+        {
+            var uiAudioGo = new GameObject("Rust2DAudio");
+            uiAudioGo.transform.SetParent(transform, false);
+            _uiAudio = uiAudioGo.AddComponent<AudioSource>();
+            _uiAudio.playOnAwake = false;
+            _uiAudio.spatialBlend = 0f; // 2D UIオーディオ（距離減衰ゼロで確実に聞こえる）
+            _uiAudio.volume = 0.95f;
+        }
+        if (_oilPourClip == null)
+        {
+            _oilPourClip = MakeOilPourSound();
+        }
+    }
+
+    /// <summary>潤滑油をさしたときの専用効果音：オイル滴下・充填音＋快調回復チャイム</summary>
+    AudioClip MakeOilPourSound()
+    {
+        const int rate = 44100;
+        float dur = 0.95f;
+        int count = (int)(rate * dur);
+        float[] data = new float[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float sample = 0f;
+
+            // 1. オイル滴下・トポポ音（前半 0.0〜0.35秒）：やわらかな気泡・ドロップ音
+            if (t < 0.35f)
+            {
+                float bubble1 = Mathf.Sin(2f * Mathf.PI * (420f + 60f * Mathf.Sin(t * 80f)) * t) * Mathf.Clamp01(1f - (t / 0.12f));
+                float bubble2 = (t > 0.09f && t < 0.22f) ? Mathf.Sin(2f * Mathf.PI * 520f * t) * Mathf.Clamp01(1f - ((t - 0.09f) / 0.12f)) : 0f;
+                float bubble3 = (t > 0.18f) ? Mathf.Sin(2f * Mathf.PI * 640f * t) * Mathf.Clamp01(1f - ((t - 0.18f) / 0.15f)) : 0f;
+                sample += (bubble1 + bubble2 * 0.8f + bubble3 * 0.9f) * 0.28f;
+            }
+
+            // 2. 快調回復チャイム・嬉しそうな共鳴音（後半 0.22〜0.95秒）：透き通ったベル＋ピピッ♪
+            if (t >= 0.22f)
+            {
+                float tChime = (t - 0.22f);
+                float env = Mathf.Exp(-tChime * 4.5f);
+                float chime = Mathf.Sin(2f * Mathf.PI * 740f * t) * 0.22f
+                            + Mathf.Sin(2f * Mathf.PI * 932f * t) * 0.25f
+                            + Mathf.Sin(2f * Mathf.PI * 1108f * t) * 0.28f
+                            + Mathf.Sin(2f * Mathf.PI * 1480f * t) * 0.15f;
+                sample += chime * env;
+
+                // 最後の可愛いピピッ♪（0.62秒〜）
+                if (t >= 0.62f)
+                {
+                    float tBeep = t - 0.62f;
+                    float beepEnv = Mathf.Clamp01(1f - tBeep / 0.16f);
+                    float beepFreq = (tBeep < 0.08f) ? 1175f : 1568f;
+                    sample += Mathf.Sin(2f * Mathf.PI * beepFreq * t) * 0.20f * beepEnv;
+                }
+            }
+
+            data[i] = Mathf.Clamp(sample, -1f, 1f);
+        }
+
+        var clip = AudioClip.Create("RustOilPourSE", count, 1, rate, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
+
+    /// <summary>油をさしたときの確実なSE再生（2D常設音源による距離減衰ゼロ・クリア再生）</summary>
+    public void PlayOilAppliedSound()
+    {
+        Ensure2DAudio();
+
+        if (_uiAudio != null && _oilPourClip != null)
+        {
+            _uiAudio.pitch = Random.Range(0.98f, 1.04f);
+            _uiAudio.PlayOneShot(_oilPourClip, 0.95f);
+        }
+
+        // 3D側でも補助再生
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.PlayOneShot(_happyBeepClip, 0.5f);
+        }
     }
 
     void SetupHeat()
@@ -1496,8 +1585,8 @@ public partial class AdventureRustDrone : MonoBehaviour
         _hitchUntil = 0f;
         _prologueDistress = false;
 
-        if (_happyBeepClip != null && _audio != null)
-            _audio.PlayOneShot(_happyBeepClip, 0.45f);
+        // 油をさした瞬間に心地よい注油音＋快調回復チャイムを確実に再生
+        PlayOilAppliedSound();
 
         // NikoがRustを胸元で愛おしく撫でて手当て
         if (AdventurePettingAction.Instance != null)
