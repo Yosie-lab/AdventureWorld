@@ -308,6 +308,7 @@ public partial class AdventureSanctuaryTowerManager
         ClearFilmSubtitle();
         _filmIndex = -1;
         _filmPhase = 0;
+        _epilogueTriggered = false;
         KeepAutoGlide(GetPlayer());
         IsGameCleared = true;
         _showGameClearModal = true;
@@ -319,6 +320,7 @@ public partial class AdventureSanctuaryTowerManager
         PlayGameClearTriumphChime();
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.KeepEndingThemeActive();
+        AdventureStoryFlow.InvalidateCache();
         Debug.Log("[RustAndFloat] シネマエピローグ完了 → クリアモーダル＆祝祭チャイム再生");
     }
 

@@ -253,9 +253,9 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             return false;
         }
     }
-    /// <summary>エピローグ字幕／台本ボード表示中（他HUD・セリフを抑止するため）</summary>
+    /// <summary>エピローグ字幕／映画演出再生中（他HUD・セリフを抑止するため）</summary>
     public bool IsEpiloguePlaying =>
-        _epilogueTriggered && !_showGameClearModal;
+        _epilogueTriggered && !_showGameClearModal && _filmIndex >= 0 && _filmPhase > 0;
     /// <summary>クライマックス注油待ち中</summary>
     public bool IsClimaxOilPromptActive =>
         _climaxOilWaiting && !_climaxOilInjected && !_suppressClimax;

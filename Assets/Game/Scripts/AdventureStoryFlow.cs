@@ -59,6 +59,12 @@ public static class AdventureStoryFlow
         }
     }
 
+    /// <summary>キャッシュを即座に破棄し、次回の参照で強制再評価させる</summary>
+    public static void InvalidateCache()
+    {
+        _lastPhaseFrame = -1;
+    }
+
     static Phase ResolveCurrentPhase()
     {
         var opening = AdventureRustFloatOpening.Instance;
@@ -182,8 +188,7 @@ public static class AdventureStoryFlow
                 tower.IsSkybreakModalActive
                 || tower.IsEpiloguePlaying
                 || tower.ClimaxCrisisStarted
-                || tower.ShowGameClearModal
-                || tower.EpilogueTriggered))
+                || tower.ShowGameClearModal))
                 return true;
             var player = AdventurePlayerController.Instance;
             return player != null && (player.IsSkybreakPillarAscending || player.IsAutoGliding);

@@ -65,57 +65,6 @@ public partial class AdventureSanctuaryTowerManager
             CloseGameClearModalForFreeExplore();
             return;
         }
-
-        // ★マウスクリックフォールバック（uGUI EventSystemが拾わなかった場合でも確実に発火）
-        if (elapsedSinceOpen >= 0.3f && WasPointerPressedThisFrame(out Vector2 pointer))
-        {
-            // ※【N】はじめからボタンを最優先でヒット判定！
-            if (PointerHits(_clearNewBtn, pointer))
-            {
-                Debug.Log("[RustAndFloat] マウスクリック【N はじめから】検知 → StartNewGameFromClearModal 実行");
-                StartNewGameFromClearModal();
-                return;
-            }
-            if (PointerHits(_clearDiveBtn, pointer))
-            {
-                Debug.Log("[RustAndFloat] マウスクリック【Space 大空へダイブ】検知 → RelaunchIntoSky 実行");
-                RelaunchIntoSky();
-                return;
-            }
-            if (PointerHits(_clearCloseBtn, pointer))
-            {
-                Debug.Log("[RustAndFloat] マウスクリック【E 閉じる】検知 → CloseGameClearModalForFreeExplore 実行");
-                CloseGameClearModalForFreeExplore();
-                return;
-            }
-        }
-    }
-
-    static bool WasPointerPressedThisFrame(out Vector2 pointer)
-    {
-        pointer = Vector2.zero;
-        var mouse = UnityEngine.InputSystem.Mouse.current;
-        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
-        {
-            pointer = mouse.position.ReadValue();
-            return true;
-        }
-        try
-        {
-            if (Input.GetMouseButtonDown(0))
-            {
-                pointer = Input.mousePosition;
-                return true;
-            }
-        }
-        catch { }
-        return false;
-    }
-
-    static bool PointerHits(RectTransform rt, Vector2 screenPos)
-    {
-        if (rt == null || !rt.gameObject.activeInHierarchy) return false;
-        return RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);
     }
 
     void SetGameClearModalVisible(bool visible)
@@ -277,6 +226,18 @@ public partial class AdventureSanctuaryTowerManager
         Debug.Log("[RustAndFloat] ★★★ StartNewGameFromClearModal 実行開始 ★★★");
         _showGameClearModal = false;
         HideGameClearModalUI();
+
+        // エピローグ・クライマックス・エンディングのランタイム状態をゼロクリア
+        _epilogueTriggered = false;
+        _endingSequenceActive = false;
+        _canopyBeatIndex = -1;
+        _climaxCrisisStarted = false;
+        _climaxOilInjected = false;
+        _climaxOilWaiting = false;
+        _filmIndex = -1;
+        _filmPhase = 0;
+        AdventureStoryFlow.InvalidateCache();
+
         var player = GetPlayer();
         if (player != null)
         {
