@@ -65,6 +65,7 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         PresentClimaxBeat(0);
+        AdventureStoryFlow.InvalidateCache();
         Debug.Log("[RustAndFloat] クライマックス（スクリーンスクリプト）を Update 駆動で開始");
     }
 
@@ -602,6 +603,7 @@ public partial class AdventureSanctuaryTowerManager
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.KeepEndingThemeActive();
         Debug.Log("[RustAndFloat] クライマックス完了 → エピローグ開始（Update駆動）");
+        AdventureStoryFlow.InvalidateCache();
         BeginEpiloguePlayback();
     }
 

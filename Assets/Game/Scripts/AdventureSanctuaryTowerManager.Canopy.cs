@@ -111,6 +111,7 @@ public partial class AdventureSanctuaryTowerManager
         _canopyBeatIndex = 0;
         _skyTearPlayed = false;
         PresentCanopyBeat(0);
+        AdventureStoryFlow.InvalidateCache();
         Debug.Log("[RustAndFloat] 天蓋スクリーンスクリプト（シネマ字幕）を Update 駆動で開始（全" + CanopyBeats.Length + "枚）");
     }
 
@@ -336,6 +337,7 @@ public partial class AdventureSanctuaryTowerManager
             player.ForceSkybreakArrival(new Vector3(512f, 150f, 512f), 150f);
 
         Debug.Log($"[RustAndFloat] クライマックス開始 high={highEnough} timeout={timedOut}");
+        AdventureStoryFlow.InvalidateCache();
         BeginClimaxSequence();
     }
 

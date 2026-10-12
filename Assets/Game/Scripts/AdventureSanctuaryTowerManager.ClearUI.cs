@@ -274,6 +274,10 @@ public partial class AdventureSanctuaryTowerManager
             drone.StopSkybreakNestle();
             drone.ResetClimaxState();
         }
+        _epilogueTriggered = false;
+        _filmIndex = -1;
+        _filmPhase = 0;
+        AdventureStoryFlow.InvalidateCache();
     }
 
     /// <summary>ゲームクリアリザルト画面を直接開く</summary>
@@ -307,6 +311,10 @@ public partial class AdventureSanctuaryTowerManager
         {
             drone.SpeakCustom("いっくよー！大空へダイブ！！", 5.0f);
         }
+        _epilogueTriggered = false;
+        _filmIndex = -1;
+        _filmPhase = 0;
+        AdventureStoryFlow.InvalidateCache();
     }
 
     #endregion
