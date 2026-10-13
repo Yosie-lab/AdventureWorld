@@ -15,7 +15,7 @@ public class AdventureMusicDirector : MonoBehaviour
     AudioClip _ambientThemeClip;
     AudioClip _skybreakThemeClip;
     AudioClip _skybreakBuildUpClip;    // 96秒ビルドアップ曲（0〜12s:神聖ブラス, 12〜24s:ドラム合流, 24〜84s:3〜7周目ベース＋トランペット主旋律, 84〜96s:8周目以降メロディーミュート）
-    AudioClip _skybreakDrumsOnlyClip;  // 12秒（Rust回復後：軽快なドラム＋トランペット主旋律で大空へダイブ）
+    AudioClip _skybreakDrumsOnlyClip;  // 12秒（Rust回復後：軽快なドラム＋爽快BGMで大空へダイブ、メロディーなし）
 
     bool _hasSwitchedToSkybreak = false;
     bool _isOverdriveDropActive = false;
@@ -446,7 +446,7 @@ public class AdventureMusicDirector : MonoBehaviour
     ///   - 12〜24秒：2周目（12秒の頭からドラムが合流！）
     ///   - 24〜84秒：3〜7周目（24秒の頭からベース＋哀愁のトランペット主旋律が合流し感動的にリフレイン！）
     ///   - 84〜96秒：8周目（84秒からメロディーはミュートされ、雄大なフルインスト編成でループ継続）
-    /// isDrumsOnly = true ：Rust回復後（「全力で行こう！！」）。軽快なドラム＋トランペット主旋律で大空へ！
+    /// isDrumsOnly = true ：Rust回復後（「全力で行こう！！」）。ベースとトランペットが抜け、軽快なドラムと爽快BGMで大空へ！
     /// </summary>
     public AudioClip GenerateSkybreakTheme(bool isDrumsOnly)
     {
@@ -531,7 +531,7 @@ public class AdventureMusicDirector : MonoBehaviour
             {
                 hasBass = false;
                 hasDrums = true;
-                hasTrumpet = true;
+                hasTrumpet = false; // 大空滑空時・オーバードライブ後もメロディーは無し
             }
             else
             {
@@ -639,9 +639,9 @@ public class AdventureMusicDirector : MonoBehaviour
                     }
                 }
 
-                // トランペットの音量バランス（基準音量の0.28倍に設定：1周目0.101f、合流時0.129f、エピローグ0.134f）
-                float tptGain = ((cycle == 0) ? 0.36f : 0.46f) * 0.28f;
-                if (isDrumsOnly) tptGain = 0.48f * 0.28f;
+                // トランペットの音量バランス（基準音量の0.25倍に設定：1周目0.090f、合流時0.115f、エピローグ0.120f）
+                float tptGain = ((cycle == 0) ? 0.36f : 0.46f) * 0.25f;
+                if (isDrumsOnly) tptGain = 0.48f * 0.25f;
 
                 float combined = tptSignal * tptGain + pad * 0.18f;
                 strL = combined * 0.98f;
