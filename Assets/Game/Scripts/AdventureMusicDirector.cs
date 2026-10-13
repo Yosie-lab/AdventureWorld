@@ -474,43 +474,31 @@ public class AdventureMusicDirector : MonoBehaviour
         // 各コードのルートベース音 (D2, D2, F#2, F#2, E2, E2, G2, G2)
         float[] bassRoots8 = new float[] { 73.42f, 73.42f, 92.50f, 92.50f, 82.41f, 82.41f, 98.00f, 98.00f };
 
-        // (a) バッハ風の気品ある8小節バイオリン主旋律
-        // 1小節目はD6 ➔ C#6 ➔ D6で美しく装飾し、8小節Gm駆け上がりから優雅に循環！
-        (float start, float end, float freq)[] melodyNotes = new (float, float, float)[]
+        // (a) 哀愁のある映画的ソロ・トランペット主旋律（全32拍・8小節・計12.0秒）
+        // F#5拍 ➔ F#1拍 ➔ F1拍 ➔ F#1拍 ➔ A7拍 ➔ A1拍 ➔ G5拍 ➔ B1拍 ➔ E1拍 ➔ G1拍 ➔ A#4拍 ➔ A2拍 ➔ G2拍
+        const float beatSec = 0.375f; // 1拍 = 0.375秒 (BPM 160)
+        (float start, float end, float freq)[] trumpetNotes = new (float, float, float)[]
         {
-            // 第1小節 (0.00〜1.50s): D - 1・2拍目D6、3拍目C#6、4拍目D6
-            (0.000f, 0.750f, 1174.66f), // 1・2拍目: D6  (2拍 0.75秒、主音)
-            (0.750f, 1.125f, 1108.73f), // 3拍目:   C#6 (四分音符 0.375秒、メジャー7thの切ないステップ)
-            (1.125f, 1.500f, 1174.66f), // 4拍目:   D6  (四分音符 0.375秒、主音への回帰)
+            // 第1〜2小節 (Dコード / 0.00〜3.00s): F# 5拍 + F# 1拍 + F 1拍 + F# 1拍
+            (0.000f * beatSec,  5.000f * beatSec, 369.99f), // F#4 (5拍 = 1.875s) 哀愁のロングトーン
+            (5.000f * beatSec,  6.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s) タンギングで再発音
+            (6.000f * beatSec,  7.000f * beatSec, 349.23f), // F4  (1拍 = 0.375s) 切ない経過音
+            (7.000f * beatSec,  8.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s)
 
-            // 第2小節 (1.50〜3.00s): D - 1小節目のモチーフをリフレイン（1・2拍目D6、3拍目C#6、4拍目D6）
-            (1.500f, 2.250f, 1174.66f), // 1・2拍目: D6  (2拍 0.75秒、主音)
-            (2.250f, 2.625f, 1108.73f), // 3拍目:   C#6 (四分音符 0.375秒、メジャー7th)
-            (2.625f, 3.000f, 1174.66f), // 4拍目:   D6  (四分音符 0.375秒、主音への回帰)
+            // 第3〜4小節 (F#mコード / 3.00〜6.00s): A 7拍 + A 1拍
+            (8.000f * beatSec, 15.000f * beatSec, 440.00f), // A4  (7拍 = 2.625s) 心を打つ切ない長音
+            (15.000f * beatSec, 16.000f * beatSec, 440.00f), // A4  (1拍 = 0.375s)
 
-            // 第3小節 (3.00〜4.50s): F#m - 胸を打つ最高嶺D6へ到達！
-            (3.00f,  4.50f, 1174.66f), // D6:  最高峰の白玉ロングトーン (1.5秒)
+            // 第5〜6小節 (Emコード / 6.00〜9.00s): G 5拍 + B 1拍 + E 1拍 + G 1拍
+            (16.000f * beatSec, 21.000f * beatSec, 392.00f), // G4  (5拍 = 1.875s) 温かな叙情
+            (21.000f * beatSec, 22.000f * beatSec, 493.88f), // B4  (1拍 = 0.375s)
+            (22.000f * beatSec, 23.000f * beatSec, 329.63f), // E4  (1拍 = 0.375s)
+            (23.000f * beatSec, 24.000f * beatSec, 392.00f), // G4  (1拍 = 0.375s)
 
-            // 第4小節 (4.50〜6.00s): F#m - 優雅に舞い降りるステップ
-            (4.50f,  5.25f, 1108.73f), // C#6: 4分音符 (0.75秒)
-            (5.25f,  6.00f,  987.77f), // B5:  4分音符 (0.75秒)
-
-            // 第5小節 (6.00〜7.50s): Em - 静けさと温もりの白玉
-            (6.00f,  7.50f,  783.99f), // G5:  白玉ロングトーン (1.5秒)
-
-            // 第6小節 (7.50〜9.00s): Em - 希望を追い求めて再び跳躍上行
-            (7.50f,  8.25f,  880.00f), // A5:  4分音符 (0.75秒)
-            (8.25f,  9.00f,  987.77f), // B5:  4分音符 (0.75秒)
-
-            // 第7小節 (9.00〜10.50s): Gm - 切なく劇的なサブドミナントマイナー
-            (9.00f,  9.75f,  932.33f), // Bb5: 2拍の四分音符 (0.75秒)
-            (9.75f, 10.50f, 1046.50f), // C6:  2拍の四分音符 (0.75秒)
-
-            // 第8小節 (10.50〜12.00s): Gm - 四分音符4連で小気味よく駆け上がり、1小節目頭のC#6へ美しく繋ぐ！
-            (10.500f, 10.875f,  932.33f), // 拍1: Bb5 (四分音符 0.375秒、短3度)
-            (10.875f, 11.250f, 1174.66f), // 拍2: D6  (四分音符 0.375秒、完全5度)
-            (11.250f, 11.625f, 1318.51f), // 拍3: E6  (四分音符 0.375秒、13th)
-            (11.625f, 12.000f, 1567.98f)  // 拍4: G6  (四分音符 0.375秒、オクターブ上ルート) ➔ 0.0s頭のC#6へ美しく着地！
+            // 第7〜8小節 (Gmコード / 9.00〜12.00s): A# 4拍 + A 2拍 + G 2拍
+            (24.000f * beatSec, 28.000f * beatSec, 466.16f), // A#4 (4拍 = 1.500s) 劇的な短3度
+            (28.000f * beatSec, 30.000f * beatSec, 440.00f), // A4  (2拍 = 0.750s)
+            (30.000f * beatSec, 32.000f * beatSec, 392.00f)  // G4  (2拍 = 0.750s) 終止から冒頭F#へ美しく循環
         };
 
         // (b) メロディーを澄んだ響きで包み込む8小節白玉ハーモニー（揺れのないピュア和音）
@@ -537,7 +525,6 @@ public class AdventureMusicDirector : MonoBehaviour
 
             bool hasBass;
             bool hasDrums;
-            bool hasViolinMelody = false; // バイオリン主旋律は一時ミュート中（復帰時は cycle >= 2 に設定）
             if (isDrumsOnly)
             {
                 hasBass = false;
@@ -570,45 +557,50 @@ public class AdventureMusicDirector : MonoBehaviour
             float arpEnv = Mathf.Exp(-arpPhase * 5.0f);
             float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.19f;
 
-            // 3. 揺れのない澄み切ったピュア・バイオリン主旋律（白玉＋4分音符のバッハ風旋律）
-            // 3周目（24秒〜）から開始し、8小節4連駆け上がりから1小節目へ突入！Rust回復後は消える
+            // 3. 哀愁のある映画的ソロ・トランペット主旋律（全32拍・8小節） ＋ 温かいコードパッド
             float strL = 0f;
             float strR = 0f;
             {
-                float mel = 0f;
-                if (hasViolinMelody)
+                float tptSignal = 0f;
+
+                for (int m = 0; m < trumpetNotes.Length; m++)
                 {
-                    float melFade = 0.08f; // 4分音符（0.375秒）の小気味よい輪郭を際立たせるレガート
+                    var note = trumpetNotes[m];
+                    float noteDur = note.end - note.start;
 
-                    for (int m = 0; m < melodyNotes.Length; m++)
+                    for (int d = 0; d < 3; d++)
                     {
-                        var note = melodyNotes[m];
-                        float noteDur = note.end - note.start;
-
-                        for (int d = 0; d < 3; d++)
+                        float nT = (d == 0) ? (cycleT - note.start) : ((d == 1) ? (cycleT + 12.0f - note.start) : (cycleT - 12.0f - note.start));
+                        if (nT >= 0f && nT <= noteDur)
                         {
-                            float nT = (d == 0) ? (cycleT - note.start) : ((d == 1) ? (cycleT + 12.0f - note.start) : (cycleT - 12.0f - note.start));
-                            if (nT >= -melFade && nT <= noteDur + melFade)
+                            // アタック（0.035s）とリリース（末尾0.025sでわずかに息を切り、次のタンギングを明瞭化）
+                            float tptEnv = 1f;
+                            if (nT < 0.035f)
+                                tptEnv = Mathf.SmoothStep(0f, 1f, nT / 0.035f);
+                            else if (nT > noteDur - 0.025f)
+                                tptEnv = Mathf.SmoothStep(1f, 0.10f, (nT - (noteDur - 0.025f)) / 0.025f);
+
+                            // 哀愁のビブラート（音が伸びて0.28秒後からじんわり深まる 5.2Hz の情緒的な揺らぎ）
+                            float vib = 0f;
+                            if (nT > 0.28f)
                             {
-                                float melEnv = 1f;
-                                if (nT < melFade)
-                                    melEnv = Mathf.SmoothStep(0f, 1f, (nT + melFade) / (melFade * 2f));
-                                else if (nT > noteDur - melFade)
-                                    melEnv = Mathf.SmoothStep(1f, 0f, (nT - (noteDur - melFade)) / (melFade * 2f));
-
-                                if (melEnv > 0.001f)
-                                {
-                                    float f = note.freq; // 揺れのない完全なピュアピッチ（ヴィブラートなし）
-
-                                    // 澄み切った大空に響くまっすぐで透き通るバイオリン（基音＋クリア倍音）
-                                    float vPure = Mathf.Sin(2f * Mathf.PI * f * t) * 0.58f
-                                                + Mathf.Sin(4f * Mathf.PI * f * t) * 0.22f
-                                                + Mathf.Sin(6f * Mathf.PI * f * t) * 0.08f
-                                                + Mathf.Sin(8f * Mathf.PI * f * t) * 0.03f;
-
-                                    mel += vPure * melEnv;
-                                }
+                                float vibAmount = Mathf.Clamp01((nT - 0.28f) / 0.45f) * 0.009f;
+                                vib = Mathf.Sin(2f * Mathf.PI * 5.2f * nT) * vibAmount;
                             }
+
+                            float f = note.freq * (1f + vib);
+
+                            // トランペット固有の倍音構成（温かく甘美なフリューゲルホルン／哀愁の金管ソロ調）
+                            float wave = Mathf.Sin(2f * Mathf.PI * f * t) * 0.52f
+                                       + Mathf.Sin(2f * Mathf.PI * f * 2f * t) * 0.32f
+                                       + Mathf.Sin(2f * Mathf.PI * f * 3f * t) * 0.18f
+                                       + Mathf.Sin(2f * Mathf.PI * f * 4f * t) * 0.09f
+                                       + Mathf.Sin(2f * Mathf.PI * f * 5f * t) * 0.04f;
+
+                            // 管の温かい空気感（Tanhサチュレーション）
+                            float warmWave = (float)System.Math.Tanh(wave * 1.35f);
+
+                            tptSignal += warmWave * tptEnv;
                         }
                     }
                 }
@@ -647,11 +639,11 @@ public class AdventureMusicDirector : MonoBehaviour
                     }
                 }
 
-                float strIntensity = (!hasBass && !hasDrums) ? 0.22f : (hasDrums ? 0.28f : 0.24f);
-                if (isDrumsOnly) strIntensity = 0.30f;
+                // トランペットの音量バランス（1周目0〜12sは0.36f、ベース・ドラム合流時およびエピローグは0.46fで朗々と響く）
+                float tptGain = (cycle == 0) ? 0.36f : 0.46f;
+                if (isDrumsOnly) tptGain = 0.48f;
 
-                // バイオリン主旋律（3周目のみ合流） ＋ 温かいピュアパッド
-                float combined = (mel * 0.33f + pad * 0.30f) * strIntensity;
+                float combined = tptSignal * tptGain + pad * 0.18f;
                 strL = combined * 0.98f;
                 strR = combined * 1.02f;
             }
