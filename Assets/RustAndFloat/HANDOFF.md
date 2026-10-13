@@ -10,16 +10,21 @@ created: 2026-09-11
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容
-- **崩壊シーケンス後テロップの正常化・最新化＆「つづき」非表示化**:
-  - `AdventureSanctuaryTowerManager.Canopy.cs`:
-    - ダイブ長押し（Space/クリック）の判定ガードを `_scriptBoardIsDive`（ダイブ画面）限定に修正。通常セリフ時の 0.08 秒誤爆スキップを防止。
+- **崩壊シーケンス後（Ascent〜Climax〜Epilogue〜Clear）の徹底リファクタリング**:
   - `AdventureSanctuaryTowerManager.Climax.cs`:
-    - 光の柱上昇からのクライマックス突入時および注油完了時に、キー離しガード（`_scriptRequireInputRelease = true`）を確実に維持。ダイブや注油の長押し入力がそのまま突き抜けて「限界高度」「Rust凍結」「注油呼びかけ」の台本が一瞬でスキップ・消失する問題を解消。
-    - 台本字幕下部の操作ガイド **「【 Space / クリック 】つづき」を削除（非表示化）** し、映画字幕として美しく鑑賞できるように改善（最終セリフのみ「大空へ！」の合図を表示）。
+    - 未使用デッドコード（`CreateOilBar`）を完全撤去。
+    - `HideScriptBoardCompletely()` および `HideOilPromptUI()` 内の `GameObject.Find` を排除し、UIインスタンスによる自己管理へ最適化。
+    - ホールド入力判定を `AdventureInputReader.OilHoldButtons` に一本化し、入力重複を解消。
+    - コメント内の主人公名をすべて `Float` に統一し、ログのビート番号のズレを解消。
   - `AdventureSanctuaryTowerManager.Epilogue.cs`:
-    - エピローグ映画テロップの第1幕に初期の古いテロップである「空が割れた。」が重複して唐突に出ていた問題を解消し、大空滑空の視座に即した格調高い **「天蓋の檻を突き抜けたその先——」** へ更新。
-  - `AdventureBeachSeashellManager.cs`:
-    - Unity特有の擬似nullに対するC# `??` 演算子による `MissingComponentException` を安全な null チェックへ修正。
+    - 映画字幕フェーズのマジックナンバー（1, 2, 3, 4）を定数 `FilmPhaseInactive/FadeIn/Hold/FadeOut/ActGap` として定義し、セルフドキュメンティング化。
+    - 未使用コルーチン変数（`_epilogueRoutine`）の不要な停止処理を撤去。
+    - コメント内の主人公名を `Float` に統一。
+  - `AdventureSanctuaryTowerManager.Canopy.cs`:
+    - ダイブ長押しの必要時間を 0.08秒 から、しっかり手応えと演出を感じられる 0.35秒 へ適正化。
+  - `AdventureSanctuaryTowerManager.cs`:
+    - 旧OnGUI直下に残存していた未使用入力フォールバック（`DrawScriptBoardInputFallback` / `DrawClimaxOilInputFallback` 計約50行）を完全削除。
+    - `Update()` 内で `TickCanopyScriptBeats()` と二重に呼ばれていた `PollScriptBoardAdvance()` の重複呼び出しを解消。
 - **ゲームスタートからエンドまでの包括リファクタリング（入力統合・警告撲滅・最適化）**:
   - `AdventureInputReader.cs`:
   - `AdventureInputReader.cs`:

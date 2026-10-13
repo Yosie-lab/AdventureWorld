@@ -60,6 +60,13 @@ public partial class AdventureSanctuaryTowerManager
         new FilmLine("今 ーここから、また始まる。—— 『Rust & Float』", 3.55f, 3, new Color(1f, 0.88f, 0.45f, 1f)),
     };
 
+    // 映画字幕フェーズ定数
+    const int FilmPhaseInactive = 0;
+    const int FilmPhaseFadeIn = 1;
+    const int FilmPhaseHold = 2;
+    const int FilmPhaseFadeOut = 3;
+    const int FilmPhaseActGap = 4;
+
     Font ResolveEpilogueFont()
     {
         if (_epilogueFont != null)
@@ -70,12 +77,6 @@ public partial class AdventureSanctuaryTowerManager
 
     void BeginEpiloguePlayback()
     {
-        if (_epilogueRoutine != null)
-        {
-            StopCoroutine(_epilogueRoutine);
-            _epilogueRoutine = null;
-        }
-
         var player = GetPlayer();
         if (player != null)
         {
@@ -121,7 +122,7 @@ public partial class AdventureSanctuaryTowerManager
         _filmLastAct = -1;
         _filmIndex = 0;
         PrepareFilmLine(0, allowActGap: false);
-        // 「わぁぁ……！見て、Niko！」からは風の音をごくわずかなそよ風（0.04f）まで下げて映画の余韻とウミネコを際立たせる
+        // 「わぁぁ……！見て、Float！」からは風の音をごくわずかなそよ風（0.04f）まで下げて映画の余韻とウミネコを際立たせる
         SetSkybreakWindVolume(0.04f, 1.2f);
         StartEpilogueSeagullAmbience();
         // エピローグ冒頭：Rustが「世界はこんなにも広かったんだ……！！」と感動する瞬間から大空正面に大虹（二重虹）を架橋
@@ -160,7 +161,7 @@ public partial class AdventureSanctuaryTowerManager
         {
             ClearFilmSubtitle();
             _epilogueAct = line.Act;
-            _filmPhase = 4;
+            _filmPhase = FilmPhaseActGap;
             _filmPhaseAt = Time.unscaledTime;
             return;
         }
@@ -168,7 +169,7 @@ public partial class AdventureSanctuaryTowerManager
         _filmLastAct = line.Act;
         _epilogueAct = Mathf.Max(1, line.Act);
         PresentFilmLineContent(line.Text, line.Color);
-        _filmPhase = 1;
+        _filmPhase = FilmPhaseFadeIn;
         _filmPhaseAt = Time.unscaledTime;
     }
 
@@ -214,14 +215,14 @@ public partial class AdventureSanctuaryTowerManager
         float elapsed = Time.unscaledTime - _filmPhaseAt;
 
         // 幕あい（余韻）
-        if (_filmPhase == 4)
+        if (_filmPhase == FilmPhaseActGap)
         {
             if (elapsed >= 1.35f)
             {
                 var line = EpilogueFilmLines[_filmIndex];
                 _filmLastAct = line.Act;
                 PresentFilmLineContent(line.Text, line.Color);
-                _filmPhase = 1;
+                _filmPhase = FilmPhaseFadeIn;
                 _filmPhaseAt = Time.unscaledTime;
             }
             return;
@@ -236,7 +237,7 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         Color c = _filmColor;
-        if (_filmPhase == 1)
+        if (_filmPhase == FilmPhaseFadeIn)
         {
             float t = Mathf.Clamp01(elapsed / _filmFadeInSec);
             float a = Mathf.SmoothStep(0f, 1f, t);
@@ -248,11 +249,11 @@ public partial class AdventureSanctuaryTowerManager
             {
                 _filmSubtitleUi.color = c;
                 _filmSubtitleUi.transform.localScale = Vector3.one;
-                _filmPhase = 2;
+                _filmPhase = FilmPhaseHold;
                 _filmPhaseAt = Time.unscaledTime;
             }
         }
-        else if (_filmPhase == 2)
+        else if (_filmPhase == FilmPhaseHold)
         {
             _filmSubtitleUi.color = c;
             _epilogueAlpha = 1f;
@@ -269,12 +270,12 @@ public partial class AdventureSanctuaryTowerManager
                 }
                 else
                 {
-                    _filmPhase = 3;
+                    _filmPhase = FilmPhaseFadeOut;
                     _filmPhaseAt = Time.unscaledTime;
                 }
             }
         }
-        else if (_filmPhase == 3)
+        else if (_filmPhase == FilmPhaseFadeOut)
         {
             if (_filmFadeOutSec <= 0.01f)
             {
@@ -307,7 +308,7 @@ public partial class AdventureSanctuaryTowerManager
     {
         ClearFilmSubtitle();
         _filmIndex = -1;
-        _filmPhase = 0;
+        _filmPhase = FilmPhaseInactive;
         _epilogueTriggered = false;
         KeepAutoGlide(GetPlayer());
         IsGameCleared = true;

@@ -219,7 +219,7 @@ public partial class AdventureSanctuaryTowerManager
                 {
                     _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
                 }
-                if (_scriptHoldTimer >= 0.08f)
+                if (_scriptHoldTimer >= 0.35f)
                     _scriptBoardAdvance = true;
             }
             else

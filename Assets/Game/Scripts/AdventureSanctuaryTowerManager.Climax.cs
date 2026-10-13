@@ -107,7 +107,7 @@ public partial class AdventureSanctuaryTowerManager
                 droneFall.BeginClimaxColdFallAway();
         }
 
-        // 台本（ピピッ！……ありがとう、Niko！）：全出力セリフと同時にオーバードライブ演出
+        // 台本（ピピッ！……ありがとう、Float！）：全出力セリフと同時にオーバードライブ演出
         if (index == ClimaxOilSlot + 1)
         {
             var drone = GetDrone();
@@ -124,7 +124,7 @@ public partial class AdventureSanctuaryTowerManager
 
             SpawnWildernessPanorama(coldCrisis: false);
             SoftenSkybreakColdAtmosphere();
-            // 「ありがとう、Niko！」からは風の音を控えめ（0.45f -> 0.18f）に下げてBGMとセリフを引き立てる
+            // 「ありがとう、Float！」からは風の音を控えめ（0.45f -> 0.18f）に下げてBGMとセリフを引き立てる
             SetSkybreakWindVolume(0.18f, 1.4f);
             StartCoroutine(AdventureSkybreakVisuals.BreakthroughFlashRoutine());
             AdventureMusicDirector.Ensure();
@@ -262,19 +262,15 @@ public partial class AdventureSanctuaryTowerManager
         if (orphanBoard != null)
             orphanBoard.SetActive(false);
 
-        if (!IsClimaxOilPromptActive)
-        {
-            var oilCanvas = GameObject.Find("ClimaxOilPromptCanvas");
-            if (oilCanvas != null)
-                oilCanvas.SetActive(false);
-        }
+        if (_oilUiRoot != null && !IsClimaxOilPromptActive)
+            _oilUiRoot.SetActive(false);
     }
 
     void TickClimaxOilHold()
     {
         if (!_climaxOilWaiting || _climaxOilInjected) return;
 
-        bool holding = IsDiveConfirmHeld();
+        bool holding = AdventureInputReader.OilHoldButtons;
         if (holding)
         {
             if (_oilHoldFrame != Time.frameCount)
@@ -339,7 +335,7 @@ public partial class AdventureSanctuaryTowerManager
         _scriptBoardOpenedAt = Time.unscaledTime;
         _scriptRequireInputRelease = true; // 注油長押しを一度離すまで蘇生セリフの送りをガード
         PresentClimaxBeat(ClimaxOilSlot);
-        Debug.Log("[RustAndFloat] 注油完了 → 台本11（蘇生セリフ）");
+        Debug.Log("[RustAndFloat] 注油完了 → 蘇生台本3（温かい油が…）");
     }
 
     IEnumerator ClimaxOilWarmGlowRoutine()
@@ -487,30 +483,6 @@ public partial class AdventureSanctuaryTowerManager
         RefreshOilPromptUI();
     }
 
-    static void CreateOilBar(Transform parent, bool top)
-    {
-        var go = new GameObject(top ? "LetterTop" : "LetterBottom");
-        go.transform.SetParent(parent, false);
-        var rt = go.AddComponent<RectTransform>();
-        if (top)
-        {
-            rt.anchorMin = new Vector2(0f, 1f);
-            rt.anchorMax = new Vector2(1f, 1f);
-            rt.pivot = new Vector2(0.5f, 1f);
-        }
-        else
-        {
-            rt.anchorMin = new Vector2(0f, 0f);
-            rt.anchorMax = new Vector2(1f, 0f);
-            rt.pivot = new Vector2(0.5f, 0f);
-        }
-        rt.sizeDelta = new Vector2(0f, 90f);
-        rt.anchoredPosition = Vector2.zero;
-        var img = go.AddComponent<Image>();
-        img.color = new Color(0.02f, 0.04f, 0.08f, 0.92f);
-        img.raycastTarget = false;
-    }
-
     void RefreshOilPromptUI()
     {
         if (_oilUiRoot == null) return;
@@ -528,7 +500,7 @@ public partial class AdventureSanctuaryTowerManager
             _oilGaugeFill.color = Color.Lerp(coldColor, warmColor, ratio);
 
             // 注油中のパルス脈動演出
-            bool holding = IsDiveConfirmHeld();
+            bool holding = AdventureInputReader.OilHoldButtons;
             if (_oilHoldBtn != null)
             {
                 if (holding && ratio > 0.01f)
@@ -552,9 +524,6 @@ public partial class AdventureSanctuaryTowerManager
             Destroy(_oilUiRoot);
             _oilUiRoot = null;
         }
-        var canvas = GameObject.Find("ClimaxOilPromptCanvas");
-        if (canvas != null)
-            Destroy(canvas);
     }
 
     void FinishClimaxSequence()

@@ -660,15 +660,9 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         TickCinematicLetterbox();
 
         // 入力離し待ちの解除（全フェーズ共通：キーを離したら即座に解除）
-        if (_scriptRequireInputRelease && !IsDiveConfirmHeld())
+        if (_scriptRequireInputRelease && !AdventureInputReader.OilHoldButtons && !AdventureInputReader.MouseRightHeld)
         {
             _scriptRequireInputRelease = false;
-        }
-
-        // 台本ボード：Updateでも進む入力を拾う（天蓋台本用。クライマックス中はTickClimaxSequenceに一任）
-        if (_scriptBoardVisible && !_scriptBoardAdvance && !_climaxOilWaiting && !_climaxCrisisStarted && !_scriptRequireInputRelease)
-        {
-            PollScriptBoardAdvance();
         }
 
         // キャッシュ参照を使用（毎フレームFind廃止）
@@ -2125,57 +2119,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         // レバー表示・台本・注油・クリアUIはすべて高精細uGUI（LeverPromptCanvas等）で一元管理。
         // 旧IMGUIの重複描画による半透明の空ボード（テキストなしの邪魔な枠）を完全排除。
-    }
-
-    /// <summary>台本：透明クリックのみ（文言はuGUI）</summary>
-    void DrawScriptBoardInputFallback()
-    {
-        if (!_scriptBoardVisible) return;
-        float w = Mathf.Min(640f, Screen.width * 0.85f);
-        float h = 64f;
-        float x = (Screen.width - w) * 0.5f;
-        float y = Screen.height - 96f;
-        GUI.color = new Color(1f, 1f, 1f, 0.01f);
-        if (GUI.Button(new Rect(x, y, w, h), GUIContent.none))
-        {
-            if (Time.unscaledTime - _scriptBoardOpenedAt >= 0.45f)
-                _scriptBoardAdvance = true;
-        }
-        GUI.color = Color.white;
-
-        Event e = Event.current;
-        if (e == null) return;
-        if (Time.unscaledTime - _scriptBoardOpenedAt < 0.45f) return;
-        if (e.type == EventType.KeyDown &&
-            (e.keyCode == KeyCode.Space || e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter || e.keyCode == KeyCode.E))
-        {
-            _scriptBoardAdvance = true;
-            e.Use();
-        }
-        if (e.type == EventType.MouseDown && (e.button == 0 || e.button == 1))
-        {
-            _scriptBoardAdvance = true;
-            e.Use();
-        }
-    }
-
-    /// <summary>注油：透明長押しヒットのみ（文言・ゲージはuGUI）</summary>
-    void DrawClimaxOilInputFallback()
-    {
-        if (!IsClimaxOilPromptActive) return;
-        float panelW = Mathf.Min(980f, Screen.width * 0.9f);
-        float panelH = Mathf.Clamp(Screen.height * 0.36f, 260f, 360f);
-        float px = (Screen.width - panelW) * 0.5f;
-        float py = (Screen.height - panelH) * 0.5f;
-        GUI.color = new Color(1f, 1f, 1f, 0.01f);
-        if (GUI.RepeatButton(new Rect(px, py, panelW, panelH), GUIContent.none))
-            _oilHoldTimer += Time.unscaledDeltaTime;
-        float btnW = Mathf.Min(720f, Screen.width * 0.85f);
-        float btnH = 72f;
-        float barH = Mathf.Clamp(Screen.height * 0.11f, 70f, 120f);
-        if (GUI.RepeatButton(new Rect((Screen.width - btnW) * 0.5f, Screen.height - barH - 12f - btnH, btnW, btnH), GUIContent.none))
-            _oilHoldTimer += Time.unscaledDeltaTime;
-        GUI.color = Color.white;
     }
 
     #endregion
