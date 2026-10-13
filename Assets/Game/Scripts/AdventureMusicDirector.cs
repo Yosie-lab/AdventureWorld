@@ -639,9 +639,9 @@ public class AdventureMusicDirector : MonoBehaviour
                     }
                 }
 
-                // トランペットの音量バランス（基準音量の0.35倍に設定：1周目0.126f、合流時0.161f、エピローグ0.168f）
-                float tptGain = ((cycle == 0) ? 0.36f : 0.46f) * 0.35f;
-                if (isDrumsOnly) tptGain = 0.48f * 0.35f;
+                // トランペットの音量バランス（基準音量の0.28倍に設定：1周目0.101f、合流時0.129f、エピローグ0.134f）
+                float tptGain = ((cycle == 0) ? 0.36f : 0.46f) * 0.28f;
+                if (isDrumsOnly) tptGain = 0.48f * 0.28f;
 
                 float combined = tptSignal * tptGain + pad * 0.18f;
                 strL = combined * 0.98f;
