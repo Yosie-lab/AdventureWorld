@@ -53,6 +53,7 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
     private CanvasGroup _promptCg;
     private Text _promptText;
     private float _rustGuideCooldown = 0f;
+    private float _lastLiftToastTime = 0f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     public static void AutoEnsure()
@@ -483,6 +484,11 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
             if (distToVent < 3.2f && yDiff >= -0.5f && yDiff < 4.5f)
             {
                 player.ApplyLaunchUpdraft(8.5f, 10.5f, toTerraceFlat);
+                if (Time.time - _lastLiftToastTime > 5.0f)
+                {
+                    _lastLiftToastTime = Time.time;
+                    AdventureNotificationToast.Show("✦ サーマルリフト！ 崖上の隠しテラスへ上昇！ ✦", 2.2f);
+                }
             }
 
             // 2. 上昇気流コリドー（ファンから崖上テラスへ向かう風の通り道）
@@ -514,10 +520,10 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         // 崖上の古代宝箱インタラクション
         // ═══════════════════════════════════════════════════════════════
         float distToChest = Vector3.Distance(pPos, cliffTerracePos);
-        if (!_isChestOpened && distToChest < 2.8f)
+        if (!_isChestOpened && distToChest < 3.2f)
         {
             _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 1f, 5f * Time.deltaTime);
-            _promptText.text = "<color=#FFE066><b>✨ 【Eキー】古代の浮遊遺物を開封する</b></color>";
+            _promptText.text = "<color=#FFE066><b>✨ 【E / クリック】古代の浮遊遺物を開封する</b></color>";
 
             if (CheckInteractInput())
             {
@@ -527,29 +533,29 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // クリスタルへのFキー送電合図インタラクション
+        // クリスタルへの送電合図インタラクション（E / F / 左クリックどれでもOK）
         // ═══════════════════════════════════════════════════════════════
         float distToCrystal = Vector3.Distance(pPos, crystalBasePos);
         if (!_isActivated && !_isCharging)
         {
-            if (distToCrystal < 6.8f)
+            if (distToCrystal < 7.5f)
             {
                 _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 1f, 5f * Time.deltaTime);
-                _promptText.text = "<color=#80D8FF><b>✦ 【Fキー】相棒Rustにクリスタルへの送電を指示する ✦</b></color>";
+                _promptText.text = "<color=#80D8FF><b>✦ 【E / F / クリック】相棒Rustにクリスタルへの送電を合図する ✦</b></color>";
 
-                // 近づいた時にRustが一度だけアドバイス
+                // 近づいた時にRustが自発的にアドバイス
                 _rustGuideCooldown -= Time.deltaTime;
                 if (_rustGuideCooldown <= 0f)
                 {
-                    _rustGuideCooldown = 40f;
+                    _rustGuideCooldown = 30f;
                     var drone = AdventureRustDrone.Instance;
                     if (drone != null)
                     {
-                        drone.SpeakCustom("ピピッ！あそこに古代の送電クリスタルがあるよ！\n【Fキー】を押して合図してくれたら、ボクのライトでチャージしてみるよ、Float！", 6.0f);
+                        drone.SpeakCustom("ピピッ！見て、古代の送電クリスタルだよ！\n【E / F / クリック】で合図してくれたら、ボクのライトでチャージしてみるよ、Float！", 6.5f);
                     }
                 }
 
-                if (CheckFKeyInput())
+                if (CheckChargeTriggerInput())
                 {
                     StartCrystalCharging();
                 }
@@ -559,20 +565,27 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
                 _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 0f, 5f * Time.deltaTime);
             }
         }
+        else if (_isCharging)
+        {
+            _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 1f, 5f * Time.deltaTime);
+            _promptText.text = "<color=#FFE066><b>⚡ 相棒Rustがエネルギー放電チャージ中…</b></color>";
+        }
         else
         {
-            if (distToChest >= 2.8f)
+            if (distToChest >= 3.2f)
             {
                 _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 0f, 5f * Time.deltaTime);
             }
         }
     }
 
-    bool CheckFKeyInput()
+    bool CheckChargeTriggerInput()
     {
+        // Fキー、Eキー、マウス左クリックのいずれでも快活に反応
         var kb = Keyboard.current ?? AdventureInputReader.Keyboard;
-        if (kb != null && kb.fKey.wasPressedThisFrame) return true;
-        try { if (Input.GetKeyDown(KeyCode.F)) return true; } catch { }
+        if (kb != null && (kb.fKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)) return true;
+        if (AdventureInputReader.InteractDown || AdventureInputReader.MouseLeftDown) return true;
+        try { if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0)) return true; } catch { }
         return false;
     }
 
@@ -587,7 +600,6 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         if (drone == null || drone.IsPerformingGimmick) return;
 
         _isCharging = true;
-        _promptCg.alpha = 0f;
 
         Vector3 targetPos = _crystalCore != null ? _crystalCore.position : crystalBasePos + Vector3.up * 2.5f;
 
