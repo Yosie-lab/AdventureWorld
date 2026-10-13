@@ -110,7 +110,6 @@ public partial class AdventureSanctuaryTowerManager
 
         _canopyBeatIndex = 0;
         _skyTearPlayed = false;
-        _scriptRequireInputRelease = true; // レバー引いた操作の余韻による即時スキップを完全防止
         PresentCanopyBeat(0);
         AdventureStoryFlow.InvalidateCache();
         Debug.Log("[RustAndFloat] 天蓋スクリーンスクリプト（シネマ字幕）を Update 駆動で開始（全" + CanopyBeats.Length + "枚）");
@@ -208,66 +207,35 @@ public partial class AdventureSanctuaryTowerManager
 
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
-        // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目4.5s／3枚目7.0s／会話3.8s／ダイブ6.0s）
-        float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
-            ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
-            : 4.0f;
-
-        // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、
-        // どんな手動入力や外部要求があってもきっちり7.50秒経過するまで絶対に進行させない（物理的完全ブロック）
-        if (_canopyBeatIndex == 0)
+        // 入力
+        if (openFor >= 0.35f)
         {
-            if (openFor < autoSec)
-            {
-                _scriptBoardAdvance = false;
-                return;
-            }
-            _scriptBoardAdvance = true;
-            Debug.Log($"[RustAndFloat] 第1幕「天蓋崩壊 未知の荒野への眺望」7.5秒表示満了（実経過={openFor:F2}秒）→ 次のセリフへ");
-        }
-        else
-        {
-            // 第2幕以降のセリフ：0.60秒デバウンス後に手動送り可能
-            if (openFor >= 0.60f)
-            {
-                if (!_scriptRequireInputRelease)
-                {
-                    PollScriptBoardAdvance();
-                }
+            PollScriptBoardAdvance();
 
-                // ダイブビート（ビート6）：長押し（0.35秒）でのみダイブ実行
-                if (_scriptBoardIsDive)
+            if (_scriptBoardIsDive && IsDiveConfirmHeld())
+            {
+                _scriptHoldTimer += Time.unscaledDeltaTime;
+                if (_filmSubtitleUi != null)
                 {
-                    if (IsDiveConfirmHeld())
-                    {
-                        _scriptHoldTimer += Time.unscaledDeltaTime;
-                        if (_filmSubtitleUi != null)
-                        {
-                            _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
-                        }
-                        if (_scriptHoldTimer >= 0.35f)
-                            _scriptBoardAdvance = true;
-                    }
-                    else
-                    {
-                        _scriptHoldTimer = 0f;
-                    }
+                    _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
                 }
-                else
-                {
-                    // 通常セリフ：設定秒数経過で自動進行
-                    if (openFor >= autoSec)
-                        _scriptBoardAdvance = true;
-                }
+                if (_scriptHoldTimer >= 0.35f)
+                    _scriptBoardAdvance = true;
             }
+            else
+            {
+                _scriptHoldTimer = 0f;
+            }
+
+            // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目4.5s／3枚目7.0s／会話3.8s／ダイブ6.0s）
+            float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
+                ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
+                : (_scriptBoardIsDive ? 6.0f : 3.5f);
+            if (openFor >= autoSec)
+                _scriptBoardAdvance = true;
         }
 
         if (!_scriptBoardAdvance) return;
-
-        // セリフ進行：次のセリフへ進む瞬間に入力フラグを落とし、キー離し待ちをセット（連打突き抜け防止）
-        _scriptHoldTimer = 0f;
-        _scriptBoardAdvance = false;
-        _scriptRequireInputRelease = true;
 
         int next = _canopyBeatIndex + 1;
         if (next >= CanopyBeats.Length)
@@ -402,8 +370,7 @@ public partial class AdventureSanctuaryTowerManager
         if (!_scriptBoardVisible) return;
         if (_scriptRequireInputRelease) return;
         if (_climaxCrisisStarted) return; // クライマックス中はTickClimaxSequenceが一元管理
-        if (_canopyBeatIndex == 0) return; // 第1幕「未知の荒野への眺望」は映画の導入のため7.5秒間しっかり鑑賞させる
-        const float minShow = 0.60f;
+        float minShow = 0.45f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
         _scriptBoardAdvance = true;
         Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");

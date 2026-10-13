@@ -151,7 +151,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     }
     static readonly CanopyBeat[] CanopyBeats =
     {
-        new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 7.5f),
+        new CanopyBeat("天蓋崩壊　未知の荒野への跳躍", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 7.5f),
         new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 4.5f),
         new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Float！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 7.0f),
         new CanopyBeat("", "✦ Float", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f), autoSec: 3.8f),
@@ -1418,7 +1418,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         if (!_scriptBoardVisible || _scriptBoardAdvance) return;
         if (_scriptRequireInputRelease) return;
-        if (_canopyBeatIndex == 0) return; // 第1幕「天蓋崩壊 未知の荒野への眺望」は7.5秒間スキップ不可
 
         // セリフ表示直後の誤タップ防止（0.30秒）
         const float minShow = 0.30f;

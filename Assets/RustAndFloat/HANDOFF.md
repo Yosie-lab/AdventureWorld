@@ -10,25 +10,6 @@ created: 2026-09-11
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容
-- **第1幕「天蓋崩壊 未知の荒野への眺望」の 7.5秒間 鉄壁フル表示保証（物理的完全ブロック）**:
-  - `AdventureSanctuaryTowerManager.Canopy.cs`:
-    - `TickCanopyScriptBeats()` 内で `_canopyBeatIndex == 0` の場合、実経過時間 `openFor < autoSec` (7.50秒) の間は強制的に `_scriptBoardAdvance = false; return;` で関数を脱出する鉄壁ガードを実装。
-    - 外部呼び出し（`NotifyScriptBoardAdvance`）やキー入力（`PollScriptBoardAdvance`）によるあらゆる先行スキップ判定を物理的に遮断。
-    - 7.50秒経過満了時のみ `_scriptBoardAdvance = true` となり自動進行（ログ出力付き）。
-  - `AdventureSanctuaryTowerManager.cs`:
-    - `PollScriptBoardAdvance()` 冒頭に `if (_canopyBeatIndex == 0) return;` ガードを追加。
-- **崩壊シーケンス後（天蓋崩壊〜クライマックス）のセリフ送り飛び・誤爆解消＆自然な進行へのリファクタリング**:
-  - `AdventureSanctuaryTowerManager.Canopy.cs`:
-    - **連打・長押し突き抜けスキップの完全撲滅**: セリフが1つ進む瞬間（`next` へ切り替え時）に `_scriptRequireInputRelease = true;` をセット。1回のクリックやSpace押しで2〜3個のセリフが雪崩のようにスキップされる不具合を完全解消。
-    - **ダイブビート（ビート6）の保護**: ダイブ時は放置タイムアウトによる勝手な自動送りを停止し、プレイヤーが実際にSpace/クリック長押し（0.35秒）を完了した時のみ光の柱へダイブするように修正。
-  - `AdventureSanctuaryTowerManager.Climax.cs`:
-    - クライマックス各セリフの切り替え時にも `_scriptRequireInputRelease = true;` を設定し、セリフ進行時の突き抜けスキップを防止。
-- **天蓋崩壊「未知の荒野への眺望」のタイトル更新および7.5秒間表示保証**:
-  - `AdventureSanctuaryTowerManager.cs`:
-    - CanopyBeats[0] のタイトルを「天蓋崩壊　未知の荒野への眺望」に更新（自動送り秒数 `7.5f` を維持）。
-  - `AdventureSanctuaryTowerManager.Canopy.cs`:
-    - レバー作動直後の入力（E・クリック）の余韻による即時スキップを防ぐため、開始時に `_scriptRequireInputRelease = true` を設定。
-    - 第1幕「未知の荒野への眺望」表示中は、誤クリックやキー入力、ジャンプ操作による途中スキップをガードし、確実に元の **7.5秒間** 表示が持続して崩壊演出を鑑賞できるように修正。
 - **クライマックス最終セリフ（「ピピッ！ありがとう、Float！」）の操作ガイド表示完全削除**:
   - `AdventureSanctuaryTowerManager.Climax.cs`:
     - セリフ「ピピッ！……ありがとう、Float！これで僕たちの翼は折れることはないよ！　大空の向こうまで、全力で行こう！！」の字幕下部に残存していた操作ガイド（`hint = "【 Space / クリック 】大空へ！"` および `_scriptHintUi.text`）を完全撤去。映画的な純粋字幕のみの表示に統一。
