@@ -446,10 +446,11 @@ public class AdventureCompassHUD : MonoBehaviour
             Vector3 playerPos = player.transform.position;
             bool isGuidingToTower = mgr.IsLeverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken;
 
-            // 古代クリスタルパズルの探知（未起動の場合に最優先案内）
+            // 古代クリスタルパズルの探知（未起動ならクリスタル、起動後未開封なら崖上の隠しテラスへ案内）
             AdventureRustCrystalPuzzle.Ensure();
             var puzzle = AdventureRustCrystalPuzzle.Instance ?? FindAnyObjectByType<AdventureRustCrystalPuzzle>();
             bool isGuidingToCrystal = puzzle != null && !puzzle.IsActivated;
+            bool isGuidingToTerrace = puzzle != null && puzzle.IsActivated && !puzzle.IsChestOpened;
 
             Vector3 targetPos;
             string targetName;
@@ -470,6 +471,14 @@ public class AdventureCompassHUD : MonoBehaviour
                 targetPos = puzzle.crystalBasePos;
                 targetName = "古代の送電クリスタル";
                 targetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
+                dist = Vector3.Distance(playerPos, targetPos);
+                hasTarget = true;
+            }
+            else if (isGuidingToTerrace)
+            {
+                targetPos = puzzle.cliffTerracePos;
+                targetName = "崖上の隠しテラス（古代宝箱）";
+                targetColor = new Color(1.0f, 0.85f, 0.35f, 1.0f);
                 dist = Vector3.Distance(playerPos, targetPos);
                 hasTarget = true;
             }
@@ -517,10 +526,10 @@ public class AdventureCompassHUD : MonoBehaviour
                     if (_scrapMarkerRt != null)
                     {
                         _scrapMarkerRt.gameObject.SetActive(true);
-                        string iconCenter = isGuidingToTower ? "🏛️" : (isGuidingToCrystal ? "⚡" : "★");
-                        string iconSub = isGuidingToTower ? "🏛️" : (isGuidingToCrystal ? "⚡" : "✦");
-                        string iconRight = isGuidingToTower ? "🏛️▶" : (isGuidingToCrystal ? "⚡▶" : "✦▶");
-                        string iconLeft = isGuidingToTower ? "◀🏛️" : (isGuidingToCrystal ? "◀⚡" : "◀✦");
+                        string iconCenter = isGuidingToTower ? "🏛️" : (isGuidingToCrystal ? "⚡" : (isGuidingToTerrace ? "🎁" : "★"));
+                        string iconSub = isGuidingToTower ? "🏛️" : (isGuidingToCrystal ? "⚡" : (isGuidingToTerrace ? "🎁" : "✦"));
+                        string iconRight = isGuidingToTower ? "🏛️▶" : (isGuidingToCrystal ? "⚡▶" : (isGuidingToTerrace ? "🎁▶" : "✦▶"));
+                        string iconLeft = isGuidingToTower ? "◀🏛️" : (isGuidingToCrystal ? "◀⚡" : (isGuidingToTerrace ? "◀🎁" : "◀✦"));
 
                         PlaceEdgeMarker(
                             _scrapMarkerRt, _scrapMarkerText, _scrapBearing, targetColor,
@@ -631,6 +640,27 @@ public class AdventureCompassHUD : MonoBehaviour
                     {
                         _scrapNavText.text = $"⚡ 古代クリスタル 約{Mathf.RoundToInt(cryDist)}m（{cryCard}方角） [{cryArrow}] 【Fキー送電ギミック】";
                         _scrapNavText.color = new Color(0.25f, 0.95f, 1.0f, 1.0f);
+                    }
+                }
+                else if (isGuidingToTerrace)
+                {
+                    Vector3 toTerrace = targetPos - playerPos;
+                    toTerrace.y = 0f;
+                    float terDist = toTerrace.magnitude;
+                    float terYaw = YawFromForward(toTerrace);
+                    float terAngle = Mathf.DeltaAngle(yaw, terYaw);
+                    string terCard = GetCardinal(terYaw);
+                    string terArrow = BearingHint(terAngle, ref _scrapHint);
+
+                    if (terDist <= 3.5f)
+                    {
+                        _scrapNavText.text = "🎁 崖上の古代テラス 【Eキーで古代の浮遊遺物を開封！】";
+                        _scrapNavText.color = new Color(1.0f, 0.90f, 0.35f, 1.0f);
+                    }
+                    else
+                    {
+                        _scrapNavText.text = $"🎁 崖上の隠しテラス（黄金光柱） 約{Mathf.RoundToInt(terDist)}m（{terCard}方角） [{terArrow}] 【送風ファンで上昇！】";
+                        _scrapNavText.color = new Color(1.0f, 0.85f, 0.35f, 1.0f);
                     }
                 }
                 else if (hasTarget && dist > 3.5f)

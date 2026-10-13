@@ -29,6 +29,7 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
 
     private bool _isCharging = false;
     private bool _isChestOpened = false;
+    public bool IsChestOpened => _isChestOpened;
 
     // クリスタル本体
     private Transform _crystalCore;
@@ -45,6 +46,7 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
     private GameObject _chestRoot;
     private Transform _chestLid;
     private Light _chestLight;
+    private GameObject _chestBeaconPillar;
 
     // プロンプトUI
     private GameObject _promptCanvasGo;
@@ -96,10 +98,11 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         {
             ApplyActivatedState(immediate: true);
         }
-        if (_isChestOpened && _chestLid != null)
+        if (_isChestOpened)
         {
-            _chestLid.localRotation = Quaternion.Euler(-95f, 0f, 0f);
+            if (_chestLid != null) _chestLid.localRotation = Quaternion.Euler(-95f, 0f, 0f);
             if (_chestLight != null) _chestLight.enabled = false;
+            if (_chestBeaconPillar != null) _chestBeaconPillar.SetActive(false);
         }
     }
 
@@ -115,7 +118,7 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
             ventBasePos.y = vy + 0.05f;
 
             float ty = land.SampleHeight(cliffTerracePos) + land.transform.position.y;
-            cliffTerracePos.y = Mathf.Max(ty, 31.5f) + 0.1f;
+            cliffTerracePos.y = ty + 0.55f; // 地面の傾斜からしっかり浮き上がった展望石舞台
         }
     }
 
@@ -248,25 +251,89 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         _chestRoot.transform.SetParent(transform, false);
         _chestRoot.transform.position = cliffTerracePos;
 
-        // テラス石床
+        // 迫り出す重厚な古代石の円形テラス舞台（厚さ1.2m、直径6.8m）
         var terraceFloor = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         terraceFloor.name = "TerracePlatform";
         terraceFloor.transform.SetParent(_chestRoot.transform, false);
-        terraceFloor.transform.localPosition = new Vector3(0f, -0.2f, 0f);
-        terraceFloor.transform.localScale = new Vector3(4.5f, 0.2f, 4.5f);
+        terraceFloor.transform.localPosition = new Vector3(0f, 0f, 0f);
+        terraceFloor.transform.localScale = new Vector3(6.8f, 0.6f, 6.8f);
         var tfRend = terraceFloor.GetComponent<Renderer>();
         if (tfRend != null) tfRend.material = stoneMat;
+
+        // テラスの手前（谷側・ファン側）のステップ基盤（着地しやすい幅広ステップ）
+        var stepFloor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        stepFloor.name = "TerraceStep";
+        stepFloor.transform.SetParent(_chestRoot.transform, false);
+        stepFloor.transform.localPosition = new Vector3(0f, -0.3f, -2.4f);
+        stepFloor.transform.localScale = new Vector3(4.8f, 0.6f, 2.4f);
+        var sfRend = stepFloor.GetComponent<Renderer>();
+        if (sfRend != null) sfRend.material = stoneMat;
+
+        // テラス背後（北側）の古代石柵（低い半円状の護壁）
+        for (int i = 0; i < 5; i++)
+        {
+            float angle = 45f + i * 45f;
+            float rad = angle * Mathf.Deg2Rad;
+            var fence = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            fence.name = "TerraceFence_" + i;
+            fence.transform.SetParent(_chestRoot.transform, false);
+            fence.transform.localPosition = new Vector3(Mathf.Sin(rad) * 3.1f, 0.65f, Mathf.Cos(rad) * 3.1f);
+            fence.transform.localRotation = Quaternion.Euler(0f, angle + 90f, 0f);
+            fence.transform.localScale = new Vector3(1.8f, 0.65f, 0.35f);
+            var fRend = fence.GetComponent<Renderer>();
+            if (fRend != null) fRend.material = stoneMat;
+        }
+
+        // 左右にそびえる古代石柱（Monument Pillars）
+        for (int side = -1; side <= 1; side += 2)
+        {
+            var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pillar.name = "TerracePillar_" + (side > 0 ? "R" : "L");
+            pillar.transform.SetParent(_chestRoot.transform, false);
+            pillar.transform.localPosition = new Vector3(side * 2.8f, 1.6f, 0.6f);
+            pillar.transform.localScale = new Vector3(0.65f, 1.6f, 0.65f);
+            var pRend = pillar.GetComponent<Renderer>();
+            if (pRend != null) pRend.material = stoneMat;
+
+            // 柱頭の黄金ルーンランタン（遠くからでも目立つ灯火）
+            var orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            orb.transform.SetParent(pillar.transform, false);
+            orb.transform.localPosition = new Vector3(0f, 1.05f, 0f);
+            orb.transform.localScale = new Vector3(0.6f, 0.3f, 0.6f);
+            var orbRend = orb.GetComponent<Renderer>();
+            var orbMat = new Material(litShader);
+            orbMat.SetColor("_BaseColor", new Color(1.0f, 0.85f, 0.3f));
+            orbMat.EnableKeyword("_EMISSION");
+            orbMat.SetColor("_EmissionColor", new Color(2.5f, 1.8f, 0.4f) * 2.0f);
+            if (orbRend != null) orbRend.material = orbMat;
+        }
+
+        // 空高く立ち上る古代遺跡の黄金光柱（天空ビーコン：どこからでもテラスが一目でわかる）
+        var beaconPillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        beaconPillar.name = "ChestBeaconPillar";
+        beaconPillar.transform.SetParent(_chestRoot.transform, false);
+        beaconPillar.transform.localPosition = new Vector3(0f, 16f, 0f);
+        beaconPillar.transform.localScale = new Vector3(0.65f, 16f, 0.65f);
+        var bpCol = beaconPillar.GetComponent<Collider>();
+        if (bpCol != null) Destroy(bpCol);
+        var bpRend = beaconPillar.GetComponent<Renderer>();
+        var beaconMat = new Material(litShader);
+        beaconMat.SetColor("_BaseColor", new Color(1.0f, 0.85f, 0.25f, 0.6f));
+        beaconMat.EnableKeyword("_EMISSION");
+        beaconMat.SetColor("_EmissionColor", new Color(2.8f, 2.0f, 0.5f) * 2.5f);
+        if (bpRend != null) bpRend.material = beaconMat;
+        _chestBeaconPillar = beaconPillar;
 
         // 宝箱本体
         var chestBase = GameObject.CreatePrimitive(PrimitiveType.Cube);
         chestBase.name = "ChestBase";
         chestBase.transform.SetParent(_chestRoot.transform, false);
-        chestBase.transform.localPosition = new Vector3(0f, 0.35f, 0f);
-        chestBase.transform.localScale = new Vector3(1.1f, 0.7f, 0.8f);
+        chestBase.transform.localPosition = new Vector3(0f, 0.7f, 0f);
+        chestBase.transform.localScale = new Vector3(1.3f, 0.75f, 0.9f);
         var goldMat = new Material(litShader);
-        goldMat.SetColor("_BaseColor", new Color(0.85f, 0.72f, 0.35f));
-        goldMat.SetFloat("_Metallic", 0.75f);
-        goldMat.SetFloat("_Smoothness", 0.65f);
+        goldMat.SetColor("_BaseColor", new Color(0.95f, 0.80f, 0.35f));
+        goldMat.SetFloat("_Metallic", 0.85f);
+        goldMat.SetFloat("_Smoothness", 0.75f);
         var cbRend = chestBase.GetComponent<Renderer>();
         if (cbRend != null) cbRend.material = goldMat;
 
@@ -274,8 +341,8 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         var lidGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
         lidGo.name = "ChestLid";
         lidGo.transform.SetParent(_chestRoot.transform, false);
-        lidGo.transform.localPosition = new Vector3(0f, 0.7f, -0.38f);
-        lidGo.transform.localScale = new Vector3(1.15f, 0.25f, 0.85f);
+        lidGo.transform.localPosition = new Vector3(0f, 1.1f, -0.42f);
+        lidGo.transform.localScale = new Vector3(1.35f, 0.28f, 0.95f);
         _chestLid = lidGo.transform;
         var lidRend = lidGo.GetComponent<Renderer>();
         if (lidRend != null) lidRend.material = goldMat;
@@ -283,12 +350,12 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         // 宝箱の黄金の輝き
         var chlGo = new GameObject("ChestGlowLight");
         chlGo.transform.SetParent(_chestRoot.transform, false);
-        chlGo.transform.localPosition = new Vector3(0f, 1.1f, 0f);
+        chlGo.transform.localPosition = new Vector3(0f, 1.4f, 0f);
         _chestLight = chlGo.AddComponent<Light>();
         _chestLight.type = LightType.Point;
         _chestLight.color = new Color(1.0f, 0.85f, 0.4f);
-        _chestLight.range = 6f;
-        _chestLight.intensity = 2.8f;
+        _chestLight.range = 8.5f;
+        _chestLight.intensity = 3.2f;
     }
 
     void SetupWindParticles(ParticleSystem ps)
@@ -412,33 +479,33 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
             float distToVent = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(ventBasePos.x, ventBasePos.z));
             float yDiff = pPos.y - ventBasePos.y;
 
-            // 1. 送風ファン直上（地上歩行や通常ジャンプからでも一気に大空へ射出）
-            if (distToVent < 3.2f && yDiff >= -0.5f && yDiff < 5.5f)
+            // 1. 送風ファン直上（地上歩行や通常ジャンプからでもふわりと高度34mのテラスへリフト）
+            if (distToVent < 3.2f && yDiff >= -0.5f && yDiff < 4.5f)
             {
-                player.ApplyLaunchUpdraft(21.0f, 25.0f, toTerraceFlat);
+                player.ApplyLaunchUpdraft(8.5f, 10.5f, toTerraceFlat);
             }
 
             // 2. 上昇気流コリドー（ファンから崖上テラスへ向かう風の通り道）
-            // X: 203〜213, Z: 291〜313, 高度: 地上〜テラス頭上(+4m)
+            // X: 203〜213, Z: 291〜313, 高度: 地上〜テラス頭上(+2.5m)
             float xMin = Mathf.Min(ventBasePos.x, cliffTerracePos.x) - 4.5f;
             float xMax = Mathf.Max(ventBasePos.x, cliffTerracePos.x) + 4.5f;
             float zMin = Mathf.Min(ventBasePos.z, cliffTerracePos.z) - 3.0f;
             float zMax = Mathf.Max(ventBasePos.z, cliffTerracePos.z) + 3.0f;
 
             bool inWindCorridor = pPos.x >= xMin && pPos.x <= xMax && pPos.z >= zMin && pPos.z <= zMax;
-            if (inWindCorridor && yDiff >= -0.5f && pPos.y < cliffTerracePos.y + 4.0f)
+            if (inWindCorridor && yDiff >= -0.5f && pPos.y < cliffTerracePos.y + 2.5f)
             {
-                // 高度がテラス未満なら強力な浮力を維持
-                if (pPos.y < cliffTerracePos.y + 1.2f)
+                // テラスの高さ未満なら緩やかにリフト
+                if (pPos.y < cliffTerracePos.y + 0.6f)
                 {
-                    player.ApplyLaunchUpdraft(18.5f, 21.0f);
+                    player.ApplyLaunchUpdraft(7.5f, 9.5f);
                 }
 
                 // テラス方向への心地よい前進気流（自動誘導アシスト）
                 Vector3 toTerrace = new Vector3(cliffTerracePos.x - pPos.x, 0f, cliffTerracePos.z - pPos.z);
-                if (toTerrace.magnitude > 1.0f)
+                if (toTerrace.magnitude > 1.2f)
                 {
-                    player.ApplyGlideBoost(1.5f, 0.4f, toTerrace.normalized);
+                    player.ApplyGlideBoost(1.35f, 0.4f, toTerrace.normalized);
                 }
             }
         }
@@ -552,7 +619,13 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
                 var hud = AdventureScrapHUD.Instance;
                 if (hud != null)
                 {
-                    hud.ShowUpgradeBanner("✦ 上昇気流ファン起動！ ✦\n💡 気流に乗って断崖の上へ大跳躍しよう！");
+                    hud.ShowUpgradeBanner("✦ 上昇気流ファン起動！ ✦\n💡 送風ファンに乗って、崖上の黄金テラスへ跳ぼう！");
+                }
+
+                var drone = AdventureRustDrone.Instance;
+                if (drone != null)
+                {
+                    drone.SpeakCustom("ピピッ！ファンが回ったよ！\n送風孔に乗ると、崖の上の隠しテラス（黄金の光柱）へ運んでくれるよ、Float！", 6.5f);
                 }
             }
         );
@@ -590,6 +663,10 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
 
         // 宝箱オープン演出
         StartCoroutine(AnimateChestOpen());
+        if (_chestBeaconPillar != null)
+        {
+            _chestBeaconPillar.SetActive(false);
+        }
 
         // 探索ポイント+2pt加算
         var scrapMgr = AdventureScrapManager.Instance;
