@@ -213,16 +213,20 @@ public partial class AdventureSanctuaryTowerManager
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
             : 4.0f;
 
-        // 第1幕「天蓋崩壊 未知の荒野への眺望」はレバー操作の余韻による誤爆を防ぐため1.2秒デバウンス（以降は手動送り可）
-        // その他のセリフは0.40秒デバウンス
-        float minShow = (_canopyBeatIndex == 0) ? 1.20f : 0.40f;
+        // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、途中のクリックや操作でスキップされず元の7.5秒間しっかり表示を保証
+        // その他のセリフは0.60秒デバウンス後に手動送り可能
+        float minShow = (_canopyBeatIndex == 0) ? autoSec : 0.60f;
 
         // 入力判定
         if (openFor >= minShow)
         {
-            if (!_scriptRequireInputRelease)
+            // 第1幕は7.5秒間じっくり鑑賞させるため手動送りをスキップ
+            if (_canopyBeatIndex != 0)
             {
-                PollScriptBoardAdvance();
+                if (!_scriptRequireInputRelease)
+                {
+                    PollScriptBoardAdvance();
+                }
             }
 
             // ダイブビート（ビート6）：長押し（0.35秒）でのみダイブ実行
@@ -245,7 +249,7 @@ public partial class AdventureSanctuaryTowerManager
             }
             else
             {
-                // 通常セリフ：プレイヤーが操作しなくても、設定秒数（第1幕はきっちり7.5秒）経過で自動進行
+                // 通常セリフ：設定秒数（第1幕はきっちり元の7.5秒間）経過で自動進行
                 if (openFor >= autoSec)
                     _scriptBoardAdvance = true;
             }
@@ -391,7 +395,8 @@ public partial class AdventureSanctuaryTowerManager
         if (!_scriptBoardVisible) return;
         if (_scriptRequireInputRelease) return;
         if (_climaxCrisisStarted) return; // クライマックス中はTickClimaxSequenceが一元管理
-        float minShow = (_canopyBeatIndex == 0) ? 1.20f : 0.40f;
+        if (_canopyBeatIndex == 0) return; // 第1幕「未知の荒野への眺望」は映画の導入のため7.5秒間しっかり鑑賞させる
+        const float minShow = 0.60f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
         _scriptBoardAdvance = true;
         Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");
