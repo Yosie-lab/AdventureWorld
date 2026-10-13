@@ -310,15 +310,14 @@ public partial class AdventureSanctuaryTowerManager
         _filmIndex = -1;
         _filmPhase = FilmPhaseInactive;
         _epilogueTriggered = false;
+        _endingSequenceActive = false;
         KeepAutoGlide(GetPlayer());
         IsGameCleared = true;
-        _showGameClearModal = true;
         _epilogueAlpha = 0f;
         _letterboxTargetAlpha = 0f;
         SuppressAllSpeechAndBanners();
         StopEpilogueSeagullAmbience();
-        EnsureGameClearModalUI();
-        PlayGameClearTriumphChime();
+        SetGameClearModalVisible(true);
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.KeepEndingThemeActive();
         AdventureStoryFlow.InvalidateCache();

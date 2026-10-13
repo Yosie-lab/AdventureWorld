@@ -71,6 +71,8 @@ public partial class AdventureSanctuaryTowerManager
         {
             _clearModalOpenedAt = Time.unscaledTime;
             _clearModalRequireRelease = true;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
             // 古いインスタンスが残っている場合はクリーンに再構築
             DestroyClearModalUI();
             EnsureGameClearModalUI();
@@ -82,6 +84,8 @@ public partial class AdventureSanctuaryTowerManager
         else
         {
             HideGameClearModalUI();
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
     }
 
@@ -221,6 +225,8 @@ public partial class AdventureSanctuaryTowerManager
         Debug.Log("[RustAndFloat] ★★★ StartNewGameFromClearModal 実行開始 ★★★");
         _showGameClearModal = false;
         HideGameClearModalUI();
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
         // エピローグ・クライマックス・エンディングのランタイム状態をゼロクリア
         _epilogueTriggered = false;
@@ -256,11 +262,26 @@ public partial class AdventureSanctuaryTowerManager
         Debug.Log("[RustAndFloat] ★ CloseGameClearModalForFreeExplore 実行（自由探索へ復帰）");
         _showGameClearModal = false;
         HideGameClearModalUI();
+        _endingSequenceActive = false;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.RestoreExplorationTheme();
         var player = GetPlayer();
         if (player != null)
+        {
             player.SetAutoGlideMode(false);
+            if (player.transform.position.y < 70f)
+            {
+                player.ForceGroundReset();
+            }
+            else
+            {
+                // 空中なら手動滑空モードを付与して自力で飛べるようにする
+                player.ApplyGlideBoost(1.5f, 30f);
+            }
+        }
         SetCinematicCamera(false);
         SetExplorationHudVisible(true);
         var drone = GetDrone();
@@ -285,22 +306,32 @@ public partial class AdventureSanctuaryTowerManager
     public void RelaunchIntoSky()
     {
         if (!ConsumeClearModalAction()) return;
-        Debug.Log("[RustAndFloat] ★ RelaunchIntoSky 実行（大空へダイブ）");
+        Debug.Log("[RustAndFloat] ★ RelaunchIntoSky 実行（大空へダイブ・手動操縦）");
         _showGameClearModal = false;
         HideGameClearModalUI();
+        _endingSequenceActive = false;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.RestoreExplorationTheme();
         var player = GetPlayer();
         if (player != null)
         {
-            // タワー上空の光柱へワープし、大空へ打ち上げ＆スーパー滑空
-            player.SetAutoGlideMode(false);
-            player.transform.position = new Vector3(512f, 110f, 512f);
-            player.ApplyLaunchUpdraft(25f, 25f);
-            player.ApplyGlideBoost(3.0f, 65f);
-            player.SetAutoGlideMode(true, 120f);
+            // CharacterController を一時無効化して安全に上空光柱へワープ
+            player.SetAutoGlideMode(false); // ★オートグライドを切って手動操作にする
+            var cc = player.GetComponent<CharacterController>();
+            if (cc != null) cc.enabled = false;
+            player.transform.position = new Vector3(512f, 130f, 512f);
+            if (cc != null) cc.enabled = true;
+
+            // 前方へ力強く大空滑空射出
+            Vector3 forwardAssist = player.transform.forward * 18f;
+            player.ApplyLaunchUpdraft(28f, 26f, forwardAssist);
+            player.ApplyGlideBoost(4.0f, 85f);
         }
-        SetCinematicCamera(true);
+        SetCinematicCamera(false); // ★カメラ自由視点を即座に復帰
+        SetExplorationHudVisible(true);
         var drone = GetDrone();
         if (drone != null)
         {

@@ -10,6 +10,14 @@ created: 2026-09-11
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容
+- **ゲームクリア表示後の操作不能不具合の解消**:
+  - `AdventureSanctuaryTowerManager.Epilogue.cs`:
+    - `FinishEpilogueFilm()` で `_endingSequenceActive = false` を設定し、エンディング演出フラグを適切に終了。
+    - `_showGameClearModal = true` の直接代入ではなく `SetGameClearModalVisible(true)` を経由するようにし、開いた直後の誤爆防止タイマー（`_clearModalOpenedAt`）および入力離し待ち（`_clearModalRequireRelease`）の初期化を確実に実行。
+  - `AdventureSanctuaryTowerManager.ClearUI.cs`:
+    - `SetGameClearModalVisible(false)`、`CloseGameClearModalForFreeExplore()`、`RelaunchIntoSky()`、`StartNewGameFromClearModal()` のすべてで、モーダル終了時に `Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;` を設定し、マウス視点操作を即座に復帰。
+    - `RelaunchIntoSky()`（大空へダイブ）で、操作をブロックしていた `SetCinematicCamera(true)` と `player.SetAutoGlideMode(true)` を廃止し、通常カメラ＋手動滑空モード（`SetAutoGlideMode(false)`）で射出。CharacterController を一旦無効化してから安全に上空 (512, 130, 512) へワープさせ、プレイヤー自身がWASD・マウス視点操作で自由に大空を飛行・旋回できるように修正。
+    - `CloseGameClearModalForFreeExplore()`（閉じる）で `_endingSequenceActive = false` を確実に設定し、シネマカメラ解除、探索HUD復帰、空中なら手動滑空ブースト付与、地上付近なら安全着地を実施。
 - **崩壊シーケンス後（Ascent〜Climax〜Epilogue〜Clear）の徹底リファクタリング**:
   - `AdventureSanctuaryTowerManager.Climax.cs`:
     - 未使用デッドコード（`CreateOilBar`）を完全撤去。
