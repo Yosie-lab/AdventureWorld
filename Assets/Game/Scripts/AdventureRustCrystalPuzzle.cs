@@ -261,12 +261,10 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         var tfRend = terraceFloor.GetComponent<Renderer>();
         if (tfRend != null) tfRend.material = stoneMat;
 
-        // CylinderのデフォルトCapsuleCollider（丸みでプレイヤーがスタックする原因）を平坦なBoxColliderに差し替え
+        // CylinderのデフォルトCapsuleColliderを破棄し、メッシュに忠実な正確なMeshColliderを付与
         var cylCol = terraceFloor.GetComponent<Collider>();
         if (cylCol != null) Destroy(cylCol);
-        var flatCol = terraceFloor.AddComponent<BoxCollider>();
-        flatCol.size = new Vector3(7.2f, 1.0f, 7.2f);
-        flatCol.center = new Vector3(0f, 0f, 0f);
+        terraceFloor.AddComponent<MeshCollider>();
 
         // テラスの手前（谷側・ファン側）のステップ基盤（着地しやすい幅広ステップ）
         var stepFloor = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -480,50 +478,23 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // 上昇気流（サーマル）リフト判定：砂浜から崖上テラス（高低差21m）へのダイナミック跳躍
+        // 上昇気流（サーマル）リフト判定：砂浜のファンから崖上テラス（高低差21m）へ大跳躍！
         // ═══════════════════════════════════════════════════════════════
         if (_isActivated)
         {
             Vector3 toTerraceFlat = new Vector3(cliffTerracePos.x - ventBasePos.x, 0f, cliffTerracePos.z - ventBasePos.z).normalized;
             float distToVent = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(ventBasePos.x, ventBasePos.z));
-            float distToTerraceFlat = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(cliffTerracePos.x, cliffTerracePos.z));
             float yDiff = pPos.y - ventBasePos.y;
 
-            // 1. 送風ファン直上（砂浜から一気に大空へドカンと打ち上げ！）
+            // 送風ファン直上（砂浜から一気に大空へドカンと打ち上げ！）
+            // 初速24.5m/sでテラス頭上（高度33m）まで一気に舞い上がり、放物線でテラス石舞台へふわりと着地
             if (distToVent < 3.2f && yDiff >= -0.5f && yDiff < 4.5f)
             {
-                player.ApplyLaunchUpdraft(18.0f, 22.0f, toTerraceFlat);
+                player.ApplyLaunchUpdraft(19.5f, 24.5f, toTerraceFlat);
                 if (Time.time - _lastLiftToastTime > 4.5f)
                 {
                     _lastLiftToastTime = Time.time;
                     AdventureNotificationToast.Show("✦ サーマルリフト！ 砂浜から断崖の展望テラスへ大跳躍！ ✦", 2.5f);
-                }
-            }
-            // 2. テラス安全ゾーン（テラス上空・テラス上：半径4.0m以内）
-            //    気流や浮力を完全にオフにし、プレイヤーが確実に着地して自由に歩行・探索できるようにする
-            else if (distToTerraceFlat < 4.0f && pPos.y >= cliffTerracePos.y - 1.5f)
-            {
-                // テラス上では上昇気流も誘導ブーストも一切かけない（スタック防止）
-            }
-            // 3. 上昇気流コリドー（断崖絶壁を駆け上がる空中のみアシスト）
-            else
-            {
-                float xMin = Mathf.Min(ventBasePos.x, cliffTerracePos.x) - 4.0f;
-                float xMax = Mathf.Max(ventBasePos.x, cliffTerracePos.x) + 4.0f;
-                float zMin = Mathf.Min(ventBasePos.z, cliffTerracePos.z) - 3.0f;
-                float zMax = Mathf.Max(ventBasePos.z, cliffTerracePos.z) + 3.0f;
-
-                bool inWindCorridor = pPos.x >= xMin && pPos.x <= xMax && pPos.z >= zMin && pPos.z <= zMax;
-                // テラス天面より下(-0.6m)、かつファンより上の空中にいる場合のみ浮遊アシスト
-                if (inWindCorridor && yDiff > 1.0f && pPos.y < cliffTerracePos.y - 0.6f)
-                {
-                    player.ApplyLaunchUpdraft(14.0f, 16.0f);
-
-                    Vector3 toTerrace = new Vector3(cliffTerracePos.x - pPos.x, 0f, cliffTerracePos.z - pPos.z);
-                    if (toTerrace.magnitude > 2.0f)
-                    {
-                        player.ApplyGlideBoost(1.2f, 0.3f, toTerrace.normalized);
-                    }
                 }
             }
         }
