@@ -14,8 +14,8 @@ public class AdventureMusicDirector : MonoBehaviour
     AudioSource _bgmSourceB;
     AudioClip _ambientThemeClip;
     AudioClip _skybreakThemeClip;
-    AudioClip _skybreakBuildUpClip;    // 36秒ビルドアップ曲（0〜12s:神聖ブラス, 12〜24s:ブリブリベース合流, 24〜36s:ドラム加わりフル編成）
-    AudioClip _skybreakDrumsOnlyClip;  // 12秒（Rust回復後：ベースが抜けてドラム＋BGMで大空へダイブ）
+    AudioClip _skybreakBuildUpClip;    // 48秒ビルドアップ曲（0〜12s:神聖ブラス, 12〜24s:ベース合流, 24〜36s:ドラム合流, 36〜48s:4周目リフレインでトランペット主旋律合流）
+    AudioClip _skybreakDrumsOnlyClip;  // 12秒（Rust回復後：軽快なドラム＋トランペット主旋律で大空へダイブ）
 
     bool _hasSwitchedToSkybreak = false;
     bool _isOverdriveDropActive = false;
@@ -441,16 +441,17 @@ public class AdventureMusicDirector : MonoBehaviour
 
     /// <summary>
     /// 天蓋崩壊＆天空ダイブ時の壮大な開放ファンファーレ。
-    /// isDrumsOnly = false：36秒の段階的ビルドアップ曲。
+    /// isDrumsOnly = false：48秒の段階的ビルドアップ曲（4周構成）。
     ///   - 0〜12秒  ：1周目（神聖ブラスパッド＋アルペジオ＋温かいパッド和音）
-    ///   - 12〜24秒：2周目（12秒の頭からブリブリベースが鳴り響き合流！）
-    ///   - 24〜36秒：3周目（24秒の頭からドラム＋感動のバッハ風バイオリン主旋律が合流し完全フル編成へ！）
-    /// isDrumsOnly = true ：Rust回復後（「全力で行こう！！」）。ベースとバイオリンが抜け、軽快なドラムとBGMで大空へ！
+    ///   - 12〜24秒：2周目（12秒の頭からベースが合流！）
+    ///   - 24〜36秒：3周目（24秒の頭からドラムが合流しリズム隊完成！メロディーはまだ待機）
+    ///   - 36〜48秒：4周目（36秒の頭から満を持して哀愁のトランペット主旋律がリフレインで合流！）
+    /// isDrumsOnly = true ：Rust回復後（「全力で行こう！！」）。軽快なドラム＋トランペット主旋律で大空へ！
     /// </summary>
     public AudioClip GenerateSkybreakTheme(bool isDrumsOnly)
     {
         int sampleRate = 44100;
-        float duration = isDrumsOnly ? 12.0f : 36.0f;
+        float duration = isDrumsOnly ? 12.0f : 48.0f;
         int totalSamples = Mathf.FloorToInt(sampleRate * duration);
         float[] samples = new float[totalSamples * 2];
 
@@ -517,7 +518,7 @@ public class AdventureMusicDirector : MonoBehaviour
         for (int i = 0; i < totalSamples; i++)
         {
             float t = (float)i / sampleRate;
-            int cycle = Mathf.Clamp(Mathf.FloorToInt(t / 12.0f), 0, 2);
+            int cycle = Mathf.Clamp(Mathf.FloorToInt(t / 12.0f), 0, 3);
             float cycleT = t % 12.0f;
             int bar8 = Mathf.Clamp(Mathf.FloorToInt(cycleT / 1.5f), 0, 7);
             float bar8T = cycleT % 1.5f;
@@ -525,15 +526,18 @@ public class AdventureMusicDirector : MonoBehaviour
 
             bool hasBass;
             bool hasDrums;
+            bool hasTrumpet;
             if (isDrumsOnly)
             {
                 hasBass = false;
                 hasDrums = true;
+                hasTrumpet = true;
             }
             else
             {
-                hasBass = (cycle >= 1);         // 12秒〜（2周目・3周目）でベース鳴動！
-                hasDrums = (cycle >= 2);        // 24秒〜（3周目）でドラム合流！
+                hasBass = (cycle >= 1);         // 12秒〜（2周目以降）でベース鳴動！
+                hasDrums = (cycle >= 2);        // 24秒〜（3周目以降）でドラム合流！
+                hasTrumpet = (cycle >= 3);      // 36秒〜（4周目リフレイン）からトランペット主旋律が合流！それまではメロディー無し
             }
 
             // 1. パワフルで神秘的なシネマティック・ブラスパッド
@@ -557,43 +561,46 @@ public class AdventureMusicDirector : MonoBehaviour
             float arpEnv = Mathf.Exp(-arpPhase * 5.0f);
             float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.19f;
 
-            // 3. 哀愁のある映画的ソロ・トランペット主旋律（全32拍・8小節） ＋ 温かいコードパッド
+            // 3. 哀愁のある映画的ソロ・トランペット主旋律（4周目リフレインから合流） ＋ 温かいコードパッド
             float strL = 0f;
             float strR = 0f;
             {
                 float tptSignal = 0f;
 
-                for (int m = 0; m < trumpetNotes.Length; m++)
+                if (hasTrumpet)
                 {
-                    var note = trumpetNotes[m];
-                    float noteDur = note.end - note.start;
-
-                    for (int d = 0; d < 3; d++)
+                    for (int m = 0; m < trumpetNotes.Length; m++)
                     {
-                        float nT = (d == 0) ? (cycleT - note.start) : ((d == 1) ? (cycleT + 12.0f - note.start) : (cycleT - 12.0f - note.start));
-                        if (nT >= 0f && nT <= noteDur)
+                        var note = trumpetNotes[m];
+                        float noteDur = note.end - note.start;
+
+                        for (int d = 0; d < 3; d++)
                         {
-                            // アタック（0.035s）とリリース（末尾0.025sでわずかに息を切り、次のタンギングを明瞭化）
-                            float tptEnv = 1f;
-                            if (nT < 0.035f)
-                                tptEnv = Mathf.SmoothStep(0f, 1f, nT / 0.035f);
-                            else if (nT > noteDur - 0.025f)
-                                tptEnv = Mathf.SmoothStep(1f, 0.10f, (nT - (noteDur - 0.025f)) / 0.025f);
+                            float nT = (d == 0) ? (cycleT - note.start) : ((d == 1) ? (cycleT + 12.0f - note.start) : (cycleT - 12.0f - note.start));
+                            if (nT >= 0f && nT <= noteDur)
+                            {
+                                // アタック（0.035s）とリリース（末尾0.025sでわずかに息を切り、次のタンギングを明瞭化）
+                                float tptEnv = 1f;
+                                if (nT < 0.035f)
+                                    tptEnv = Mathf.SmoothStep(0f, 1f, nT / 0.035f);
+                                else if (nT > noteDur - 0.025f)
+                                    tptEnv = Mathf.SmoothStep(1f, 0.10f, (nT - (noteDur - 0.025f)) / 0.025f);
 
-                            // ビブラートは一切かけず、まっすぐ澄んだストレートトーン
-                            float f = note.freq;
+                                // ビブラートは一切かけず、まっすぐ澄んだストレートトーン
+                                float f = note.freq;
 
-                            // トランペット固有の倍音構成（温かく甘美なフリューゲルホルン／哀愁の金管ソロ調）
-                            float wave = Mathf.Sin(2f * Mathf.PI * f * t) * 0.52f
-                                       + Mathf.Sin(2f * Mathf.PI * f * 2f * t) * 0.32f
-                                       + Mathf.Sin(2f * Mathf.PI * f * 3f * t) * 0.18f
-                                       + Mathf.Sin(2f * Mathf.PI * f * 4f * t) * 0.09f
-                                       + Mathf.Sin(2f * Mathf.PI * f * 5f * t) * 0.04f;
+                                // トランペット固有の倍音構成（温かく甘美なフリューゲルホルン／哀愁の金管ソロ調）
+                                float wave = Mathf.Sin(2f * Mathf.PI * f * t) * 0.52f
+                                           + Mathf.Sin(2f * Mathf.PI * f * 2f * t) * 0.32f
+                                           + Mathf.Sin(2f * Mathf.PI * f * 3f * t) * 0.18f
+                                           + Mathf.Sin(2f * Mathf.PI * f * 4f * t) * 0.09f
+                                           + Mathf.Sin(2f * Mathf.PI * f * 5f * t) * 0.04f;
 
-                            // 管の温かい空気感（Tanhサチュレーション）
-                            float warmWave = (float)System.Math.Tanh(wave * 1.35f);
+                                // 管の温かい空気感（Tanhサチュレーション）
+                                float warmWave = (float)System.Math.Tanh(wave * 1.35f);
 
-                            tptSignal += warmWave * tptEnv;
+                                tptSignal += warmWave * tptEnv;
+                            }
                         }
                     }
                 }
@@ -632,9 +639,9 @@ public class AdventureMusicDirector : MonoBehaviour
                     }
                 }
 
-                // トランペットの音量バランス（基準音量の0.4倍に設定：1周目0.144f、合流時0.184f、エピローグ0.192f）
-                float tptGain = ((cycle == 0) ? 0.36f : 0.46f) * 0.4f;
-                if (isDrumsOnly) tptGain = 0.48f * 0.4f;
+                // トランペットの音量バランス（基準音量の0.35倍に設定：1周目0.126f、合流時0.161f、エピローグ0.168f）
+                float tptGain = ((cycle == 0) ? 0.36f : 0.46f) * 0.35f;
+                if (isDrumsOnly) tptGain = 0.48f * 0.35f;
 
                 float combined = tptSignal * tptGain + pad * 0.18f;
                 strL = combined * 0.98f;
