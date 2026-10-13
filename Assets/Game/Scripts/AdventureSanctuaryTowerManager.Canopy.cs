@@ -213,45 +213,52 @@ public partial class AdventureSanctuaryTowerManager
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
             : 4.0f;
 
-        // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、途中のクリックや操作でスキップされず元の7.5秒間しっかり表示を保証
-        // その他のセリフは0.60秒デバウンス後に手動送り可能
-        float minShow = (_canopyBeatIndex == 0) ? autoSec : 0.60f;
-
-        // 入力判定
-        if (openFor >= minShow)
+        // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、
+        // どんな手動入力や外部要求があってもきっちり7.50秒経過するまで絶対に進行させない（物理的完全ブロック）
+        if (_canopyBeatIndex == 0)
         {
-            // 第1幕は7.5秒間じっくり鑑賞させるため手動送りをスキップ
-            if (_canopyBeatIndex != 0)
+            if (openFor < autoSec)
+            {
+                _scriptBoardAdvance = false;
+                return;
+            }
+            _scriptBoardAdvance = true;
+            Debug.Log($"[RustAndFloat] 第1幕「天蓋崩壊 未知の荒野への眺望」7.5秒表示満了（実経過={openFor:F2}秒）→ 次のセリフへ");
+        }
+        else
+        {
+            // 第2幕以降のセリフ：0.60秒デバウンス後に手動送り可能
+            if (openFor >= 0.60f)
             {
                 if (!_scriptRequireInputRelease)
                 {
                     PollScriptBoardAdvance();
                 }
-            }
 
-            // ダイブビート（ビート6）：長押し（0.35秒）でのみダイブ実行
-            if (_scriptBoardIsDive)
-            {
-                if (IsDiveConfirmHeld())
+                // ダイブビート（ビート6）：長押し（0.35秒）でのみダイブ実行
+                if (_scriptBoardIsDive)
                 {
-                    _scriptHoldTimer += Time.unscaledDeltaTime;
-                    if (_filmSubtitleUi != null)
+                    if (IsDiveConfirmHeld())
                     {
-                        _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
+                        _scriptHoldTimer += Time.unscaledDeltaTime;
+                        if (_filmSubtitleUi != null)
+                        {
+                            _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
+                        }
+                        if (_scriptHoldTimer >= 0.35f)
+                            _scriptBoardAdvance = true;
                     }
-                    if (_scriptHoldTimer >= 0.35f)
-                        _scriptBoardAdvance = true;
+                    else
+                    {
+                        _scriptHoldTimer = 0f;
+                    }
                 }
                 else
                 {
-                    _scriptHoldTimer = 0f;
+                    // 通常セリフ：設定秒数経過で自動進行
+                    if (openFor >= autoSec)
+                        _scriptBoardAdvance = true;
                 }
-            }
-            else
-            {
-                // 通常セリフ：設定秒数（第1幕はきっちり元の7.5秒間）経過で自動進行
-                if (openFor >= autoSec)
-                    _scriptBoardAdvance = true;
             }
         }
 

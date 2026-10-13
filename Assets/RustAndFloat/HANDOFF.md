@@ -10,11 +10,13 @@ created: 2026-09-11
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容
-- **第1幕「天蓋崩壊 未知の荒野への眺望」の 7.5秒間 フル表示保証（途中スキップ完全抑止）**:
+- **第1幕「天蓋崩壊 未知の荒野への眺望」の 7.5秒間 鉄壁フル表示保証（物理的完全ブロック）**:
   - `AdventureSanctuaryTowerManager.Canopy.cs`:
-    - 導入部であるビート0「天蓋崩壊 未知の荒野への眺望」表示中は、マウス左右クリックやSpace/Enter/E等の手動送り判定（`PollScriptBoardAdvance` および `NotifyScriptBoardAdvance`）を完全スキップ。
-    - プレイヤーが誤ってクリックやキー入力をしても3〜4秒で次に移ってしまうことが一切なくなり、**きっちり元の7.5秒間** 天蓋崩壊の映画的パノラマ演出と字幕が持続するよう修正。
-    - 第2幕以降のセリフは0.60秒のデバウンスを挟んでプレイヤーのペースでスムーズに手動送り可能。
+    - `TickCanopyScriptBeats()` 内で `_canopyBeatIndex == 0` の場合、実経過時間 `openFor < autoSec` (7.50秒) の間は強制的に `_scriptBoardAdvance = false; return;` で関数を脱出する鉄壁ガードを実装。
+    - 外部呼び出し（`NotifyScriptBoardAdvance`）やキー入力（`PollScriptBoardAdvance`）によるあらゆる先行スキップ判定を物理的に遮断。
+    - 7.50秒経過満了時のみ `_scriptBoardAdvance = true` となり自動進行（ログ出力付き）。
+  - `AdventureSanctuaryTowerManager.cs`:
+    - `PollScriptBoardAdvance()` 冒頭に `if (_canopyBeatIndex == 0) return;` ガードを追加。
 - **崩壊シーケンス後（天蓋崩壊〜クライマックス）のセリフ送り飛び・誤爆解消＆自然な進行へのリファクタリング**:
   - `AdventureSanctuaryTowerManager.Canopy.cs`:
     - **連打・長押し突き抜けスキップの完全撲滅**: セリフが1つ進む瞬間（`next` へ切り替え時）に `_scriptRequireInputRelease = true;` をセット。1回のクリックやSpace押しで2〜3個のセリフが雪崩のようにスキップされる不具合を完全解消。

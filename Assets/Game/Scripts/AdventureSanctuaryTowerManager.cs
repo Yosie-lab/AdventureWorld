@@ -1418,6 +1418,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         if (!_scriptBoardVisible || _scriptBoardAdvance) return;
         if (_scriptRequireInputRelease) return;
+        if (_canopyBeatIndex == 0) return; // 第1幕「天蓋崩壊 未知の荒野への眺望」は7.5秒間スキップ不可
 
         // セリフ表示直後の誤タップ防止（0.30秒）
         const float minShow = 0.30f;
