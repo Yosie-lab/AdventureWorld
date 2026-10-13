@@ -361,6 +361,7 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
 
     void SetupWindParticles(ParticleSystem ps)
     {
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = ps.main;
         main.duration = 4f;
         main.loop = true;
