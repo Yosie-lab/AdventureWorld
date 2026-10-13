@@ -50,7 +50,7 @@ public partial class AdventureSanctuaryTowerManager
     {
         new FilmLine("「わぁぁ……！見て、Float！　世界はこんなにも広かったんだ……！！」", 8.0f, 0,
             new Color(0.55f, 0.95f, 1f, 1f)),
-        new FilmLine("空が割れた。", 3.4f, 1, new Color(1f, 0.96f, 0.82f, 1f)),
+        new FilmLine("天蓋の檻を突き抜けたその先——", 3.8f, 1, new Color(1f, 0.96f, 0.82f, 1f)),
         new FilmLine("箱庭の外には、凍えるほどリアルで、優しい風が吹いていた。", 4.8f, 1, new Color(1f, 0.96f, 0.82f, 1f)),
         new FilmLine("人は、最適で最短な道を進むときだけじゃなく、", 4.7f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
         new FilmLine("寄り道をして、躓きながらも出会えた感動に——", 4.6f, 2, new Color(1f, 0.98f, 0.88f, 1f)),

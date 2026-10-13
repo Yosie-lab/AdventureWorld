@@ -83,7 +83,7 @@ public partial class AdventureSanctuaryTowerManager
         _scriptBoardVisible = true;
         _scriptBoardOpenedAt = Time.unscaledTime;
         _scriptHoldTimer = 0f;
-        _scriptRequireInputRelease = false;
+        // _scriptRequireInputRelease は BeginClimaxSequence や CompleteClimaxOil で明示設定された値を尊重（ここでの上書き解除を防止）
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         Time.timeScale = 1f;
@@ -95,7 +95,7 @@ public partial class AdventureSanctuaryTowerManager
 
         string hint = (index >= ClimaxBeats.Length - 1)
             ? "【 Space / クリック 】大空へ！"
-            : "【 Space / クリック 】つづき";
+            : null;
         SetScreenScriptSubtitle(beat.Title, beat.Speaker, beat.Body, beat.Accent, false, hint);
 
         // 台本1（警告）：そばで震え始める
@@ -197,12 +197,15 @@ public partial class AdventureSanctuaryTowerManager
 
         if (openFor >= minHoldOpen)
         {
-            // 1. タップ・決定入力（クリック・Space・Enter・Eキー・Jキー・ゲームパッド等）
-            PollScriptBoardAdvance();
-            if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseRightDown)
+            // 1. タップ・決定入力（クリック・Space・Enter・Eキー・Jキー・ゲームパッド等。離し待ち中は完全ガード）
+            if (!_scriptRequireInputRelease)
             {
-                _scriptBoardAdvance = true;
-                Debug.Log($"[RustAndFloat] クライマックス送り入力検知: beat={_climaxBeatIndex}");
+                PollScriptBoardAdvance();
+                if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseRightDown)
+                {
+                    _scriptBoardAdvance = true;
+                    Debug.Log($"[RustAndFloat] クライマックス送り入力検知: beat={_climaxBeatIndex}");
+                }
             }
 
             // 4. 自然な自動送り時間（放置シネマ：ClimaxBeats定義から直接取得）
@@ -334,7 +337,7 @@ public partial class AdventureSanctuaryTowerManager
         _scriptBoardAdvance = false;
         _scriptHoldTimer = 0f;
         _scriptBoardOpenedAt = Time.unscaledTime;
-        _scriptRequireInputRelease = false;
+        _scriptRequireInputRelease = true; // 注油長押しを一度離すまで蘇生セリフの送りをガード
         PresentClimaxBeat(ClimaxOilSlot);
         Debug.Log("[RustAndFloat] 注油完了 → 台本11（蘇生セリフ）");
     }

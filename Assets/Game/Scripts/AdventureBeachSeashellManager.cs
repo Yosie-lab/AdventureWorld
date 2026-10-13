@@ -516,7 +516,9 @@ public class AdventureBeachSeashellManager : MonoBehaviour
     {
         if (_seAudioSource == null)
         {
-            _seAudioSource = GetComponent<AudioSource>() ?? gameObject.AddComponent<AudioSource>();
+            _seAudioSource = GetComponent<AudioSource>();
+            if (_seAudioSource == null)
+                _seAudioSource = gameObject.AddComponent<AudioSource>();
             _seAudioSource.spatialBlend = 0f; // 2D音響で確実に届く
             _seAudioSource.playOnAwake = false;
         }

@@ -1729,7 +1729,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             string hint = _scriptBoardIsDive
                 ? "【Space / クリック】空の裂け目へダイブ"
-                : "【Space / クリック】つづき";
+                : "";
             Font f = ResolveUiFont();
             _scriptHintUi.font = f;
             PrepareFontForText(f, hint, 16, FontStyle.Bold);

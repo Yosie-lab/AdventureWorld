@@ -212,10 +212,10 @@ public partial class AdventureSanctuaryTowerManager
         {
             PollScriptBoardAdvance();
 
-            if (IsDiveConfirmHeld())
+            if (_scriptBoardIsDive && IsDiveConfirmHeld())
             {
                 _scriptHoldTimer += Time.unscaledDeltaTime;
-                if (_scriptBoardIsDive && _filmSubtitleUi != null)
+                if (_filmSubtitleUi != null)
                 {
                     _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
                 }

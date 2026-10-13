@@ -10,6 +10,16 @@ created: 2026-09-11
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容
+- **崩壊シーケンス後テロップの正常化・最新化＆「つづき」非表示化**:
+  - `AdventureSanctuaryTowerManager.Canopy.cs`:
+    - ダイブ長押し（Space/クリック）の判定ガードを `_scriptBoardIsDive`（ダイブ画面）限定に修正。通常セリフ時の 0.08 秒誤爆スキップを防止。
+  - `AdventureSanctuaryTowerManager.Climax.cs`:
+    - 光の柱上昇からのクライマックス突入時および注油完了時に、キー離しガード（`_scriptRequireInputRelease = true`）を確実に維持。ダイブや注油の長押し入力がそのまま突き抜けて「限界高度」「Rust凍結」「注油呼びかけ」の台本が一瞬でスキップ・消失する問題を解消。
+    - 台本字幕下部の操作ガイド **「【 Space / クリック 】つづき」を削除（非表示化）** し、映画字幕として美しく鑑賞できるように改善（最終セリフのみ「大空へ！」の合図を表示）。
+  - `AdventureSanctuaryTowerManager.Epilogue.cs`:
+    - エピローグ映画テロップの第1幕に初期の古いテロップである「空が割れた。」が重複して唐突に出ていた問題を解消し、大空滑空の視座に即した格調高い **「天蓋の檻を突き抜けたその先——」** へ更新。
+  - `AdventureBeachSeashellManager.cs`:
+    - Unity特有の擬似nullに対するC# `??` 演算子による `MissingComponentException` を安全な null チェックへ修正。
 - **ゲームスタートからエンドまでの包括リファクタリング（入力統合・警告撲滅・最適化）**:
   - `AdventureInputReader.cs`:
   - `AdventureInputReader.cs`:
