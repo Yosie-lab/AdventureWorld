@@ -491,7 +491,7 @@ public class AdventureMusicDirector : MonoBehaviour
 
             // 第5〜6小節 (Emコード / 6.00〜9.00s): G 5拍 + B 1拍 + E 1拍 + G 1拍
             (16.000f * beatSec, 21.000f * beatSec, 392.00f), // G4  (5拍 = 1.875s) 温かな叙情
-            (21.000f * beatSec, 22.000f * beatSec, 493.88f), // B4  (1拍 = 0.375s)
+            (21.000f * beatSec, 22.000f * beatSec, 246.94f), // B3  (1拍 = 0.375s) 1オクターブ低く落ち着いたトーンへ
             (22.000f * beatSec, 23.000f * beatSec, 329.63f), // E4  (1拍 = 0.375s)
             (23.000f * beatSec, 24.000f * beatSec, 392.00f), // G4  (1拍 = 0.375s)
 
@@ -632,9 +632,9 @@ public class AdventureMusicDirector : MonoBehaviour
                     }
                 }
 
-                // トランペットの音量バランス（1周目0〜12sは0.36f、ベース・ドラム合流時およびエピローグは0.46fで朗々と響く）
-                float tptGain = (cycle == 0) ? 0.36f : 0.46f;
-                if (isDrumsOnly) tptGain = 0.48f;
+                // トランペットの音量バランス（音量を半分に調整：1周目0.18f、合流時0.23f、エピローグ0.24f）
+                float tptGain = (cycle == 0) ? 0.18f : 0.23f;
+                if (isDrumsOnly) tptGain = 0.24f;
 
                 float combined = tptSignal * tptGain + pad * 0.18f;
                 strL = combined * 0.98f;
