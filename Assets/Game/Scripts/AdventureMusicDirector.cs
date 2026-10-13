@@ -715,17 +715,18 @@ public class AdventureMusicDirector : MonoBehaviour
 
                 // ── 3. 1オクターブ下の強力サブベース（重低音のパンチ） ──
                 float subRoot = bRoot * 0.5f; // 1オクターブ下（36.7Hz〜49Hz）の超低音
-                // オクターブ上のサイン成分を控えめに抑え（0.35f -> 0.15f）、どっしりとした重低音を主役に
+                // オクターブ上のサイン成分を半分に調整（0.15f -> 0.075f）、どっしりとした重低音を主役に
                 float subBass = Mathf.Sin(2f * Mathf.PI * subRoot * t) * 0.90f
-                              + Mathf.Sin(2f * Mathf.PI * bRoot * t) * 0.15f;
+                              + Mathf.Sin(2f * Mathf.PI * bRoot * t) * 0.075f;
 
-                // ── 4. フィルターモジュレーション（オクターブ上の高域倍音ボリュームを適度に抑える） ──
-                // ノコギリ波のオクターブ上で鳴るギラつきを少し抑え、太くマイルドに馴染ませる
+                // ── 4. フィルターモジュレーション（オクターブ上の高域倍音ボリュームを半分に抑える） ──
+                // ノコギリ波のオクターブ上で鳴るギラつきを抑え、太くマイルドに馴染ませる
                 float punchEnv = Mathf.Exp(-stepT * 15.0f);
                 float sawFiltered = unisonSaw * (0.42f + punchEnv * 0.35f);
 
                 // ── 5. アナログドライブ（Tanh サチュレーションで太く迫力あるブリブリ感） ──
-                float rawBass = subBass * 0.80f + sawFiltered * 0.65f;
+                // オクターブ上の合成成分（sawFiltered）のボリュームを半分（0.65f -> 0.325f）に調整
+                float rawBass = subBass * 0.80f + sawFiltered * 0.325f;
                 float fatBass = (float)System.Math.Tanh(rawBass * 1.70f);
 
                 synthBass = fatBass * bEnv * 0.82f; // ベース音を0.82fに設定
