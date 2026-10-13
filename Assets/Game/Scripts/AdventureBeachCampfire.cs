@@ -393,14 +393,14 @@ public class AdventureBeachCampfire : MonoBehaviour
 
         // 焚き火ASMRパチパチ音（8秒シームレス高音質ASMR）
         _fireAudio = _flameRoot.AddComponent<AudioSource>();
-        _fireAudio.spatialBlend = 0.55f; // 2D/3Dの絶妙なバランスで自然に響く
-        _fireAudio.minDistance = 7.0f;   // 焚き火炉や丸太ベンチ（7m以内）で適正音量を維持
-        _fireAudio.maxDistance = 42f;    // 砂浜の適度な範囲まで届く
+        _fireAudio.spatialBlend = 1.0f; // 完全な3D立体音響（火元から正確に空間減衰）
+        _fireAudio.minDistance = 2.5f;  // 焚き火のすぐそばや丸太ベンチ（2.5m以内）で適正音量を維持
+        _fireAudio.maxDistance = 16.0f; // 16m以上離れたら自然に完全無音
         _fireAudio.rolloffMode = AudioRolloffMode.Linear;
         _fireAudio.dopplerLevel = 0f; // カメラ移動によるピッチ揺らぎを防止
         _fireAudio.loop = true;
         _fireAudio.clip = CreateCracklingAudioClip();
-        _fireAudio.volume = 0.78f; // ほんの少しだけ抑えた心地よいチル音量
+        _fireAudio.volume = 0.78f; // 心地よいチル音量
 
         _flameRoot.SetActive(false);
 
@@ -819,6 +819,15 @@ public class AdventureBeachCampfire : MonoBehaviour
                 float pulse = 0.65f + 0.35f * Mathf.Sin(Time.time * 1.8f) + 0.15f * Mathf.PerlinNoise(Time.time * 2.5f, 0f);
                 Color emberCol = new Color(2.8f * pulse, 1.2f * pulse, 0.25f * pulse);
                 _emberMat.SetColor("_EmissionColor", emberCol);
+            }
+
+            // 崖の上・高低差による遮音（高低差 > 4mで急峻に減衰し、崖の上では完全無音に）
+            if (_fireAudio != null && _fireAudio.isPlaying)
+            {
+                float yAbove = Mathf.Max(0f, player.transform.position.y - transform.position.y);
+                float heightOcclusion = Mathf.Clamp01(1.0f - (yAbove - 1.5f) / 3.0f); // 高低差1.5m〜4.5mで0に完全フェード
+                float targetVol = 0.78f * heightOcclusion;
+                _fireAudio.volume = Mathf.MoveTowards(_fireAudio.volume, targetVol, 3.5f * Time.deltaTime);
             }
         }
 
