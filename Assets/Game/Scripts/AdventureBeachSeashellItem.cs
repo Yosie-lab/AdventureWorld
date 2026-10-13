@@ -965,12 +965,10 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         _collectAnimTimer = 0f;
         _startPos = transform.position;
 
-        // 澄んだクリスタル採取音
-        float seVol = PlayerPrefs.GetFloat("Adventure_SeVolume", 1.0f);
-        if (_audioSource != null && _chimeClip != null)
+        // 澄んだクリスタル採取音（常駐Managerから2D音響で確実に途切れず再生！）
+        if (AdventureBeachSeashellManager.Instance != null)
         {
-            _audioSource.pitch = Random.Range(0.98f, 1.05f);
-            _audioSource.PlayOneShot(_chimeClip, 0.75f * seVol);
+            AdventureBeachSeashellManager.Instance.PlayCollectChime(kind);
         }
 
         // スパークルバースト

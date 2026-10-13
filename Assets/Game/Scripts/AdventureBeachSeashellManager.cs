@@ -341,13 +341,8 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             ? AdventureRustCosmetics.Instance.CheckNewlyCraftable(item.kind) 
             : null;
 
-        // 1. 小さく澄んだ上品な採取音（控えめ音量 0.35f）
-        if (_seAudioSource != null && _chimeClip != null)
-        {
-            float seVol = PlayerPrefs.GetFloat("Adventure_SeVolume", 1.0f);
-            _seAudioSource.pitch = Random.Range(1.0f, 1.08f);
-            _seAudioSource.PlayOneShot(_chimeClip, 0.35f * seVol);
-        }
+        // 1. 採取チャイムがまだ鳴っていなければ鳴らす
+        PlayCollectChime(item.kind);
 
         // 2. Rustの反応（愛らしくピピッ♪と鳴く＋ホップ＆セリフ）
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
@@ -355,7 +350,7 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         {
             if (_seAudioSource != null && _rustPipiClip != null)
             {
-                _seAudioSource.PlayOneShot(_rustPipiClip, 0.40f);
+                _seAudioSource.PlayOneShot(_rustPipiClip, 0.45f);
             }
             drone.TriggerSeashellReaction(item.kind, item.itemName, item.rustReaction, newlyCraftable);
         }
@@ -521,43 +516,70 @@ public class AdventureBeachSeashellManager : MonoBehaviour
     {
         if (_seAudioSource == null)
         {
-            _seAudioSource = gameObject.AddComponent<AudioSource>();
+            _seAudioSource = GetComponent<AudioSource>() ?? gameObject.AddComponent<AudioSource>();
             _seAudioSource.spatialBlend = 0f; // 2D音響で確実に届く
             _seAudioSource.playOnAwake = false;
         }
 
         if (_chimeClip == null)
-            _chimeClip = CreateSmallChimeClip();
+            _chimeClip = CreateCrystalChimeClip();
         if (_rustPipiClip == null)
             _rustPipiClip = CreateRustHappyPipiClip();
     }
 
-    static AudioClip CreateSmallChimeClip()
+    float _lastChimePlayTime = -1f;
+
+    /// <summary>貝殻・宝石を拾った瞬間に2D音響でクリアなクリスタルチャイムを鳴らす</summary>
+    public void PlayCollectChime(AdventureBeachSeashellItem.ShellKind kind)
+    {
+        // 連続採取時の重なりガード（0.06秒）
+        if (Time.unscaledTime - _lastChimePlayTime < 0.06f) return;
+        _lastChimePlayTime = Time.unscaledTime;
+
+        if (_seAudioSource == null || _chimeClip == null || _rustPipiClip == null)
+            SetupAudio();
+        if (_seAudioSource != null && _chimeClip != null)
+        {
+            float seVol = PlayerPrefs.GetFloat("Adventure_SeVolume", 1.0f);
+            // 種類ごとに微小なピッチバリエーションで拾うたびに楽しい音
+            float pitch = 1.0f + ((int)kind * 0.035f);
+            _seAudioSource.pitch = pitch;
+            _seAudioSource.PlayOneShot(_chimeClip, 0.85f * seVol);
+        }
+    }
+
+    /// <summary>貝殻・シーグラス・琥珀採取時の、澄んだクリスタル・ジュエルチャイム音</summary>
+    static AudioClip CreateCrystalChimeClip()
     {
         int rate = 44100;
-        float duration = 0.28f;
+        float duration = 0.85f;
         int count = Mathf.RoundToInt(rate * duration);
         float[] samples = new float[count];
 
-        // 澄んだ小さく優しいチャイム（E6: 1318Hz -> G#6: 1661Hz -> B6: 1975Hz の可憐な和音）
-        float[] notes = { 1318.51f, 1661.22f, 1975.53f };
+        // 澄み切ったクリスタルアルペジオ（E6: 1318.5Hz -> G#6: 1661.2Hz -> B6: 1975.5Hz -> E7: 2637.0Hz）
+        float[] notes = { 1318.51f, 1661.22f, 1975.53f, 2637.02f };
         for (int i = 0; i < count; i++)
         {
             float t = (float)i / rate;
             float sum = 0f;
             for (int n = 0; n < notes.Length; n++)
             {
-                float noteT = t - n * 0.035f;
+                float noteT = t - n * 0.040f;
                 if (noteT >= 0f)
                 {
-                    float env = Mathf.Exp(-noteT * 18f); // 素早く減衰する小さく優しい音
-                    sum += Mathf.Sin(2f * Mathf.PI * notes[n] * noteT) * env * 0.28f;
+                    // 優しいアタック(0.004s) + ふんわり伸びる余韻
+                    float attack = Mathf.Clamp01(noteT / 0.004f);
+                    float env = attack * Mathf.Exp(-noteT * 5.2f);
+                    // 純粋なクリスタルサイン波＋上品なオクターブ倍音
+                    float s = Mathf.Sin(2f * Mathf.PI * notes[n] * noteT) * 0.40f
+                            + Mathf.Sin(4f * Mathf.PI * notes[n] * noteT) * 0.12f;
+                    sum += s * env;
                 }
             }
             samples[i] = Mathf.Clamp(sum, -1f, 1f);
         }
 
-        var clip = AudioClip.Create("SeashellSmallChime", count, 1, rate, false);
+        var clip = AudioClip.Create("SeashellCrystalChime", count, 1, rate, false);
         clip.SetData(samples, 0);
         return clip;
     }

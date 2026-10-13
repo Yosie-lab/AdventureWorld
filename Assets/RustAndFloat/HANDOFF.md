@@ -27,6 +27,11 @@ created: 2026-09-11
   - `AdventureSanctuaryTowerManager.Canopy.cs`, `Climax.cs`, `Epilogue.cs`, `ClearUI.cs`:
     - 多重（三重）に重複していたセリフ送り・ダイブ長押し・レバー操作判定を整理・統合。
     - エピローグの未使用空コルーチン残骸を撤去。
+  - `AdventureBeachSeashellItem.cs` & `AdventureBeachSeashellManager.cs`:
+    - **貝・宝石採取音の不具合解消＆音響強化**:
+      - アイテム回収アニメーション（0.32秒）終了時の `gameObject.SetActive(false)` により、アイテム自身の AudioSource が強制停止されて音が消滅していた問題を解消。
+      - 採取開始（`StartCollecting`）の瞬間に常駐の `AdventureBeachSeashellManager`（2D AudioSource）から遅延なく確実に鳴らす方式に刷新。
+      - 採取音を従来の極小・急減衰から、透明感と余韻のある **オーシャン・クリスタルチャイム（4和音アルペジオ、振幅1.0、持続0.85秒）** へ大幅強化。アイテム種別ごとのピッチ変化も実装。
   - `AdventureBeachDriftBox.cs`, `AdventureCapytaBodyCollider.cs`, `AdventureBushOptimizer.cs` 等:
     - 定数フラグによるCS0162（未到達コード）警告、未使用フィールド（CS0414）、Unity 6非推奨API `FindObjectsSortMode`（CS0618）をすべて撲滅。プロジェクト全体の警告を完全に0件化。
 
