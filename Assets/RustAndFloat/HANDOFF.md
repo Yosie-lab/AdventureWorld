@@ -12,10 +12,14 @@ created: 2026-09-11
 ### 1. 直近で完了した対応内容
 - **ゲームスタートからエンドまでの包括リファクタリング（入力統合・警告撲滅・最適化）**:
   - `AdventureInputReader.cs`:
+  - `AdventureInputReader.cs`:
+    - `DialogAdvanceDown` にゲームパッドの決定・スタートボタンを統合し、全ダイアログ・字幕送りでコントローラー操作を完全一元化。
     - `MouseLeftHeld`, `MouseRightHeld`, `MouseRightDown`, `NDown` を新設。
     - クライマックス注油やダイブ長押し（`OilHoldButtons`）をマウス長押し・パッドボタンを含めて一元化。
   - `AdventurePrologueDrama.cs`:
-    - 遭難目覚まし時のセリフ送り・スキップ判定を `AdventureInputReader` に一本化し、重複コードを削減。
+    - 遭難目覚まし時のセリフ送り・スキップ判定（`CheckAdvanceInput`）を `AdventureInputReader` に一本化し、重複コードを削減。
+  - `AdventureMusicDirector.cs`:
+    - ベース音の完全撤去に伴い、不要となった `bassRoots8` 配列および `synthBass` のSuperSaw波形合成デッドコード（約50行）を完全にクリーンアップ。
   - `AdventureSanctuaryTowerManager.Structure.cs`:
     - 階段回廊の岩コライダー通過処理で、凹型メッシュ（Concave MeshCollider）に `isTrigger` を設定して発生していたPhysX警告（*Triggers on concave MeshColliders are not supported*）を安全な `MakeColliderPassable` ヘルパーにより完全解消。
   - `AdventureSanctuaryTowerManager.ClearUI.cs`:

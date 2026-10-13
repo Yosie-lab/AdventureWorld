@@ -110,17 +110,10 @@ public class AdventurePrologueDrama : MonoBehaviour
         }
     }
 
-    /// <summary>セリフ送り入力（クリック・Space・Enter・Eキー・WASD移動など）</summary>
+    /// <summary>セリフ送り入力（クリック・Space・Enter・Eキー・WASD移動・ゲームパッドなど）</summary>
     bool CheckAdvanceInput()
     {
-        if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.HasAnyMove)
-            return true;
-
-        var gp = UnityEngine.InputSystem.Gamepad.current;
-        if (gp != null && (gp.buttonSouth.wasPressedThisFrame || gp.startButton.wasPressedThisFrame))
-            return true;
-
-        return false;
+        return AdventureInputReader.DialogAdvanceDown || AdventureInputReader.HasAnyMove;
     }
 
     /// <summary>即時スキップ操作（Escapeキーや右クリック）</summary>

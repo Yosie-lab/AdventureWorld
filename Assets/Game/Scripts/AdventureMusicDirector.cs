@@ -472,8 +472,7 @@ public class AdventureMusicDirector : MonoBehaviour
             new float[] { 196.00f, 233.08f, 293.66f, 392.00f, 466.16f }  // 8: Gm (Aへの移行なし、Gmを維持)
         };
 
-        // 各コードのルートベース音 (D2, D2, F#2, F#2, E2, E2, G2, G2)
-        float[] bassRoots8 = new float[] { 73.42f, 73.42f, 92.50f, 92.50f, 82.41f, 82.41f, 98.00f, 98.00f };
+
 
         // (a) 哀愁のある映画的ソロ・トランペット主旋律（全32拍・8小節・計12.0秒）
         // F#5拍 ➔ F#1拍 ➔ F1拍 ➔ F#1拍 ➔ A7拍 ➔ A1拍 ➔ G5拍 ➔ B1拍 ➔ E1拍 ➔ G1拍 ➔ A#4拍 ➔ A2拍 ➔ G2拍
@@ -524,19 +523,16 @@ public class AdventureMusicDirector : MonoBehaviour
             float bar8T = cycleT % 1.5f;
             float[] chord = chordRoots8[bar8];
 
-            bool hasBass;
             bool hasDrums;
             bool hasTrumpet;
             if (isDrumsOnly)
             {
-                hasBass = false;
                 hasDrums = true;
                 hasTrumpet = false; // 大空滑空時・オーバードライブ後もメロディーは無し
             }
             else
             {
                 hasDrums = (cycle >= 1);                        // 12秒〜（2周目以降）でドラム合流！
-                hasBass = false;                                // ベース音は全編で完全になし
                 hasTrumpet = (cycle >= 2 && cycle < 7);         // 24〜84秒（3〜7周目）でトランペット主旋律！8周目（84秒〜）からはミュート！
             }
 
@@ -549,7 +545,7 @@ public class AdventureMusicDirector : MonoBehaviour
                 float s = Mathf.Sin(2f * Mathf.PI * freq * t) * 0.45f
                         + Mathf.Sin(4f * Mathf.PI * freq * t) * 0.25f
                         + Mathf.Sin(6f * Mathf.PI * freq * t) * 0.15f;
-                float gain = (!hasBass && !hasDrums) ? 0.17f : 0.11f;
+                float gain = (!hasDrums) ? 0.17f : 0.11f;
                 brass += s * (gain / chord.Length);
             }
             brass *= env;
@@ -651,7 +647,6 @@ public class AdventureMusicDirector : MonoBehaviour
             float kick = 0f;
             float snare = 0f;
             float hat = 0f;
-            float synthBass = 0f;
 
             // ドラム隊
             if (hasDrums)
@@ -693,59 +688,13 @@ public class AdventureMusicDirector : MonoBehaviour
                 }
             }
 
-            // EDM ノコギリ波ユニゾン・シンセベース（Unison SuperSaw Synth Bass：サスティーン最大・超極太ブリブリサウンド）
-            if (hasBass)
-            {
-                float bRoot = bassRoots8[bar8];
-                float stepT = (bar8T / 0.1875f) % 1.0f;
-                int stepIndex = Mathf.FloorToInt(bar8T / 0.1875f) % 8;
-                float bVel = (stepIndex % 2 == 0) ? 1.0f : 0.92f;
-
-                // ── 1. アンプエンベロープ（サスティーン最大化） ──
-                // ノートの終わりまで音量を高く維持し、音の継ぎ目のみ滑らかに繋ぐ（途切れのない太い持続音）
-                float attackEnv = Mathf.Clamp01(stepT / 0.025f);
-                float releaseEnv = (stepT > 0.85f) ? Mathf.Clamp01((1.0f - stepT) / 0.15f) * 0.75f + 0.25f : 1.0f;
-                float bEnv = attackEnv * releaseEnv * bVel; // サスティーンMAX！
-
-                // ── 2. 5重ユニゾンSAWオシレーター（EDM SuperSaw） ──
-                // わずかにデチューンした5本の独立ノコギリ波を重ね合わせ、強烈なうねりと極太の音圧を生成
-                float sawCenter = 2f * ((t * bRoot) % 1.0f - 0.5f);
-                float sawDetune1L = 2f * ((t * (bRoot * 0.993f) + 0.15f) % 1.0f - 0.5f);
-                float sawDetune1R = 2f * ((t * (bRoot * 1.007f) + 0.35f) % 1.0f - 0.5f);
-                float sawDetune2L = 2f * ((t * (bRoot * 0.985f) + 0.60f) % 1.0f - 0.5f);
-                float sawDetune2R = 2f * ((t * (bRoot * 1.015f) + 0.85f) % 1.0f - 0.5f);
-
-                // ユニゾン合算（中心をしっかり出しつつ、両サイドのデチューンで広がりとうねりを付加）
-                float unisonSaw = sawCenter * 0.38f
-                                + (sawDetune1L + sawDetune1R) * 0.22f
-                                + (sawDetune2L + sawDetune2R) * 0.14f;
-
-                // ── 3. 1オクターブ下の強力サブベース（重低音のパンチ） ──
-                float subRoot = bRoot * 0.5f; // 1オクターブ下（36.7Hz〜49Hz）の超低音
-                // オクターブ上のサイン成分をさらに半分に調整（0.075f -> 0.0375f）、どっしりとした重低音を主役に
-                float subBass = Mathf.Sin(2f * Mathf.PI * subRoot * t) * 0.90f
-                              + Mathf.Sin(2f * Mathf.PI * bRoot * t) * 0.0375f;
-
-                // ── 4. フィルターモジュレーション（オクターブ上の高域倍音ボリュームを抑える） ──
-                // ノコギリ波のオクターブ上で鳴るギラつきを抑え、太くマイルドに馴染ませる
-                float punchEnv = Mathf.Exp(-stepT * 15.0f);
-                float sawFiltered = unisonSaw * (0.42f + punchEnv * 0.35f);
-
-                // ── 5. アナログドライブ（Tanh サチュレーションで太く迫力あるブリブリ感） ──
-                // オクターブ上の合成成分（sawFiltered）のボリュームをさらに半分（0.325f -> 0.1625f）に調整
-                float rawBass = subBass * 0.80f + sawFiltered * 0.1625f;
-                float fatBass = (float)System.Math.Tanh(rawBass * 1.70f);
-
-                synthBass = fatBass * bEnv * (0.82f * (2f / 3f)); // ベース音量を3分の2（約0.547f）に調整
-            }
-
             float loopFade = 1f;
             if (t < 0.2f) loopFade = t / 0.2f;
             else if (t > duration - 0.2f) loopFade = (duration - t) / 0.2f;
 
             float outputGain = EndingThemeVolume / Mathf.Max(0.01f, SkybreakSourceVolume);
-            float mixedL = (brass + arpWave + kick + snare + hat + synthBass + strL) * loopFade * outputGain;
-            float mixedR = (brass + arpWave + kick + snare + hat + synthBass + strR) * loopFade * outputGain;
+            float mixedL = (brass + arpWave + kick + snare + hat + strL) * loopFade * outputGain;
+            float mixedR = (brass + arpWave + kick + snare + hat + strR) * loopFade * outputGain;
             float outL = (float)System.Math.Tanh(mixedL * 0.98f) * 0.92f;
             float outR = (float)System.Math.Tanh(mixedR * 0.98f) * 0.92f;
 

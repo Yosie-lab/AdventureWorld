@@ -335,9 +335,16 @@ public static class AdventureInputReader
         }
     }
 
-    /// <summary>ダイアログ送りボタン群（左クリック / Space / J / E / Enter）がこのフレームに押された</summary>
+    /// <summary>ダイアログ送りボタン群（左クリック / Space / J / E / Enter / パッド南ボタン・スタートボタン）がこのフレームに押された</summary>
     public static bool DialogAdvanceDown
-        => MouseLeftDown || SpaceDown || JDown || InteractDown || EnterDown;
+    {
+        get
+        {
+            if (MouseLeftDown || SpaceDown || JDown || InteractDown || EnterDown) return true;
+            var gp = Gamepad.current;
+            return gp != null && (gp.buttonSouth.wasPressedThisFrame || gp.startButton.wasPressedThisFrame);
+        }
+    }
 
     // ─── 内部ヘルパー ────────────────────────────────────────────────────
 
