@@ -7,6 +7,31 @@ created: 2026-09-11
 
 次のエージェント（Antigravity 含む）は、このファイルを最初に読む。作業対象は **RustAndFloat**。元ゲーム **AdventureWorld は壊さない**。
 
+## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
+
+### 1. 直近で完了した対応内容
+- **ゲームスタートからエンドまでの包括リファクタリング（入力統合・警告撲滅・最適化）**:
+  - `AdventureInputReader.cs`:
+    - `MouseLeftHeld`, `MouseRightHeld`, `MouseRightDown`, `NDown` を新設。
+    - クライマックス注油やダイブ長押し（`OilHoldButtons`）をマウス長押し・パッドボタンを含めて一元化。
+  - `AdventurePrologueDrama.cs`:
+    - 遭難目覚まし時のセリフ送り・スキップ判定を `AdventureInputReader` に一本化し、重複コードを削減。
+  - `AdventureSanctuaryTowerManager.Structure.cs`:
+    - 階段回廊の岩コライダー通過処理で、凹型メッシュ（Concave MeshCollider）に `isTrigger` を設定して発生していたPhysX警告（*Triggers on concave MeshColliders are not supported*）を安全な `MakeColliderPassable` ヘルパーにより完全解消。
+  - `AdventureSanctuaryTowerManager.ClearUI.cs`:
+    - シーン内の全GameObject（数万個）を走査していた `FindObjectsByType<GameObject>` をピンポイント検索へ置換しヒッチを解消。
+  - `AdventureSanctuaryTowerManager.Canopy.cs`, `Climax.cs`, `Epilogue.cs`, `ClearUI.cs`:
+    - 多重（三重）に重複していたセリフ送り・ダイブ長押し・レバー操作判定を整理・統合。
+    - エピローグの未使用空コルーチン残骸を撤去。
+  - `AdventureBeachDriftBox.cs`, `AdventureCapytaBodyCollider.cs`, `AdventureBushOptimizer.cs` 等:
+    - 定数フラグによるCS0162（未到達コード）警告、未使用フィールド（CS0414）、Unity 6非推奨API `FindObjectsSortMode`（CS0618）をすべて撲滅。プロジェクト全体の警告を完全に0件化。
+
+### 2. 現在のGit状態（2026-10-13）
+- **`main`**: `47cbf7a`（リファクタリング push 済み）
+- コンパイルエラー: 0件、警告: 0件
+
+---
+
 ## Cursor / 次のエージェントへの引き継ぎ（2026-10-09）
 
 ### 1. 直近で完了した対応内容
