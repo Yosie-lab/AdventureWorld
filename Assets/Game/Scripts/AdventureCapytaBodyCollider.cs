@@ -161,8 +161,6 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
         }
     }
 
-    private static bool _isInitialized = false;
-
     void LateUpdate()
     {
         // プレイヤーから 6m 以上離れているカピタは処理を即スキップ（ゼロコスト距離カリング）
@@ -287,7 +285,7 @@ public class AdventureCapytaBodyCollider : MonoBehaviour
     /// </summary>
     public static void EnsureAllCapytasInScene(bool force = false)
     {
-        var allTransforms = Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var allTransforms = Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude);
         int count = 0;
         var processed = new HashSet<Transform>();
 

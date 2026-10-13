@@ -6,7 +6,7 @@ public static class AdventureParticleVelocityFixer
     [MenuItem("RustAndFloat/Sanitize Particle Velocity Curves")]
     public static void Sanitize()
     {
-        var allPs = Object.FindObjectsByType<ParticleSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var allPs = Object.FindObjectsByType<ParticleSystem>(FindObjectsInactive.Include);
         int fixedCount = 0;
         foreach (var ps in allPs)
         {

@@ -109,7 +109,7 @@ public static class AdventureTweakOceanTransparency
         renderer.receiveShadows = true;
 
         // 4. 全カメラの描画距離を 5000m に拡張
-        foreach (var cam in Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        foreach (var cam in Object.FindObjectsByType<Camera>(FindObjectsInactive.Include))
         {
             if (cam != null && cam.farClipPlane < 5000f)
             {

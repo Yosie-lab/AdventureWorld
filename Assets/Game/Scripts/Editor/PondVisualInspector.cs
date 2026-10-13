@@ -92,7 +92,7 @@ public static class PondVisualInspector
                 Debug.Log($"[VisualDiagnose] Layer[{i}]: {(lyr != null ? lyr.name : "null")}, diff={(lyr != null && lyr.diffuseTexture != null ? lyr.diffuseTexture.name : "none")}");
             }
         }
-        var dirLights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+        var dirLights = Object.FindObjectsByType<Light>();
         foreach (var l in dirLights)
         {
             if (l.type == LightType.Directional)

@@ -378,24 +378,7 @@ public partial class AdventureSanctuaryTowerManager
 
     static bool IsDiveConfirmHeld()
     {
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && (kb.spaceKey.isPressed || kb.enterKey.isPressed || kb.eKey.isPressed))
-            return true;
-        var mouse = UnityEngine.InputSystem.Mouse.current;
-        if (mouse != null && (mouse.leftButton.isPressed || mouse.rightButton.isPressed))
-            return true;
-        var pad = UnityEngine.InputSystem.Gamepad.current;
-        if (pad != null && (pad.buttonSouth.isPressed || pad.buttonWest.isPressed))
-            return true;
-        try
-        {
-            if (Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.E))
-                return true;
-            if (Input.GetMouseButton(0) || Input.GetMouseButton(1))
-                return true;
-        }
-        catch { }
-        return false;
+        return AdventureInputReader.OilHoldButtons || AdventureInputReader.MouseRightHeld;
     }
 
     #endregion

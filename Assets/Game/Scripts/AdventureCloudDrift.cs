@@ -92,7 +92,7 @@ public class AdventureCloudDrift : MonoBehaviour
         }
 
         // B. シーン直下などに残った旧名 CloudCluster_* をすべて破棄
-        var allDrifts = Object.FindObjectsByType<AdventureCloudDrift>(FindObjectsSortMode.None);
+        var allDrifts = Object.FindObjectsByType<AdventureCloudDrift>();
         for (int i = 0; i < allDrifts.Length; i++)
         {
             if (allDrifts[i] == null) continue;

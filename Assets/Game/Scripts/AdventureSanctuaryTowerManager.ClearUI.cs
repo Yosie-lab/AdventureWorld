@@ -38,11 +38,7 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         // AdventureInputReader に委譲（新旧InputSystem統合）
-        bool nPressed = false;
-        var kb = AdventureInputReader.Keyboard;
-        if (kb != null && kb.nKey.wasPressedThisFrame) nPressed = true;
-        try { if (Input.GetKeyDown(KeyCode.N)) nPressed = true; } catch { }
-
+        bool nPressed = AdventureInputReader.NDown;
         bool spacePressed = !_clearModalRequireRelease && elapsedSinceOpen >= 0.4f && AdventureInputReader.SpaceOrJDown;
         bool closePressed = elapsedSinceOpen >= 0.3f && (AdventureInputReader.InteractDown || AdventureInputReader.EscapeDown);
 
@@ -99,11 +95,10 @@ public partial class AdventureSanctuaryTowerManager
             _clearNewBtn = null;
             _clearCloseBtn = null;
         }
-        var orphans = GameObject.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < orphans.Length; i++)
+        var canvas = GameObject.Find("GameClearModalCanvas");
+        if (canvas != null)
         {
-            if (orphans[i] != null && orphans[i].name == "GameClearModalCanvas")
-                Destroy(orphans[i]);
+            Destroy(canvas);
         }
     }
 

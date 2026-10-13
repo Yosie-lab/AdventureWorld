@@ -194,20 +194,27 @@ public static class AdventureInputReader
         }
     }
 
-    /// <summary>Space / J / E / Enter が押されている（クライマックス注油）</summary>
+    /// <summary>Space / J / E / Enter / マウス左クリック / パッドボタンが押されている（決定・クライマックス注油・ダイブ長押し）</summary>
     public static bool OilHoldButtons
     {
         get
         {
+            if (MouseLeftHeld) return true;
             try
             {
                 if (Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.J)
                     || Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Return)) return true;
+                if (Input.GetMouseButton(0)) return true;
             }
             catch { }
             var kb = Keyboard;
-            return kb != null && (kb.spaceKey.isPressed || kb.jKey.isPressed
-                                  || kb.eKey.isPressed  || kb.enterKey.isPressed);
+            if (kb != null && (kb.spaceKey.isPressed || kb.jKey.isPressed
+                               || kb.eKey.isPressed  || kb.enterKey.isPressed))
+                return true;
+            var gp = Gamepad.current;
+            if (gp != null && (gp.buttonSouth.isPressed || gp.buttonWest.isPressed))
+                return true;
+            return false;
         }
     }
 
@@ -233,6 +240,17 @@ public static class AdventureInputReader
             try { if (Input.GetKeyDown(KeyCode.R)) return true; } catch { }
             var kb = Keyboard;
             return kb != null && kb.rKey.wasPressedThisFrame;
+        }
+    }
+
+    /// <summary>Nキーがこのフレームに押された（ニューゲーム等）</summary>
+    public static bool NDown
+    {
+        get
+        {
+            try { if (Input.GetKeyDown(KeyCode.N)) return true; } catch { }
+            var kb = Keyboard;
+            return kb != null && kb.nKey.wasPressedThisFrame;
         }
     }
 
@@ -281,6 +299,39 @@ public static class AdventureInputReader
             try { if (Input.GetMouseButtonDown(0)) return true; } catch { }
             var mouse = Mouse.current;
             return mouse != null && mouse.leftButton.wasPressedThisFrame;
+        }
+    }
+
+    /// <summary>マウス右クリックがこのフレームに押された</summary>
+    public static bool MouseRightDown
+    {
+        get
+        {
+            try { if (Input.GetMouseButtonDown(1)) return true; } catch { }
+            var mouse = Mouse.current;
+            return mouse != null && mouse.rightButton.wasPressedThisFrame;
+        }
+    }
+
+    /// <summary>マウス左ボタンが押されている（長押し）</summary>
+    public static bool MouseLeftHeld
+    {
+        get
+        {
+            try { if (Input.GetMouseButton(0)) return true; } catch { }
+            var mouse = Mouse.current;
+            return mouse != null && mouse.leftButton.isPressed;
+        }
+    }
+
+    /// <summary>マウス右ボタンが押されている（長押し）</summary>
+    public static bool MouseRightHeld
+    {
+        get
+        {
+            try { if (Input.GetMouseButton(1)) return true; } catch { }
+            var mouse = Mouse.current;
+            return mouse != null && mouse.rightButton.isPressed;
         }
     }
 

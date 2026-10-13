@@ -110,38 +110,15 @@ public class AdventurePrologueDrama : MonoBehaviour
         }
     }
 
-    /// <summary>セリフ送り入力（クリック・Space・Enter・Eキー）</summary>
+    /// <summary>セリフ送り入力（クリック・Space・Enter・Eキー・WASD移動など）</summary>
     bool CheckAdvanceInput()
     {
-        // 1. マウスクリック（左クリック）
-        var mouse = UnityEngine.InputSystem.Mouse.current;
-        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+        if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.HasAnyMove)
             return true;
 
-        // 2. キーボード入力
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null)
-        {
-            if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame ||
-                kb.eKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame ||
-                kb.aKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame)
-                return true;
-        }
-
-        // 3. ゲームパッド
         var gp = UnityEngine.InputSystem.Gamepad.current;
         if (gp != null && (gp.buttonSouth.wasPressedThisFrame || gp.startButton.wasPressedThisFrame))
             return true;
-
-        // 4. レガシーInputフォールバック
-        try
-        {
-            if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) ||
-                Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.A) ||
-                Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.D))
-                return true;
-        }
-        catch { }
 
         return false;
     }
@@ -149,22 +126,7 @@ public class AdventurePrologueDrama : MonoBehaviour
     /// <summary>即時スキップ操作（Escapeキーや右クリック）</summary>
     bool CheckWakeupInput()
     {
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && kb.escapeKey.wasPressedThisFrame)
-            return true;
-
-        var mouse = UnityEngine.InputSystem.Mouse.current;
-        if (mouse != null && mouse.rightButton.wasPressedThisFrame)
-            return true;
-
-        try
-        {
-            if (Input.GetKeyDown(KeyCode.Escape))
-                return true;
-        }
-        catch { }
-
-        return false;
+        return AdventureInputReader.EscapeDown || AdventureInputReader.MouseRightDown;
     }
 
     /// <summary>オープニングPlay直後／ニューゲーム時に呼ぶ</summary>

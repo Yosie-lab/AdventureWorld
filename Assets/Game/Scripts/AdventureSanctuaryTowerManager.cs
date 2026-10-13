@@ -687,10 +687,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
                 SetGameClearModalVisible(!_showGameClearModal);
 
             // クリア後（大空飛行中・自由探索中問わず）Nキーで直接ニューゲーム開始可能
-            bool nPressedGlobal = false;
-            if (kb != null && kb.nKey.wasPressedThisFrame) nPressedGlobal = true;
-            try { if (Input.GetKeyDown(KeyCode.N)) nPressedGlobal = true; } catch { }
-            if (nPressedGlobal)
+            if (AdventureInputReader.NDown)
             {
                 StartNewGameFromClearModal();
                 return;
@@ -959,17 +956,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     bool CheckLeverInputTriggered()
     {
-        // E / Enter / マウス / Gamepad West（新旧InputSystem統合）
-        if (AdventureInputReader.InteractDown || AdventureInputReader.EnterDown) return true;
-        var mouse = UnityEngine.InputSystem.Mouse.current;
-        if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
-            return true;
-        try
-        {
-            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)) return true;
-        }
-        catch { }
-        return false;
+        // E / Enter / マウス（左右クリック）/ Gamepad West（AdventureInputReader統合）
+        return AdventureInputReader.InteractDown || AdventureInputReader.EnterDown || AdventureInputReader.MouseRightDown;
     }
 
     /// <summary>レバーから天蓋開放へ。forceRestart=true のときだけ再演（F9）。通常操作中の再入は台本を最初に戻さない。</summary>

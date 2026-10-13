@@ -86,7 +86,7 @@ public class AdventureBeachEscapeManager : MonoBehaviour
     /// <summary>シーン内のすべての木道渡し板（Plank）のコライダーを厚み1.2mに深層化補強し、すり抜け・落下を完全根絶</summary>
     void ReinforceExistingRampPlanks()
     {
-        var allTransforms = FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var allTransforms = FindObjectsByType<Transform>(FindObjectsInactive.Exclude);
         for (int i = 0; i < allTransforms.Length; i++)
         {
             var t = allTransforms[i];

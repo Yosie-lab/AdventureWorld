@@ -837,13 +837,25 @@ public partial class AdventureSanctuaryTowerManager
                 if (col.transform != root)
                     col.gameObject.SetActive(false);
                 else
-                    col.isTrigger = true;
+                    MakeColliderPassable(col);
             }
             else if (soft)
             {
-                col.isTrigger = true;
+                MakeColliderPassable(col);
             }
         }
+    }
+
+    static void MakeColliderPassable(Collider col)
+    {
+        if (col == null) return;
+        if (col is MeshCollider mc && !mc.convex)
+        {
+            // Concave MeshCollider は PhysX で isTrigger=true が未サポートのため enabled=false で通行可能にする
+            col.enabled = false;
+            return;
+        }
+        col.isTrigger = true;
     }
 
     static float DistancePointToSegment(Vector3 p, Vector3 a, Vector3 b)

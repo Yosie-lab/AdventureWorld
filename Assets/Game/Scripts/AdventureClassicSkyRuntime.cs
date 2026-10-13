@@ -78,7 +78,7 @@ public class AdventureClassicSkyRuntime : MonoBehaviour
 
     private static void ApplySunLight()
     {
-        foreach (var l in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
+        foreach (var l in Object.FindObjectsByType<Light>())
         {
             if (l.type != LightType.Directional) continue;
             RenderSettings.sun = l;

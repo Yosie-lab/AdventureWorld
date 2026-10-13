@@ -43,8 +43,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
         public const float BoxAuraBaseScale = 1.85f;
         public const float BoxAuraPulseScale = 0.25f;
 
-        public const bool EnableBeaconPillar = false; // 天空へ伸びる光る円柱ビーコン（無効化）
-        public const bool EnableVerticalBeam = true;  // 天空へ昇る垂直光粒子ビーム（有効）
+        public static readonly bool EnableBeaconPillar = false; // 天空へ伸びる光る円柱ビーコン（無効化）
+        public static readonly bool EnableVerticalBeam = true;  // 天空へ昇る垂直光粒子ビーム（有効）
     }
 
     private Transform _lid;

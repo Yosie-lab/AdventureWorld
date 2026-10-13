@@ -11,8 +11,6 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public static class AdventureBushOptimizer
 {
-    private static bool _initialized = false;
-
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     public static void Initialize()
     {
@@ -25,13 +23,12 @@ public static class AdventureBushOptimizer
         OptimizeAllBushTriggers();
         OptimizeVegetationShadows();
         OptimizeRenderingSettings();
-        _initialized = true;
     }
 
     /// <summary>3,403個の低木トリガーコライダーおよびパーティクルを一括無効化</summary>
     public static void OptimizeAllBushTriggers()
     {
-        var triggers = Object.FindObjectsByType<IdyllicFantasyNature.BushLeafTrigger>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var triggers = Object.FindObjectsByType<IdyllicFantasyNature.BushLeafTrigger>(FindObjectsInactive.Include);
         if (triggers == null || triggers.Length == 0) return;
 
         int optimizedCount = 0;
@@ -56,7 +53,7 @@ public static class AdventureBushOptimizer
     /// <summary>草花・小石・水草（約6,000個）のシャドウキャストをオフにし、シャドウ描画パス負荷を大幅削減</summary>
     public static void OptimizeVegetationShadows()
     {
-        var renderers = Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var renderers = Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include);
         if (renderers == null || renderers.Length == 0) return;
 
         int turnedOff = 0;

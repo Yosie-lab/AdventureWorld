@@ -324,18 +324,6 @@ public partial class AdventureSanctuaryTowerManager
         Debug.Log("[RustAndFloat] シネマエピローグ完了 → クリアモーダル＆祝祭チャイム再生");
     }
 
-    IEnumerator EpilogueSequenceRoutine()
-    {
-        // 互換用：Update駆動へ委譲
-        BeginEpiloguePlayback();
-        yield break;
-    }
-
-    IEnumerator ShowFilmSubtitleRoutine(string line, float holdSec, Color color)
-    {
-        yield break;
-    }
-
     void ClearFilmSubtitle()
     {
         if (_filmSubtitleUi != null)
@@ -350,8 +338,8 @@ public partial class AdventureSanctuaryTowerManager
 
     static bool WasFilmSkipPressed()
     {
-        // Space / Enter のどちらかがこのフレームで押された（AdventureInputReader 統合）
-        return AdventureInputReader.SpaceDown || AdventureInputReader.EnterDown;
+        // Space / Enter / マウス左クリック等の決定入力（AdventureInputReader 統合）
+        return AdventureInputReader.DialogAdvanceDown;
     }
 
     static void KeepAutoGlide(AdventurePlayerController player)

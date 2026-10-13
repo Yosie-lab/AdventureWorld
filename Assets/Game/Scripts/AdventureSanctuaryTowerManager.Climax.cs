@@ -197,30 +197,12 @@ public partial class AdventureSanctuaryTowerManager
 
         if (openFor >= minHoldOpen)
         {
-            // 1. タップ入力（Space / Enter / クリック / E / J）
+            // 1. タップ・決定入力（クリック・Space・Enter・Eキー・Jキー・ゲームパッド等）
             PollScriptBoardAdvance();
-
-            // 2. 単発Down判定（InputReader経由）
-            if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseLeftDown ||
-                AdventureInputReader.SpaceDown || AdventureInputReader.InteractDown || AdventureInputReader.EnterDown)
+            if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseRightDown)
             {
                 _scriptBoardAdvance = true;
-                Debug.Log($"[RustAndFloat] クライマックス単発送り入力検知: beat={_climaxBeatIndex}");
-            }
-
-            // 3. 確実な新InputSystemダイレクトDown判定（誤スキップ防止デバウンス通過後のみ受付）
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame ||
-                               kb.eKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame))
-            {
-                _scriptBoardAdvance = true;
-                Debug.Log($"[RustAndFloat] クライマックスキーボードDown検知: beat={_climaxBeatIndex}");
-            }
-            var mouse = UnityEngine.InputSystem.Mouse.current;
-            if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
-            {
-                _scriptBoardAdvance = true;
-                Debug.Log($"[RustAndFloat] クライマックスマウスDown検知: beat={_climaxBeatIndex}");
+                Debug.Log($"[RustAndFloat] クライマックス送り入力検知: beat={_climaxBeatIndex}");
             }
 
             // 4. 自然な自動送り時間（放置シネマ：ClimaxBeats定義から直接取得）
