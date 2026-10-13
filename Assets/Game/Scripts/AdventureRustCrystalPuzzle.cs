@@ -252,25 +252,32 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         _chestRoot.transform.SetParent(transform, false);
         _chestRoot.transform.position = cliffTerracePos;
 
-        // 迫り出す重厚な古代石の円形テラス舞台（厚さ1.2m、直径6.8m）
+        // 迫り出す重厚な古代石の円形テラス舞台（厚さ1.2m、直径7.2m）
         var terraceFloor = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         terraceFloor.name = "TerracePlatform";
         terraceFloor.transform.SetParent(_chestRoot.transform, false);
         terraceFloor.transform.localPosition = new Vector3(0f, 0f, 0f);
-        terraceFloor.transform.localScale = new Vector3(6.8f, 0.6f, 6.8f);
+        terraceFloor.transform.localScale = new Vector3(7.2f, 0.6f, 7.2f);
         var tfRend = terraceFloor.GetComponent<Renderer>();
         if (tfRend != null) tfRend.material = stoneMat;
+
+        // CylinderのデフォルトCapsuleCollider（丸みでプレイヤーがスタックする原因）を平坦なBoxColliderに差し替え
+        var cylCol = terraceFloor.GetComponent<Collider>();
+        if (cylCol != null) Destroy(cylCol);
+        var flatCol = terraceFloor.AddComponent<BoxCollider>();
+        flatCol.size = new Vector3(7.2f, 1.0f, 7.2f);
+        flatCol.center = new Vector3(0f, 0f, 0f);
 
         // テラスの手前（谷側・ファン側）のステップ基盤（着地しやすい幅広ステップ）
         var stepFloor = GameObject.CreatePrimitive(PrimitiveType.Cube);
         stepFloor.name = "TerraceStep";
         stepFloor.transform.SetParent(_chestRoot.transform, false);
-        stepFloor.transform.localPosition = new Vector3(0f, -0.3f, -2.4f);
-        stepFloor.transform.localScale = new Vector3(4.8f, 0.6f, 2.4f);
+        stepFloor.transform.localPosition = new Vector3(0f, -0.25f, -2.5f);
+        stepFloor.transform.localScale = new Vector3(5.2f, 0.6f, 2.8f);
         var sfRend = stepFloor.GetComponent<Renderer>();
         if (sfRend != null) sfRend.material = stoneMat;
 
-        // テラス背後（北側）の古代石柵（低い半円状の護壁）
+        // テラス背後（北側）の古代石柵（低い半円状の護壁、プレイヤーのスタックを防ぐため外側にゆとり配置）
         for (int i = 0; i < 5; i++)
         {
             float angle = 45f + i * 45f;
@@ -278,9 +285,9 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
             var fence = GameObject.CreatePrimitive(PrimitiveType.Cube);
             fence.name = "TerraceFence_" + i;
             fence.transform.SetParent(_chestRoot.transform, false);
-            fence.transform.localPosition = new Vector3(Mathf.Sin(rad) * 3.1f, 0.65f, Mathf.Cos(rad) * 3.1f);
+            fence.transform.localPosition = new Vector3(Mathf.Sin(rad) * 3.4f, 0.45f, Mathf.Cos(rad) * 3.4f);
             fence.transform.localRotation = Quaternion.Euler(0f, angle + 90f, 0f);
-            fence.transform.localScale = new Vector3(1.8f, 0.65f, 0.35f);
+            fence.transform.localScale = new Vector3(1.8f, 0.5f, 0.25f);
             var fRend = fence.GetComponent<Renderer>();
             if (fRend != null) fRend.material = stoneMat;
         }
@@ -479,39 +486,44 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         {
             Vector3 toTerraceFlat = new Vector3(cliffTerracePos.x - ventBasePos.x, 0f, cliffTerracePos.z - ventBasePos.z).normalized;
             float distToVent = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(ventBasePos.x, ventBasePos.z));
+            float distToTerraceFlat = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(cliffTerracePos.x, cliffTerracePos.z));
             float yDiff = pPos.y - ventBasePos.y;
 
             // 1. 送風ファン直上（砂浜から一気に大空へドカンと打ち上げ！）
-            if (distToVent < 3.4f && yDiff >= -0.5f && yDiff < 5.0f)
+            if (distToVent < 3.2f && yDiff >= -0.5f && yDiff < 4.5f)
             {
-                player.ApplyLaunchUpdraft(17.5f, 21.5f, toTerraceFlat);
+                player.ApplyLaunchUpdraft(18.0f, 22.0f, toTerraceFlat);
                 if (Time.time - _lastLiftToastTime > 4.5f)
                 {
                     _lastLiftToastTime = Time.time;
                     AdventureNotificationToast.Show("✦ サーマルリフト！ 砂浜から断崖の展望テラスへ大跳躍！ ✦", 2.5f);
                 }
             }
-
-            // 2. 上昇気流コリドー（砂浜のファンから断崖の上のテラスへ向かう風の通り道）
-            float xMin = Mathf.Min(ventBasePos.x, cliffTerracePos.x) - 4.5f;
-            float xMax = Mathf.Max(ventBasePos.x, cliffTerracePos.x) + 4.5f;
-            float zMin = Mathf.Min(ventBasePos.z, cliffTerracePos.z) - 3.5f;
-            float zMax = Mathf.Max(ventBasePos.z, cliffTerracePos.z) + 4.0f;
-
-            bool inWindCorridor = pPos.x >= xMin && pPos.x <= xMax && pPos.z >= zMin && pPos.z <= zMax;
-            if (inWindCorridor && yDiff >= -0.5f && pPos.y < cliffTerracePos.y + 3.0f)
+            // 2. テラス安全ゾーン（テラス上空・テラス上：半径4.0m以内）
+            //    気流や浮力を完全にオフにし、プレイヤーが確実に着地して自由に歩行・探索できるようにする
+            else if (distToTerraceFlat < 4.0f && pPos.y >= cliffTerracePos.y - 1.5f)
             {
-                // テラスの高さ未満なら力強い浮力を維持して断崖絶壁を乗り越える
-                if (pPos.y < cliffTerracePos.y + 0.8f)
-                {
-                    player.ApplyLaunchUpdraft(16.0f, 19.5f);
-                }
+                // テラス上では上昇気流も誘導ブーストも一切かけない（スタック防止）
+            }
+            // 3. 上昇気流コリドー（断崖絶壁を駆け上がる空中のみアシスト）
+            else
+            {
+                float xMin = Mathf.Min(ventBasePos.x, cliffTerracePos.x) - 4.0f;
+                float xMax = Mathf.Max(ventBasePos.x, cliffTerracePos.x) + 4.0f;
+                float zMin = Mathf.Min(ventBasePos.z, cliffTerracePos.z) - 3.0f;
+                float zMax = Mathf.Max(ventBasePos.z, cliffTerracePos.z) + 3.0f;
 
-                // テラス方向への心地よい前進気流（自動誘導アシスト）
-                Vector3 toTerrace = new Vector3(cliffTerracePos.x - pPos.x, 0f, cliffTerracePos.z - pPos.z);
-                if (toTerrace.magnitude > 1.2f)
+                bool inWindCorridor = pPos.x >= xMin && pPos.x <= xMax && pPos.z >= zMin && pPos.z <= zMax;
+                // テラス天面より下(-0.6m)、かつファンより上の空中にいる場合のみ浮遊アシスト
+                if (inWindCorridor && yDiff > 1.0f && pPos.y < cliffTerracePos.y - 0.6f)
                 {
-                    player.ApplyGlideBoost(1.4f, 0.4f, toTerrace.normalized);
+                    player.ApplyLaunchUpdraft(14.0f, 16.0f);
+
+                    Vector3 toTerrace = new Vector3(cliffTerracePos.x - pPos.x, 0f, cliffTerracePos.z - pPos.z);
+                    if (toTerrace.magnitude > 2.0f)
+                    {
+                        player.ApplyGlideBoost(1.2f, 0.3f, toTerrace.normalized);
+                    }
                 }
             }
         }
