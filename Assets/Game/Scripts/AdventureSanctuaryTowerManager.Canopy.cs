@@ -211,12 +211,13 @@ public partial class AdventureSanctuaryTowerManager
         // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目4.5s／3枚目7.0s／会話3.8s／ダイブ6.0s）
         float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
-            : (_scriptBoardIsDive ? 6.0f : 3.5f);
+            : 4.0f;
 
-        // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、誤クリック等で飛ばされず元の7.5秒間しっかり表示を保証
-        float minShow = (_canopyBeatIndex == 0) ? autoSec : 0.45f;
+        // 第1幕「天蓋崩壊 未知の荒野への眺望」はレバー操作の余韻による誤爆を防ぐため1.2秒デバウンス（以降は手動送り可）
+        // その他のセリフは0.40秒デバウンス
+        float minShow = (_canopyBeatIndex == 0) ? 1.20f : 0.40f;
 
-        // 入力
+        // 入力判定
         if (openFor >= minShow)
         {
             if (!_scriptRequireInputRelease)
@@ -224,26 +225,38 @@ public partial class AdventureSanctuaryTowerManager
                 PollScriptBoardAdvance();
             }
 
-            if (_scriptBoardIsDive && IsDiveConfirmHeld())
+            // ダイブビート（ビート6）：長押し（0.35秒）でのみダイブ実行
+            if (_scriptBoardIsDive)
             {
-                _scriptHoldTimer += Time.unscaledDeltaTime;
-                if (_filmSubtitleUi != null)
+                if (IsDiveConfirmHeld())
                 {
-                    _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
+                    _scriptHoldTimer += Time.unscaledDeltaTime;
+                    if (_filmSubtitleUi != null)
+                    {
+                        _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
+                    }
+                    if (_scriptHoldTimer >= 0.35f)
+                        _scriptBoardAdvance = true;
                 }
-                if (_scriptHoldTimer >= 0.35f)
-                    _scriptBoardAdvance = true;
+                else
+                {
+                    _scriptHoldTimer = 0f;
+                }
             }
             else
             {
-                _scriptHoldTimer = 0f;
+                // 通常セリフ：プレイヤーが操作しなくても、設定秒数（第1幕はきっちり7.5秒）経過で自動進行
+                if (openFor >= autoSec)
+                    _scriptBoardAdvance = true;
             }
-
-            if (openFor >= autoSec)
-                _scriptBoardAdvance = true;
         }
 
         if (!_scriptBoardAdvance) return;
+
+        // セリフ進行：次のセリフへ進む瞬間に入力フラグを落とし、キー離し待ちをセット（連打突き抜け防止）
+        _scriptHoldTimer = 0f;
+        _scriptBoardAdvance = false;
+        _scriptRequireInputRelease = true;
 
         int next = _canopyBeatIndex + 1;
         if (next >= CanopyBeats.Length)
@@ -378,8 +391,7 @@ public partial class AdventureSanctuaryTowerManager
         if (!_scriptBoardVisible) return;
         if (_scriptRequireInputRelease) return;
         if (_climaxCrisisStarted) return; // クライマックス中はTickClimaxSequenceが一元管理
-        if (_canopyBeatIndex == 0) return; // 第1幕「未知の荒野への眺望」は元の7.5秒間しっかり鑑賞させる
-        float minShow = 0.45f;
+        float minShow = (_canopyBeatIndex == 0) ? 1.20f : 0.40f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
         _scriptBoardAdvance = true;
         Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");

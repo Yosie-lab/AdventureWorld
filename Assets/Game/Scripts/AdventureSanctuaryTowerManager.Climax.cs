@@ -220,9 +220,10 @@ public partial class AdventureSanctuaryTowerManager
 
         if (!_scriptBoardAdvance) return;
 
-        // 次のセリフへ進む瞬間に入力フラグとホールドタイマーをリセット
+        // 次のセリフへ進む瞬間に入力フラグとホールドタイマーをリセットし、キー離し待ちをセット
         _scriptHoldTimer = 0f;
         _scriptBoardAdvance = false;
+        _scriptRequireInputRelease = true;
 
         int next = _climaxBeatIndex + 1;
 
