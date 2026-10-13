@@ -737,7 +737,7 @@ public class AdventureMusicDirector : MonoBehaviour
                 float rawBass = subBass * 0.80f + sawFiltered * 0.1625f;
                 float fatBass = (float)System.Math.Tanh(rawBass * 1.70f);
 
-                synthBass = fatBass * bEnv * 0.82f; // ベース音を0.82fに設定
+                synthBass = fatBass * bEnv * (0.82f * (2f / 3f)); // ベース音量を3分の2（約0.547f）に調整
             }
 
             float loopFade = 1f;
