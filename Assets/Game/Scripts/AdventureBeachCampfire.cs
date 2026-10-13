@@ -393,14 +393,14 @@ public class AdventureBeachCampfire : MonoBehaviour
 
         // 焚き火ASMRパチパチ音（8秒シームレス高音質ASMR）
         _fireAudio = _flameRoot.AddComponent<AudioSource>();
-        _fireAudio.spatialBlend = 0.40f; // 心地よくしっかり響く2D/3Dブレンド
-        _fireAudio.minDistance = 10.0f;  // 焚き火炉や丸太ベンチ周辺（10m以内）は減衰せず100%音量を維持
-        _fireAudio.maxDistance = 50f;    // 砂浜の道中からでも暖かな音が届く
+        _fireAudio.spatialBlend = 0.55f; // 2D/3Dの絶妙なバランスで自然に響く
+        _fireAudio.minDistance = 7.0f;   // 焚き火炉や丸太ベンチ（7m以内）で適正音量を維持
+        _fireAudio.maxDistance = 42f;    // 砂浜の適度な範囲まで届く
         _fireAudio.rolloffMode = AudioRolloffMode.Linear;
         _fireAudio.dopplerLevel = 0f; // カメラ移動によるピッチ揺らぎを防止
         _fireAudio.loop = true;
         _fireAudio.clip = CreateCracklingAudioClip();
-        _fireAudio.volume = 1.0f; // 明瞭に聴こえる音量
+        _fireAudio.volume = 0.78f; // ほんの少しだけ抑えた心地よいチル音量
 
         _flameRoot.SetActive(false);
 
