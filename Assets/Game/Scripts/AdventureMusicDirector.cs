@@ -14,7 +14,7 @@ public class AdventureMusicDirector : MonoBehaviour
     AudioSource _bgmSourceB;
     AudioClip _ambientThemeClip;
     AudioClip _skybreakThemeClip;
-    AudioClip _skybreakBuildUpClip;    // 96秒ビルドアップ曲（0〜12s:神聖ブラス, 12〜24s:ドラム合流, 24〜36s:ベース合流, 36〜84s:4〜7周目トランペット主旋律, 84〜96s:8周目以降トランペットカット）
+    AudioClip _skybreakBuildUpClip;    // 96秒ビルドアップ曲（0〜12s:神聖ブラス, 12〜24s:ドラム合流, 24〜84s:3〜7周目ベース＋トランペット主旋律, 84〜96s:8周目以降メロディーミュート）
     AudioClip _skybreakDrumsOnlyClip;  // 12秒（Rust回復後：軽快なドラム＋トランペット主旋律で大空へダイブ）
 
     bool _hasSwitchedToSkybreak = false;
@@ -128,7 +128,7 @@ public class AdventureMusicDirector : MonoBehaviour
 
     void Update()
     {
-        // 天空BGMの段階的ビルドアップ（96秒の1本化クリップ：0〜12sブラス、12〜24sドラム、24〜36sベース、36〜84sトランペット、84〜96sインスト）
+        // 天空BGMの段階的ビルドアップ（96秒の1本化クリップ：0〜12sブラス、12〜24sドラム、24〜84sベース＋トランペット、84〜96sメロディーミュート）
         if (_keepEndingThemeActive && _bgmSourceB != null && _hasSwitchedToSkybreak)
         {
             if (!_isOverdriveDropActive)
@@ -312,7 +312,7 @@ public class AdventureMusicDirector : MonoBehaviour
         _bgmSourceB.time = 0f;
         _bgmSourceB.volume = SkybreakSourceVolume; // 即時1.0fで確実に鳴らす！
         _bgmSourceB.Play();
-        Debug.Log("[RustAndFloat] ✦ 天空突破BGM開始：1周目ブラス ➔ 12sドラム ➔ 24sベース ➔ 36〜84sトランペット ➔ 84s以降インスト！");
+        Debug.Log("[RustAndFloat] ✦ 天空突破BGM開始：1周目ブラス ➔ 12sドラム ➔ 24〜84sベース＋トランペット ➔ 84s以降メロディーミュート！");
     }
 
     IEnumerator FadeVolume(AudioSource src, float targetVol, float duration)
@@ -444,9 +444,8 @@ public class AdventureMusicDirector : MonoBehaviour
     /// isDrumsOnly = false：96秒の段階的ビルドアップ曲（8周構成）。
     ///   - 0〜12秒  ：1周目（神聖ブラスパッド＋アルペジオ＋温かいパッド和音）
     ///   - 12〜24秒：2周目（12秒の頭からドラムが合流！）
-    ///   - 24〜36秒：3周目（24秒の頭からベースが合流しリズム隊完成！メロディーはまだ待機）
-    ///   - 36〜84秒：4〜7周目（36秒の頭から4周にわたり哀愁のトランペット主旋律が歌い上げる！）
-    ///   - 84〜96秒：8周目（84秒からトランペットはカットされ、雄大なフルインスト編成でループ継続）
+    ///   - 24〜84秒：3〜7周目（24秒の頭からベース＋哀愁のトランペット主旋律が合流し感動的にリフレイン！）
+    ///   - 84〜96秒：8周目（84秒からメロディーはミュートされ、雄大なフルインスト編成でループ継続）
     /// isDrumsOnly = true ：Rust回復後（「全力で行こう！！」）。軽快なドラム＋トランペット主旋律で大空へ！
     /// </summary>
     public AudioClip GenerateSkybreakTheme(bool isDrumsOnly)
@@ -538,7 +537,7 @@ public class AdventureMusicDirector : MonoBehaviour
             {
                 hasDrums = (cycle >= 1);                        // 12秒〜（2周目以降）でドラム合流！
                 hasBass = (cycle >= 2);                         // 24秒〜（3周目以降）でベース合流！
-                hasTrumpet = (cycle >= 3 && cycle < 7);         // 36〜84秒（4〜7周目）でトランペット主旋律合流！8周目（84秒〜）からはカット！
+                hasTrumpet = (cycle >= 2 && cycle < 7);         // 24〜84秒（3〜7周目）でトランペット主旋律！8周目（84秒〜）からはミュート！
             }
 
             // 1. パワフルで神秘的なシネマティック・ブラスパッド
