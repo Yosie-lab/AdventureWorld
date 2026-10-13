@@ -393,9 +393,9 @@ public class AdventureBeachCampfire : MonoBehaviour
 
         // 焚き火ASMRパチパチ音（8秒シームレス高音質ASMR）
         _fireAudio = _flameRoot.AddComponent<AudioSource>();
-        _fireAudio.spatialBlend = 0.65f; // 2D/3Dブレンドで耳元に心地よくしっかり響く
-        _fireAudio.minDistance = 5.0f;   // 丸太ベンチ（距離約2m）でも100%の音量を維持
-        _fireAudio.maxDistance = 35f;
+        _fireAudio.spatialBlend = 0.40f; // 心地よくしっかり響く2D/3Dブレンド
+        _fireAudio.minDistance = 10.0f;  // 焚き火炉や丸太ベンチ周辺（10m以内）は減衰せず100%音量を維持
+        _fireAudio.maxDistance = 50f;    // 砂浜の道中からでも暖かな音が届く
         _fireAudio.rolloffMode = AudioRolloffMode.Linear;
         _fireAudio.dopplerLevel = 0f; // カメラ移動によるピッチ揺らぎを防止
         _fireAudio.loop = true;
@@ -684,22 +684,22 @@ public class AdventureBeachCampfire : MonoBehaviour
         // 1. 低周波の温かな空気の燃焼音（Deep Brown Noise Rumble）
         // ※サイン波は一切使わず、1次ローパスを通したブラウンノイズで「ゴォォ…」「フオォ…」という温かい空気感を作る
         float lp = 0f;
-        float alpha = 0.028f; // ~120Hzの優しいローパス
+        float alpha = 0.032f; // ~140Hzの温かみのあるローパス
         for (int i = 0; i < lengthSamples; i++)
         {
             float white = (float)(rng.NextDouble() * 2.0 - 1.0);
             lp = lp + alpha * (white - lp);
             // 炎の息遣い（呼吸ゆらぎ）
-            float breathe = 1.0f + 0.12f * Mathf.Sin(i * (2f * Mathf.PI / (sampleRate * 2.8f)));
-            samples[i] = lp * 0.28f * breathe;
+            float breathe = 1.0f + 0.15f * Mathf.Sin(i * (2f * Mathf.PI / (sampleRate * 2.8f)));
+            samples[i] = lp * 0.46f * breathe;
         }
 
         // 2. 樹液や木肌がチリチリ…サラサラ…と細かく弾ける微小テクスチャ（Micro Sizzle）
-        int microClicks = (int)(lengthSamples * 0.045f); // 毎秒約2000回の微小パルス
+        int microClicks = (int)(lengthSamples * 0.055f); // 毎秒約2400回の微小パルス
         for (int m = 0; m < microClicks; m++)
         {
             int idx = rng.Next(lengthSamples);
-            float amp = (float)(rng.NextDouble() * 0.038 + 0.012);
+            float amp = (float)(rng.NextDouble() * 0.065 + 0.025);
             if (idx + 1 < lengthSamples)
             {
                 samples[idx] += amp;
@@ -709,11 +709,11 @@ public class AdventureBeachCampfire : MonoBehaviour
 
         // 3. 本物の薪のはぜる「パチッ！」「カチッ！」という急峻な破裂音（Wood Snaps & Pops）
         // ※サイン波を完全に排除！ハイパスされたホワイトノイズの超急峻インパルス（1.5ms〜5ms）
-        int snapCount = 65; // 8秒間に65回の自然な破裂
+        int snapCount = 75; // 8秒間に75回の自然な破裂
         for (int s = 0; s < snapCount; s++)
         {
             int startIdx = rng.Next(lengthSamples);
-            float snapVol = (float)(rng.NextDouble() * 0.55 + 0.35); // 音量
+            float snapVol = (float)(rng.NextDouble() * 0.85 + 0.55); // 力強くはぜる音量
             float decayMs = (float)(rng.NextDouble() * 3.5 + 1.5); // 1.5ms〜5.0msの超高速減衰（「パチッ！」）
             int decaySamples = Mathf.Max(8, Mathf.RoundToInt((decayMs / 1000f) * sampleRate));
 
@@ -732,11 +732,11 @@ public class AdventureBeachCampfire : MonoBehaviour
             }
 
             // たまに「パパチッ！」と2連・3連ではぜるリアルなクラックバースト
-            if (rng.NextDouble() < 0.35)
+            if (rng.NextDouble() < 0.40)
             {
                 int burstOffset = rng.Next(sampleRate / 40, sampleRate / 15); // 25ms〜65ms後
                 int bIdx = (startIdx + burstOffset) % lengthSamples;
-                float bVol = snapVol * (float)(rng.NextDouble() * 0.4 + 0.5);
+                float bVol = snapVol * (float)(rng.NextDouble() * 0.45 + 0.60);
                 int bDecay = Mathf.Max(8, (int)(decaySamples * 0.8f));
                 float bPrev = 0f;
                 for (int j = 0; j < bDecay; j++)
@@ -752,15 +752,15 @@ public class AdventureBeachCampfire : MonoBehaviour
         }
 
         // 4. 時折発生する、太い薪が割れる「パンッ！」「ポンッ」という深い共鳴破裂
-        int deepPopCount = 14; // 8秒間に14回程度
+        int deepPopCount = 16; // 8秒間に16回程度
         for (int d = 0; d < deepPopCount; d++)
         {
             int startIdx = rng.Next(lengthSamples);
-            float popVol = (float)(rng.NextDouble() * 0.45 + 0.30);
+            float popVol = (float)(rng.NextDouble() * 0.70 + 0.45);
             int popDur = rng.Next(sampleRate / 120, sampleRate / 60); // 8ms〜16ms
 
             float deepLp = 0f;
-            float deepAlpha = 0.15f; // バンドパス風の低音ノイズ
+            float deepAlpha = 0.16f; // バンドパス風の低音ノイズ
             for (int j = 0; j < popDur; j++)
             {
                 int idx = (startIdx + j) % lengthSamples;
@@ -782,11 +782,11 @@ public class AdventureBeachCampfire : MonoBehaviour
             samples[lengthSamples - fadeLen + i] = blend;
         }
 
-        // 6. ウォームリミッティング（耳触りの良いソフトサチュレーション：適正ゲイン）
+        // 6. ウォームリミッティング（耳触りの良いソフトサチュレーション：高音圧かつ歪みのないリッチな音質）
         for (int i = 0; i < lengthSamples; i++)
         {
             float s = samples[i];
-            samples[i] = Mathf.Clamp(Mathf.Sin(s * 1.35f) * 0.92f, -0.96f, 0.96f);
+            samples[i] = Mathf.Clamp(Mathf.Sin(s * 1.65f) * 0.95f, -0.98f, 0.98f);
         }
 
         var clip = AudioClip.Create("RealCampfireASMR_Loop", lengthSamples, 1, sampleRate, false);
