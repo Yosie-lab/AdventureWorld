@@ -76,7 +76,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     float _epilogueAlpha = 0f;
     int _epilogueAct = 0; // 0=帯のみ / 1〜3=字幕幕
     bool _showGameClearModal = false;
-    Coroutine _epilogueRoutine;
     Font _epilogueFont;
 
     // Update駆動のシネマ字幕（コルーチン停止に依存しない）
@@ -373,7 +372,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     void ResetEndingSequenceFlags(bool clearWorldProgress, bool teardownUiFully)
     {
         StopAllCoroutines();
-        _epilogueRoutine = null;
         StopSkybreakAftershockLoop();
         Time.timeScale = 1f;
 
