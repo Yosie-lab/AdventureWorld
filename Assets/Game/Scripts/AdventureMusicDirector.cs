@@ -128,15 +128,15 @@ public class AdventureMusicDirector : MonoBehaviour
 
     void Update()
     {
-        // 天空BGMの段階的ビルドアップ（36秒の1本化クリップ：0〜12s神聖ブラス、12〜24sベース合流、24〜36sドラム合流フル編成）
+        // 天空BGMの段階的ビルドアップ（48秒の1本化クリップ：0〜12s神聖ブラス、12〜24sベース合流、24〜36sドラム合流、36〜48sトランペット主旋律合流）
         if (_keepEndingThemeActive && _bgmSourceB != null && _hasSwitchedToSkybreak)
         {
             if (!_isOverdriveDropActive)
             {
-                // 3周目（36秒）の終わりに達したら、24秒（フル編成の頭）へシームレスに戻してフル編成をループ！
-                if (_bgmSourceB.time >= 35.92f || (!_bgmSourceB.isPlaying && _bgmSourceB.time >= 35.5f))
+                // 4周目（48秒）の終わりに達したら、36秒（トランペット主旋律リフレインの頭）へシームレスに戻してループ！
+                if (_bgmSourceB.time >= 47.92f || (!_bgmSourceB.isPlaying && _bgmSourceB.time >= 47.5f))
                 {
-                    _bgmSourceB.time = 24.0f;
+                    _bgmSourceB.time = 36.0f;
                     if (!_bgmSourceB.isPlaying)
                         _bgmSourceB.Play();
                 }
@@ -308,11 +308,11 @@ public class AdventureMusicDirector : MonoBehaviour
             StartCoroutine(FadeVolume(_bgmSourceA, 0f, 1.2f));
 
         _bgmSourceB.clip = _skybreakThemeClip;
-        _bgmSourceB.loop = false; // 36s後はUpdateで24s（フル編成）へシームレスループ
+        _bgmSourceB.loop = false; // 48s後はUpdateで36s（トランペット主旋律入りリフレイン）へシームレスループ
         _bgmSourceB.time = 0f;
         _bgmSourceB.volume = SkybreakSourceVolume; // 即時1.0fで確実に鳴らす！
         _bgmSourceB.Play();
-        Debug.Log("[RustAndFloat] ✦ 天空突破BGM開始：1周目（神聖ブラス＋アルペジオのみ）➔ 12sベース ➔ 24sフル編成！");
+        Debug.Log("[RustAndFloat] ✦ 天空突破BGM開始：1周目（神聖ブラス）➔ 12sベース ➔ 24sドラム ➔ 36sトランペット主旋律リフレイン！");
     }
 
     IEnumerator FadeVolume(AudioSource src, float targetVol, float duration)
