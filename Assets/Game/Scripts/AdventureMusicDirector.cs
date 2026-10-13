@@ -580,15 +580,8 @@ public class AdventureMusicDirector : MonoBehaviour
                             else if (nT > noteDur - 0.025f)
                                 tptEnv = Mathf.SmoothStep(1f, 0.10f, (nT - (noteDur - 0.025f)) / 0.025f);
 
-                            // 哀愁のビブラート（音が伸びて0.28秒後からじんわり深まる 5.2Hz の情緒的な揺らぎ）
-                            float vib = 0f;
-                            if (nT > 0.28f)
-                            {
-                                float vibAmount = Mathf.Clamp01((nT - 0.28f) / 0.45f) * 0.009f;
-                                vib = Mathf.Sin(2f * Mathf.PI * 5.2f * nT) * vibAmount;
-                            }
-
-                            float f = note.freq * (1f + vib);
+                            // ビブラートは一切かけず、まっすぐ澄んだストレートトーン
+                            float f = note.freq;
 
                             // トランペット固有の倍音構成（温かく甘美なフリューゲルホルン／哀愁の金管ソロ調）
                             float wave = Mathf.Sin(2f * Mathf.PI * f * t) * 0.52f
@@ -752,9 +745,129 @@ public class AdventureMusicDirector : MonoBehaviour
             samples[i * 2 + 1] = outR;
         }
 
+        // 全体に軽やかで透明感のあるステレオリバーブを付与（空間の広がりと残響）
+        ApplyLightReverb(samples, totalSamples, sampleRate, 0.18f);
+
         string clipName = isDrumsOnly ? "Music_RustFloat_Skybreak_DrumsOnly" : "Music_RustFloat_Skybreak_BuildUp";
         var clip = AudioClip.Create(clipName, totalSamples, 2, sampleRate, false);
         clip.SetData(samples, 0);
         return clip;
+    }
+
+    /// <summary>
+    /// 全体に透明感のある軽やかなステレオリバーブを付与するSchroederリバーブ
+    /// 左右独立コムフィルタ＋直列オールパス拡散＋2パス循環（ループ端シームレス化）
+    /// </summary>
+    private static void ApplyLightReverb(float[] samples, int totalSamples, int sampleRate, float wetMix = 0.18f)
+    {
+        if (samples == null || totalSamples <= 0) return;
+
+        // コムフィルタのディレイ長（左右で素数・非調和比率のディレイ時間）
+        int[] dL = new int[]
+        {
+            Mathf.RoundToInt(0.0297f * sampleRate),
+            Mathf.RoundToInt(0.0371f * sampleRate),
+            Mathf.RoundToInt(0.0411f * sampleRate),
+            Mathf.RoundToInt(0.0437f * sampleRate)
+        };
+        int[] dR = new int[]
+        {
+            Mathf.RoundToInt(0.0313f * sampleRate),
+            Mathf.RoundToInt(0.0361f * sampleRate),
+            Mathf.RoundToInt(0.0423f * sampleRate),
+            Mathf.RoundToInt(0.0457f * sampleRate)
+        };
+
+        float[][] combL = new float[4][];
+        float[][] combR = new float[4][];
+        for (int k = 0; k < 4; k++)
+        {
+            combL[k] = new float[dL[k]];
+            combR[k] = new float[dR[k]];
+        }
+        int[] idxL = new int[4];
+        int[] idxR = new int[4];
+        float[] filterL = new float[4];
+        float[] filterR = new float[4];
+
+        int apLenL1 = Mathf.RoundToInt(0.0051f * sampleRate);
+        int apLenL2 = Mathf.RoundToInt(0.0017f * sampleRate);
+        int apLenR1 = Mathf.RoundToInt(0.0057f * sampleRate);
+        int apLenR2 = Mathf.RoundToInt(0.0019f * sampleRate);
+
+        float[] apBufL1 = new float[apLenL1];
+        float[] apBufL2 = new float[apLenL2];
+        float[] apBufR1 = new float[apLenR1];
+        float[] apBufR2 = new float[apLenR2];
+        int apIdxL1 = 0, apIdxL2 = 0, apIdxR1 = 0, apIdxR2 = 0;
+
+        const float feedback = 0.72f;
+        const float damp = 0.28f;
+        const float apGain = 0.5f;
+
+        float dryMix = 1.0f - wetMix * 0.4f;
+
+        // 2パス実行: 1パス目はディレイバッファのウォームアップ、2パス目で出力適用（ループ境界のシームレス化）
+        for (int pass = 0; pass < 2; pass++)
+        {
+            bool write = (pass == 1);
+            for (int i = 0; i < totalSamples; i++)
+            {
+                float inL = samples[i * 2];
+                float inR = samples[i * 2 + 1];
+
+                // 4並列コムフィルタ (Left)
+                float outCombL = 0f;
+                for (int k = 0; k < 4; k++)
+                {
+                    int idx = idxL[k];
+                    float delayed = combL[k][idx];
+                    filterL[k] = delayed * (1f - damp) + filterL[k] * damp;
+                    combL[k][idx] = inL + filterL[k] * feedback;
+                    outCombL += delayed;
+                    idxL[k] = (idx + 1) % dL[k];
+                }
+                outCombL *= 0.25f;
+
+                // 4並列コムフィルタ (Right)
+                float outCombR = 0f;
+                for (int k = 0; k < 4; k++)
+                {
+                    int idx = idxR[k];
+                    float delayed = combR[k][idx];
+                    filterR[k] = delayed * (1f - damp) + filterR[k] * damp;
+                    combR[k][idx] = inR + filterR[k] * feedback;
+                    outCombR += delayed;
+                    idxR[k] = (idx + 1) % dR[k];
+                }
+                outCombR *= 0.25f;
+
+                // 2直列オールパスフィルタ (Left)
+                float apL1Out = -apGain * outCombL + apBufL1[apIdxL1];
+                apBufL1[apIdxL1] = outCombL + apGain * apL1Out;
+                apIdxL1 = (apIdxL1 + 1) % apLenL1;
+
+                float apL2Out = -apGain * apL1Out + apBufL2[apIdxL2];
+                apBufL2[apIdxL2] = apL1Out + apGain * apL2Out;
+                apIdxL2 = (apIdxL2 + 1) % apLenL2;
+
+                // 2直列オールパスフィルタ (Right)
+                float apR1Out = -apGain * outCombR + apBufR1[apIdxR1];
+                apBufR1[apIdxR1] = outCombR + apGain * apR1Out;
+                apIdxR1 = (apIdxR1 + 1) % apLenR1;
+
+                float apR2Out = -apGain * apR1Out + apBufR2[apIdxR2];
+                apBufR2[apIdxR2] = apR1Out + apGain * apR2Out;
+                apIdxR2 = (apIdxR2 + 1) % apLenR2;
+
+                if (write)
+                {
+                    float finalL = inL * dryMix + apL2Out * wetMix;
+                    float finalR = inR * dryMix + apR2Out * wetMix;
+                    samples[i * 2] = (float)System.Math.Tanh(finalL);
+                    samples[i * 2 + 1] = (float)System.Math.Tanh(finalR);
+                }
+            }
+        }
     }
 }

@@ -1524,6 +1524,7 @@ public static class AdventureSkybreakVisuals
         dustGo.transform.SetParent(root.transform, false);
         dustGo.transform.localPosition = new Vector3(0f, -80f, 0f);
         var dustPs = dustGo.AddComponent<ParticleSystem>();
+        dustPs.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         {
             var main = dustPs.main;
             main.loop = false;
@@ -2253,6 +2254,7 @@ public static class AdventureSkybreakVisuals
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
         var ps = go.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = ps.main;
         main.loop = false;
         main.duration = 3.8f;
