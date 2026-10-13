@@ -202,9 +202,8 @@ public static class AdventureSetupGlidingCourseTool
                 t
             );
 
-            // エディタ上でも即時メッシュ＆光の柱を実体化してシーン保存
+            // エディタ上でも即時メッシュを実体化してシーン保存
             ringComp.CreateRingVisual();
-            ringComp.CreateBeaconPillar();
 
             list.Add(ringComp);
         }

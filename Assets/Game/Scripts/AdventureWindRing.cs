@@ -14,7 +14,6 @@ public class AdventureWindRing : MonoBehaviour
     public static event System.Action<AdventureWindRing, AdventurePlayerController> OnRingPassed;
 
     Transform _ringVisual;
-    Transform _beaconPillar;
     Material _ringMat;
     bool _isCooldown = false;
     AudioSource _audio;
@@ -23,7 +22,7 @@ public class AdventureWindRing : MonoBehaviour
     void Start()
     {
         CreateRingVisual();
-        CreateBeaconPillar();
+        RemoveExistingBeaconPillar();
         SetupAudio();
 
         if (GetComponent<SphereCollider>() == null)
@@ -114,35 +113,24 @@ public class AdventureWindRing : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 光の輪（風のリング）上空のビーコン柱は他のランドマーク光柱との混同を防ぐため削除
+    /// </summary>
     public void CreateBeaconPillar()
     {
-        if (transform.Find("FlightBeacon") != null)
-        {
-            _beaconPillar = transform.Find("FlightBeacon");
-            return;
-        }
+        RemoveExistingBeaconPillar();
+    }
 
-        // 遠くからでも一目で場所がわかる天空への光の柱（高さ25m）
-        var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        beacon.name = "FlightBeacon";
-        beacon.transform.SetParent(transform, false);
-        beacon.transform.localPosition = new Vector3(0f, 12.5f, 0f);
-        beacon.transform.localScale = new Vector3(0.35f, 12.5f, 0.35f);
-        DestroyImmediate(beacon.GetComponent<Collider>());
-
-        var rend = beacon.GetComponent<Renderer>();
-        if (rend != null)
+    public void RemoveExistingBeaconPillar()
+    {
+        var existing = transform.Find("FlightBeacon");
+        if (existing != null)
         {
-            var pShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            var pMat = new Material(pShader);
-            Color bCol = ringColor;
-            bCol.a = 0.8f;
-            pMat.color = bCol;
-            pMat.EnableKeyword("_EMISSION");
-            pMat.SetColor("_EmissionColor", ringColor * 3.0f);
-            rend.material = pMat;
+            if (Application.isPlaying)
+                Destroy(existing.gameObject);
+            else
+                DestroyImmediate(existing.gameObject);
         }
-        _beaconPillar = beacon.transform;
     }
 
     void SetupAudio()
@@ -164,12 +152,6 @@ public class AdventureWindRing : MonoBehaviour
             _ringVisual.Rotate(Vector3.forward, 40f * Time.deltaTime, Space.Self);
             float pulse = 1.0f + Mathf.Sin(Time.time * 3.5f) * 0.06f;
             _ringVisual.localScale = Vector3.one * pulse;
-        }
-
-        if (_beaconPillar != null)
-        {
-            float bPulse = 1.0f + Mathf.Sin(Time.time * 2.8f) * 0.15f;
-            _beaconPillar.localScale = new Vector3(0.25f * bPulse, 7.5f, 0.25f * bPulse);
         }
 
         // 確実な通過感知（リング開口の薄いゲートのみ）
