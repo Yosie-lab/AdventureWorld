@@ -10,6 +10,9 @@ created: 2026-09-11
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容
+- **クライマックス最終セリフ（「ピピッ！ありがとう、Float！」）の操作ガイド表示完全削除**:
+  - `AdventureSanctuaryTowerManager.Climax.cs`:
+    - セリフ「ピピッ！……ありがとう、Float！これで僕たちの翼は折れることはないよ！　大空の向こうまで、全力で行こう！！」の字幕下部に残存していた操作ガイド（`hint = "【 Space / クリック 】大空へ！"` および `_scriptHintUi.text`）を完全撤去。映画的な純粋字幕のみの表示に統一。
 - **ゲームクリア表示後の操作不能不具合の解消**:
   - `AdventureSanctuaryTowerManager.Epilogue.cs`:
     - `FinishEpilogueFilm()` で `_endingSequenceActive = false` を設定し、エンディング演出フラグを適切に終了。

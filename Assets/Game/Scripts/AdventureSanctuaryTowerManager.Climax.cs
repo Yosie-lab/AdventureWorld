@@ -93,10 +93,8 @@ public partial class AdventureSanctuaryTowerManager
         if (_scriptUiRoot != null)
             _scriptUiRoot.SetActive(false);
 
-        string hint = (index >= ClimaxBeats.Length - 1)
-            ? "【 Space / クリック 】大空へ！"
-            : null;
-        SetScreenScriptSubtitle(beat.Title, beat.Speaker, beat.Body, beat.Accent, false, hint);
+        // 映画的な没入感を優先するため、字幕下部の操作ガイドは完全非表示
+        SetScreenScriptSubtitle(beat.Title, beat.Speaker, beat.Body, beat.Accent, false, null);
 
         // 台本1（警告）：そばで震え始める
         // 台本2（気流が冷たい）：力なく落ちていく
@@ -132,7 +130,7 @@ public partial class AdventureSanctuaryTowerManager
             _scriptRequireInputRelease = false;
             _scriptHoldTimer = 0f;
             if (_scriptHintUi != null)
-                _scriptHintUi.text = "【Space / クリック】大空へ";
+                _scriptHintUi.text = "";
         }
     }
 
