@@ -513,15 +513,62 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             var oldBase = tower.transform.Find("WhiteMarblePodium_SolidBase");
             if (oldBase != null) Destroy(oldBase.gameObject);
 
-            // 南側階段出口（x∈[508, 516], z∈[475, 485]）はプレイヤーの主要進入路のため開口部として100%確保！
-            // 階段の左右両脇（x < 508, x > 516）から台座の真下に潜り込めないよう、左右に袖壁（ウィングウォール）のみ配置
+            // ── 白亜テラス床下空洞の完全閉塞ソリッド基壇 ──
+            // テラス円盤（半径35m, 上面63m）の下側は地面（58〜62m）との間に空洞ができ、
+            // 下方向（南東・南西・南）から登ってきたプレイヤーが床下に潜り込んで埋まるのを100%防止するため、
+            // テラス円周の床下（Y=48m〜63m）を埋める重厚なソリッド外壁基壇（16分割リング壁＋内部床ソリッド）を配置！
             var wingRoot = new GameObject("WhiteMarblePodium_SolidBase");
             wingRoot.transform.SetParent(tower.transform, false);
 
             var pmr = podium.GetComponent<MeshRenderer>();
             var marbleMat = pmr != null ? pmr.material : null;
+            var terrain = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
 
-            // 階段出口の左側（西側）袖壁ブロック
+            // 1. テラス外周16分割のソリッド基壇壁（南側階段開口部 x∈[507.5, 516.5], z <= 482 は通路として開ける）
+            const int segCount = 16;
+            const float radius = 34.2f;
+            const float wallThickness = 3.5f; // 厚み3.5m（下からの突入・ジャンプを完全に弾き返す）
+            for (int s = 0; s < segCount; s++)
+            {
+                float deg = s * (360f / segCount);
+                float rad = deg * Mathf.Deg2Rad;
+                float nx = Mathf.Sin(rad);
+                float nz = Mathf.Cos(rad);
+
+                // 南側階段出口（degが160°〜200°付近、z < 482 かつ |x-512| < 5m）は階段通路のため除外
+                float px = 512f + nx * radius;
+                float pz = 512f + nz * radius;
+                if (pz <= 483f && Mathf.Abs(px - 512f) <= 5.5f)
+                    continue;
+
+                // 地面の高さを取得して、地面深くまで届く壁の高さを計算
+                float gH = 60f;
+                if (terrain != null)
+                    gH = terrain.SampleHeight(new Vector3(px, 0f, pz)) + terrain.transform.position.y;
+                float bottomY = Mathf.Min(48f, gH - 2f);
+                float topY = 62.85f; // テラス上面(63.0m)の直下まで充填
+                float wallH = Mathf.Max(4f, topY - bottomY);
+                float midY = (topY + bottomY) * 0.5f;
+
+                float segW = 2f * radius * Mathf.Sin((360f / segCount * 0.5f) * Mathf.Deg2Rad) * 1.15f;
+
+                var wallGo = new GameObject($"PodiumSolidWall_{deg:F0}deg");
+                wallGo.transform.SetParent(wingRoot.transform, false);
+                wallGo.transform.position = new Vector3(px, midY, pz);
+                wallGo.transform.rotation = Quaternion.LookRotation(new Vector3(nx, 0f, nz), Vector3.up);
+
+                var box = wallGo.AddComponent<BoxCollider>();
+                box.size = new Vector3(segW, wallH, wallThickness);
+            }
+
+            // 2. テラス中央部（半径28m以内）の地面〜床下充填ソリッドコライダー（万が一の内部侵入も完全に遮断）
+            var centerFillGo = new GameObject("PodiumCenterFill");
+            centerFillGo.transform.SetParent(wingRoot.transform, false);
+            centerFillGo.transform.position = new Vector3(512f, 55.5f, 512f);
+            var centerBox = centerFillGo.AddComponent<BoxCollider>();
+            centerBox.size = new Vector3(56f, 14.5f, 56f); // Y=48.25m〜62.75m を完全充填
+
+            // 3. 階段出口の左右袖壁（階段とテラスの接続部を滑らかに保護）
             var westWing = GameObject.CreatePrimitive(PrimitiveType.Cube);
             westWing.name = "PodiumWing_West";
             westWing.transform.SetParent(wingRoot.transform, false);
@@ -529,7 +576,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             westWing.transform.localScale = new Vector3(12f, 11f, 4f);
             if (marbleMat != null) westWing.GetComponent<MeshRenderer>().material = marbleMat;
 
-            // 階段出口の右側（東側）袖壁ブロック
             var eastWing = GameObject.CreatePrimitive(PrimitiveType.Cube);
             eastWing.name = "PodiumWing_East";
             eastWing.transform.SetParent(wingRoot.transform, false);
