@@ -110,6 +110,7 @@ public partial class AdventureSanctuaryTowerManager
 
         _canopyBeatIndex = 0;
         _skyTearPlayed = false;
+        _scriptRequireInputRelease = true; // レバー引いた操作の余韻による即時スキップを完全防止
         PresentCanopyBeat(0);
         AdventureStoryFlow.InvalidateCache();
         Debug.Log("[RustAndFloat] 天蓋スクリーンスクリプト（シネマ字幕）を Update 駆動で開始（全" + CanopyBeats.Length + "枚）");
@@ -207,10 +208,21 @@ public partial class AdventureSanctuaryTowerManager
 
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
+        // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目4.5s／3枚目7.0s／会話3.8s／ダイブ6.0s）
+        float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
+            ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
+            : (_scriptBoardIsDive ? 6.0f : 3.5f);
+
+        // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、誤クリック等で飛ばされず元の7.5秒間しっかり表示を保証
+        float minShow = (_canopyBeatIndex == 0) ? autoSec : 0.45f;
+
         // 入力
-        if (openFor >= 0.35f)
+        if (openFor >= minShow)
         {
-            PollScriptBoardAdvance();
+            if (!_scriptRequireInputRelease)
+            {
+                PollScriptBoardAdvance();
+            }
 
             if (_scriptBoardIsDive && IsDiveConfirmHeld())
             {
@@ -227,10 +239,6 @@ public partial class AdventureSanctuaryTowerManager
                 _scriptHoldTimer = 0f;
             }
 
-            // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目4.5s／3枚目7.0s／会話3.8s／ダイブ6.0s）
-            float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
-                ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
-                : (_scriptBoardIsDive ? 6.0f : 3.5f);
             if (openFor >= autoSec)
                 _scriptBoardAdvance = true;
         }
@@ -370,6 +378,7 @@ public partial class AdventureSanctuaryTowerManager
         if (!_scriptBoardVisible) return;
         if (_scriptRequireInputRelease) return;
         if (_climaxCrisisStarted) return; // クライマックス中はTickClimaxSequenceが一元管理
+        if (_canopyBeatIndex == 0) return; // 第1幕「未知の荒野への眺望」は元の7.5秒間しっかり鑑賞させる
         float minShow = 0.45f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
         _scriptBoardAdvance = true;
