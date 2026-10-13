@@ -309,20 +309,20 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         }
 
         // 空高く立ち上る古代遺跡の黄金光柱（天空ビーコン：どこからでもテラスが一目でわかる）
-        var beaconPillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        beaconPillar.name = "ChestBeaconPillar";
-        beaconPillar.transform.SetParent(_chestRoot.transform, false);
-        beaconPillar.transform.localPosition = new Vector3(0f, 16f, 0f);
-        beaconPillar.transform.localScale = new Vector3(0.65f, 16f, 0.65f);
-        var bpCol = beaconPillar.GetComponent<Collider>();
-        if (bpCol != null) Destroy(bpCol);
-        var bpRend = beaconPillar.GetComponent<Renderer>();
-        var beaconMat = new Material(litShader);
-        beaconMat.SetColor("_BaseColor", new Color(1.0f, 0.85f, 0.25f, 0.6f));
-        beaconMat.EnableKeyword("_EMISSION");
-        beaconMat.SetColor("_EmissionColor", new Color(2.8f, 2.0f, 0.5f) * 2.5f);
-        if (bpRend != null) bpRend.material = beaconMat;
-        _chestBeaconPillar = beaconPillar;
+        var chestBeacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        chestBeacon.name = "ChestBeaconPillar";
+        chestBeacon.transform.SetParent(_chestRoot.transform, false);
+        chestBeacon.transform.localPosition = new Vector3(0f, 16f, 0f);
+        chestBeacon.transform.localScale = new Vector3(0.65f, 16f, 0.65f);
+        var tbCol = chestBeacon.GetComponent<Collider>();
+        if (tbCol != null) Destroy(tbCol);
+        var tbRend = chestBeacon.GetComponent<Renderer>();
+        var tbMat = new Material(litShader);
+        tbMat.SetColor("_BaseColor", new Color(1.0f, 0.85f, 0.25f, 0.6f));
+        tbMat.EnableKeyword("_EMISSION");
+        tbMat.SetColor("_EmissionColor", new Color(2.8f, 2.0f, 0.5f) * 2.5f);
+        if (tbRend != null) tbRend.material = tbMat;
+        _chestBeaconPillar = chestBeacon;
 
         // 宝箱本体
         var chestBase = GameObject.CreatePrimitive(PrimitiveType.Cube);
