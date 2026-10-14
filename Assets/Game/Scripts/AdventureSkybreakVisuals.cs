@@ -1250,42 +1250,8 @@ public static class AdventureSkybreakVisuals
             _thawProgress = 0f;
             _thawDuration = Mathf.Max(0.1f, duration);
 
-            // 上空から見下ろしても木々や花が美しく描画されるようLODバイアスを最適化
-            QualitySettings.lodBias = 2.6f;
-
-            // 地上のTerrain描画距離と品質を最適化（草と木をしっかり描画）
-            var terrains = Object.FindObjectsByType<Terrain>();
-            for (int i = 0; i < terrains.Length; i++)
-            {
-                var tr = terrains[i];
-                if (tr == null) continue;
-                tr.basemapDistance = 2000f;
-                tr.treeDistance = 2500f;
-                tr.treeBillboardDistance = 1500f;
-                tr.treeMaximumFullLODCount = 2000;
-                tr.detailObjectDistance = 500f;
-                tr.detailObjectDensity = 1.0f;
-
-                if (tr.terrainData != null)
-                {
-                    tr.terrainData.wavingGrassTint = new Color(0.55f, 0.82f, 0.40f);
-                    var protos = tr.terrainData.detailPrototypes;
-                    if (protos != null && protos.Length > 0)
-                    {
-                        for (int p = 0; p < protos.Length; p++)
-                        {
-                            protos[p].healthyColor = new Color(0.48f, 0.78f, 0.32f);
-                            protos[p].dryColor = new Color(0.65f, 0.76f, 0.38f);
-                        }
-                        tr.terrainData.detailPrototypes = protos;
-                    }
-                }
-            }
-
-            // 地上の緑の木と草のマテリアルのみを自然で豊かなトーンに整える（花や紅葉、サクラ等の色は保護）
-            // 全Rendererのマテリアル複製は重いため、フレーム分散して実行する
-            _foliageDone = false;
-            StartCoroutine(NaturalizeGroundFoliage());
+            // 地上の木や草を動的に改変せず、本来の島の美しい自然な色彩・配置をそのまま100%維持
+            _foliageDone = true;
 
             // 落雷ループを即座に停止
             if (_lightningRoutine != null)
@@ -1305,118 +1271,8 @@ public static class AdventureSkybreakVisuals
 
         IEnumerator NaturalizeGroundFoliage()
         {
-            var renderers = Object.FindObjectsByType<Renderer>();
-            int budget = 0;
-            for (int i = 0; i < renderers.Length; i++)
-            {
-                {
-                    var rend = renderers[i];
-                    if (rend == null) continue;
-
-                    string goName = rend.gameObject.name.ToLowerInvariant();
-                    // プレイヤーやペット、天蓋エフェクト等は除外
-                    if (goName.Contains("niko") || goName.Contains("rust") || goName.Contains("player") ||
-                        goName.Contains("skybreak") || goName.Contains("beam") || goName.Contains("lightning") ||
-                        goName.Contains("godray") || goName.Contains("shockwave"))
-                    {
-                        continue;
-                    }
-
-                    // 事前チェック：共有マテリアルの名前だけで緑の葉/草を持つか判定（複製を作らず軽量）
-                    var shared = rend.sharedMaterials;
-                    bool hasFoliage = false;
-                    if (shared != null)
-                    {
-                        for (int s = 0; s < shared.Length; s++)
-                        {
-                            if (shared[s] == null) continue;
-                            string sn = shared[s].name.ToLowerInvariant();
-                            if (sn.Contains("green") || sn.Contains("broadleaf") || sn.Contains("willow")
-                                || sn.Contains("leaf") || sn.Contains("leaves") || sn.Contains("grass"))
-                            {
-                                hasFoliage = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!hasFoliage) continue;
-
-                    // 1フレームあたり最大24個のRendererだけ処理して固まりを防ぐ
-                    if (++budget >= 24)
-                    {
-                        budget = 0;
-                        yield return null;
-                        if (rend == null) continue;
-                    }
-
-                    var mats = rend.materials;
-                    if (mats == null) continue;
-
-                    for (int m = 0; m < mats.Length; m++)
-                    {
-                        var mat = mats[m];
-                        if (mat == null) continue;
-                        string matName = mat.name.ToLowerInvariant();
-
-                        // 木の幹や岩、水面などは除外
-                        if (matName.Contains("bark") || matName.Contains("trunk") || matName.Contains("wood") ||
-                            matName.Contains("rock") || matName.Contains("stone") || matName.Contains("water") ||
-                            matName.Contains("sea"))
-                        {
-                            continue;
-                        }
-
-                        // ★重要：ピンクの桜、紅葉の赤、花々の色は絶対に緑に上書きせず、本来の美しい色彩を100%保護する
-                        bool isColoredFloral = matName.Contains("blossom") || matName.Contains("cherry") || matName.Contains("flower")
-                            || matName.Contains("red") || matName.Contains("pink") || matName.Contains("purple")
-                            || matName.Contains("autumn") || matName.Contains("petal") || goName.Contains("blossom")
-                            || goName.Contains("flower") || goName.Contains("pink") || goName.Contains("red");
-
-                        if (isColoredFloral)
-                        {
-                            continue;
-                        }
-
-                        // 緑の木々および草地のみを、自然でみずみずしい上品なグリーンに整える
-                        bool isGreenFoliage = matName.Contains("green") || matName.Contains("broadleaf") || matName.Contains("willow")
-                            || matName.Contains("leaf") || matName.Contains("leaves") || matName.Contains("grass");
-
-                        if (isGreenFoliage)
-                        {
-                            // 頂部カラー：澄んだ陽光を浴びたみずみずしい若葉エメラルドグリーン
-                            if (mat.HasProperty("_TopColor"))
-                                mat.SetColor("_TopColor", new Color(0.32f, 0.82f, 0.36f, 1f));
-                            if (mat.HasProperty("_Top_Color"))
-                                mat.SetColor("_Top_Color", new Color(0.32f, 0.82f, 0.36f, 1f));
-
-                            // 下部カラー：落ち着いた深みのあるみずみずしいフォレストグリーン
-                            if (mat.HasProperty("_BottomColor"))
-                                mat.SetColor("_BottomColor", new Color(0.18f, 0.56f, 0.24f, 1f));
-                            if (mat.HasProperty("_Bottom_Color"))
-                                mat.SetColor("_Bottom_Color", new Color(0.18f, 0.56f, 0.24f, 1f));
-
-                            // 基本カラー
-                            if (mat.HasProperty("_BaseColor"))
-                            {
-                                Color cur = mat.GetColor("_BaseColor");
-                                if (cur.g >= cur.r * 0.85f && cur.g >= cur.b * 0.85f)
-                                {
-                                    mat.SetColor("_BaseColor", new Color(0.28f, 0.78f, 0.35f, cur.a));
-                                }
-                            }
-                            if (mat.HasProperty("_Color"))
-                            {
-                                Color cur = mat.GetColor("_Color");
-                                if (cur.g >= cur.r * 0.85f && cur.g >= cur.b * 0.85f)
-                                {
-                                    mat.SetColor("_Color", new Color(0.28f, 0.78f, 0.35f, cur.a));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            _foliageDone = true;
+            // 動的な緑化・マテリアル塗り替えによる木の増殖・色変化の違和感を防止するため何もしない
+            yield break;
         }
 
         void OnDestroy()

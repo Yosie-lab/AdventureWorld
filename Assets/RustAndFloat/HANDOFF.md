@@ -10,6 +10,10 @@ created: 2026-09-11
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容
+- **上空旋回中の地上の木の増殖・色変化（緑化コルーチン・LOD急変）の完全撤去**:
+  - `AdventureSkybreakVisuals.cs`:
+    - **原因の特定**: エピローグ移行時（`StartThaw`）に起動していた `NaturalizeGroundFoliage` コルーチンが、全Rendererを毎フレーム24個ずつ走査してマテリアルを複製し、地上の木や草の色を1本ずつ濃い緑へ塗り替えていたため、上空旋回中にリアルタイムで木の色が濃くなり、木が次々と増えていくように見えていた。また、`QualitySettings.lodBias = 2.6f` や Terrain の `treeDistance` / `treeMaximumFullLODCount` の動的書き換えも木の突然の出現を引き起こしていた。
+    - **対策**: `NaturalizeGroundFoliage` によるマテリアルの動的緑化・塗り替え処理を完全停止・撤去。Terrain の動的書き換えや LODBias 変更も排除し、島本来の美しい自然な木々・色彩（桜・紅葉・ヤシの木・草花など）が最初から最後まで一切チラつかず安定して描画されるよう修正。
 - **上空突破後の高度（天蓋外160mパノラマ）およびシネマ字幕特大化の復元**:
   - `AdventureSanctuaryTowerManager.Epilogue.cs`, `AdventureSanctuaryTowerManager.Climax.cs`, `AdventureCameraFollow.cs`:
     - **高度の引き上げ（120m ➔ 160m）**: エピローグ開始時および巡航時のオートグライド高度が旧設定の120fに指定されていたため、天蓋（150m）より低い高度に下がってしまっていた問題を修正。160m（天蓋を遥かに超えた大空・雲海パノラマ高度）へ引き上げ、天蓋突破後の上昇・維持（155m以上確保）を完全保証。
