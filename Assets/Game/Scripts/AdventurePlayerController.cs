@@ -591,7 +591,7 @@ public partial class AdventurePlayerController : MonoBehaviour
                 // クライマックス中（凍結危機〜エピローグ前）はTickClimaxSequenceが一元管理するため、HandleJump側からの自動台本送りは行わない
                 if (!tower.ClimaxCrisisStarted)
                 {
-                    if (AdventureInputReader.SpaceOrJDown || AdventureInputReader.SpaceOrJHeld)
+                    if (AdventureInputReader.SpaceOrJDown)
                         tower.NotifyScriptBoardAdvance();
                 }
                 return;

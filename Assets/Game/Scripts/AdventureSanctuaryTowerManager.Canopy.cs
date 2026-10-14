@@ -216,44 +216,50 @@ public partial class AdventureSanctuaryTowerManager
         // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、レバーの余韻や誤クリックで飛ばされず7.5秒間しっかり表示を保証
         float minShow = (_canopyBeatIndex == 0) ? autoSec : 0.45f;
 
-        // 入力判定
-        if (openFor >= minShow)
+        // 最小表示時間に達するまでは外部入力や残留フラグによるスキップを完全遮断
+        if (openFor < minShow)
         {
-            // キーを一度離すまで次のセリフ送りを待つガードが解除されていれば入力を受付
-            if (!_scriptRequireInputRelease)
+            _scriptBoardAdvance = false;
+            return;
+        }
+
+        // 入力判定
+        // キーを一度離すまで次のセリフ送りを待つガードが解除されていれば入力を受付
+        if (!_scriptRequireInputRelease)
+        {
+            if (!_scriptBoardIsDive)
             {
-                if (!_scriptBoardIsDive)
+                PollScriptBoardAdvance();
+            }
+        }
+
+        // ダイブビート（光の柱へダイブ）：長押し操作判定（0.35秒ホールドで即座に突入）
+        if (_scriptBoardIsDive)
+        {
+            if (IsDiveConfirmHeld())
+            {
+                _scriptHoldTimer += Time.unscaledDeltaTime;
+                if (_filmSubtitleUi != null)
                 {
-                    PollScriptBoardAdvance();
+                    _filmSubtitleUi.text = "<size=34><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
+                }
+                if (_scriptHoldTimer >= 0.35f)
+                {
+                    _scriptBoardAdvance = true;
                 }
             }
-
-            // ダイブビート（光の柱へダイブ）：長押し操作判定（0.35秒ホールドで即座に突入）
-            if (_scriptBoardIsDive)
+            else
             {
-                if (IsDiveConfirmHeld())
+                _scriptHoldTimer = 0f;
+                if (_filmSubtitleUi != null)
                 {
-                    _scriptHoldTimer += Time.unscaledDeltaTime;
-                    if (_filmSubtitleUi != null)
-                    {
-                        _filmSubtitleUi.text = "<size=34><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
-                    }
-                    if (_scriptHoldTimer >= 0.35f)
-                    {
-                        _scriptBoardAdvance = true;
-                    }
-                }
-                else
-                {
-                    _scriptHoldTimer = 0f;
-                    if (_filmSubtitleUi != null)
-                    {
-                        _filmSubtitleUi.text = "<size=34><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 空の裂け目へダイブ！</size>";
-                    }
+                    _filmSubtitleUi.text = "<size=34><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 空の裂け目へダイブ！</size>";
                 }
             }
-
-            // 放置タイムアウトによる自動進行（ダイブビートも指定時間 autoSec 経過で自動的にダイブへ推移）
+        }
+        else
+        {
+            // 放置タイムアウトによる自動進行（通常ビートのみ指定時間 autoSec 経過で自動的に推移。ダイブはプレイヤー入力必須）
             if (openFor >= autoSec)
             {
                 _scriptBoardAdvance = true;

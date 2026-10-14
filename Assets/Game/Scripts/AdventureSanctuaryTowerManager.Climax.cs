@@ -193,29 +193,33 @@ public partial class AdventureSanctuaryTowerManager
         // それ以外のセリフは0.35秒の切り替えデバウンス
         float minHoldOpen = isRevivalBeat ? 1.20f : 0.35f;
 
-        if (openFor >= minHoldOpen)
+        // 最小表示時間に達するまでは外部入力や残留フラグによるスキップを完全遮断
+        if (openFor < minHoldOpen)
         {
-            // 1. タップ・決定入力（クリック・Space・Enter・Eキー・Jキー・ゲームパッド等。離し待ち中は完全ガード）
-            if (!_scriptRequireInputRelease)
-            {
-                PollScriptBoardAdvance();
-                if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseRightDown)
-                {
-                    _scriptBoardAdvance = true;
-                    Debug.Log($"[RustAndFloat] クライマックス送り入力検知: beat={_climaxBeatIndex}");
-                }
-            }
+            _scriptBoardAdvance = false;
+            return;
+        }
 
-            // 4. 自然な自動送り時間（放置シネマ：ClimaxBeats定義から直接取得）
-            float autoSec = (_climaxBeatIndex >= 0 && _climaxBeatIndex < ClimaxBeats.Length)
-                ? ClimaxBeats[_climaxBeatIndex].AutoAdvanceSeconds
-                : 4.5f;
-
-            if (openFor >= autoSec)
+        // 1. タップ・決定入力（クリック・Space・Enter・Eキー・Jキー・ゲームパッド等。離し待ち中は完全ガード）
+        if (!_scriptRequireInputRelease)
+        {
+            PollScriptBoardAdvance();
+            if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseRightDown)
             {
                 _scriptBoardAdvance = true;
-                Debug.Log($"[RustAndFloat] クライマックス自動送り発動: beat={_climaxBeatIndex} (経過={openFor:F1}s)");
+                Debug.Log($"[RustAndFloat] クライマックス送り入力検知: beat={_climaxBeatIndex}");
             }
+        }
+
+        // 4. 自然な自動送り時間（放置シネマ：ClimaxBeats定義から直接取得）
+        float autoSec = (_climaxBeatIndex >= 0 && _climaxBeatIndex < ClimaxBeats.Length)
+            ? ClimaxBeats[_climaxBeatIndex].AutoAdvanceSeconds
+            : 4.5f;
+
+        if (openFor >= autoSec)
+        {
+            _scriptBoardAdvance = true;
+            Debug.Log($"[RustAndFloat] クライマックス自動送り発動: beat={_climaxBeatIndex} (経過={openFor:F1}s)");
         }
 
         if (!_scriptBoardAdvance) return;
