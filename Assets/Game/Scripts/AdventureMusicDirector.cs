@@ -474,14 +474,14 @@ public class AdventureMusicDirector : MonoBehaviour
 
 
 
-        // (a) 星屑のように澄み渡るセレステ（Celesta / 鐘・鉄琴調）主旋律（全32拍・8小節・計12.0秒）
+        // (a) カピタが弾く温かく素朴なフェルトピアノ（Piano）主旋律（全32拍・8小節・計12.0秒）
         // F#5拍 ➔ F#1拍 ➔ F1拍 ➔ F#1拍 ➔ A7拍 ➔ A1拍 ➔ G5拍 ➔ B1拍 ➔ E1拍 ➔ G1拍 ➔ A#4拍 ➔ A2拍 ➔ G2拍
         const float beatSec = 0.375f; // 1拍 = 0.375秒 (BPM 160)
-        (float start, float end, float freq)[] celestaNotes = new (float, float, float)[]
+        (float start, float end, float freq)[] pianoNotes = new (float, float, float)[]
         {
             // 第1〜2小節 (Dコード / 0.00〜3.00s): F# 5拍 + F# 1拍 + F 1拍 + F# 1拍
-            (0.000f * beatSec,  5.000f * beatSec, 369.99f), // F#4 (5拍 = 1.875s) 澄んだ鐘のロングトーン
-            (5.000f * beatSec,  6.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s) 軽やかに再打鍵
+            (0.000f * beatSec,  5.000f * beatSec, 369.99f), // F#4 (5拍 = 1.875s) 温かいピアノのロングトーン
+            (5.000f * beatSec,  6.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s) ぽろんと再打鍵
             (6.000f * beatSec,  7.000f * beatSec, 349.23f), // F4  (1拍 = 0.375s) 切ない経過音
             (7.000f * beatSec,  8.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s)
 
@@ -524,16 +524,16 @@ public class AdventureMusicDirector : MonoBehaviour
             float[] chord = chordRoots8[bar8];
 
             bool hasDrums;
-            bool hasCelesta;
+            bool hasPiano;
             if (isDrumsOnly)
             {
                 hasDrums = true;
-                hasCelesta = false; // 大空滑空時・オーバードライブ後もメロディーは無し
+                hasPiano = false; // 大空滑空時・オーバードライブ後もメロディーは無し
             }
             else
             {
                 hasDrums = (cycle >= 1);                        // 12秒〜（2周目以降）でドラム合流！
-                hasCelesta = (cycle >= 2 && cycle < 7);         // 24〜84秒（3〜7周目）でセレステ主旋律！8周目（84秒〜）からはミュート！
+                hasPiano = (cycle >= 2 && cycle < 7);           // 24〜84秒（3〜7周目）でカピタのピアノ主旋律！8周目（84秒〜）からはミュート！
             }
 
             // 1. パワフルで神秘的なシネマティック・ブラスパッド
@@ -550,76 +550,71 @@ public class AdventureMusicDirector : MonoBehaviour
             }
             brass *= env;
 
-            // 2. 駆け上がるキラキラしたアルペジオ（音量を10%削り、セレステの主旋律を美しく引き立てる）
+            // 2. 駆け上がるキラキラしたアルペジオ（音量を10%削り、ピアノの主旋律を美しく引き立てる）
             float arpPhase = (t * 8.0f) % 1.0f;
             int arpIndex = Mathf.FloorToInt(t * 8.0f) % chord.Length;
             float arpFreq = chord[arpIndex] * 2.0f;
             float arpEnv = Mathf.Exp(-arpPhase * 5.0f);
             float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.171f;
 
-            // 3. 星屑のように澄み渡るセレステ（Celesta / 鐘・鉄琴）主旋律 ＋ 専用ステレオシマーリバーブ ＋ 温かいコードパッド
+            // 3. カピタが奏でる温かく素朴なフェルトピアノ（Piano）主旋律 ＋ 空間ステレオリバーブ ＋ 温かいコードパッド
             float strL = 0f;
             float strR = 0f;
             {
-                float celestaL = 0f;
-                float celestaR = 0f;
+                float pianoL = 0f;
+                float pianoR = 0f;
 
-                if (hasCelesta)
+                if (hasPiano)
                 {
-                    for (int m = 0; m < celestaNotes.Length; m++)
+                    for (int m = 0; m < pianoNotes.Length; m++)
                     {
-                        var note = celestaNotes[m];
+                        var note = pianoNotes[m];
                         float noteDur = note.end - note.start;
 
                         for (int d = 0; d < 3; d++)
                         {
                             float nT = (d == 0) ? (cycleT - note.start) : ((d == 1) ? (cycleT + 12.0f - note.start) : (cycleT - 12.0f - note.start));
-                            if (nT >= 0f && nT <= noteDur + 0.6f) // 余韻・残響のため少し長めに再生判定
+                            if (nT >= 0f && nT <= noteDur + 0.8f) // 余韻・残響のため少し長めに再生判定
                             {
-                                float f = note.freq * 2.0f; // セレステの澄んだ音域（1オクターブ上）
+                                float f0 = note.freq; // カピタのピアノと同じ心地よい中音域（F#4〜A#4）
 
-                                // 瞬時のクリスタル打鍵アタック（0.002s）
-                                float cAttack = Mathf.Clamp01(nT / 0.002f);
-                                float cDecayFund = Mathf.Exp(-nT * 1.5f);     // 基音の澄んだ余韻
-                                float cDecayHigh = Mathf.Exp(-nT * 3.6f);     // 高音キラキラ成分の余韻
-                                float cDecaySparkle = Mathf.Exp(-nT * 5.0f);  // 超高音星屑のきらめき
+                                // 柔らかなフェルトハンマーの自然な立ち上がり（180f = 約5.5ms）
+                                float attack = Mathf.Clamp01(nT * 180f);
+                                float decay = Mathf.Exp(-nT * 1.35f); // 伸びやかで温かい余韻
+                                float env_p = attack * decay;
 
-                                // キラキラ感を大幅強化したクリスタル・セレステ波形
-                                // 澄んだベル基音 ＋ 1オクターブ上 ＋ 2オクターブ上星屑 ＋ チャイム倍音
-                                float cWave = (Mathf.Sin(2f * Mathf.PI * (f * 0.5f) * t) * 0.05f * cDecayFund)
-                                            + (Mathf.Sin(2f * Mathf.PI * f * t) * 0.46f * cDecayFund)
-                                            + (Mathf.Sin(2f * Mathf.PI * (f * 2.0f) * t) * 0.45f * cDecayHigh)
-                                            + (Mathf.Sin(2f * Mathf.PI * (f * 4.0f) * t) * 0.28f * cDecaySparkle)
-                                            + (Mathf.Sin(2f * Mathf.PI * (f * 3.01f) * t) * 0.20f * cDecayHigh)
-                                            + (Mathf.Sin(2f * Mathf.PI * (f * 5.02f) * t) * 0.14f * cDecaySparkle);
+                                // 温かみのあるアコースティック・フェルトピアノの倍音合成（AdventureAncientPianoRelicと同一の音響式）
+                                float pWave = Mathf.Sin(2f * Mathf.PI * f0 * t) * 0.58f
+                                            + Mathf.Sin(4f * Mathf.PI * f0 * t) * 0.28f
+                                            + Mathf.Sin(6f * Mathf.PI * f0 * t) * 0.10f
+                                            + Mathf.Sin(8f * Mathf.PI * f0 * t) * 0.04f;
 
                                 if (nT <= noteDur)
                                 {
-                                    float directSig = cWave * cAttack;
-                                    celestaL += directSig * 0.95f;
-                                    celestaR += directSig * 1.05f;
+                                    float directSig = pWave * env_p;
+                                    pianoL += directSig * 0.95f;
+                                    pianoR += directSig * 1.05f;
                                 }
 
-                                // --- セレステ専用の空間ステレオリバーブ／シマー反射音 ---
-                                // 左右にふわっと広がりながら星空へ消え入る4段ピンポン空間残響
+                                // --- ピアノ専用の空間ステレオリバーブ／反射音 ---
+                                // 左右にふんわり広がる柔らかなピンポン空間残響
                                 float[] delayTimes = { 0.094f, 0.188f, 0.282f, 0.375f };
-                                float[] delayGains = { 0.45f, 0.32f, 0.22f, 0.14f };
-                                float[] panL = { 0.25f, 0.85f, 0.30f, 0.78f };
-                                float[] panR = { 0.85f, 0.25f, 0.78f, 0.30f };
+                                float[] delayGains = { 0.40f, 0.28f, 0.18f, 0.10f };
+                                float[] panL = { 0.30f, 0.80f, 0.35f, 0.70f };
+                                float[] panR = { 0.80f, 0.30f, 0.70f, 0.35f };
 
                                 for (int rv = 0; rv < 4; rv++)
                                 {
                                     float rT = nT - delayTimes[rv];
                                     if (rT >= 0f)
                                     {
-                                        float rEnv = Mathf.Clamp01(rT / 0.004f) * Mathf.Exp(-rT * 2.2f) * delayGains[rv];
-                                        // 反射音は高域倍音ときらめきを強調したシマーリバーブ
-                                        float rWave = (Mathf.Sin(2f * Mathf.PI * f * t) * 0.38f)
-                                                    + (Mathf.Sin(2f * Mathf.PI * (f * 2.0f) * t) * 0.52f)
-                                                    + (Mathf.Sin(2f * Mathf.PI * (f * 4.0f) * t) * 0.26f);
+                                        float rEnv = Mathf.Clamp01(rT * 150f) * Mathf.Exp(-rT * 1.8f) * delayGains[rv];
+                                        float rWave = Mathf.Sin(2f * Mathf.PI * f0 * t) * 0.55f
+                                                    + Mathf.Sin(4f * Mathf.PI * f0 * t) * 0.25f
+                                                    + Mathf.Sin(6f * Mathf.PI * f0 * t) * 0.08f;
                                         float rSig = rWave * rEnv;
-                                        celestaL += rSig * panL[rv];
-                                        celestaR += rSig * panR[rv];
+                                        pianoL += rSig * panL[rv];
+                                        pianoR += rSig * panR[rv];
                                     }
                                 }
                             }
@@ -661,13 +656,13 @@ public class AdventureMusicDirector : MonoBehaviour
                     }
                 }
 
-                // セレステの音量バランス（30%削減して耳に優しく、上品に大空を彩る音量）
-                float celestaGain = ((cycle == 0) ? 0.38f : 0.46f) * 0.336f;
-                if (isDrumsOnly) celestaGain = 0.48f * 0.336f;
+                // ピアノの音量バランス（主旋律として優しく澄んで響く音量）
+                float pianoGain = ((cycle == 0) ? 0.38f : 0.44f) * 0.36f;
+                if (isDrumsOnly) pianoGain = 0.44f * 0.36f;
 
-                // 左右に美しく広がるステレオ定位（セレステの透明感が大空全体を包み込む）
-                float combinedL = celestaL * celestaGain + pad * 0.18f * 0.98f;
-                float combinedR = celestaR * celestaGain + pad * 0.18f * 1.02f;
+                // 左右に美しく広がるステレオ定位（カピタのピアノの温もりが大空全体を包み込む）
+                float combinedL = pianoL * pianoGain + pad * 0.18f * 0.98f;
+                float combinedR = pianoR * pianoGain + pad * 0.18f * 1.02f;
                 strL = combinedL;
                 strR = combinedR;
             }
