@@ -550,12 +550,12 @@ public class AdventureMusicDirector : MonoBehaviour
             }
             brass *= env;
 
-            // 2. 駆け上がるキラキラしたアルペジオ
+            // 2. 駆け上がるキラキラしたアルペジオ（音量を10%削り、セレステの主旋律を美しく引き立てる）
             float arpPhase = (t * 8.0f) % 1.0f;
             int arpIndex = Mathf.FloorToInt(t * 8.0f) % chord.Length;
             float arpFreq = chord[arpIndex] * 2.0f;
             float arpEnv = Mathf.Exp(-arpPhase * 5.0f);
-            float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.19f;
+            float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.171f;
 
             // 3. 星屑のように澄み渡るセレステ（Celesta / 鐘・鉄琴）主旋律 ＋ 専用ステレオシマーリバーブ ＋ 温かいコードパッド
             float strL = 0f;
