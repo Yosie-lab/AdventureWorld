@@ -208,6 +208,14 @@ public partial class AdventureSanctuaryTowerManager
 
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
+        // 字幕自己修復：他処理（リセット・発話クリア等）で字幕が消されても、表示中のビートを毎フレーム保証する
+        if (_scriptBoardVisible && !_scriptBoardIsDive && _canopyBeatIndex < CanopyBeats.Length
+            && (_filmSubtitleUi == null || string.IsNullOrEmpty(_filmSubtitleUi.text) || _filmSubtitleUi.color.a < 0.99f))
+        {
+            var cur = CanopyBeats[_canopyBeatIndex];
+            SetScreenScriptSubtitle(cur.Title, cur.Speaker, cur.Body, cur.Accent, cur.IsDive);
+        }
+
         // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目4.2s／3枚目5.8s／会話3.8s／ダイブ6.0s）
         float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
@@ -265,11 +273,19 @@ public partial class AdventureSanctuaryTowerManager
 
         if (!_scriptBoardAdvance) return;
 
+        // 最終ガード：第1幕は経過 autoSec 未満では何があっても次へ進めない
+        if (_canopyBeatIndex == 0 && openFor < autoSec)
+        {
+            _scriptBoardAdvance = false;
+            return;
+        }
+
         _scriptBoardAdvance = false;
         _scriptHoldTimer = 0f;
         _scriptRequireInputRelease = true; // セリフ送り時の突き抜けを完全防止（キーを一度離すまで次を受け付けない）
 
         int next = _canopyBeatIndex + 1;
+        Debug.Log($"[RustAndFloat] 台本ビート送り: {_canopyBeatIndex} → {next}（表示={openFor:F2}s / 自動={autoSec:F1}s）");
         if (next >= CanopyBeats.Length)
         {
             FinishCanopyScriptBeats();
