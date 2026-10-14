@@ -474,14 +474,14 @@ public class AdventureMusicDirector : MonoBehaviour
 
 
 
-        // (a) 爽やかで叙情的な口笛（Whistle）主旋律（全32拍・8小節・計12.0秒）
+        // (a) 星屑のように澄み渡るセレステ（Celesta / 鐘・鉄琴調）主旋律（全32拍・8小節・計12.0秒）
         // F#5拍 ➔ F#1拍 ➔ F1拍 ➔ F#1拍 ➔ A7拍 ➔ A1拍 ➔ G5拍 ➔ B1拍 ➔ E1拍 ➔ G1拍 ➔ A#4拍 ➔ A2拍 ➔ G2拍
         const float beatSec = 0.375f; // 1拍 = 0.375秒 (BPM 160)
-        (float start, float end, float freq)[] whistleNotes = new (float, float, float)[]
+        (float start, float end, float freq)[] celestaNotes = new (float, float, float)[]
         {
             // 第1〜2小節 (Dコード / 0.00〜3.00s): F# 5拍 + F# 1拍 + F 1拍 + F# 1拍
-            (0.000f * beatSec,  5.000f * beatSec, 369.99f), // F#4 (5拍 = 1.875s) 澄んだ口笛のロングトーン
-            (5.000f * beatSec,  6.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s) 軽やかな息継ぎで再発音
+            (0.000f * beatSec,  5.000f * beatSec, 369.99f), // F#4 (5拍 = 1.875s) 澄んだ鐘のロングトーン
+            (5.000f * beatSec,  6.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s) 軽やかに再打鍵
             (6.000f * beatSec,  7.000f * beatSec, 349.23f), // F4  (1拍 = 0.375s) 切ない経過音
             (7.000f * beatSec,  8.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s)
 
@@ -524,16 +524,16 @@ public class AdventureMusicDirector : MonoBehaviour
             float[] chord = chordRoots8[bar8];
 
             bool hasDrums;
-            bool hasWhistle;
+            bool hasCelesta;
             if (isDrumsOnly)
             {
                 hasDrums = true;
-                hasWhistle = false; // 大空滑空時・オーバードライブ後もメロディーは無し
+                hasCelesta = false; // 大空滑空時・オーバードライブ後もメロディーは無し
             }
             else
             {
                 hasDrums = (cycle >= 1);                        // 12秒〜（2周目以降）でドラム合流！
-                hasWhistle = (cycle >= 2 && cycle < 7);         // 24〜84秒（3〜7周目）で口笛主旋律！8周目（84秒〜）からはミュート！
+                hasCelesta = (cycle >= 2 && cycle < 7);         // 24〜84秒（3〜7周目）でセレステ主旋律！8周目（84秒〜）からはミュート！
             }
 
             // 1. パワフルで神秘的なシネマティック・ブラスパッド
@@ -557,18 +557,17 @@ public class AdventureMusicDirector : MonoBehaviour
             float arpEnv = Mathf.Exp(-arpPhase * 5.0f);
             float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.19f;
 
-            // 3. 爽やかで叙情的な口笛（Whistle） ＋ 高音キラキラのセレステ（Celesta） ＋ 温かいコードパッド
+            // 3. 星屑のように澄み渡るセレステ（Celesta / 鐘・鉄琴）主旋律 ＋ 温かいコードパッド
             float strL = 0f;
             float strR = 0f;
             {
-                float whistleSignal = 0f;
                 float celestaSignal = 0f;
 
-                if (hasWhistle)
+                if (hasCelesta)
                 {
-                    for (int m = 0; m < whistleNotes.Length; m++)
+                    for (int m = 0; m < celestaNotes.Length; m++)
                     {
-                        var note = whistleNotes[m];
+                        var note = celestaNotes[m];
                         float noteDur = note.end - note.start;
 
                         for (int d = 0; d < 3; d++)
@@ -576,39 +575,19 @@ public class AdventureMusicDirector : MonoBehaviour
                             float nT = (d == 0) ? (cycleT - note.start) : ((d == 1) ? (cycleT + 12.0f - note.start) : (cycleT - 12.0f - note.start));
                             if (nT >= 0f && nT <= noteDur)
                             {
-                                // --- 口笛（Whistle） ---
-                                // 口笛のやさしい息の吹き始め（アタック0.055s）と自然な息抜け（リリース0.040s）
-                                float wEnv = 1f;
-                                if (nT < 0.055f)
-                                    wEnv = Mathf.SmoothStep(0f, 1f, nT / 0.055f);
-                                else if (nT > noteDur - 0.040f)
-                                    wEnv = Mathf.SmoothStep(1f, 0f, (nT - (noteDur - 0.040f)) / 0.040f);
+                                float f = note.freq * 2.0f; // セレステの澄んだ音域（1オクターブ上）
 
-                                // 口笛の音域（自然な人間の口笛レンジ：1オクターブ上でまっすぐ澄み渡るストレートトーン、ビブラートなし）
-                                float f = note.freq * 2.0f;
+                                // 打鍵アタック（0.003s）と自然な減衰（基音はゆったり美しく、高次倍音は星のようにきらめいて減衰）
+                                float cAttack = Mathf.Clamp01(nT / 0.003f);
+                                float cDecayFund = Mathf.Exp(-nT * 1.6f);
+                                float cDecayHigh = Mathf.Exp(-nT * 4.2f);
 
-                                // 唇の隙間から漏れる微細な空気の擦過音（ブレスエアノイズ 2.2%）
-                                uint bSeed = (uint)(i * 48271 + 31);
-                                float breath = (((bSeed & 0xFFFF) / 32768.0f) - 1.0f) * 0.022f;
-
-                                // 口笛の波形（基音93% ＋ 微弱な2倍音4% ＋ リアルなブレス息音3%）
-                                float wWave = Mathf.Sin(2f * Mathf.PI * f * t) * 0.93f
-                                            + Mathf.Sin(4f * Mathf.PI * f * t) * 0.04f
-                                            + breath;
-
-                                whistleSignal += wWave * wEnv;
-
-                                // --- 高音がキラキラしたセレステ（Celesta / 鐘・鉄琴のような澄んだ高音） ---
-                                // 打鍵アタック（0.004s）と星屑のような澄んだ減衰（基音はゆったり、高次倍音はきらめいて自然減衰）
-                                float cAttack = Mathf.Clamp01(nT / 0.004f);
-                                float cDecayFund = Mathf.Exp(-nT * 2.2f);
-                                float cDecayHigh = Mathf.Exp(-nT * 5.2f);
-
-                                // セレステ波形：澄んだベル基音 ＋ オクターブ上高音キラキラ ＋ 鐘のハーモニック倍音
-                                float cWave = (Mathf.Sin(2f * Mathf.PI * f * t) * 0.55f * cDecayFund)
-                                            + (Mathf.Sin(2f * Mathf.PI * (f * 2.0f) * t) * 0.38f * cDecayHigh)
-                                            + (Mathf.Sin(2f * Mathf.PI * (f * 3.01f) * t) * 0.16f * cDecayHigh)
-                                            + (Mathf.Sin(2f * Mathf.PI * (f * 4.02f) * t) * 0.09f * cDecayHigh);
+                                // セレステ波形：打鍵の温かい芯 ＋ 澄み切ったベル基音 ＋ オクターブ上高音キラキラ ＋ 鐘のハーモニック倍音
+                                float cWave = (Mathf.Sin(2f * Mathf.PI * (f * 0.5f) * t) * 0.18f * cDecayFund)
+                                            + (Mathf.Sin(2f * Mathf.PI * f * t) * 0.62f * cDecayFund)
+                                            + (Mathf.Sin(2f * Mathf.PI * (f * 2.0f) * t) * 0.45f * cDecayHigh)
+                                            + (Mathf.Sin(2f * Mathf.PI * (f * 3.01f) * t) * 0.20f * cDecayHigh)
+                                            + (Mathf.Sin(2f * Mathf.PI * (f * 4.02f) * t) * 0.10f * cDecayHigh);
 
                                 celestaSignal += cWave * cAttack;
                             }
@@ -650,18 +629,13 @@ public class AdventureMusicDirector : MonoBehaviour
                     }
                 }
 
-                // 口笛とセレステの音量バランス（口笛音量を約半分に抑え、セレステのキラキラ感と自然に溶け込ませる）
-                float whistleGain = ((cycle == 0) ? 0.32f : 0.40f) * 0.125f;
-                float celestaGain = ((cycle == 0) ? 0.28f : 0.34f) * 0.22f;
-                if (isDrumsOnly)
-                {
-                    whistleGain = 0.42f * 0.125f;
-                    celestaGain = 0.36f * 0.22f;
-                }
+                // セレステの音量バランス（主旋律としてしっかり際立つ音量に調整）
+                float celestaGain = ((cycle == 0) ? 0.38f : 0.46f) * 0.48f;
+                if (isDrumsOnly) celestaGain = 0.48f * 0.48f;
 
-                // 左右に程よく広がるステレオ定位（口笛やや左、セレステやや右で美しい立体感）
-                float combinedL = whistleSignal * whistleGain * 1.02f + celestaSignal * celestaGain * 0.92f + pad * 0.18f * 0.98f;
-                float combinedR = whistleSignal * whistleGain * 0.98f + celestaSignal * celestaGain * 1.08f + pad * 0.18f * 1.02f;
+                // 左右に美しく広がるステレオ定位（セレステの透明感が大空全体を包み込む）
+                float combinedL = celestaSignal * celestaGain * 0.96f + pad * 0.18f * 0.98f;
+                float combinedR = celestaSignal * celestaGain * 1.04f + pad * 0.18f * 1.02f;
                 strL = combinedL;
                 strR = combinedR;
             }
@@ -724,8 +698,8 @@ public class AdventureMusicDirector : MonoBehaviour
             samples[i * 2 + 1] = outR;
         }
 
-        // 全体に広大で豊かな深みのあるステレオリバーブを付与（大空の広がりと残響を大幅拡大）
-        ApplyLightReverb(samples, totalSamples, sampleRate, 0.38f);
+        // 全体に広大で神秘的な深みのあるステレオリバーブを付与（セレステの響きと大空の残響を最大化）
+        ApplyLightReverb(samples, totalSamples, sampleRate, 0.44f);
 
         string clipName = isDrumsOnly ? "Music_RustFloat_Skybreak_DrumsOnly" : "Music_RustFloat_Skybreak_BuildUp";
         var clip = AudioClip.Create(clipName, totalSamples, 2, sampleRate, false);
@@ -737,24 +711,24 @@ public class AdventureMusicDirector : MonoBehaviour
     /// 全体に広大で豊かな深みのあるステレオリバーブを付与するSchroederリバーブ
     /// 左右独立長尺コムフィルタ＋直列オールパス拡散＋2パス循環（ループ端シームレス化）
     /// </summary>
-    private static void ApplyLightReverb(float[] samples, int totalSamples, int sampleRate, float wetMix = 0.38f)
+    private static void ApplyLightReverb(float[] samples, int totalSamples, int sampleRate, float wetMix = 0.44f)
     {
         if (samples == null || totalSamples <= 0) return;
 
         // コムフィルタのディレイ長（大空間・大聖堂・大空スケールのディレイ時間）
         int[] dL = new int[]
         {
-            Mathf.RoundToInt(0.0417f * sampleRate),
-            Mathf.RoundToInt(0.0521f * sampleRate),
-            Mathf.RoundToInt(0.0583f * sampleRate),
-            Mathf.RoundToInt(0.0631f * sampleRate)
+            Mathf.RoundToInt(0.0437f * sampleRate),
+            Mathf.RoundToInt(0.0541f * sampleRate),
+            Mathf.RoundToInt(0.0613f * sampleRate),
+            Mathf.RoundToInt(0.0671f * sampleRate)
         };
         int[] dR = new int[]
         {
-            Mathf.RoundToInt(0.0439f * sampleRate),
-            Mathf.RoundToInt(0.0507f * sampleRate),
-            Mathf.RoundToInt(0.0601f * sampleRate),
-            Mathf.RoundToInt(0.0659f * sampleRate)
+            Mathf.RoundToInt(0.0459f * sampleRate),
+            Mathf.RoundToInt(0.0527f * sampleRate),
+            Mathf.RoundToInt(0.0631f * sampleRate),
+            Mathf.RoundToInt(0.0699f * sampleRate)
         };
 
         float[][] combL = new float[4][];
@@ -780,11 +754,11 @@ public class AdventureMusicDirector : MonoBehaviour
         float[] apBufR2 = new float[apLenR2];
         int apIdxL1 = 0, apIdxL2 = 0, apIdxR1 = 0, apIdxR2 = 0;
 
-        const float feedback = 0.82f;
-        const float damp = 0.22f;
+        const float feedback = 0.85f;
+        const float damp = 0.18f;
         const float apGain = 0.5f;
 
-        float dryMix = 1.0f - wetMix * 0.35f;
+        float dryMix = 1.0f - wetMix * 0.30f;
 
         // 2パス実行: 1パス目はディレイバッファのウォームアップ、2パス目で出力適用（ループ境界のシームレス化）
         for (int pass = 0; pass < 2; pass++)
