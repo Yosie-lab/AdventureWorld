@@ -208,12 +208,12 @@ public partial class AdventureSanctuaryTowerManager
 
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
-        // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目4.5s／3枚目7.0s／会話3.8s／ダイブ6.0s）
+        // 各ビートの定義データから自動送り秒数を取得（1枚目6.8s／2枚目4.2s／3枚目5.8s／会話3.8s／ダイブ6.0s）
         float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
             : (_scriptBoardIsDive ? 6.0f : 3.5f);
 
-        // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、誤クリック等で飛ばされず元の7.5秒間しっかり表示を保証
+        // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、誤クリック等で飛ばされず6.8秒間しっかり表示を保証
         float minShow = (_canopyBeatIndex == 0) ? autoSec : 0.45f;
 
         // 入力
