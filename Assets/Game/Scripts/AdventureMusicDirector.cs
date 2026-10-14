@@ -557,11 +557,12 @@ public class AdventureMusicDirector : MonoBehaviour
             float arpEnv = Mathf.Exp(-arpPhase * 5.0f);
             float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.19f;
 
-            // 3. 星屑のように澄み渡るセレステ（Celesta / 鐘・鉄琴）主旋律 ＋ 温かいコードパッド
+            // 3. 星屑のように澄み渡るセレステ（Celesta / 鐘・鉄琴）主旋律 ＋ 専用ステレオシマーリバーブ ＋ 温かいコードパッド
             float strL = 0f;
             float strR = 0f;
             {
-                float celestaSignal = 0f;
+                float celestaL = 0f;
+                float celestaR = 0f;
 
                 if (hasCelesta)
                 {
@@ -573,23 +574,54 @@ public class AdventureMusicDirector : MonoBehaviour
                         for (int d = 0; d < 3; d++)
                         {
                             float nT = (d == 0) ? (cycleT - note.start) : ((d == 1) ? (cycleT + 12.0f - note.start) : (cycleT - 12.0f - note.start));
-                            if (nT >= 0f && nT <= noteDur)
+                            if (nT >= 0f && nT <= noteDur + 0.6f) // 余韻・残響のため少し長めに再生判定
                             {
                                 float f = note.freq * 2.0f; // セレステの澄んだ音域（1オクターブ上）
 
-                                // 打鍵アタック（0.003s）と自然な減衰（基音はゆったり美しく、高次倍音は星のようにきらめいて減衰）
-                                float cAttack = Mathf.Clamp01(nT / 0.003f);
-                                float cDecayFund = Mathf.Exp(-nT * 1.6f);
-                                float cDecayHigh = Mathf.Exp(-nT * 4.2f);
+                                // 瞬時のクリスタル打鍵アタック（0.002s）
+                                float cAttack = Mathf.Clamp01(nT / 0.002f);
+                                float cDecayFund = Mathf.Exp(-nT * 1.5f);     // 基音の澄んだ余韻
+                                float cDecayHigh = Mathf.Exp(-nT * 3.6f);     // 高音キラキラ成分の余韻
+                                float cDecaySparkle = Mathf.Exp(-nT * 5.0f);  // 超高音星屑のきらめき
 
-                                // セレステ波形：打鍵の温かい芯 ＋ 澄み切ったベル基音 ＋ オクターブ上高音キラキラ ＋ 鐘のハーモニック倍音
-                                float cWave = (Mathf.Sin(2f * Mathf.PI * (f * 0.5f) * t) * 0.18f * cDecayFund)
-                                            + (Mathf.Sin(2f * Mathf.PI * f * t) * 0.62f * cDecayFund)
+                                // キラキラ感を大幅強化したクリスタル・セレステ波形
+                                // 澄んだベル基音 ＋ 1オクターブ上 ＋ 2オクターブ上星屑 ＋ チャイム倍音
+                                float cWave = (Mathf.Sin(2f * Mathf.PI * (f * 0.5f) * t) * 0.05f * cDecayFund)
+                                            + (Mathf.Sin(2f * Mathf.PI * f * t) * 0.46f * cDecayFund)
                                             + (Mathf.Sin(2f * Mathf.PI * (f * 2.0f) * t) * 0.45f * cDecayHigh)
+                                            + (Mathf.Sin(2f * Mathf.PI * (f * 4.0f) * t) * 0.28f * cDecaySparkle)
                                             + (Mathf.Sin(2f * Mathf.PI * (f * 3.01f) * t) * 0.20f * cDecayHigh)
-                                            + (Mathf.Sin(2f * Mathf.PI * (f * 4.02f) * t) * 0.10f * cDecayHigh);
+                                            + (Mathf.Sin(2f * Mathf.PI * (f * 5.02f) * t) * 0.14f * cDecaySparkle);
 
-                                celestaSignal += cWave * cAttack;
+                                if (nT <= noteDur)
+                                {
+                                    float directSig = cWave * cAttack;
+                                    celestaL += directSig * 0.95f;
+                                    celestaR += directSig * 1.05f;
+                                }
+
+                                // --- セレステ専用の空間ステレオリバーブ／シマー反射音 ---
+                                // 左右にふわっと広がりながら星空へ消え入る4段ピンポン空間残響
+                                float[] delayTimes = { 0.094f, 0.188f, 0.282f, 0.375f };
+                                float[] delayGains = { 0.45f, 0.32f, 0.22f, 0.14f };
+                                float[] panL = { 0.25f, 0.85f, 0.30f, 0.78f };
+                                float[] panR = { 0.85f, 0.25f, 0.78f, 0.30f };
+
+                                for (int rv = 0; rv < 4; rv++)
+                                {
+                                    float rT = nT - delayTimes[rv];
+                                    if (rT >= 0f)
+                                    {
+                                        float rEnv = Mathf.Clamp01(rT / 0.004f) * Mathf.Exp(-rT * 2.2f) * delayGains[rv];
+                                        // 反射音は高域倍音ときらめきを強調したシマーリバーブ
+                                        float rWave = (Mathf.Sin(2f * Mathf.PI * f * t) * 0.38f)
+                                                    + (Mathf.Sin(2f * Mathf.PI * (f * 2.0f) * t) * 0.52f)
+                                                    + (Mathf.Sin(2f * Mathf.PI * (f * 4.0f) * t) * 0.26f);
+                                        float rSig = rWave * rEnv;
+                                        celestaL += rSig * panL[rv];
+                                        celestaR += rSig * panR[rv];
+                                    }
+                                }
                             }
                         }
                     }
@@ -629,13 +661,13 @@ public class AdventureMusicDirector : MonoBehaviour
                     }
                 }
 
-                // セレステの音量バランス（主旋律としてしっかり際立つ音量に調整）
-                float celestaGain = ((cycle == 0) ? 0.38f : 0.46f) * 0.48f;
-                if (isDrumsOnly) celestaGain = 0.48f * 0.48f;
+                // セレステの音量バランス（30%削減して耳に優しく、上品に大空を彩る音量）
+                float celestaGain = ((cycle == 0) ? 0.38f : 0.46f) * 0.336f;
+                if (isDrumsOnly) celestaGain = 0.48f * 0.336f;
 
                 // 左右に美しく広がるステレオ定位（セレステの透明感が大空全体を包み込む）
-                float combinedL = celestaSignal * celestaGain * 0.96f + pad * 0.18f * 0.98f;
-                float combinedR = celestaSignal * celestaGain * 1.04f + pad * 0.18f * 1.02f;
+                float combinedL = celestaL * celestaGain + pad * 0.18f * 0.98f;
+                float combinedR = celestaR * celestaGain + pad * 0.18f * 1.02f;
                 strL = combinedL;
                 strR = combinedR;
             }
