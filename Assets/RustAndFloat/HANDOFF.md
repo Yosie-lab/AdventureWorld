@@ -10,6 +10,11 @@ created: 2026-09-11
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容
+- **シネマキャプション（字幕＆黒帯レターボックス）非表示バグの解消**:
+  - `AdventureSanctuaryTowerManager.Epilogue.cs`:
+    - `TickCinematicLetterbox()` の表示判定において、エピローグ中（`filmPlaying`）しか考慮されておらず、天蓋崩壊シーケンス（`canopyPlaying`）およびクライマックス（`climaxPlaying`）で `_letterboxTargetAlpha = 0f` となり、毎フレーム字幕CanvasGroupが即座にフェードアウト・非アクティブ化されていた不具合を修正。
+    - `want` 判定に天蓋崩壊（`_endingSequenceActive || _canopyBeatIndex >= 0`）およびクライマックス（`_climaxCrisisStarted`）を網羅し、天蓋崩壊からクライマックス・エピローグまでシネマ字幕と黒帯レターボックスが100%確実に表示されるよう修正。
+    - `_filmSubtitleUi` の初期アルファを1fにし、複数行テキスト（タイトル・キャラクター名＋セリフ）がゆったり収まるようサイズ（高さ96f, フォントサイズ30）を最適化。
 - **崩壊シーケンス〜エンディング全編の徹底デバッグ＆リファクタリング（セリフ突き抜け撲滅・入力安全保証・シネマ品質向上）**:
   - `AdventureSanctuaryTowerManager.cs`, `AdventureSanctuaryTowerManager.Canopy.cs`, `AdventureSanctuaryTowerManager.Climax.cs`, `AdventureSanctuaryTowerManager.Epilogue.cs`, `AdventureSanctuaryTowerManager.ClearUI.cs`:
     - **入力離し待ち判定の根本修正**: `Update()` で `_scriptRequireInputRelease` が解除される条件に、Spaceキー（`SpaceOrJHeld`）およびマウス左クリック（`Input.GetMouseButton(0)`）を漏れなく追加。前セリフ送りで長押し気味に押された入力が次フレームで誤判定され、次のセリフが雪崩のように連続スキップされる不具合を完全根絶。

@@ -387,10 +387,11 @@ public partial class AdventureSanctuaryTowerManager
     void TickCinematicLetterbox()
     {
         bool filmPlaying = _epilogueTriggered && !_showGameClearModal && _filmIndex >= 0 && _filmPhase > 0;
-        bool want = filmPlaying || AdventureStoryFlow.IsPerformance;
+        bool canopyPlaying = (_endingSequenceActive || _canopyBeatIndex >= 0) && _scriptBoardVisible && !_showGameClearModal;
+        bool climaxPlaying = _climaxCrisisStarted && _scriptBoardVisible && !_showGameClearModal && !_climaxOilWaiting;
+        bool want = filmPlaying || canopyPlaying || climaxPlaying || AdventureStoryFlow.IsPerformance;
+
         _letterboxTargetAlpha = want ? 1f : 0f;
-        if (filmPlaying)
-            _letterboxTargetAlpha = 1f;
 
         if (want)
         {
@@ -398,19 +399,19 @@ public partial class AdventureSanctuaryTowerManager
             EnsureCinematicLetterbox();
             if (_letterboxRoot != null && !_letterboxRoot.activeSelf)
                 _letterboxRoot.SetActive(true);
-            if (filmPlaying && _letterboxCg != null)
+            if (_letterboxCg != null)
                 _letterboxCg.alpha = 1f;
         }
 
         if (_letterboxCg != null)
         {
-            float a = filmPlaying
+            float a = want
                 ? 1f
                 : Mathf.MoveTowards(_letterboxCg.alpha, _letterboxTargetAlpha, Time.unscaledDeltaTime * 2.4f);
             _letterboxCg.alpha = a;
             if (_letterboxRoot != null)
             {
-                bool show = a > 0.02f || _letterboxTargetAlpha > 0.02f || filmPlaying;
+                bool show = a > 0.02f || _letterboxTargetAlpha > 0.02f || want;
                 if (_letterboxRoot.activeSelf != show)
                     _letterboxRoot.SetActive(show);
             }
@@ -473,14 +474,14 @@ public partial class AdventureSanctuaryTowerManager
         rt.anchorMin = new Vector2(0.08f, 0f);
         rt.anchorMax = new Vector2(0.92f, 0f);
         rt.pivot = new Vector2(0.5f, 0f);
-        rt.anchoredPosition = new Vector2(0f, 38f);
-        rt.sizeDelta = new Vector2(0f, 84f);
+        rt.anchoredPosition = new Vector2(0f, 32f);
+        rt.sizeDelta = new Vector2(0f, 96f);
         _filmSubtitleUi = go.AddComponent<Text>();
         _filmSubtitleUi.font = font;
-        _filmSubtitleUi.fontSize = 35;
+        _filmSubtitleUi.fontSize = 30;
         _filmSubtitleUi.lineSpacing = 1.18f;
         _filmSubtitleUi.alignment = TextAnchor.MiddleCenter;
-        _filmSubtitleUi.color = new Color(1f, 0.94f, 0.78f, 0f);
+        _filmSubtitleUi.color = new Color(1f, 0.94f, 0.78f, 1f);
         _filmSubtitleUi.horizontalOverflow = HorizontalWrapMode.Wrap;
         _filmSubtitleUi.verticalOverflow = VerticalWrapMode.Overflow;
         _filmSubtitleUi.raycastTarget = false;
@@ -488,7 +489,7 @@ public partial class AdventureSanctuaryTowerManager
             _filmSubtitleUi.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
 
         var shadow = go.AddComponent<Shadow>();
-        shadow.effectColor = new Color(0.01f, 0.02f, 0.04f, 0.88f);
+        shadow.effectColor = new Color(0.01f, 0.02f, 0.04f, 0.92f);
         shadow.effectDistance = new Vector2(1.5f, -2.0f);
     }
 
