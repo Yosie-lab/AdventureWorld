@@ -650,12 +650,12 @@ public class AdventureMusicDirector : MonoBehaviour
                     }
                 }
 
-                // 口笛とセレステの音量バランス
-                float whistleGain = ((cycle == 0) ? 0.32f : 0.40f) * 0.25f;
+                // 口笛とセレステの音量バランス（口笛音量を約半分に抑え、セレステのキラキラ感と自然に溶け込ませる）
+                float whistleGain = ((cycle == 0) ? 0.32f : 0.40f) * 0.125f;
                 float celestaGain = ((cycle == 0) ? 0.28f : 0.34f) * 0.22f;
                 if (isDrumsOnly)
                 {
-                    whistleGain = 0.42f * 0.25f;
+                    whistleGain = 0.42f * 0.125f;
                     celestaGain = 0.36f * 0.22f;
                 }
 
@@ -724,8 +724,8 @@ public class AdventureMusicDirector : MonoBehaviour
             samples[i * 2 + 1] = outR;
         }
 
-        // 全体に透明感と深みのあるステレオリバーブを付与（空間の広がりと残響を強化）
-        ApplyLightReverb(samples, totalSamples, sampleRate, 0.28f);
+        // 全体に広大で豊かな深みのあるステレオリバーブを付与（大空の広がりと残響を大幅拡大）
+        ApplyLightReverb(samples, totalSamples, sampleRate, 0.38f);
 
         string clipName = isDrumsOnly ? "Music_RustFloat_Skybreak_DrumsOnly" : "Music_RustFloat_Skybreak_BuildUp";
         var clip = AudioClip.Create(clipName, totalSamples, 2, sampleRate, false);
@@ -734,27 +734,27 @@ public class AdventureMusicDirector : MonoBehaviour
     }
 
     /// <summary>
-    /// 全体に透明感と深みのあるステレオリバーブを付与するSchroederリバーブ
-    /// 左右独立コムフィルタ＋直列オールパス拡散＋2パス循環（ループ端シームレス化）
+    /// 全体に広大で豊かな深みのあるステレオリバーブを付与するSchroederリバーブ
+    /// 左右独立長尺コムフィルタ＋直列オールパス拡散＋2パス循環（ループ端シームレス化）
     /// </summary>
-    private static void ApplyLightReverb(float[] samples, int totalSamples, int sampleRate, float wetMix = 0.28f)
+    private static void ApplyLightReverb(float[] samples, int totalSamples, int sampleRate, float wetMix = 0.38f)
     {
         if (samples == null || totalSamples <= 0) return;
 
-        // コムフィルタのディレイ長（左右で素数・非調和比率のディレイ時間）
+        // コムフィルタのディレイ長（大空間・大聖堂・大空スケールのディレイ時間）
         int[] dL = new int[]
         {
-            Mathf.RoundToInt(0.0297f * sampleRate),
-            Mathf.RoundToInt(0.0371f * sampleRate),
-            Mathf.RoundToInt(0.0411f * sampleRate),
-            Mathf.RoundToInt(0.0437f * sampleRate)
+            Mathf.RoundToInt(0.0417f * sampleRate),
+            Mathf.RoundToInt(0.0521f * sampleRate),
+            Mathf.RoundToInt(0.0583f * sampleRate),
+            Mathf.RoundToInt(0.0631f * sampleRate)
         };
         int[] dR = new int[]
         {
-            Mathf.RoundToInt(0.0313f * sampleRate),
-            Mathf.RoundToInt(0.0361f * sampleRate),
-            Mathf.RoundToInt(0.0423f * sampleRate),
-            Mathf.RoundToInt(0.0457f * sampleRate)
+            Mathf.RoundToInt(0.0439f * sampleRate),
+            Mathf.RoundToInt(0.0507f * sampleRate),
+            Mathf.RoundToInt(0.0601f * sampleRate),
+            Mathf.RoundToInt(0.0659f * sampleRate)
         };
 
         float[][] combL = new float[4][];
@@ -769,10 +769,10 @@ public class AdventureMusicDirector : MonoBehaviour
         float[] filterL = new float[4];
         float[] filterR = new float[4];
 
-        int apLenL1 = Mathf.RoundToInt(0.0051f * sampleRate);
-        int apLenL2 = Mathf.RoundToInt(0.0017f * sampleRate);
-        int apLenR1 = Mathf.RoundToInt(0.0057f * sampleRate);
-        int apLenR2 = Mathf.RoundToInt(0.0019f * sampleRate);
+        int apLenL1 = Mathf.RoundToInt(0.0071f * sampleRate);
+        int apLenL2 = Mathf.RoundToInt(0.0024f * sampleRate);
+        int apLenR1 = Mathf.RoundToInt(0.0079f * sampleRate);
+        int apLenR2 = Mathf.RoundToInt(0.0027f * sampleRate);
 
         float[] apBufL1 = new float[apLenL1];
         float[] apBufL2 = new float[apLenL2];
@@ -780,11 +780,11 @@ public class AdventureMusicDirector : MonoBehaviour
         float[] apBufR2 = new float[apLenR2];
         int apIdxL1 = 0, apIdxL2 = 0, apIdxR1 = 0, apIdxR2 = 0;
 
-        const float feedback = 0.77f;
-        const float damp = 0.24f;
+        const float feedback = 0.82f;
+        const float damp = 0.22f;
         const float apGain = 0.5f;
 
-        float dryMix = 1.0f - wetMix * 0.4f;
+        float dryMix = 1.0f - wetMix * 0.35f;
 
         // 2パス実行: 1パス目はディレイバッファのウォームアップ、2パス目で出力適用（ループ境界のシームレス化）
         for (int pass = 0; pass < 2; pass++)
