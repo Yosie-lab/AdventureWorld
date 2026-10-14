@@ -29,7 +29,7 @@ public partial class AdventureSanctuaryTowerManager
         string mainText = "";
         if (isPrompt)
         {
-            mainText = "<size=30><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 空の裂け目へダイブ！</size>";
+            mainText = "<size=34><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 光の柱へダイブ！</size>";
         }
         else if (!string.IsNullOrEmpty(speaker))
         {
@@ -261,7 +261,7 @@ public partial class AdventureSanctuaryTowerManager
                 _scriptHoldTimer = 0f;
                 if (_filmSubtitleUi != null)
                 {
-                    _filmSubtitleUi.text = "<size=34><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 空の裂け目へダイブ！</size>";
+                    _filmSubtitleUi.text = "<size=34><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 光の柱へダイブ！</size>";
                 }
             }
         }
