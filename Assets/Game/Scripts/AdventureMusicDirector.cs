@@ -582,14 +582,8 @@ public class AdventureMusicDirector : MonoBehaviour
                                 else if (nT > noteDur - 0.040f)
                                     wEnv = Mathf.SmoothStep(1f, 0f, (nT - (noteDur - 0.040f)) / 0.040f);
 
-                                // 口笛の音域（自然な人間の口笛レンジ：1オクターブ上で澄み渡る音色）
-                                float baseF = note.freq * 2.0f;
-
-                                // 伸びやかなビブラート（音が伸びて0.18秒後から優しく揺れる 5.2Hz、深さ±0.38%）
-                                float vib = (nT > 0.18f)
-                                    ? Mathf.Sin(2f * Mathf.PI * 5.2f * (nT - 0.18f)) * 0.0038f
-                                    : 0f;
-                                float f = baseF * (1.0f + vib);
+                                // 口笛の音域（自然な人間の口笛レンジ：1オクターブ上でまっすぐ澄み渡るストレートトーン、ビブラートなし）
+                                float f = note.freq * 2.0f;
 
                                 // 唇の隙間から漏れる微細な空気の擦過音（ブレスエアノイズ 2.2%）
                                 uint bSeed = (uint)(i * 48271 + 31);
