@@ -474,14 +474,14 @@ public class AdventureMusicDirector : MonoBehaviour
 
 
 
-        // (a) 哀愁のある映画的ソロ・トランペット主旋律（全32拍・8小節・計12.0秒）
+        // (a) 爽やかで叙情的な口笛（Whistle）主旋律（全32拍・8小節・計12.0秒）
         // F#5拍 ➔ F#1拍 ➔ F1拍 ➔ F#1拍 ➔ A7拍 ➔ A1拍 ➔ G5拍 ➔ B1拍 ➔ E1拍 ➔ G1拍 ➔ A#4拍 ➔ A2拍 ➔ G2拍
         const float beatSec = 0.375f; // 1拍 = 0.375秒 (BPM 160)
-        (float start, float end, float freq)[] trumpetNotes = new (float, float, float)[]
+        (float start, float end, float freq)[] whistleNotes = new (float, float, float)[]
         {
             // 第1〜2小節 (Dコード / 0.00〜3.00s): F# 5拍 + F# 1拍 + F 1拍 + F# 1拍
-            (0.000f * beatSec,  5.000f * beatSec, 369.99f), // F#4 (5拍 = 1.875s) 哀愁のロングトーン
-            (5.000f * beatSec,  6.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s) タンギングで再発音
+            (0.000f * beatSec,  5.000f * beatSec, 369.99f), // F#4 (5拍 = 1.875s) 澄んだ口笛のロングトーン
+            (5.000f * beatSec,  6.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s) 軽やかな息継ぎで再発音
             (6.000f * beatSec,  7.000f * beatSec, 349.23f), // F4  (1拍 = 0.375s) 切ない経過音
             (7.000f * beatSec,  8.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s)
 
@@ -491,7 +491,7 @@ public class AdventureMusicDirector : MonoBehaviour
 
             // 第5〜6小節 (Emコード / 6.00〜9.00s): G 5拍 + B 1拍 + E 1拍 + G 1拍
             (16.000f * beatSec, 21.000f * beatSec, 392.00f), // G4  (5拍 = 1.875s) 温かな叙情
-            (21.000f * beatSec, 22.000f * beatSec, 246.94f), // B3  (1拍 = 0.375s) 1オクターブ低く落ち着いたトーンへ
+            (21.000f * beatSec, 22.000f * beatSec, 246.94f), // B3  (1拍 = 0.375s) 落ち着いたトーンへ
             (22.000f * beatSec, 23.000f * beatSec, 329.63f), // E4  (1拍 = 0.375s)
             (23.000f * beatSec, 24.000f * beatSec, 392.00f), // G4  (1拍 = 0.375s)
 
@@ -524,16 +524,16 @@ public class AdventureMusicDirector : MonoBehaviour
             float[] chord = chordRoots8[bar8];
 
             bool hasDrums;
-            bool hasTrumpet;
+            bool hasWhistle;
             if (isDrumsOnly)
             {
                 hasDrums = true;
-                hasTrumpet = false; // 大空滑空時・オーバードライブ後もメロディーは無し
+                hasWhistle = false; // 大空滑空時・オーバードライブ後もメロディーは無し
             }
             else
             {
                 hasDrums = (cycle >= 1);                        // 12秒〜（2周目以降）でドラム合流！
-                hasTrumpet = (cycle >= 2 && cycle < 7);         // 24〜84秒（3〜7周目）でトランペット主旋律！8周目（84秒〜）からはミュート！
+                hasWhistle = (cycle >= 2 && cycle < 7);         // 24〜84秒（3〜7周目）で口笛主旋律！8周目（84秒〜）からはミュート！
             }
 
             // 1. パワフルで神秘的なシネマティック・ブラスパッド
@@ -557,17 +557,17 @@ public class AdventureMusicDirector : MonoBehaviour
             float arpEnv = Mathf.Exp(-arpPhase * 5.0f);
             float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.19f;
 
-            // 3. 哀愁のある映画的ソロ・トランペット主旋律（4周目リフレインから合流） ＋ 温かいコードパッド
+            // 3. 爽やかで叙情的な口笛（Whistle）主旋律 ＋ 温かいコードパッド
             float strL = 0f;
             float strR = 0f;
             {
-                float tptSignal = 0f;
+                float whistleSignal = 0f;
 
-                if (hasTrumpet)
+                if (hasWhistle)
                 {
-                    for (int m = 0; m < trumpetNotes.Length; m++)
+                    for (int m = 0; m < whistleNotes.Length; m++)
                     {
-                        var note = trumpetNotes[m];
+                        var note = whistleNotes[m];
                         float noteDur = note.end - note.start;
 
                         for (int d = 0; d < 3; d++)
@@ -575,27 +575,32 @@ public class AdventureMusicDirector : MonoBehaviour
                             float nT = (d == 0) ? (cycleT - note.start) : ((d == 1) ? (cycleT + 12.0f - note.start) : (cycleT - 12.0f - note.start));
                             if (nT >= 0f && nT <= noteDur)
                             {
-                                // アタック（0.035s）とリリース（末尾0.025sでわずかに息を切り、次のタンギングを明瞭化）
-                                float tptEnv = 1f;
-                                if (nT < 0.035f)
-                                    tptEnv = Mathf.SmoothStep(0f, 1f, nT / 0.035f);
-                                else if (nT > noteDur - 0.025f)
-                                    tptEnv = Mathf.SmoothStep(1f, 0.10f, (nT - (noteDur - 0.025f)) / 0.025f);
+                                // 口笛のやさしい息の吹き始め（アタック0.055s）と自然な息抜け（リリース0.040s）
+                                float wEnv = 1f;
+                                if (nT < 0.055f)
+                                    wEnv = Mathf.SmoothStep(0f, 1f, nT / 0.055f);
+                                else if (nT > noteDur - 0.040f)
+                                    wEnv = Mathf.SmoothStep(1f, 0f, (nT - (noteDur - 0.040f)) / 0.040f);
 
-                                // ビブラートは一切かけず、まっすぐ澄んだストレートトーン
-                                float f = note.freq;
+                                // 口笛の音域（自然な人間の口笛レンジ：1オクターブ上で澄み渡る音色）
+                                float baseF = note.freq * 2.0f;
 
-                                // トランペット固有の倍音構成（温かく甘美なフリューゲルホルン／哀愁の金管ソロ調）
-                                float wave = Mathf.Sin(2f * Mathf.PI * f * t) * 0.52f
-                                           + Mathf.Sin(2f * Mathf.PI * f * 2f * t) * 0.32f
-                                           + Mathf.Sin(2f * Mathf.PI * f * 3f * t) * 0.18f
-                                           + Mathf.Sin(2f * Mathf.PI * f * 4f * t) * 0.09f
-                                           + Mathf.Sin(2f * Mathf.PI * f * 5f * t) * 0.04f;
+                                // 伸びやかなビブラート（音が伸びて0.18秒後から優しく揺れる 5.2Hz、深さ±0.38%）
+                                float vib = (nT > 0.18f)
+                                    ? Mathf.Sin(2f * Mathf.PI * 5.2f * (nT - 0.18f)) * 0.0038f
+                                    : 0f;
+                                float f = baseF * (1.0f + vib);
 
-                                // 管の温かい空気感（Tanhサチュレーション）
-                                float warmWave = (float)System.Math.Tanh(wave * 1.35f);
+                                // 唇の隙間から漏れる微細な空気の擦過音（ブレスエアノイズ 2.2%）
+                                uint bSeed = (uint)(i * 48271 + 31);
+                                float breath = (((bSeed & 0xFFFF) / 32768.0f) - 1.0f) * 0.022f;
 
-                                tptSignal += warmWave * tptEnv;
+                                // 口笛の波形（基音93% ＋ 微弱な2倍音4% ＋ リアルなブレス息音3%）
+                                float wave = Mathf.Sin(2f * Mathf.PI * f * t) * 0.93f
+                                           + Mathf.Sin(4f * Mathf.PI * f * t) * 0.04f
+                                           + breath;
+
+                                whistleSignal += wave * wEnv;
                             }
                         }
                     }
@@ -635,11 +640,11 @@ public class AdventureMusicDirector : MonoBehaviour
                     }
                 }
 
-                // トランペットの音量バランス（基準音量の0.25倍に設定：1周目0.090f、合流時0.115f、エピローグ0.120f）
-                float tptGain = ((cycle == 0) ? 0.36f : 0.46f) * 0.25f;
-                if (isDrumsOnly) tptGain = 0.48f * 0.25f;
+                // 口笛の音量バランス（透き通る高音のため、耳に優しく心地よい音量に設定）
+                float whistleGain = ((cycle == 0) ? 0.32f : 0.40f) * 0.26f;
+                if (isDrumsOnly) whistleGain = 0.42f * 0.26f;
 
-                float combined = tptSignal * tptGain + pad * 0.18f;
+                float combined = whistleSignal * whistleGain + pad * 0.18f;
                 strL = combined * 0.98f;
                 strR = combined * 1.02f;
             }
