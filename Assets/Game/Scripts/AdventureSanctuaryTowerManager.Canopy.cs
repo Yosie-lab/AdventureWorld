@@ -257,13 +257,10 @@ public partial class AdventureSanctuaryTowerManager
                 }
             }
         }
-        else
+        // 放置タイムアウトによる自動進行（ダイブビート含め、全ビートが指定時間 autoSec 経過で自動的に次へ推移）
+        if (openFor >= autoSec)
         {
-            // 放置タイムアウトによる自動進行（通常ビートのみ指定時間 autoSec 経過で自動的に推移。ダイブはプレイヤー入力必須）
-            if (openFor >= autoSec)
-            {
-                _scriptBoardAdvance = true;
-            }
+            _scriptBoardAdvance = true;
         }
 
         if (!_scriptBoardAdvance) return;

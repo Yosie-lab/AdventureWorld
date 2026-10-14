@@ -15,7 +15,7 @@ created: 2026-09-11
     - `HandleJump()` 内で `tower.IsSkybreakModalActive` 時に `SpaceOrJHeld`（キー押しっぱなし）で毎フレーム `NotifyScriptBoardAdvance()` が呼ばれていたバグを修正（`SpaceOrJDown` の単発押下のみに制限）。長押しによるセリフの雪崩スキップを根本撲滅。
   - `AdventureSanctuaryTowerManager.Canopy.cs`:
     - `TickCanopyScriptBeats()` において、`openFor < minShow`（第1幕は 7.5秒間、通常は 0.45秒間）の間に `_scriptBoardAdvance = false; return;` で確実に早期リターンするよう修正。外部入力や残留フラグによる 7.5秒未満での誤進行を100%遮断。
-    - ダイブビート（ビート6）において、放置タイムアウトによる意図しない自動ダイブ進行を停止し、プレイヤー自身の長押し操作（0.35秒）でのみ突入するよう制御。
+    - ダイブビート（ビート6）において、プレイヤー自身の長押し操作（0.35秒）による即時ダイブ突入をサポートしつつ、未操作時もタイムアウト（6.0秒）経過で自動的に光の柱へ飛び込み次シーケンスへ推移する両立仕様に整備。
   - `AdventureSanctuaryTowerManager.Climax.cs`:
     - `TickClimaxSequence()` において、同様に `openFor < minHoldOpen`（注油蘇生直後は 1.2秒、通常は 0.35秒）の間は `_scriptBoardAdvance = false; return;` で早期リターンし、セリフ表示直後の突き抜けスキップを完全防止。
 - **第1幕「天蓋崩壊 未知の荒野への眺望」の7.5秒間表示保証および Input 例外バグ解消**:
