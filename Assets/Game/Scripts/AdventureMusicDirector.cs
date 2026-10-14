@@ -536,7 +536,7 @@ public class AdventureMusicDirector : MonoBehaviour
                 hasPiano = (cycle >= 2 && cycle < 7);           // 24〜84秒（3〜7周目）でカピタのピアノ主旋律！8周目（84秒〜）からはミュート！
             }
 
-            // 1. パワフルで神秘的なシネマティック・ブラスパッド
+            // 1. パワフルで神秘的なシネマティック・ブラスパッド（音量を10%削り、ピアノを引き立てる）
             float brass = 0f;
             float env = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(bar8T / 0.3f)) * Mathf.SmoothStep(1f, 0.6f, Mathf.Clamp01(bar8T / 1.5f));
             for (int k = 0; k < chord.Length; k++)
@@ -545,7 +545,7 @@ public class AdventureMusicDirector : MonoBehaviour
                 float s = Mathf.Sin(2f * Mathf.PI * freq * t) * 0.45f
                         + Mathf.Sin(4f * Mathf.PI * freq * t) * 0.25f
                         + Mathf.Sin(6f * Mathf.PI * freq * t) * 0.15f;
-                float gain = (!hasDrums) ? 0.17f : 0.11f;
+                float gain = (!hasDrums) ? 0.153f : 0.099f;
                 brass += s * (gain / chord.Length);
             }
             brass *= env;
@@ -660,9 +660,9 @@ public class AdventureMusicDirector : MonoBehaviour
                 float pianoGain = ((cycle == 0) ? 0.38f : 0.44f) * 0.36f;
                 if (isDrumsOnly) pianoGain = 0.44f * 0.36f;
 
-                // 左右に美しく広がるステレオ定位（カピタのピアノの温もりが大空全体を包み込む）
-                float combinedL = pianoL * pianoGain + pad * 0.18f * 0.98f;
-                float combinedR = pianoR * pianoGain + pad * 0.18f * 1.02f;
+                // 左右に美しく広がるステレオ定位（コードパッド音量を10%削り、カピタのピアノの温もりを際立たせる）
+                float combinedL = pianoL * pianoGain + pad * 0.162f * 0.98f;
+                float combinedR = pianoR * pianoGain + pad * 0.162f * 1.02f;
                 strL = combinedL;
                 strR = combinedR;
             }
