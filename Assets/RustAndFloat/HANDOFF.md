@@ -10,6 +10,12 @@ created: 2026-09-11
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容
+- **第1幕「天蓋崩壊 未知の荒野への眺望」の7.5秒間表示保証および Input 例外バグ解消**:
+  - `AdventureSanctuaryTowerManager.cs`:
+    - `Update()` 内で `!Input.GetMouseButton(0)` を直接参照していたため、Unity 6（Input System専用設定）で毎フレーム `InvalidOperationException` が発生し台本進行・入力判定が乱れていた不具合を完全解消（`AdventureInputReader.OilHoldButtons` 内の Input System 判定に統一）。
+    - `CanopyBeats[0]` の自動送り時間を `7.5f` に復元。
+  - `AdventureSanctuaryTowerManager.Canopy.cs`:
+    - レバーを引いた瞬間のクリックやキー操作の余韻による即時スキップを防ぐため、第1幕（ビート0）は `minShow` を `autoSec`（7.5秒）に設定し、映画導入の重要な崩壊シーンが誤操作で飛ばされず確実に7.5秒間鑑賞できるように保護。
 - **空の裂け目へのダイブビート（ビート6）の自動進行（タイムアウト自動推移）を復元**:
   - `AdventureSanctuaryTowerManager.Canopy.cs`:
     - ダイブビート（`_scriptBoardIsDive`）において、以前の修正で手動長押し待ち専用として自動進行がブロックされていたのを解消。

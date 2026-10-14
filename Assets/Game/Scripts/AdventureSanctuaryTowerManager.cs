@@ -151,7 +151,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     }
     static readonly CanopyBeat[] CanopyBeats =
     {
-        new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 6.8f),
+        new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 7.5f),
         new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 4.2f),
         new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Float！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.8f),
         new CanopyBeat("", "✦ Float", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f), autoSec: 3.8f),
@@ -707,8 +707,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         if (_scriptRequireInputRelease
             && !AdventureInputReader.OilHoldButtons
             && !AdventureInputReader.MouseRightHeld
-            && !AdventureInputReader.SpaceOrJHeld
-            && !Input.GetMouseButton(0))
+            && !AdventureInputReader.SpaceOrJHeld)
         {
             _scriptRequireInputRelease = false;
         }

@@ -208,13 +208,13 @@ public partial class AdventureSanctuaryTowerManager
 
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
-        // 各ビートの定義データから自動送り秒数を取得（1枚目6.8s／2枚目4.2s／3枚目5.8s／会話3.8s／ダイブ手動）
+        // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目4.2s／3枚目5.8s／会話3.8s／ダイブ6.0s）
         float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
             : 3.5f;
 
-        // レバー操作や前セリフ送り直後の余韻突き抜けを防ぐ安全時間（第1幕はレバーの余韻を防ぐ1.2秒、通常は0.45秒）
-        float minShow = (_canopyBeatIndex == 0) ? 1.20f : 0.45f;
+        // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、レバーの余韻や誤クリックで飛ばされず7.5秒間しっかり表示を保証
+        float minShow = (_canopyBeatIndex == 0) ? autoSec : 0.45f;
 
         // 入力判定
         if (openFor >= minShow)
@@ -400,7 +400,8 @@ public partial class AdventureSanctuaryTowerManager
         if (_scriptRequireInputRelease) return;
         if (_climaxCrisisStarted) return; // クライマックス中はTickClimaxSequenceが一元管理
         if (_scriptBoardIsDive) return; // ダイブはホールド入力のみ
-        float minShow = (_canopyBeatIndex == 0) ? 1.20f : 0.45f;
+        if (_canopyBeatIndex == 0) return; // 第1幕「未知の荒野への眺望」は7.5秒間しっかり鑑賞させる
+        float minShow = 0.45f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
         _scriptBoardAdvance = true;
         Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");
@@ -408,10 +409,12 @@ public partial class AdventureSanctuaryTowerManager
 
     static bool IsDiveConfirmHeld()
     {
+        bool touch = false;
+        try { touch = Input.touchSupported && Input.touchCount > 0; } catch { }
         return AdventureInputReader.OilHoldButtons
             || AdventureInputReader.MouseRightHeld
             || AdventureInputReader.SpaceOrJHeld
-            || (Input.touchSupported && Input.touchCount > 0);
+            || touch;
     }
 
     #endregion
