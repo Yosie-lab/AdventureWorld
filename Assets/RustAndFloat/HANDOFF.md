@@ -10,6 +10,17 @@ created: 2026-09-11
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容
+- **崩壊シーケンス〜エンディング全編の徹底デバッグ＆リファクタリング（セリフ突き抜け撲滅・入力安全保証・シネマ品質向上）**:
+  - `AdventureSanctuaryTowerManager.cs`, `AdventureSanctuaryTowerManager.Canopy.cs`, `AdventureSanctuaryTowerManager.Climax.cs`, `AdventureSanctuaryTowerManager.Epilogue.cs`, `AdventureSanctuaryTowerManager.ClearUI.cs`:
+    - **入力離し待ち判定の根本修正**: `Update()` で `_scriptRequireInputRelease` が解除される条件に、Spaceキー（`SpaceOrJHeld`）およびマウス左クリック（`Input.GetMouseButton(0)`）を漏れなく追加。前セリフ送りで長押し気味に押された入力が次フレームで誤判定され、次のセリフが雪崩のように連続スキップされる不具合を完全根絶。
+    - **天蓋崩壊ビート進行（Canopy）の適正化**:
+      - ビート0「天蓋崩壊 未知の荒野への眺望」でレバー操作余韻を防ぐ 1.2秒の安全ガード後、プレイヤーが自らのペースでSpace/クリックで送り可能にし、放置時はきっちり6.8秒間表示される仕様に改修。`NotifyScriptBoardAdvance()` に残存していたビート0のハードコードブロックも撤去。
+      - ダイブビート（ビート6）での自動タイムアウト（6秒放置送り）を廃止し、プレイヤーがしっかりと長押し（0.35秒）を完了した時のみ光の柱へ突入するように保護。ダイブ判定にSpace/J/タッチ長押しも完全網羅。
+      - セリフが次に進むたびに `_scriptRequireInputRelease = true` をセットし、1コマずつの丁寧な読み進めを保証。
+    - **クライマックス（Climax）の送り保護**:
+      - `TickClimaxSequence` でビート進行時、およびオーバードライブ演出直後に `_scriptRequireInputRelease = true` を確実に設定。
+    - **エピローグ＆クリアUIの安定性**:
+      - 字幕スキップ（`WasFilmSkipPressed`）の最低表示時間保証、クリアモーダル終了時のマウスカーソル復帰（`Locked / false`）と大空手動操縦モード射出の整合性を確認・維持。
 - **BGM主旋律の音色進化（セレステ ➔ ピアニスト・カピタが弾く温かいフェルトピアノ主旋律 ＋ 空間ステレオリバーブ ＋ パッド音量10%抑制）**:
   - `AdventureMusicDirector.cs`:
     - 主旋律の音色を、島で出会うピアニスト・カピタのピアノ生演奏（`AdventureAncientPianoRelic.cs`）と同一の**温かく素朴なフェルトピアノ音色（Acoustic Felt Piano）**へと刷新。

@@ -127,7 +127,7 @@ public partial class AdventureSanctuaryTowerManager
             StartCoroutine(AdventureSkybreakVisuals.BreakthroughFlashRoutine());
             AdventureMusicDirector.Ensure();
             AdventureMusicDirector.Instance?.TriggerSkybreakOverdriveDrop();
-            _scriptRequireInputRelease = false;
+            _scriptRequireInputRelease = true; // 前セリフ送りやブーストのキー余韻による次セリフスキップを完全防止
             _scriptHoldTimer = 0f;
             if (_scriptHintUi != null)
                 _scriptHintUi.text = "";
@@ -223,6 +223,7 @@ public partial class AdventureSanctuaryTowerManager
         // 次のセリフへ進む瞬間に入力フラグとホールドタイマーをリセット
         _scriptHoldTimer = 0f;
         _scriptBoardAdvance = false;
+        _scriptRequireInputRelease = true; // キーを一度離すまで次のセリフ送りを待つガードを確実にセット
 
         int next = _climaxBeatIndex + 1;
 

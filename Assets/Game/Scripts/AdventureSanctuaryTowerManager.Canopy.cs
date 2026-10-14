@@ -208,42 +208,63 @@ public partial class AdventureSanctuaryTowerManager
 
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
-        // 各ビートの定義データから自動送り秒数を取得（1枚目6.8s／2枚目4.2s／3枚目5.8s／会話3.8s／ダイブ6.0s）
+        // 各ビートの定義データから自動送り秒数を取得（1枚目6.8s／2枚目4.2s／3枚目5.8s／会話3.8s／ダイブ手動）
         float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
-            : (_scriptBoardIsDive ? 6.0f : 3.5f);
+            : 3.5f;
 
-        // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、誤クリック等で飛ばされず6.8秒間しっかり表示を保証
-        float minShow = (_canopyBeatIndex == 0) ? autoSec : 0.45f;
+        // レバー操作や前セリフ送り直後の余韻突き抜けを防ぐ安全時間（第1幕はレバーの余韻を防ぐ1.2秒、通常は0.45秒）
+        float minShow = (_canopyBeatIndex == 0) ? 1.20f : 0.45f;
 
-        // 入力
+        // 入力判定
         if (openFor >= minShow)
         {
+            // キーを一度離すまで次のセリフ送りを待つガードが解除されていれば入力を受付
             if (!_scriptRequireInputRelease)
             {
-                PollScriptBoardAdvance();
-            }
-
-            if (_scriptBoardIsDive && IsDiveConfirmHeld())
-            {
-                _scriptHoldTimer += Time.unscaledDeltaTime;
-                if (_filmSubtitleUi != null)
+                if (!_scriptBoardIsDive)
                 {
-                    _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
+                    PollScriptBoardAdvance();
                 }
-                if (_scriptHoldTimer >= 0.35f)
-                    _scriptBoardAdvance = true;
-            }
-            else
-            {
-                _scriptHoldTimer = 0f;
             }
 
-            if (openFor >= autoSec)
+            // ダイブビート（光の柱へダイブ）：長押し操作判定（0.35秒ホールド）
+            if (_scriptBoardIsDive)
+            {
+                if (IsDiveConfirmHeld())
+                {
+                    _scriptHoldTimer += Time.unscaledDeltaTime;
+                    if (_filmSubtitleUi != null)
+                    {
+                        _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
+                    }
+                    if (_scriptHoldTimer >= 0.35f)
+                    {
+                        _scriptBoardAdvance = true;
+                    }
+                }
+                else
+                {
+                    _scriptHoldTimer = 0f;
+                    if (_filmSubtitleUi != null)
+                    {
+                        _filmSubtitleUi.text = "<size=30><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 空の裂け目へダイブ！</size>";
+                    }
+                }
+            }
+
+            // ダイブ以外の場合は放置タイムアウトで自動進行（ダイブ時は勝手に進まずプレイヤーの入力を待つ）
+            if (!_scriptBoardIsDive && openFor >= autoSec)
+            {
                 _scriptBoardAdvance = true;
+            }
         }
 
         if (!_scriptBoardAdvance) return;
+
+        _scriptBoardAdvance = false;
+        _scriptHoldTimer = 0f;
+        _scriptRequireInputRelease = true; // セリフ送り時の突き抜けを完全防止（キーを一度離すまで次を受け付けない）
 
         int next = _canopyBeatIndex + 1;
         if (next >= CanopyBeats.Length)
@@ -378,8 +399,8 @@ public partial class AdventureSanctuaryTowerManager
         if (!_scriptBoardVisible) return;
         if (_scriptRequireInputRelease) return;
         if (_climaxCrisisStarted) return; // クライマックス中はTickClimaxSequenceが一元管理
-        if (_canopyBeatIndex == 0) return; // 第1幕「未知の荒野への眺望」は元の7.5秒間しっかり鑑賞させる
-        float minShow = 0.45f;
+        if (_scriptBoardIsDive) return; // ダイブはホールド入力のみ
+        float minShow = (_canopyBeatIndex == 0) ? 1.20f : 0.45f;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
         _scriptBoardAdvance = true;
         Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");
@@ -387,7 +408,10 @@ public partial class AdventureSanctuaryTowerManager
 
     static bool IsDiveConfirmHeld()
     {
-        return AdventureInputReader.OilHoldButtons || AdventureInputReader.MouseRightHeld;
+        return AdventureInputReader.OilHoldButtons
+            || AdventureInputReader.MouseRightHeld
+            || AdventureInputReader.SpaceOrJHeld
+            || (Input.touchSupported && Input.touchCount > 0);
     }
 
     #endregion

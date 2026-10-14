@@ -703,8 +703,12 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         TickGameClearModal();
         TickCinematicLetterbox();
 
-        // 入力離し待ちの解除（全フェーズ共通：キーを離したら即座に解除）
-        if (_scriptRequireInputRelease && !AdventureInputReader.OilHoldButtons && !AdventureInputReader.MouseRightHeld)
+        // 入力離し待ちの解除（全フェーズ共通：決定キー・クリック・ホールド入力が完全に離されたら解除）
+        if (_scriptRequireInputRelease
+            && !AdventureInputReader.OilHoldButtons
+            && !AdventureInputReader.MouseRightHeld
+            && !AdventureInputReader.SpaceOrJHeld
+            && !Input.GetMouseButton(0))
         {
             _scriptRequireInputRelease = false;
         }
