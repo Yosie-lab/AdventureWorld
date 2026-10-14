@@ -228,7 +228,7 @@ public partial class AdventureSanctuaryTowerManager
                 }
             }
 
-            // ダイブビート（光の柱へダイブ）：長押し操作判定（0.35秒ホールド）
+            // ダイブビート（光の柱へダイブ）：長押し操作判定（0.35秒ホールドで即座に突入）
             if (_scriptBoardIsDive)
             {
                 if (IsDiveConfirmHeld())
@@ -236,7 +236,7 @@ public partial class AdventureSanctuaryTowerManager
                     _scriptHoldTimer += Time.unscaledDeltaTime;
                     if (_filmSubtitleUi != null)
                     {
-                        _filmSubtitleUi.text = "<size=30><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
+                        _filmSubtitleUi.text = "<size=34><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
                     }
                     if (_scriptHoldTimer >= 0.35f)
                     {
@@ -248,13 +248,13 @@ public partial class AdventureSanctuaryTowerManager
                     _scriptHoldTimer = 0f;
                     if (_filmSubtitleUi != null)
                     {
-                        _filmSubtitleUi.text = "<size=30><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 空の裂け目へダイブ！</size>";
+                        _filmSubtitleUi.text = "<size=34><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 空の裂け目へダイブ！</size>";
                     }
                 }
             }
 
-            // ダイブ以外の場合は放置タイムアウトで自動進行（ダイブ時は勝手に進まずプレイヤーの入力を待つ）
-            if (!_scriptBoardIsDive && openFor >= autoSec)
+            // 放置タイムアウトによる自動進行（ダイブビートも指定時間 autoSec 経過で自動的にダイブへ推移）
+            if (openFor >= autoSec)
             {
                 _scriptBoardAdvance = true;
             }
