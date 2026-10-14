@@ -545,8 +545,8 @@ public partial class AdventureSanctuaryTowerManager
         if (player != null)
         {
             player.ApplyGlideBoost(2.0f, 18f);
-            if (player.transform.position.y < 118f)
-                player.ApplyUpdraft(16f);
+            if (player.transform.position.y < 155f)
+                player.ApplyUpdraft(22f);
         }
 
         _epilogueTriggered = true;

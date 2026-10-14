@@ -10,6 +10,11 @@ created: 2026-09-11
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容
+- **上空突破後の高度（天蓋外160mパノラマ）およびシネマ字幕特大化の復元**:
+  - `AdventureSanctuaryTowerManager.Epilogue.cs`, `AdventureSanctuaryTowerManager.Climax.cs`, `AdventureCameraFollow.cs`:
+    - **高度の引き上げ（120m ➔ 160m）**: エピローグ開始時および巡航時のオートグライド高度が旧設定の120fに指定されていたため、天蓋（150m）より低い高度に下がってしまっていた問題を修正。160m（天蓋を遥かに超えた大空・雲海パノラマ高度）へ引き上げ、天蓋突破後の上昇・維持（155m以上確保）を完全保証。
+    - **シネマティックカメラのパノラマ強化**: `CinematicDistance` を 6.4f ➔ **7.4f**、`CinematicHeight` を 1.6f ➔ **1.8f**、`CinematicFov` を 74° ➔ **78°** に調整し、果てしない大空と雲海を見下ろす圧倒的な高度感・スケール感を再現。
+    - **字幕サイズの特大化（30pt ➔ 38pt）**: `FilmSubtitle` のフォントサイズを30ptから**38pt**へ大幅拡大。下部レターバー（黒帯）を118f ➔ **134f**、テキスト表示領域を高さ108fに拡張し、映画館のオープニング/エンディングテロップのような堂々たる迫力ある字幕表示を実現。
 - **シネマキャプション（字幕＆黒帯レターボックス）非表示バグの解消**:
   - `AdventureSanctuaryTowerManager.Epilogue.cs`:
     - `TickCinematicLetterbox()` の表示判定において、エピローグ中（`filmPlaying`）しか考慮されておらず、天蓋崩壊シーケンス（`canopyPlaying`）およびクライマックス（`climaxPlaying`）で `_letterboxTargetAlpha = 0f` となり、毎フレーム字幕CanvasGroupが即座にフェードアウト・非アクティブ化されていた不具合を修正。

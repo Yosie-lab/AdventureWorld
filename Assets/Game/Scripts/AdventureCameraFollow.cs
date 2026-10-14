@@ -59,9 +59,9 @@ public class AdventureCameraFollow : MonoBehaviour
 
     bool _cinematic;
     float _cinematicBlend;
-    const float CinematicDistance = 6.4f;
-    const float CinematicHeight = 1.6f;
-    const float CinematicFov = 74f;
+    const float CinematicDistance = 7.4f;
+    const float CinematicHeight = 1.8f;
+    const float CinematicFov = 78f;
     const float CinematicBlendSpeed = 1.35f;
 
     bool _lookUpdatedThisFrame;

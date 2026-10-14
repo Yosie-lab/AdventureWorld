@@ -80,10 +80,10 @@ public partial class AdventureSanctuaryTowerManager
         var player = GetPlayer();
         if (player != null)
         {
-            if (player.transform.position.y < 110f)
-                player.ApplyLaunchUpdraft(18f, 16f);
-            player.SetAutoGlideMode(true, 120f);
-            player.ApplyGlideBoost(1.2f, 8f);
+            if (player.transform.position.y < 155f)
+                player.ApplyLaunchUpdraft(24f, 20f);
+            player.SetAutoGlideMode(true, 160f); // 天蓋（150m）突破後の雄大な大空・雲海パノラマ高度（160m）へ
+            player.ApplyGlideBoost(1.5f, 12f);
         }
 
         SetCinematicCamera(true);
@@ -345,7 +345,7 @@ public partial class AdventureSanctuaryTowerManager
     static void KeepAutoGlide(AdventurePlayerController player)
     {
         if (player != null && !player.IsAutoGliding)
-            player.SetAutoGlideMode(true, 120f);
+            player.SetAutoGlideMode(true, 160f);
     }
 
     void SetExplorationHudVisible(bool visible)
@@ -458,8 +458,8 @@ public partial class AdventureSanctuaryTowerManager
         _letterboxCg.blocksRaycasts = false;
         _letterboxCg.interactable = false;
 
-        _letterboxTop = MakeLetterbar(canvasGo.transform, "Top", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), 64f);
-        _letterboxBottom = MakeLetterbar(canvasGo.transform, "Bottom", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), 118f);
+        _letterboxTop = MakeLetterbar(canvasGo.transform, "Top", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), 68f);
+        _letterboxBottom = MakeLetterbar(canvasGo.transform, "Bottom", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), 134f);
         _letterboxRoot = canvasGo;
         BuildFilmSubtitleOnLetterbox();
     }
@@ -471,15 +471,15 @@ public partial class AdventureSanctuaryTowerManager
         var go = new GameObject("FilmSubtitle");
         go.transform.SetParent(_letterboxRoot.transform, false);
         var rt = go.AddComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0.08f, 0f);
-        rt.anchorMax = new Vector2(0.92f, 0f);
+        rt.anchorMin = new Vector2(0.06f, 0f);
+        rt.anchorMax = new Vector2(0.94f, 0f);
         rt.pivot = new Vector2(0.5f, 0f);
         rt.anchoredPosition = new Vector2(0f, 32f);
-        rt.sizeDelta = new Vector2(0f, 96f);
+        rt.sizeDelta = new Vector2(0f, 108f);
         _filmSubtitleUi = go.AddComponent<Text>();
         _filmSubtitleUi.font = font;
-        _filmSubtitleUi.fontSize = 30;
-        _filmSubtitleUi.lineSpacing = 1.18f;
+        _filmSubtitleUi.fontSize = 38; // 特大38ptの堂々たるシネマ字幕
+        _filmSubtitleUi.lineSpacing = 1.20f;
         _filmSubtitleUi.alignment = TextAnchor.MiddleCenter;
         _filmSubtitleUi.color = new Color(1f, 0.94f, 0.78f, 1f);
         _filmSubtitleUi.horizontalOverflow = HorizontalWrapMode.Wrap;
