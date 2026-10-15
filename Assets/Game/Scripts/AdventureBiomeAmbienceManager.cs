@@ -51,6 +51,7 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
     float _curGlidingVol = 0f;
 
     float _nextBirdChirpTime = 0f;
+    bool _suppressWindLoopsForClear;
 
     // 基準音量（BGMを邪魔しないオーガニックなレベル）
     const float BaseMeadowVol = 0.16f;
@@ -62,6 +63,46 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
     static void AutoInit()
     {
         Ensure();
+    }
+
+    public static void StopWindLoopsForGameClear()
+    {
+        Ensure();
+        if (Instance == null) return;
+        Instance._suppressWindLoopsForClear = true;
+        Instance.ApplyAllWindLoopVolumesImmediate(0f);
+    }
+
+    public static void ReleaseWindLoopSuppressionForGameClear()
+    {
+        if (Instance == null) return;
+        Instance._suppressWindLoopsForClear = false;
+    }
+
+    void ApplyAllWindLoopVolumesImmediate(float vol)
+    {
+        _targetMeadowVol = _targetForestVol = _targetHighlandVol = _targetGlidingVol = vol;
+        _curMeadowVol = _curForestVol = _curHighlandVol = _curGlidingVol = vol;
+        if (_meadowWindSource != null)
+        {
+            _meadowWindSource.volume = vol;
+            if (vol <= 0f && _meadowWindSource.isPlaying) _meadowWindSource.Stop();
+        }
+        if (_forestRustleSource != null)
+        {
+            _forestRustleSource.volume = vol;
+            if (vol <= 0f && _forestRustleSource.isPlaying) _forestRustleSource.Stop();
+        }
+        if (_highlandWindSource != null)
+        {
+            _highlandWindSource.volume = vol;
+            if (vol <= 0f && _highlandWindSource.isPlaying) _highlandWindSource.Stop();
+        }
+        if (_glidingWindSource != null)
+        {
+            _glidingWindSource.volume = vol;
+            if (vol <= 0f && _glidingWindSource.isPlaying) _glidingWindSource.Stop();
+        }
     }
 
     public static void Ensure()
@@ -144,6 +185,12 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
 
         // 3. 各バイオームの目標音量計算
         float seScale = PlayerPrefs.GetFloat("Adventure_SeVolume", 1.0f);
+
+        if (_suppressWindLoopsForClear)
+        {
+            ApplyAllWindLoopVolumesImmediate(0f);
+            return;
+        }
 
         _targetMeadowVol = (currentBiome == BiomeType.Meadow) ? (BaseMeadowVol * seScale) : 0f;
         _targetForestVol = (currentBiome == BiomeType.Forest) ? (BaseForestVol * seScale) : 0f;

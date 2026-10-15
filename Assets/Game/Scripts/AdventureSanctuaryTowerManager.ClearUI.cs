@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,6 +11,7 @@ public partial class AdventureSanctuaryTowerManager
 
     float _clearModalOpenedAt = 0f;
     bool _clearModalRequireRelease = false;
+    Coroutine _gameClearBoardAudioCo;
 
     void TickGameClearModal()
     {
@@ -75,7 +77,10 @@ public partial class AdventureSanctuaryTowerManager
             EnsureGameClearModalUI();
             if (!wasVisible)
             {
-                PlayGameClearTriumphChime();
+                StopAllEndingWindNoiseForGameClear();
+                if (_gameClearBoardAudioCo != null)
+                    StopCoroutine(_gameClearBoardAudioCo);
+                _gameClearBoardAudioCo = StartCoroutine(PlayGameClearBoardAudioRoutine());
             }
         }
         else
@@ -84,6 +89,24 @@ public partial class AdventureSanctuaryTowerManager
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
+    }
+
+    IEnumerator PlayGameClearBoardAudioRoutine()
+    {
+        var music = AdventureMusicDirector.Instance;
+        if (music != null)
+            yield return music.WaitUntilGameClearBgmReady();
+        yield return WaitUntilGameClearChimeReady();
+
+        if (!_showGameClearModal)
+        {
+            _gameClearBoardAudioCo = null;
+            yield break;
+        }
+
+        PlayGameClearTriumphChime();
+        music?.MuteEndingArpeggioForGameClear();
+        _gameClearBoardAudioCo = null;
     }
 
     void DestroyClearModalUI()
@@ -259,6 +282,7 @@ public partial class AdventureSanctuaryTowerManager
         Debug.Log("[RustAndFloat] ★ CloseGameClearModalForFreeExplore 実行（自由探索へ復帰）");
         _showGameClearModal = false;
         HideGameClearModalUI();
+        AdventureBiomeAmbienceManager.ReleaseWindLoopSuppressionForGameClear();
         _endingSequenceActive = false;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;

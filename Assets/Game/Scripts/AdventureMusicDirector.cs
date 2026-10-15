@@ -1,5 +1,7 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 /// <summary>
 /// 『Rust & Float』2050年世界観に寄り添うプロシージャル・アンビエントBGMディレクター。
@@ -16,8 +18,19 @@ public class AdventureMusicDirector : MonoBehaviour
     AudioClip _skybreakThemeClip;
     AudioClip _skybreakBuildUpClip;    // 96秒ビルドアップ曲（0〜12s:神聖ブラス, 12〜24s:ドラム合流, 24〜84s:3〜7周目トランペット主旋律, 84〜96s:8周目以降メロディーミュート、ベース音なし）
     AudioClip _skybreakDrumsOnlyClip;  // 12秒（Rust回復後：軽快なドラム＋爽快BGMで大空へダイブ、メロディーなし）
+    AudioClip _skybreakGameClearClip;
+    Task<SkybreakClipBuildResult> _gameClearBgmBuildTask;
+
+    struct SkybreakClipBuildResult
+    {
+        public float[] Samples;
+        public int TotalSamples;
+        public int SampleRate;
+        public string ClipName;
+    }
 
     bool _hasSwitchedToSkybreak = false;
+    bool _gameClearBgmStripped = false;
     bool _isOverdriveDropActive = false;
     /// <summary>エンディング進行中のみ天空BGMを維持（クリア後の自由探索では解除）</summary>
     bool _keepEndingThemeActive = false;
@@ -25,6 +38,11 @@ public class AdventureMusicDirector : MonoBehaviour
     bool _preferAmbientAfterEnding = false;
     bool _isFadingA = false;
     const float EndingThemeVolume = 1.35f;
+    /// <summary>天空エンディング曲：ブラスパッド／和音パッド／アルペジオの相対音量（主旋律ピアノはそのまま）</summary>
+    const float EndingBrassPadScale = 0.88f;
+    const float EndingWarmPadScale = 0.85f;
+    const float EndingArpeggioScale = 0.70f;
+    const float EndingPianoMelodyScale = 0.88f;
     // AudioSource.volume は 1 で頭打ちになる。1 を超える分は生成波形で足す。
     float SkybreakSourceVolume => Mathf.Min(1f, EndingThemeVolume);
     const float AmbientThemeVolume = 0.14f;
@@ -144,12 +162,16 @@ public class AdventureMusicDirector : MonoBehaviour
             else
             {
                 // オーバードライブ中（12秒ループ）
-                if (!_bgmSourceB.isPlaying && _skybreakDrumsOnlyClip != null)
+                if (!_bgmSourceB.isPlaying)
                 {
-                    _bgmSourceB.clip = _skybreakDrumsOnlyClip;
-                    _bgmSourceB.loop = true;
-                    _bgmSourceB.time = 0f;
-                    _bgmSourceB.Play();
+                    var drumsClip = GetActiveSkybreakClip(isDrumsOnly: true);
+                    if (drumsClip != null)
+                    {
+                        _bgmSourceB.clip = drumsClip;
+                        _bgmSourceB.loop = true;
+                        _bgmSourceB.time = 0f;
+                        _bgmSourceB.Play();
+                    }
                 }
             }
             return;
@@ -222,6 +244,7 @@ public class AdventureMusicDirector : MonoBehaviour
         _preferAmbientAfterEnding = false;
         _hasSwitchedToSkybreak = false;
         _isOverdriveDropActive = false;
+        _gameClearBgmStripped = false;
         _skybreakThemeClip = _skybreakBuildUpClip;
         FadeOutSkybreakAndPlayAmbient(skyFade: 0f, ambientFade: 1.2f, stopSkyImmediate: true);
     }
@@ -255,10 +278,114 @@ public class AdventureMusicDirector : MonoBehaviour
         StartCoroutine(FadeVolume(_bgmSourceA, AmbientThemeVolume, ambientFade));
     }
 
+    /// <summary>ゲームクリアボード表示と同時に、アルペジオとドラムを除いた天空BGMへ差し替え</summary>
+    public void MuteEndingArpeggioForGameClear()
+    {
+        if (_gameClearBgmStripped) return;
+        if (_bgmSourceB == null || !_bgmSourceB.isPlaying) return;
+
+        _gameClearBgmStripped = true;
+        float t = _bgmSourceB.time;
+        bool loop = _bgmSourceB.loop;
+        var next = GetGameClearSkybreakClip();
+        if (next == null) return;
+
+        _skybreakThemeClip = next;
+        _bgmSourceB.clip = next;
+        _bgmSourceB.loop = loop;
+        _bgmSourceB.time = Mathf.Clamp(t, 0f, Mathf.Max(0.01f, next.length - 0.02f));
+        if (!_bgmSourceB.isPlaying)
+            _bgmSourceB.Play();
+    }
+
+    AudioClip GetGameClearSkybreakClip()
+    {
+        if (_skybreakGameClearClip == null)
+        {
+            TryFinalizeGameClearBgmFromTask();
+            if (_skybreakGameClearClip == null)
+                _skybreakGameClearClip = GenerateSkybreakTheme(isDrumsOnly: false, includeArpeggio: false, includeDrums: false);
+        }
+        return _skybreakGameClearClip;
+    }
+
+    /// <summary>クリアボード用BGM（アルペジオ・ドラムなし96秒）をエピローグ中にバックグラウンド生成</summary>
+    public void BeginPrewarmGameClearBgm()
+    {
+        if (_skybreakGameClearClip != null) return;
+        if (_gameClearBgmBuildTask != null)
+        {
+            if (_gameClearBgmBuildTask.IsCompleted)
+                TryFinalizeGameClearBgmFromTask();
+            return;
+        }
+
+        _gameClearBgmBuildTask = Task.Run(() => BuildSkybreakThemeInternal(isDrumsOnly: false, includeArpeggio: false, includeDrums: false));
+        StartCoroutine(FinalizeGameClearBgmWhenReady());
+    }
+
+    void TryFinalizeGameClearBgmFromTask()
+    {
+        if (_skybreakGameClearClip != null || _gameClearBgmBuildTask == null || !_gameClearBgmBuildTask.IsCompleted)
+            return;
+        if (_gameClearBgmBuildTask.IsFaulted || _gameClearBgmBuildTask.IsCanceled)
+        {
+            _gameClearBgmBuildTask = null;
+            return;
+        }
+
+        var built = _gameClearBgmBuildTask.Result;
+        _gameClearBgmBuildTask = null;
+        if (built.Samples == null || built.TotalSamples <= 0)
+            return;
+
+        _skybreakGameClearClip = AudioClip.Create(built.ClipName, built.TotalSamples, 2, built.SampleRate, false);
+        _skybreakGameClearClip.SetData(built.Samples, 0);
+    }
+
+    IEnumerator FinalizeGameClearBgmWhenReady()
+    {
+        while (_gameClearBgmBuildTask != null && !_gameClearBgmBuildTask.IsCompleted)
+            yield return null;
+        TryFinalizeGameClearBgmFromTask();
+    }
+
+    public IEnumerator WaitUntilGameClearBgmReady()
+    {
+        BeginPrewarmGameClearBgm();
+        while (_skybreakGameClearClip == null)
+        {
+            TryFinalizeGameClearBgmFromTask();
+            if (_skybreakGameClearClip != null)
+                break;
+            yield return null;
+        }
+    }
+
+    AudioClip GetActiveSkybreakClip(bool isDrumsOnly)
+    {
+        if (_gameClearBgmStripped)
+            return GetGameClearSkybreakClip();
+
+        if (isDrumsOnly)
+        {
+            if (_skybreakDrumsOnlyClip == null)
+                _skybreakDrumsOnlyClip = GenerateSkybreakTheme(isDrumsOnly: true);
+            return _skybreakDrumsOnlyClip;
+        }
+
+        if (_skybreakBuildUpClip == null)
+            _skybreakBuildUpClip = GenerateSkybreakTheme(isDrumsOnly: false);
+        return _skybreakBuildUpClip;
+    }
+
     /// <summary>天空突破BGMへ切替（36秒ビルドアップ曲を開始）。force=true で再演時も必ず再生</summary>
     public void PlaySkybreakTheme(bool force = false)
     {
         if (!force && _hasSwitchedToSkybreak && _bgmSourceB != null && _bgmSourceB.isPlaying) return;
+        _gameClearBgmStripped = false;
+        _skybreakGameClearClip = null;
+        _gameClearBgmBuildTask = null;
         if (force || _skybreakBuildUpClip == null)
             _skybreakBuildUpClip = GenerateSkybreakTheme(isDrumsOnly: false);
         if (force || _skybreakDrumsOnlyClip == null)
@@ -271,6 +398,7 @@ public class AdventureMusicDirector : MonoBehaviour
         _hasSwitchedToSkybreak = true;
         _keepEndingThemeActive = true;
         TriggerSkybreakMusic();
+        BeginPrewarmGameClearBgm();
     }
 
     /// <summary>
@@ -281,15 +409,13 @@ public class AdventureMusicDirector : MonoBehaviour
     {
         _isOverdriveDropActive = true;
 
-        if (_skybreakDrumsOnlyClip == null)
-            _skybreakDrumsOnlyClip = GenerateSkybreakTheme(isDrumsOnly: true);
-
-        _skybreakThemeClip = _skybreakDrumsOnlyClip;
+        var drumsClip = GetActiveSkybreakClip(isDrumsOnly: true);
+        _skybreakThemeClip = drumsClip;
 
         if (_bgmSourceB != null)
         {
             float currentTime = _bgmSourceB.time % 12.0f;
-            _bgmSourceB.clip = _skybreakDrumsOnlyClip;
+            _bgmSourceB.clip = drumsClip;
             _bgmSourceB.time = currentTime;
             _bgmSourceB.loop = true;
             if (!_bgmSourceB.isPlaying)
@@ -448,7 +574,15 @@ public class AdventureMusicDirector : MonoBehaviour
     ///   - 84〜96秒：8周目（84秒からメロディーはミュートされ、ドラム＋ブラスパッドのインスト編成でループ継続）
     /// isDrumsOnly = true ：Rust回復後（「全力で行こう！！」）。ベースとトランペットが抜け、軽快なドラムと爽快BGMで大空へ！
     /// </summary>
-    public AudioClip GenerateSkybreakTheme(bool isDrumsOnly)
+    public AudioClip GenerateSkybreakTheme(bool isDrumsOnly, bool includeArpeggio = true, bool includeDrums = true)
+    {
+        var built = BuildSkybreakThemeInternal(isDrumsOnly, includeArpeggio, includeDrums);
+        var clip = AudioClip.Create(built.ClipName, built.TotalSamples, 2, built.SampleRate, false);
+        clip.SetData(built.Samples, 0);
+        return clip;
+    }
+
+    SkybreakClipBuildResult BuildSkybreakThemeInternal(bool isDrumsOnly, bool includeArpeggio = true, bool includeDrums = true)
     {
         int sampleRate = 44100;
         float duration = isDrumsOnly ? 12.0f : 96.0f;
@@ -474,32 +608,10 @@ public class AdventureMusicDirector : MonoBehaviour
 
 
 
-        // (a) カピタが弾く温かく素朴なフェルトピアノ（Piano）主旋律（全32拍・8小節・計12.0秒）
-        // F#5拍 ➔ F#1拍 ➔ F1拍 ➔ F#1拍 ➔ A7拍 ➔ A1拍 ➔ G5拍 ➔ B1拍 ➔ E1拍 ➔ G1拍 ➔ A#4拍 ➔ A2拍 ➔ G2拍
+        // (a) カピタのフェルトピアノ：16小節（24秒）ループ — 1〜8小節は従来どおり、9〜15小節は1〜7小節の反復、16小節目は C2拍＋D2拍
         const float beatSec = 0.375f; // 1拍 = 0.375秒 (BPM 160)
-        (float start, float end, float freq)[] pianoNotes = new (float, float, float)[]
-        {
-            // 第1〜2小節 (Dコード / 0.00〜3.00s): F# 5拍 + F# 1拍 + F 1拍 + F# 1拍
-            (0.000f * beatSec,  5.000f * beatSec, 369.99f), // F#4 (5拍 = 1.875s) 温かいピアノのロングトーン
-            (5.000f * beatSec,  6.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s) ぽろんと再打鍵
-            (6.000f * beatSec,  7.000f * beatSec, 349.23f), // F4  (1拍 = 0.375s) 切ない経過音
-            (7.000f * beatSec,  8.000f * beatSec, 369.99f), // F#4 (1拍 = 0.375s)
-
-            // 第3〜4小節 (F#mコード / 3.00〜6.00s): A 7拍 + A 1拍
-            (8.000f * beatSec, 15.000f * beatSec, 440.00f), // A4  (7拍 = 2.625s) 心を打つ切ない長音
-            (15.000f * beatSec, 16.000f * beatSec, 440.00f), // A4  (1拍 = 0.375s)
-
-            // 第5〜6小節 (Emコード / 6.00〜9.00s): G 5拍 + B 1拍 + E 1拍 + G 1拍
-            (16.000f * beatSec, 21.000f * beatSec, 392.00f), // G4  (5拍 = 1.875s) 温かな叙情
-            (21.000f * beatSec, 22.000f * beatSec, 246.94f), // B3  (1拍 = 0.375s) 落ち着いたトーンへ
-            (22.000f * beatSec, 23.000f * beatSec, 329.63f), // E4  (1拍 = 0.375s)
-            (23.000f * beatSec, 24.000f * beatSec, 392.00f), // G4  (1拍 = 0.375s)
-
-            // 第7〜8小節 (Gmコード / 9.00〜12.00s): A# 4拍 + A 2拍 + G 2拍
-            (24.000f * beatSec, 28.000f * beatSec, 466.16f), // A#4 (4拍 = 1.500s) 劇的な短3度
-            (28.000f * beatSec, 30.000f * beatSec, 440.00f), // A4  (2拍 = 0.750s)
-            (30.000f * beatSec, 32.000f * beatSec, 392.00f)  // G4  (2拍 = 0.750s) 終止から冒頭F#へ美しく循環
-        };
+        const float pianoLoopSec = 24f; // 16小節 × 1.5秒
+        (float start, float end, float freq)[] pianoNotes = BuildEndingPianoMelody16Bars(beatSec);
 
         // (b) メロディーを澄んだ響きで包み込む8小節白玉ハーモニー（揺れのないピュア和音）
         float[][] padChords8 = new float[][]
@@ -527,12 +639,12 @@ public class AdventureMusicDirector : MonoBehaviour
             bool hasPiano;
             if (isDrumsOnly)
             {
-                hasDrums = true;
+                hasDrums = includeDrums;
                 hasPiano = false; // 大空滑空時・オーバードライブ後もメロディーは無し
             }
             else
             {
-                hasDrums = (cycle >= 1);                        // 12秒〜（2周目以降）でドラム合流！
+                hasDrums = includeDrums && (cycle >= 1);        // 12秒〜（2周目以降）でドラム合流！
                 hasPiano = (cycle >= 2 && cycle < 7);           // 24〜84秒（3〜7周目）でカピタのピアノ主旋律！8周目（84秒〜）からはミュート！
             }
 
@@ -545,17 +657,21 @@ public class AdventureMusicDirector : MonoBehaviour
                 float s = Mathf.Sin(2f * Mathf.PI * freq * t) * 0.45f
                         + Mathf.Sin(4f * Mathf.PI * freq * t) * 0.25f
                         + Mathf.Sin(6f * Mathf.PI * freq * t) * 0.15f;
-                float gain = (!hasDrums) ? 0.153f : 0.099f;
+                float gain = ((!hasDrums) ? 0.153f : 0.099f) * EndingBrassPadScale;
                 brass += s * (gain / chord.Length);
             }
             brass *= env;
 
-            // 2. 駆け上がるキラキラしたアルペジオ（音量を10%削り、ピアノの主旋律を美しく引き立てる）
-            float arpPhase = (t * 8.0f) % 1.0f;
-            int arpIndex = Mathf.FloorToInt(t * 8.0f) % chord.Length;
-            float arpFreq = chord[arpIndex] * 2.0f;
-            float arpEnv = Mathf.Exp(-arpPhase * 5.0f);
-            float arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * 0.171f;
+            // 2. 駆け上がるキラキラしたアルペジオ（ピアノ主旋律を引き立てる）
+            float arpWave = 0f;
+            if (includeArpeggio)
+            {
+                float arpPhase = (t * 8.0f) % 1.0f;
+                int arpIndex = Mathf.FloorToInt(t * 8.0f) % chord.Length;
+                float arpFreq = chord[arpIndex] * 2.0f;
+                float arpEnv = Mathf.Exp(-arpPhase * 5.0f);
+                arpWave = Mathf.Sin(2f * Mathf.PI * arpFreq * t) * arpEnv * (0.171f * EndingArpeggioScale);
+            }
 
             // 3. カピタが奏でる温かく素朴なフェルトピアノ（Piano）主旋律 ＋ 空間ステレオリバーブ ＋ 温かいコードパッド
             float strL = 0f;
@@ -566,6 +682,7 @@ public class AdventureMusicDirector : MonoBehaviour
 
                 if (hasPiano)
                 {
+                    float pianoCycleT = t % pianoLoopSec;
                     for (int m = 0; m < pianoNotes.Length; m++)
                     {
                         var note = pianoNotes[m];
@@ -573,7 +690,7 @@ public class AdventureMusicDirector : MonoBehaviour
 
                         for (int d = 0; d < 3; d++)
                         {
-                            float nT = (d == 0) ? (cycleT - note.start) : ((d == 1) ? (cycleT + 12.0f - note.start) : (cycleT - 12.0f - note.start));
+                            float nT = (d == 0) ? (pianoCycleT - note.start) : ((d == 1) ? (pianoCycleT + pianoLoopSec - note.start) : (pianoCycleT - pianoLoopSec - note.start));
                             if (nT >= 0f && nT <= noteDur + 0.8f) // 余韻・残響のため少し長めに再生判定
                             {
                                 float f0 = note.freq; // カピタのピアノと同じ心地よい中音域（F#4〜A#4）
@@ -657,12 +774,12 @@ public class AdventureMusicDirector : MonoBehaviour
                 }
 
                 // ピアノの音量バランス（主旋律として優しく澄んで響く音量）
-                float pianoGain = ((cycle == 0) ? 0.38f : 0.44f) * 0.36f;
-                if (isDrumsOnly) pianoGain = 0.44f * 0.36f;
+                float pianoGain = ((cycle == 0) ? 0.38f : 0.44f) * 0.36f * EndingPianoMelodyScale;
+                if (isDrumsOnly) pianoGain = 0.44f * 0.36f * EndingPianoMelodyScale;
 
-                // 左右に美しく広がるステレオ定位（コードパッド音量を10%削り、カピタのピアノの温もりを際立たせる）
-                float combinedL = pianoL * pianoGain + pad * 0.162f * 0.98f;
-                float combinedR = pianoR * pianoGain + pad * 0.162f * 1.02f;
+                float warmPadMix = 0.162f * EndingWarmPadScale;
+                float combinedL = pianoL * pianoGain + pad * warmPadMix * 0.98f;
+                float combinedR = pianoR * pianoGain + pad * warmPadMix * 1.02f;
                 strL = combinedL;
                 strR = combinedR;
             }
@@ -728,10 +845,19 @@ public class AdventureMusicDirector : MonoBehaviour
         // 全体に広大で神秘的な深みのあるステレオリバーブを付与（セレステの響きと大空の残響を最大化）
         ApplyLightReverb(samples, totalSamples, sampleRate, 0.44f);
 
-        string clipName = isDrumsOnly ? "Music_RustFloat_Skybreak_DrumsOnly" : "Music_RustFloat_Skybreak_BuildUp";
-        var clip = AudioClip.Create(clipName, totalSamples, 2, sampleRate, false);
-        clip.SetData(samples, 0);
-        return clip;
+        string mixTag = "";
+        if (!includeArpeggio) mixTag += "_NoArp";
+        if (!includeDrums) mixTag += "_NoDrums";
+        string clipName = isDrumsOnly
+            ? $"Music_RustFloat_Skybreak_DrumsOnly{mixTag}"
+            : $"Music_RustFloat_Skybreak_BuildUp{mixTag}";
+        return new SkybreakClipBuildResult
+        {
+            Samples = samples,
+            TotalSamples = totalSamples,
+            SampleRate = sampleRate,
+            ClipName = clipName
+        };
     }
 
     /// <summary>
@@ -849,5 +975,44 @@ public class AdventureMusicDirector : MonoBehaviour
                 }
             }
         }
+    }
+
+    static (float start, float end, float freq)[] BuildEndingPianoMelody16Bars(float beatSec)
+    {
+        (float start, float end, float freq)[] bars1to8 =
+        {
+            (0.000f * beatSec,  5.000f * beatSec, 369.99f),
+            (5.000f * beatSec,  6.000f * beatSec, 369.99f),
+            (6.000f * beatSec,  7.000f * beatSec, 349.23f),
+            (7.000f * beatSec,  8.000f * beatSec, 369.99f),
+            (8.000f * beatSec, 15.000f * beatSec, 440.00f),
+            (15.000f * beatSec, 16.000f * beatSec, 440.00f),
+            (16.000f * beatSec, 21.000f * beatSec, 392.00f),
+            (21.000f * beatSec, 22.000f * beatSec, 246.94f),
+            (22.000f * beatSec, 23.000f * beatSec, 329.63f),
+            (23.000f * beatSec, 24.000f * beatSec, 392.00f),
+            (24.000f * beatSec, 28.000f * beatSec, 466.16f),
+            (28.000f * beatSec, 30.000f * beatSec, 440.00f),
+            (30.000f * beatSec, 32.000f * beatSec, 392.00f),
+        };
+
+        float bar8StartSec = 28f * beatSec;
+        float repeatOffsetSec = 32f * beatSec;
+        var notes = new List<(float start, float end, float freq)>(bars1to8.Length + 16);
+
+        foreach (var n in bars1to8)
+            notes.Add(n);
+
+        foreach (var n in bars1to8)
+        {
+            if (n.start < bar8StartSec - 0.0001f)
+                notes.Add((n.start + repeatOffsetSec, n.end + repeatOffsetSec, n.freq));
+        }
+
+        // 第16小節：C 2拍 → D 2拍（1オクターブ上、次の1小節目＝F#へ）
+        notes.Add((60f * beatSec, 62f * beatSec, 523.25f)); // C5
+        notes.Add((62f * beatSec, 64f * beatSec, 587.33f)); // D5
+
+        return notes.ToArray();
     }
 }

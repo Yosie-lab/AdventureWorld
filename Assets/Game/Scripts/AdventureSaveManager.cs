@@ -88,6 +88,9 @@ public class AdventureSaveManager : MonoBehaviour
 
     static AudioClip _saveSoundClip;
     AudioSource _audioSource;
+
+    const float SaveChimeVolumeManual = 1.0f;
+    const float SaveChimeVolumeAuto = 0.48f;
     Texture2D _bgTex;
 
     // シーン開始時に自動で確実に常駐化
@@ -567,7 +570,9 @@ public class AdventureSaveManager : MonoBehaviour
             // バナー表示＆サウンド再生
             string subText = $"遺物パーツ: {scrapCount}個 ／ Rust常備油: {oil}個（Rustと絆を結びました）";
             ShowSaveNotification(customMessage, subText);
-            PlaySaveSound();
+            bool autoSaveChime = !string.IsNullOrEmpty(customMessage)
+                                 && customMessage.IndexOf("オートセーブ", StringComparison.Ordinal) >= 0;
+            PlaySaveSound(autoSaveChime ? SaveChimeVolumeAuto : SaveChimeVolumeManual);
 
             Debug.Log($"[AdventureSaveManager] セーブ完了: {SaveFilePath} (パーツ: {data.collectedCount}個, 油: {data.oilCount})");
         }
@@ -577,7 +582,7 @@ public class AdventureSaveManager : MonoBehaviour
         }
     }
 
-    void PlaySaveSound()
+    void PlaySaveSound(float volumeScale = SaveChimeVolumeManual)
     {
         if (_saveSoundClip == null)
             _saveSoundClip = CreateSaveSound();
@@ -585,10 +590,12 @@ public class AdventureSaveManager : MonoBehaviour
         if (_audioSource == null)
             SetupAudio();
 
+        float vol = Mathf.Clamp01(volumeScale);
+
         // 1. 2Dステレオでの直接再生
         if (_audioSource != null && _saveSoundClip != null)
         {
-            _audioSource.PlayOneShot(_saveSoundClip, 1.0f);
+            _audioSource.PlayOneShot(_saveSoundClip, vol);
         }
 
         // 2. AudioListener（またはメインカメラ）位置での直接再生（聞こえない問題を完全に防止）
@@ -598,7 +605,7 @@ public class AdventureSaveManager : MonoBehaviour
 
         if (_saveSoundClip != null)
         {
-            AudioSource.PlayClipAtPoint(_saveSoundClip, playPos, 1.0f);
+            AudioSource.PlayClipAtPoint(_saveSoundClip, playPos, vol);
         }
     }
 

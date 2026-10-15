@@ -22,6 +22,7 @@ public class AdventurePauseMenu : MonoBehaviour
     GameObject _panelRoot;
     GameObject _confirmModalRoot;
     GameObject _returnTitleConfirmModal;
+    GameObject _titleSettingsBackdrop;
     Font _font;
     AudioSource _audioSource;
     AudioClip _testBeepClip;
@@ -48,6 +49,7 @@ public class AdventurePauseMenu : MonoBehaviour
     Text _tabAudioBtnLabel;
     Text _tabDisplayBtnLabel;
     Text _tabGuideBtnLabel;
+    GameObject _tabBarGo;
 
     // オーディオ＆操作 スライダー
     Slider _bgmSlider;
@@ -100,17 +102,23 @@ public class AdventurePauseMenu : MonoBehaviour
 
     public static void Ensure()
     {
-        if (Instance != null) return;
-        var existing = Object.FindAnyObjectByType<AdventurePauseMenu>();
-        if (existing != null)
+        if (Instance == null)
+            Instance = Object.FindAnyObjectByType<AdventurePauseMenu>();
+
+        if (Instance == null)
         {
-            Instance = existing;
-            return;
+            var go = new GameObject("AdventurePauseMenu");
+            DontDestroyOnLoad(go);
+            Instance = go.AddComponent<AdventurePauseMenu>();
         }
 
-        var go = new GameObject("AdventurePauseMenu");
-        DontDestroyOnLoad(go);
-        Instance = go.AddComponent<AdventurePauseMenu>();
+        Instance.EnsureUiBuilt();
+    }
+
+    void EnsureUiBuilt()
+    {
+        if (_canvas == null)
+            CreateUI();
     }
 
     public static void EnsureEventSystemForUi()
@@ -134,15 +142,14 @@ public class AdventurePauseMenu : MonoBehaviour
             es.gameObject.SetActive(true);
 
         var legacy = es.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>();
-        if (legacy != null)
-            Object.Destroy(legacy);
-
         var uiModule = es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+
+        // Input System のみ構成では Standalone はマウスを拾えない → 常に InputSystemUIInputModule
+        if (legacy != null)
+            legacy.enabled = false;
         if (uiModule == null)
             uiModule = es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-
         try { uiModule.AssignDefaultActions(); } catch { }
-
         uiModule.enabled = true;
         InputSystem.settings.updateMode = InputSettings.UpdateMode.ProcessEventsInDynamicUpdate;
 
@@ -211,6 +218,38 @@ public class AdventurePauseMenu : MonoBehaviour
     void Update()
     {
         bool escPressed = AdventureInputReader.EscapeDown;
+        bool onTitle = !AdventureRustFloatOpening.IsGameStarted;
+
+        // タイトル中: ESC で「開く」のは Opening 側。ここでは設定表示中の「閉じる」だけ担当（同一フレーム開閉競合を防ぐ）
+        if (onTitle)
+        {
+            if (IsOpen)
+            {
+                TrySettingsDirectMouseClicks();
+                TrySettingsTabKeyboardShortcuts();
+            }
+
+            if (escPressed && IsOpen)
+            {
+                if (_confirmModalRoot != null && _confirmModalRoot.activeSelf)
+                {
+                    _confirmModalRoot.SetActive(false);
+                    _lastToggleTime = Time.unscaledTime;
+                    return;
+                }
+
+                if (_returnTitleConfirmModal != null && _returnTitleConfirmModal.activeSelf)
+                {
+                    _returnTitleConfirmModal.SetActive(false);
+                    _lastToggleTime = Time.unscaledTime;
+                    return;
+                }
+
+                TogglePause();
+            }
+
+            return;
+        }
 
         // 設定／ポーズを閉じる ESC はデバウンスしない（開いた直後に閉じられない不具合対策）
         if (escPressed && IsOpen)
@@ -245,6 +284,65 @@ public class AdventurePauseMenu : MonoBehaviour
 
             TogglePause();
         }
+
+        if (IsOpen)
+        {
+            TrySettingsDirectMouseClicks();
+            TrySettingsTabKeyboardShortcuts();
+        }
+    }
+
+    bool IsSettingsModalBlockingInput()
+    {
+        if (_confirmModalRoot != null && _confirmModalRoot.activeSelf) return true;
+        if (_returnTitleConfirmModal != null && _returnTitleConfirmModal.activeSelf) return true;
+        return false;
+    }
+
+    void TrySettingsTabKeyboardShortcuts()
+    {
+        if (!IsOpen || IsSettingsModalBlockingInput()) return;
+
+        if (AdventureInputReader.TitleMenuDigitDown(1)) SwitchTab(0);
+        else if (AdventureInputReader.TitleMenuDigitDown(2)) SwitchTab(1);
+        else if (AdventureInputReader.TitleMenuDigitDown(3)) SwitchTab(2);
+    }
+
+    void TrySettingsDirectMouseClicks()
+    {
+        if (!IsOpen || IsSettingsModalBlockingInput()) return;
+        if (!AdventureInputReader.MouseLeftDown) return;
+
+        var mouse = Mouse.current;
+        Vector2 mousePos = mouse != null ? mouse.position.ReadValue() : (Vector2)Input.mousePosition;
+
+        if (TryClickUiButton(_tabDisplayBtn, mousePos)) { SwitchTab(1); return; }
+        if (TryClickUiButton(_tabGuideBtn, mousePos)) { SwitchTab(2); return; }
+        if (TryClickUiButton(_tabAudioBtn, mousePos)) { SwitchTab(0); return; }
+
+        if (_currentTab == 1)
+            TryDisplayTabDirectMouseClicks(mousePos);
+    }
+
+    void TryDisplayTabDirectMouseClicks(Vector2 mousePos)
+    {
+        if (TryClickUiButton(_fsBtn, mousePos)) { SetFullscreen(true); return; }
+        if (TryClickUiButton(_winBtn, mousePos)) { SetFullscreen(false); return; }
+        if (TryClickUiButton(_qFastBtn, mousePos)) { SetQuality(0); return; }
+        if (TryClickUiButton(_qHighBtn, mousePos)) { SetQuality(1); return; }
+        if (TryClickUiButton(_qUltraBtn, mousePos)) { SetQuality(2); return; }
+        if (TryClickUiButton(_vsyncOnBtn, mousePos)) { SetVSync(true); return; }
+        if (TryClickUiButton(_vsyncOffBtn, mousePos)) { SetVSync(false); return; }
+        if (TryClickUiButton(_res1080Btn, mousePos)) { SetResolution(1920, 1080); return; }
+        if (TryClickUiButton(_res900Btn, mousePos)) { SetResolution(1600, 900); return; }
+        if (TryClickUiButton(_res720Btn, mousePos)) { SetResolution(1280, 720); return; }
+    }
+
+    static bool TryClickUiButton(Button btn, Vector2 screenPos)
+    {
+        if (btn == null || !btn.isActiveAndEnabled) return false;
+        var rt = btn.GetComponent<RectTransform>();
+        return rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);
     }
 
     public static void CloseIfOpen()
@@ -278,6 +376,14 @@ public class AdventurePauseMenu : MonoBehaviour
 
     public void OpenSettingsFromTitle()
     {
+        ForceOpenTitleSettings();
+    }
+
+    /// <summary>タイトルから環境設定を確実に前面表示</summary>
+    public void ForceOpenTitleSettings()
+    {
+        EnsureUiBuilt();
+        EnsureEventSystemForUi();
         _openedFromTitle = true;
         SetMenuVisible(true);
     }
@@ -335,15 +441,30 @@ public class AdventurePauseMenu : MonoBehaviour
             if (_canvas != null)
             {
                 _canvas.enabled = true;
-                _canvas.sortingOrder = _openedFromTitle ? 920 : 110;
+                _canvas.sortingOrder = _openedFromTitle ? 960 : 110;
             }
-            if (_panelRoot != null) _panelRoot.SetActive(true);
+
+            if (_titleSettingsBackdrop != null)
+                _titleSettingsBackdrop.SetActive(_openedFromTitle);
+
+            if (_panelRoot != null)
+            {
+                _panelRoot.SetActive(true);
+                _panelRoot.transform.SetAsLastSibling();
+            }
+
+            if (_tabBarGo != null)
+                _tabBarGo.transform.SetAsLastSibling();
             if (_canvasGroup != null)
             {
                 _canvasGroup.alpha = 1f;
                 _canvasGroup.interactable = true;
                 _canvasGroup.blocksRaycasts = true;
             }
+
+            if (_canvas != null)
+                _canvas.transform.SetAsLastSibling();
+            transform.SetAsLastSibling();
         }
         else
         {
@@ -378,6 +499,9 @@ public class AdventurePauseMenu : MonoBehaviour
                 _canvasGroup.interactable = false;
                 _canvasGroup.blocksRaycasts = false;
             }
+            if (_titleSettingsBackdrop != null)
+                _titleSettingsBackdrop.SetActive(false);
+
             if (_canvas != null) _canvas.enabled = false;
         }
     }
@@ -608,6 +732,8 @@ public class AdventurePauseMenu : MonoBehaviour
 
     void CreateUI()
     {
+        if (_canvas != null) return;
+
         var canvasGo = new GameObject("PauseMenu_Canvas");
         canvasGo.transform.SetParent(transform, false);
 
@@ -623,6 +749,18 @@ public class AdventurePauseMenu : MonoBehaviour
         canvasGo.AddComponent<GraphicRaycaster>();
 
         _font = ResolveFont();
+
+        _titleSettingsBackdrop = new GameObject("TitleSettingsBackdrop");
+        _titleSettingsBackdrop.transform.SetParent(canvasGo.transform, false);
+        var bdRt = _titleSettingsBackdrop.AddComponent<RectTransform>();
+        bdRt.anchorMin = Vector2.zero;
+        bdRt.anchorMax = Vector2.one;
+        bdRt.offsetMin = Vector2.zero;
+        bdRt.offsetMax = Vector2.zero;
+        var bdImg = _titleSettingsBackdrop.AddComponent<Image>();
+        bdImg.color = new Color(0.01f, 0.03f, 0.06f, 0.72f);
+        bdImg.raycastTarget = true;
+        _titleSettingsBackdrop.SetActive(false);
 
         // 1. パネル背景
         _panelRoot = new GameObject("PauseMenuPanel");
@@ -671,6 +809,7 @@ public class AdventurePauseMenu : MonoBehaviour
         titleText.alignment = TextAnchor.MiddleCenter;
         titleText.color = new Color(1f, 0.90f, 0.45f, 1f);
         titleText.text = "✦ PAUSE & SETTINGS ✦";
+        titleText.raycastTarget = false;
         _headerTitleText = titleText;
 
         var subTitleGo = new GameObject("SubTitleText");
@@ -687,6 +826,7 @@ public class AdventurePauseMenu : MonoBehaviour
         subTitleText.alignment = TextAnchor.MiddleCenter;
         subTitleText.color = new Color(0.65f, 0.85f, 1f, 0.85f);
         subTitleText.text = "ゲーム設定・画面表示・操作ガイド・進行管理";
+        subTitleText.raycastTarget = false;
         _headerSubTitleText = subTitleText;
 
         // 2. タブバー（3タブ）
@@ -699,7 +839,7 @@ public class AdventurePauseMenu : MonoBehaviour
         cRt.anchorMin = Vector2.zero;
         cRt.anchorMax = Vector2.one;
         cRt.offsetMin = new Vector2(30f, 80f);
-        cRt.offsetMax = new Vector2(-30f, -115f);
+        cRt.offsetMax = new Vector2(-30f, -122f);
 
         CreateAudioTab(contentGo.transform);
         CreateDisplayTab(contentGo.transform);
@@ -717,12 +857,18 @@ public class AdventurePauseMenu : MonoBehaviour
     {
         var barGo = new GameObject("TabBar");
         barGo.transform.SetParent(parent, false);
+        _tabBarGo = barGo;
         var bRt = barGo.AddComponent<RectTransform>();
         bRt.anchorMin = new Vector2(0.5f, 1f);
         bRt.anchorMax = new Vector2(0.5f, 1f);
         bRt.pivot = new Vector2(0.5f, 1f);
         bRt.anchoredPosition = new Vector2(0f, -72f);
         bRt.sizeDelta = new Vector2(840f, 36f);
+
+        var tabBarCanvas = barGo.AddComponent<Canvas>();
+        tabBarCanvas.overrideSorting = true;
+        tabBarCanvas.sortingOrder = 8;
+        barGo.AddComponent<GraphicRaycaster>();
 
         float tabW = 270f;
         _tabAudioBtn = CreateTabButton(barGo.transform, "TabAudio", new Vector2(-280f, 0f), new Vector2(tabW, 36f), "⚙  オーディオ・操作", () => SwitchTab(0), out _tabAudioBtnImg, out _tabAudioBtnLabel);
@@ -743,6 +889,7 @@ public class AdventurePauseMenu : MonoBehaviour
 
         outImg = btnGo.AddComponent<Image>();
         outImg.color = new Color(0.04f, 0.08f, 0.14f, 0.70f);
+        outImg.raycastTarget = true;
 
         var outline = btnGo.AddComponent<Outline>();
         outline.effectColor = new Color(0.25f, 0.65f, 0.85f, 0.45f);
@@ -762,6 +909,7 @@ public class AdventurePauseMenu : MonoBehaviour
         outLabel.fontStyle = FontStyle.Bold;
         outLabel.alignment = TextAnchor.MiddleCenter;
         outLabel.color = Color.white;
+        outLabel.raycastTarget = false;
         outLabel.text = label;
 
         return btn;
@@ -940,6 +1088,7 @@ public class AdventurePauseMenu : MonoBehaviour
 
         var rowBg = rowGo.AddComponent<Image>();
         rowBg.color = new Color(0.015f, 0.04f, 0.08f, 0.65f);
+        rowBg.raycastTarget = false;
 
         var outline = rowGo.AddComponent<Outline>();
         outline.effectColor = new Color(0.15f, 0.35f, 0.55f, 0.35f);

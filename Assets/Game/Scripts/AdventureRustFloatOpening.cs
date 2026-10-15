@@ -153,9 +153,10 @@ public class AdventureRustFloatOpening : MonoBehaviour
             _modalCg.blocksRaycasts = !settingsCoveringTitle;
         }
 
+        // 描画順は下げず Raycast だけ止める（sort を下げると設定パネルより前に残る環境がある）
         var canvas = _canvasGo != null ? _canvasGo.GetComponent<Canvas>() : null;
-        if (canvas != null)
-            canvas.sortingOrder = settingsCoveringTitle ? 50 : TitleCanvasSortOrder;
+        if (canvas != null && !settingsCoveringTitle)
+            canvas.sortingOrder = TitleCanvasSortOrder;
     }
 
     /// <summary>設定閉鎖後など、タイトルボードのクリック・Raycast を確実に復帰させる</summary>
@@ -312,15 +313,21 @@ public class AdventureRustFloatOpening : MonoBehaviour
         AdventurePauseMenu.EnsureClosedIfNotOpen();
 
         if (!AdventurePauseMenu.IsOpen)
+        {
             RestoreTitleUiInput();
+        }
+        else
+        {
+            SetTitleOverlayForSettings(true);
+        }
 
         if (!IsGameStarted && Time.timeScale < 0.05f && !AdventurePauseMenu.IsOpen)
             Time.timeScale = 1f;
 
+        TryTitleDirectMouseClicks();
         TryTitleKeyboardShortcuts();
 
-        // タイトル画面の ESC：設定を閉じるのは PauseMenu、開くのはここ（同一フレームで開き直さない）
-        if (AdventureInputReader.EscapeDown)
+        if (TitleEscapePressed())
         {
             if (_newGameConfirmModal != null && _newGameConfirmModal.activeSelf)
             {
@@ -337,79 +344,46 @@ public class AdventureRustFloatOpening : MonoBehaviour
         }
     }
 
-    void OnGUI()
+    static bool TitleEscapePressed()
     {
-        if (IsGameStarted || _isClosing || ShouldSkipOpeningBoard()) return;
+        if (AdventureInputReader.EscapeDown) return true;
+        try { return Input.GetKeyDown(KeyCode.Escape); } catch { return false; }
+    }
+
+    static bool TitleDigitPressed(int digit) => AdventureInputReader.TitleMenuDigitDown(digit);
+
+    void TryTitleDirectMouseClicks()
+    {
         if (AdventurePauseMenu.IsOpen) return;
-        if (_modalBoard == null || !_modalBoard.activeSelf) return;
+        if (_newGameConfirmModal != null && _newGameConfirmModal.activeSelf) return;
+        if (!IsModalBoardOpen()) return;
+        if (!AdventureInputReader.MouseLeftDown) return;
 
-        Event e = Event.current;
-        if (e != null && e.type == EventType.KeyDown && e.keyCode == KeyCode.Escape
-            && !AdventurePauseMenu.ShouldSuppressTitleSettingsOpen)
-        {
-            OnSettingsClicked();
-            e.Use();
-            return;
-        }
+        var mouse = Mouse.current;
+        Vector2 mousePos = mouse != null ? mouse.position.ReadValue() : (Vector2)Input.mousePosition;
 
-        if (_newGameConfirmModal != null && _newGameConfirmModal.activeSelf)
-            return;
+        if (TryClickButton(_continueBtn, mousePos)) { OnContinueClicked(); return; }
+        if (TryClickButton(_newGameBtn, mousePos)) { OnNewGameClicked(); return; }
+        if (TryClickButton(_settingsBtn, mousePos)) { OnSettingsClicked(); return; }
+        if (TryClickButton(_quitBtn, mousePos)) { OnQuitClicked(); }
+    }
 
-        DrawTitleMenuFallbackGui();
+    static bool TryClickButton(Button btn, Vector2 screenPos)
+    {
+        if (btn == null || !btn.isActiveAndEnabled) return false;
+        var rt = btn.GetComponent<RectTransform>();
+        return rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);
     }
 
     void TryTitleKeyboardShortcuts()
     {
-        var kb = Keyboard.current;
-        if (kb == null) return;
+        if (AdventurePauseMenu.IsOpen) return;
         if (_newGameConfirmModal != null && _newGameConfirmModal.activeSelf) return;
 
-        if (kb.digit1Key.wasPressedThisFrame || kb.numpad1Key.wasPressedThisFrame)
-        {
-            OnContinueClicked();
-            return;
-        }
-        if (kb.digit2Key.wasPressedThisFrame || kb.numpad2Key.wasPressedThisFrame)
-        {
-            OnNewGameClicked();
-            return;
-        }
-        if (kb.digit3Key.wasPressedThisFrame || kb.numpad3Key.wasPressedThisFrame)
-        {
-            OnSettingsClicked();
-            return;
-        }
-        if (kb.digit4Key.wasPressedThisFrame || kb.numpad4Key.wasPressedThisFrame)
-        {
-            OnQuitClicked();
-        }
-    }
-
-    void DrawTitleMenuFallbackGui()
-    {
-        float w = 340f;
-        float h = 46f;
-        float x = Screen.width * 0.5f + 118f;
-        float y = Screen.height * 0.5f - 72f;
-
-        var btnStyle = new GUIStyle(GUI.skin.button)
-        {
-            fontSize = 15,
-            fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter
-        };
-
-        if (GUI.Button(new Rect(x - w * 0.5f, y, w, h), "▶  つづきから [1]", btnStyle))
-            OnContinueClicked();
-        y += 58f;
-        if (GUI.Button(new Rect(x - w * 0.5f, y, w, h), "✦  はじめから [2]", btnStyle))
-            OnNewGameClicked();
-        y += 54f;
-        if (GUI.Button(new Rect(x - w * 0.5f, y, w, h), "⚙  環境設定 [3 / ESC]", btnStyle))
-            OnSettingsClicked();
-        y += 52f;
-        if (GUI.Button(new Rect(x - w * 0.5f, y, w, h), "✖  終了 [4]", btnStyle))
-            OnQuitClicked();
+        if (TitleDigitPressed(1)) { OnContinueClicked(); return; }
+        if (TitleDigitPressed(2)) { OnNewGameClicked(); return; }
+        if (TitleDigitPressed(3)) { OnSettingsClicked(); return; }
+        if (TitleDigitPressed(4)) OnQuitClicked();
     }
 
     public void OnContinueClicked()
@@ -470,11 +444,14 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     public void OnSettingsClicked()
     {
+        if (_isClosing) return;
+        if (!IsModalBoardOpen()) return;
+        if (_newGameConfirmModal != null && _newGameConfirmModal.activeSelf) return;
+
         AdventurePauseMenu.Ensure();
-        if (AdventurePauseMenu.Instance != null)
-        {
-            AdventurePauseMenu.Instance.OpenSettingsFromTitle();
-        }
+        AdventurePauseMenu.EnsureEventSystemForUi();
+        SetTitleOverlayForSettings(true);
+        AdventurePauseMenu.Instance?.ForceOpenTitleSettings();
     }
 
     public void OnQuitClicked()

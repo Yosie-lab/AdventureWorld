@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Threading.Tasks;
 using UnityEngine;
 
 /// <summary>
@@ -7,6 +8,8 @@ using UnityEngine;
 public partial class AdventureSanctuaryTowerManager
 {
     static AudioClip _gameClearChimeClip;
+    static Task<(float[] stereo, int sampleCount)> _gameClearChimeBuildTask;
+    Coroutine _gameClearChimeFinalizeCo;
     static AudioClip _cachedColdWindClip;
     static AudioClip _cachedClankClip;
     static AudioClip _cachedHeavyLeverClip;
@@ -111,10 +114,69 @@ public partial class AdventureSanctuaryTowerManager
     /// <summary>
     /// ゲームクリアボードが表示された瞬間に鳴る、感動的で壮大な祝祭のクリスタルベル・チャイムを再生
     /// </summary>
+    void BeginPrewarmGameClearChime()
+    {
+        if (_gameClearChimeClip != null) return;
+        if (_gameClearChimeBuildTask != null)
+        {
+            if (_gameClearChimeBuildTask.IsCompleted)
+                TryFinalizeGameClearChimeFromTask();
+            return;
+        }
+
+        _gameClearChimeBuildTask = Task.Run(BuildGameClearTriumphChimeStereoData);
+        if (_gameClearChimeFinalizeCo == null)
+            _gameClearChimeFinalizeCo = StartCoroutine(FinalizeGameClearChimeWhenReady());
+    }
+
+    void TryFinalizeGameClearChimeFromTask()
+    {
+        if (_gameClearChimeClip != null || _gameClearChimeBuildTask == null || !_gameClearChimeBuildTask.IsCompleted)
+            return;
+        if (_gameClearChimeBuildTask.IsFaulted || _gameClearChimeBuildTask.IsCanceled)
+        {
+            _gameClearChimeBuildTask = null;
+            return;
+        }
+
+        var built = _gameClearChimeBuildTask.Result;
+        _gameClearChimeBuildTask = null;
+        if (built.stereo == null || built.sampleCount <= 0)
+            return;
+
+        const int rate = 44100;
+        _gameClearChimeClip = AudioClip.Create("GameClearTriumphChime", built.sampleCount, 2, rate, false);
+        _gameClearChimeClip.SetData(built.stereo, 0);
+    }
+
+    IEnumerator FinalizeGameClearChimeWhenReady()
+    {
+        while (_gameClearChimeBuildTask != null && !_gameClearChimeBuildTask.IsCompleted)
+            yield return null;
+        TryFinalizeGameClearChimeFromTask();
+        _gameClearChimeFinalizeCo = null;
+    }
+
+    IEnumerator WaitUntilGameClearChimeReady()
+    {
+        BeginPrewarmGameClearChime();
+        while (_gameClearChimeClip == null)
+        {
+            TryFinalizeGameClearChimeFromTask();
+            if (_gameClearChimeClip != null)
+                break;
+            yield return null;
+        }
+    }
+
     public void PlayGameClearTriumphChime()
     {
         if (_gameClearChimeClip == null)
-            _gameClearChimeClip = SynthesizeGameClearTriumphChime();
+        {
+            TryFinalizeGameClearChimeFromTask();
+            if (_gameClearChimeClip == null)
+                _gameClearChimeClip = SynthesizeGameClearTriumphChime();
+        }
 
         if (_audio == null)
             _audio = GetComponent<AudioSource>() ?? gameObject.AddComponent<AudioSource>();
@@ -131,6 +193,15 @@ public partial class AdventureSanctuaryTowerManager
     /// Cメジャー7th〜9thの上行アルペジオ（大空への羽ばたき）＋天上の広大な天空リバーブ。
     /// </summary>
     static AudioClip SynthesizeGameClearTriumphChime()
+    {
+        var built = BuildGameClearTriumphChimeStereoData();
+        const int rate = 44100;
+        var clip = AudioClip.Create("GameClearTriumphChime", built.sampleCount, 2, rate, false);
+        clip.SetData(built.stereo, 0);
+        return clip;
+    }
+
+    static (float[] stereo, int sampleCount) BuildGameClearTriumphChimeStereoData()
     {
         const int rate = 44100;
         // C5(523Hz), E5(659Hz), G5(784Hz), B5(988Hz), C6(1046Hz), E6(1318Hz), G6(1568Hz), C7(2093Hz)
@@ -260,9 +331,7 @@ public partial class AdventureSanctuaryTowerManager
             stereoData[i * 2 + 1] = mixedR[i] * scale;
         }
 
-        var clip = AudioClip.Create("GameClearTriumphChime", totalSamples, 2, rate, false);
-        clip.SetData(stereoData, 0);
-        return clip;
+        return (stereoData, totalSamples);
     }
 
     #region エピローグ・ウミネコ環境音（「わぁぁ……！見て、Niko！」）
@@ -335,7 +404,7 @@ public partial class AdventureSanctuaryTowerManager
         if (clip1 != null)
         {
             src.pitch = 1.0f;
-            src.PlayOneShot(clip1, 0.22f);
+            src.PlayOneShot(clip1, 0.28f);
         }
 
         // 2. 約5.2秒後、大空のパノラマが広がる中で遠くの群れがふわりと鳴き交わす
@@ -345,12 +414,12 @@ public partial class AdventureSanctuaryTowerManager
         if (clipMany != null)
         {
             src.pitch = 0.97f;
-            src.PlayOneShot(clipMany, 0.20f);
+            src.PlayOneShot(clipMany, 0.25f);
         }
         else if (clip1 != null)
         {
             src.pitch = 1.03f;
-            src.PlayOneShot(clip1, 0.20f);
+            src.PlayOneShot(clip1, 0.25f);
         }
 
         // 3. さらに約7.5秒後、自由を取り戻した余韻の中、遠空からもうひと鳴き
@@ -360,7 +429,7 @@ public partial class AdventureSanctuaryTowerManager
         if (clip1 != null)
         {
             src.pitch = 0.98f;
-            src.PlayOneShot(clip1, 0.22f);
+            src.PlayOneShot(clip1, 0.28f);
         }
 
         // 音声の余韻を待って片付け

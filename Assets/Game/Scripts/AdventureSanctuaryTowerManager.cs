@@ -1314,27 +1314,42 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _skybreakWindFadeCo = StartCoroutine(FadeAudioSource(_skybreakWindSource, targetVol, duration));
     }
 
-    void StopSkybreakWindAmbience()
+    /// <summary>クリアボード表示時：天蓋風＋バイオーム風＋skywind ループをまとめて止める</summary>
+    void StopAllEndingWindNoiseForGameClear()
+    {
+        StopSkybreakWindAmbience(fadeOutSec: 0f);
+        AdventureBiomeAmbienceManager.StopWindLoopsForGameClear();
+        AdventureCloudDrift.StopSkyWindAmbienceImmediate();
+    }
+
+    void StopSkybreakWindAmbience(float fadeOutSec = 0.8f)
     {
         if (_skybreakWindSource == null) return;
         if (_skybreakWindFadeCo != null)
             StopCoroutine(_skybreakWindFadeCo);
+        if (fadeOutSec <= 0.01f)
+        {
+            _skybreakWindSource.Stop();
+            _skybreakWindSource.volume = 0f;
+            return;
+        }
+
         if (_skybreakWindSource.isPlaying)
-            _skybreakWindFadeCo = StartCoroutine(FadeOutAndStopWind());
+            _skybreakWindFadeCo = StartCoroutine(FadeOutAndStopWind(fadeOutSec));
         else
             _skybreakWindSource.volume = 0f;
     }
 
-    IEnumerator FadeOutAndStopWind()
+    IEnumerator FadeOutAndStopWind(float fadeOutSec)
     {
         var src = _skybreakWindSource;
         if (src == null) yield break;
         float start = src.volume;
         float t = 0f;
-        while (t < 0.8f && src != null)
+        while (t < fadeOutSec && src != null)
         {
             t += Time.unscaledDeltaTime;
-            src.volume = Mathf.Lerp(start, 0f, t / 0.8f);
+            src.volume = Mathf.Lerp(start, 0f, t / fadeOutSec);
             yield return null;
         }
         if (src != null)

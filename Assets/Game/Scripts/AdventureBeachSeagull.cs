@@ -556,7 +556,7 @@ public class AdventureBeachSeagull : MonoBehaviour
                 _audioSource.rolloffMode = AudioRolloffMode.Linear;
             }
             _audioSource.pitch = Random.Range(0.96f, 1.06f);
-            _audioSource.PlayOneShot(seagullCryClip, 0.58f);
+            _audioSource.PlayOneShot(seagullCryClip, 0.75f);
         }
 
         // 海・大空側へ向かって飛び立つ（斜め前方＋上方）

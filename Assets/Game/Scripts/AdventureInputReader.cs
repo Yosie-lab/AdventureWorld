@@ -276,6 +276,44 @@ public static class AdventureInputReader
         }
     }
 
+    /// <summary>タイトルメニュー用 1〜4 キー（新旧 Input 両対応）</summary>
+    public static bool TitleMenuDigitDown(int digit)
+    {
+        if (digit < 1 || digit > 4) return false;
+
+        try
+        {
+            switch (digit)
+            {
+                case 1:
+                    if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) return true;
+                    break;
+                case 2:
+                    if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) return true;
+                    break;
+                case 3:
+                    if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)) return true;
+                    break;
+                case 4:
+                    if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)) return true;
+                    break;
+            }
+        }
+        catch { }
+
+        var kb = Keyboard;
+        if (kb == null) return false;
+
+        return digit switch
+        {
+            1 => kb.digit1Key.wasPressedThisFrame || kb.numpad1Key.wasPressedThisFrame,
+            2 => kb.digit2Key.wasPressedThisFrame || kb.numpad2Key.wasPressedThisFrame,
+            3 => kb.digit3Key.wasPressedThisFrame || kb.numpad3Key.wasPressedThisFrame,
+            4 => kb.digit4Key.wasPressedThisFrame || kb.numpad4Key.wasPressedThisFrame,
+            _ => false
+        };
+    }
+
     /// <summary>Enterキー（Return / NumpadEnter）がこのフレームに押された</summary>
     public static bool EnterDown
     {

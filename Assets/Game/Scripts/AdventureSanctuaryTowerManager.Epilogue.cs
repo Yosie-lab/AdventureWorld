@@ -125,6 +125,8 @@ public partial class AdventureSanctuaryTowerManager
         // 「わぁぁ……！見て、Float！」からは風の音をごくわずかなそよ風（0.04f）まで下げて映画の余韻とウミネコを際立たせる
         SetSkybreakWindVolume(0.04f, 1.2f);
         StartEpilogueSeagullAmbience();
+        AdventureMusicDirector.Instance?.BeginPrewarmGameClearBgm();
+        BeginPrewarmGameClearChime();
         // エピローグ冒頭：Rustが「世界はこんなにも広かったんだ……！！」と感動する瞬間から大空正面に大虹（二重虹）を架橋
         SpawnEpilogueRainbow();
         Debug.Log($"[RustAndFloat] シネマエピローグ開始（Update） lines={EpilogueFilmLines.Length} subtitle={(_filmSubtitleUi != null)}");

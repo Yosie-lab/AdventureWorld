@@ -51,6 +51,24 @@ public class AdventureCloudDrift : MonoBehaviour
         EnsureSkyWindAmbience(GameObject.Find("RustFloat_Clouds"));
     }
 
+    /// <summary>上空 skywind ループ（ホワイトノイズ系）を即停止</summary>
+    public static void StopSkyWindAmbienceImmediate()
+    {
+        var sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < sources.Length; i++)
+        {
+            var src = sources[i];
+            if (src == null) continue;
+            string goName = src.gameObject.name;
+            string clipName = src.clip != null ? src.clip.name.ToLowerInvariant() : "";
+            if (goName == "SkyWindAmbience" || clipName.Contains("skywind") || clipName.Contains("coldwind"))
+            {
+                src.Stop();
+                src.volume = 0f;
+            }
+        }
+    }
+
     private static void EnsureSkyWindAmbience(GameObject root)
     {
         if (root == null) return;
