@@ -152,10 +152,10 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     static readonly CanopyBeat[] CanopyBeats =
     {
         new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 7.5f),
-        new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 4.2f),
+        new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
         new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Float！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.8f),
-        new CanopyBeat("", "✦ Float", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f), autoSec: 3.8f),
-        new CanopyBeat("", "✦ 相棒 Rust", "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Float！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 3.8f),
+        new CanopyBeat("", "✦ Float", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f), autoSec: 4.2f),
+        new CanopyBeat("", "✦ 相棒 Rust", "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Float！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 4.2f),
         new CanopyBeat("", "", "タワー中央の光の柱へ飛び込み、\n空の裂け目へ突き抜ける。", new Color(0.85f, 0.95f, 1f, 1f), autoSec: 3.5f),
         new CanopyBeat("空の裂け目へ", "", "【Space長押し / クリック】でダイブする", new Color(1f, 0.88f, 0.4f, 1f), autoSec: 6.0f, isDive: true),
     };
@@ -703,14 +703,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         TickGameClearModal();
         TickCinematicLetterbox();
 
-        // 入力離し待ちの解除（全フェーズ共通：決定キー・クリック・ホールド入力が完全に離されたら解除）
-        if (_scriptRequireInputRelease
-            && !AdventureInputReader.OilHoldButtons
-            && !AdventureInputReader.MouseRightHeld
-            && !AdventureInputReader.SpaceOrJHeld)
-        {
-            _scriptRequireInputRelease = false;
-        }
+        TickScriptAdvanceInputRelease();
 
         // キャッシュ参照を使用（毎フレームFind廃止）
         var player = GetPlayer();
@@ -1462,53 +1455,10 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     #region 6. 台本ボードUI (uGUI) & 入力ハンドリング
 
-    /// <summary>クリック／Space で台本を進める（Input System の wasPressed を直接見る）</summary>
+    /// <summary>クリック／Space で台本を進める（AdventureInputReader 経由で Input System 専用環境でも安全）</summary>
     void PollScriptBoardAdvance()
     {
-        if (!_scriptBoardVisible || _scriptBoardAdvance) return;
-        if (_scriptRequireInputRelease) return;
-
-        // セリフ表示直後の誤タップ防止（0.30秒）
-        const float minShow = 0.30f;
-        if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
-
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null &&
-            (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame ||
-             kb.numpadEnterKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame ||
-             kb.jKey.wasPressedThisFrame))
-        {
-            _scriptBoardAdvance = true;
-            return;
-        }
-
-        var mouse = UnityEngine.InputSystem.Mouse.current;
-        if (mouse != null &&
-            (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
-        {
-            _scriptBoardAdvance = true;
-            return;
-        }
-
-        var pad = UnityEngine.InputSystem.Gamepad.current;
-        if (pad != null &&
-            (pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame))
-        {
-            _scriptBoardAdvance = true;
-            return;
-        }
-
-        try
-        {
-            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) ||
-                Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.E) ||
-                Input.GetKeyDown(KeyCode.J) ||
-                Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
-            {
-                _scriptBoardAdvance = true;
-            }
-        }
-        catch { }
+        PollManualScriptAdvance(minShowSec: 0.30f, blockCanopyBeat0: true);
     }
 
     void EnsureScriptBoardUI()

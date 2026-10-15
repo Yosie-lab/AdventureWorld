@@ -31,11 +31,8 @@ public partial class AdventureSanctuaryTowerManager
 
         // 開いた直後の誤爆防止（エピローグ字幕送りSpaceの突き抜け防止）
         float elapsedSinceOpen = Time.unscaledTime - _clearModalOpenedAt;
-        if (_clearModalRequireRelease)
-        {
-            if (!AdventureInputReader.SpaceOrJHeld)
-                _clearModalRequireRelease = false;
-        }
+        if (_clearModalRequireRelease && IsEndingAdvanceInputReleased())
+            _clearModalRequireRelease = false;
 
         // AdventureInputReader に委譲（新旧InputSystem統合）
         bool nPressed = AdventureInputReader.NDown;

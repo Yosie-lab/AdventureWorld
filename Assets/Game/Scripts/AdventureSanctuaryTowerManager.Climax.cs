@@ -202,14 +202,7 @@ public partial class AdventureSanctuaryTowerManager
 
         // 1. タップ・決定入力（クリック・Space・Enter・Eキー・Jキー・ゲームパッド等。離し待ち中は完全ガード）
         if (!_scriptRequireInputRelease)
-        {
             PollScriptBoardAdvance();
-            if (AdventureInputReader.DialogAdvanceDown || AdventureInputReader.MouseRightDown)
-            {
-                _scriptBoardAdvance = true;
-                Debug.Log($"[RustAndFloat] クライマックス送り入力検知: beat={_climaxBeatIndex}");
-            }
-        }
 
         // 4. 自然な自動送り時間（放置シネマ：ClimaxBeats定義から直接取得）
         float autoSec = (_climaxBeatIndex >= 0 && _climaxBeatIndex < ClimaxBeats.Length)
@@ -260,10 +253,12 @@ public partial class AdventureSanctuaryTowerManager
         _scriptBoardBody = "";
         if (_scriptUiRoot != null)
             _scriptUiRoot.SetActive(false);
-
-        var orphanBoard = GameObject.Find("EndingScriptBoardCanvas");
-        if (orphanBoard != null)
-            orphanBoard.SetActive(false);
+        else
+        {
+            var orphanBoard = GameObject.Find("EndingScriptBoardCanvas");
+            if (orphanBoard != null)
+                orphanBoard.SetActive(false);
+        }
 
         if (_oilUiRoot != null && !IsClimaxOilPromptActive)
             _oilUiRoot.SetActive(false);

@@ -7,6 +7,16 @@ created: 2026-09-11
 
 次のエージェント（Antigravity 含む）は、このファイルを最初に読む。作業対象は **RustAndFloat**。元ゲーム **AdventureWorld は壊さない**。
 
+## Antigravity / 次のエージェントへの引き継ぎ（2026-10-15）
+
+### 崩壊〜エンド入力リファクタ（2026-10-15）
+- `AdventureSanctuaryTowerManager.Ending.cs`: 台本送り・注油・ダイブ長押しの**入力離し判定**を `IsEndingAdvanceInputReleased()` に統一（左クリック長押しの余韻で次セリフが突き抜ける／クリアモーダル誤爆を防止）。
+- `PollManualScriptAdvance` / `PollScriptBoardAdvance`: Legacy `Input.GetMouseButton` 直参照を廃止し `AdventureInputReader.DialogAdvanceDown` 経由に一本化。
+- `AdventurePlayerController`: 天蓋台本中の Space 送りを `DialogAdvanceDown` に拡張（クリック送りと同じ経路）。
+- `AdventureSanctuaryTowerManager.Climax.cs`: クライマックス送りの二重判定を削除。`HideScriptBoardCompletely` は `_scriptUiRoot` 優先。
+
+---
+
 ## Antigravity / 次のエージェントへの引き継ぎ（2026-10-13）
 
 ### 1. 直近で完了した対応内容

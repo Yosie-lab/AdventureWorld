@@ -216,7 +216,7 @@ public partial class AdventureSanctuaryTowerManager
             SetScreenScriptSubtitle(cur.Title, cur.Speaker, cur.Body, cur.Accent, cur.IsDive);
         }
 
-        // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目4.2s／3枚目5.8s／会話3.8s／ダイブ6.0s）
+        // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目5.2s／3枚目5.8s／Float・Rust 4.2s／ダイブ6.0s）
         float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
             : 3.5f;
@@ -416,14 +416,10 @@ public partial class AdventureSanctuaryTowerManager
     public void NotifyScriptBoardAdvance()
     {
         if (!_scriptBoardVisible) return;
-        if (_scriptRequireInputRelease) return;
-        if (_climaxCrisisStarted) return; // クライマックス中はTickClimaxSequenceが一元管理
-        if (_scriptBoardIsDive) return; // ダイブはホールド入力のみ
-        if (_canopyBeatIndex == 0) return; // 第1幕「未知の荒野への眺望」は7.5秒間しっかり鑑賞させる
-        float minShow = 0.45f;
-        if (Time.unscaledTime - _scriptBoardOpenedAt < minShow) return;
-        _scriptBoardAdvance = true;
-        Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");
+        if (_climaxCrisisStarted) return;
+        if (_scriptBoardIsDive) return;
+        if (PollManualScriptAdvance(minShowSec: 0.45f, blockCanopyBeat0: true))
+            Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");
     }
 
     static bool IsDiveConfirmHeld()
