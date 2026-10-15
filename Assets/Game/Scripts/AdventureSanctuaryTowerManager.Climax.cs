@@ -124,8 +124,9 @@ public partial class AdventureSanctuaryTowerManager
             AdventureSkybreakVisuals.HidePersistentSkyTearCrack();
             SpawnWildernessPanorama(coldCrisis: false);
             SoftenSkybreakColdAtmosphere();
-            // 「ありがとう、Float！」からは風の音を控えめ（0.45f -> 0.18f）に下げてBGMとセリフを引き立てる
-            SetSkybreakWindVolume(0.18f, 1.4f);
+            // 「ありがとう、Float！」からは風の音を控えめに下げてBGMとセリフを引き立てる
+            SetSkybreakWindVolume(0.16f, 1.4f);
+            AdventureCloudDrift.SetSkyWindAmbienceVolume(0.010f);
             StartCoroutine(AdventureSkybreakVisuals.BreakthroughFlashRoutine());
             AdventureMusicDirector.Ensure();
             AdventureMusicDirector.Instance?.TriggerSkybreakOverdriveDrop();

@@ -51,6 +51,28 @@ public class AdventureCloudDrift : MonoBehaviour
         EnsureSkyWindAmbience(GameObject.Find("RustFloat_Clouds"));
     }
 
+    /// <summary>シーン内の SkyWindAmbience ループ音量を一括設定</summary>
+    public static void SetSkyWindAmbienceVolume(float volume)
+    {
+        float vol = Mathf.Clamp(volume, 0f, 1f);
+        var sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < sources.Length; i++)
+        {
+            var src = sources[i];
+            if (src == null) continue;
+            if (src.gameObject.name != "SkyWindAmbience") continue;
+            src.volume = vol;
+            if (vol <= 0.0001f)
+            {
+                src.Stop();
+            }
+            else if (!src.isPlaying && src.clip != null)
+            {
+                src.Play();
+            }
+        }
+    }
+
     /// <summary>上空 skywind ループ（ホワイトノイズ系）を即停止</summary>
     public static void StopSkyWindAmbienceImmediate()
     {

@@ -68,7 +68,7 @@ public partial class AdventureSanctuaryTowerManager
             float env = 1f;
             if (i < rate / 5) env = i / (rate / 5f);
             else if (i > count - rate / 5) env = (count - i) / (rate / 5f);
-            data[i] = (lp * 0.72f + low) * gust * env * 0.35f;
+            data[i] = (lp * 0.72f + low) * gust * env * 0.32f;
         }
         var clip = AudioClip.Create("SkybreakColdWind", count, 1, rate, false);
         clip.SetData(data, 0);

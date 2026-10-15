@@ -1302,7 +1302,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             _skybreakWindSource.Play();
         if (_skybreakWindFadeCo != null)
             StopCoroutine(_skybreakWindFadeCo);
-        _skybreakWindFadeCo = StartCoroutine(FadeAudioSource(_skybreakWindSource, 0.45f, 1.4f));
+        _skybreakWindFadeCo = StartCoroutine(FadeAudioSource(_skybreakWindSource, 0.34f, 1.4f));
+        AdventureCloudDrift.SetSkyWindAmbienceVolume(0.014f);
     }
 
     /// <summary>クライマックス演出等で風音の音量を滑らかに調整</summary>
@@ -1320,6 +1321,13 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         StopSkybreakWindAmbience(fadeOutSec: 0f);
         AdventureBiomeAmbienceManager.StopWindLoopsForGameClear();
         AdventureCloudDrift.StopSkyWindAmbienceImmediate();
+    }
+
+    void StopAllSeagullAudioForGameClear()
+    {
+        StopEpilogueSeagullAmbience();
+        AdventureSoaringSeagullsManager.SilenceAllWorldSeagulls(true);
+        AdventureSoaringSeagullsManager.StopAmbientAndBirdCriesImmediate();
     }
 
     void StopSkybreakWindAmbience(float fadeOutSec = 0.8f)

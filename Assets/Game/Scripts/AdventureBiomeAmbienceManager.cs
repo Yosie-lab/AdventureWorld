@@ -206,9 +206,16 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
             _targetHighlandVol *= groundDucking;
         }
 
-        // エピローグ中は風音を極めて小さくダッキング（映画テロップ・BGM・ウミネコを引き立てる）
+        // 天蓋シーケンス中：メインの天蓋風は維持し、重なる滑空ホワイトノイズだけ抑える
         var tower = AdventureSanctuaryTowerManager.Instance;
-        if (tower != null && tower.EpilogueTriggered)
+        if (tower != null && !tower.EpilogueTriggered && !AdventureSanctuaryTowerManager.IsGameCleared
+            && tower.IsCanopyToEpilogueSequence)
+        {
+            _targetGlidingVol *= 0.30f;
+            _targetHighlandVol *= 0.55f;
+        }
+        // エピローグ中は風音を極めて小さくダッキング（映画テロップ・BGM・ウミネコを引き立てる）
+        else if (tower != null && tower.EpilogueTriggered)
         {
             _targetGlidingVol *= 0.15f;
             _targetHighlandVol *= 0.15f;

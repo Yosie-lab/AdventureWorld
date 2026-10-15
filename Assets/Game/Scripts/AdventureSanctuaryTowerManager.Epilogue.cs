@@ -124,6 +124,7 @@ public partial class AdventureSanctuaryTowerManager
         PrepareFilmLine(0, allowActGap: false);
         // 「わぁぁ……！見て、Float！」からは風の音をごくわずかなそよ風（0.04f）まで下げて映画の余韻とウミネコを際立たせる
         SetSkybreakWindVolume(0.04f, 1.2f);
+        AdventureCloudDrift.SetSkyWindAmbienceVolume(0.006f);
         StartEpilogueSeagullAmbience();
         AdventureMusicDirector.Instance?.BeginPrewarmGameClearBgm();
         BeginPrewarmGameClearChime();

@@ -136,6 +136,9 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
                     ?? Object.FindAnyObjectByType<AdventureSanctuaryTowerManager>();
         if (tower != null)
         {
+            if (tower.ShowGameClearModal)
+                return false;
+
             // エピローグ中、またはクリア後は当然許可
             if (tower.EpilogueTriggered || AdventureSanctuaryTowerManager.IsGameCleared)
                 return true;
@@ -171,7 +174,28 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
     /// <summary>ウミネコ鳴き声のミュート判定（飛行禁止中は常に鳴き声も完全ミュート）</summary>
     public static bool ShouldMuteSeagullCries()
     {
+        var tower = AdventureSanctuaryTowerManager.Instance
+                    ?? Object.FindAnyObjectByType<AdventureSanctuaryTowerManager>();
+        if (tower != null && tower.ShowGameClearModal)
+            return true;
         return !IsSeagullFlightAllowed();
+    }
+
+    /// <summary>クリアボード表示時：群れアンビエンスと各鳥の鳴き声を即停止</summary>
+    public static void StopAmbientAndBirdCriesImmediate()
+    {
+        var mgr = Instance ?? Object.FindAnyObjectByType<AdventureSoaringSeagullsManager>();
+        if (mgr != null && mgr._ambientFlockAudio != null && mgr._ambientFlockAudio.isPlaying)
+            mgr._ambientFlockAudio.Stop();
+
+        var birds = Object.FindObjectsByType<AdventureSoaringSeagullsManager.SoaringBird>(
+            FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < birds.Length; i++)
+        {
+            var bird = birds[i];
+            if (bird == null) continue;
+            bird.StopCryImmediate();
+        }
     }
 
     static List<AudioSource> _cachedWorldSeagullSources;
@@ -567,12 +591,17 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             }
         }
 
+        public void StopCryImmediate()
+        {
+            if (_cryAudio != null && _cryAudio.isPlaying)
+                _cryAudio.Stop();
+        }
+
         void UpdateCries(float dt)
         {
             if (ShouldMuteSeagullCries())
             {
-                if (_cryAudio != null && _cryAudio.isPlaying)
-                    _cryAudio.Stop();
+                StopCryImmediate();
                 return;
             }
 

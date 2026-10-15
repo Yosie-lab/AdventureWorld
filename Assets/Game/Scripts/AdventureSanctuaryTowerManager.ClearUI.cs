@@ -78,6 +78,7 @@ public partial class AdventureSanctuaryTowerManager
             if (!wasVisible)
             {
                 StopAllEndingWindNoiseForGameClear();
+                StopAllSeagullAudioForGameClear();
                 if (_gameClearBoardAudioCo != null)
                     StopCoroutine(_gameClearBoardAudioCo);
                 _gameClearBoardAudioCo = StartCoroutine(PlayGameClearBoardAudioRoutine());
@@ -335,7 +336,7 @@ public partial class AdventureSanctuaryTowerManager
         Cursor.visible = false;
 
         AdventureMusicDirector.Ensure();
-        AdventureMusicDirector.Instance?.RestoreExplorationTheme();
+        AdventureMusicDirector.Instance?.KeepEndingThemeActive();
         var player = GetPlayer();
         if (player != null)
         {
