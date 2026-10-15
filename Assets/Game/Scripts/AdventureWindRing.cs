@@ -19,6 +19,14 @@ public class AdventureWindRing : MonoBehaviour
     AudioSource _audio;
     static AudioClip _boostClip;
 
+    /// <summary>地上・空中リング共通の通過SE（プロシージャル合成）</summary>
+    public static AudioClip GetSharedPassBoostClip()
+    {
+        if (_boostClip == null)
+            _boostClip = SynthesizeWindBoostClip();
+        return _boostClip;
+    }
+
     void Start()
     {
         CreateRingVisual();
@@ -140,8 +148,7 @@ public class AdventureWindRing : MonoBehaviour
         _audio.volume = 0.85f;
         _audio.playOnAwake = false;
 
-        if (_boostClip == null)
-            _boostClip = SynthesizeWindBoostClip();
+        GetSharedPassBoostClip();
     }
 
     void Update()
@@ -207,12 +214,13 @@ public class AdventureWindRing : MonoBehaviour
         float dur = player.IsGliding ? boostDuration : 2.2f;
         player.ApplyGlideBoost(mult, dur, through);
 
-        if (_audio != null && _boostClip != null)
-            _audio.PlayOneShot(_boostClip);
+        if (_audio != null)
+            _audio.PlayOneShot(GetSharedPassBoostClip());
 
+        int comboCount = AdventureWindRingCombo.RegisterPass();
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
-            drone.OnFloatWindCaught();
+            drone.GrantWindRingOil(comboCount);
 
         try { OnRingPassed?.Invoke(this, player); } catch (System.Exception ex) { Debug.LogWarning($"[AdventureWindRing] OnRingPassed callback error: {ex.Message}"); }
 

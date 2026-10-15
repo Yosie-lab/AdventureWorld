@@ -437,6 +437,10 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening)
             return;
 
+        // クリスタル送電など協力ギミック中はコルーチンが位置・向きを制御（通常追従と競合させない）
+        if (_isPerformingGimmick)
+            return;
+
         TickDriftBoxDetection();
         UpdateCommandInput();
 
@@ -713,6 +717,9 @@ public partial class AdventureRustDrone : MonoBehaviour
 
     void LateUpdate()
     {
+        if (_isPerformingGimmick)
+            return;
+
         // Nikoの移動処理後にも毎フレーム体躯クリアランスを強制し、めり込みを完全排除
         EnforceNikoBodyClearance();
     }
@@ -1556,6 +1563,9 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (AdventureAncientWindVent.IsPlayerNearAnyVent(player.transform.position))
             return;
 
+        if (AdventureRustCrystalPuzzle.IsPlayerNearChargeSite(player.transform.position))
+            return;
+
         if (_isPlayerNear && ePressed && Time.time - _lastInteractTime > 0.35f)
         {
             _lastInteractTime = Time.time;
@@ -1907,8 +1917,16 @@ public partial class AdventureRustDrone : MonoBehaviour
         SetSpeech(glideStartLines[Random.Range(0, glideStartLines.Length)], 4.0f);
     }
 
+    /// <summary>風リング通過：基本油量×コンボ数（地上・空中共通）</summary>
+    public void GrantWindRingOil(int comboMultiplier)
+    {
+        int combo = Mathf.Clamp(comboMultiplier, 1, 3);
+        int oilBonus = RollRingOilBonus() * combo;
+        OnFloatWindCaught(oilBonus, combo);
+    }
+
     /// <summary>気流に乗った時のRustの穏やかなセリフ（光るリング通過時は油ボーナス可）</summary>
-    public void OnFloatWindCaught(int oilBonus = -1)
+    public void OnFloatWindCaught(int oilBonus = -1, int comboForSpeech = 1)
     {
         _velocity += Vector3.up * 1.8f;
         // oilBonus < 0 → 呼び出し側任せでランダム（2〜6、たまに多め）
@@ -1917,13 +1935,14 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (oilBonus > 0)
             oilCount = Mathf.Max(0, oilCount) + oilBonus;
 
+        string comboTag = comboForSpeech >= 2 ? $"（コンボ×{comboForSpeech}）" : "";
         string[] windLines = oilBonus > 0
             ? new[]
             {
-                $"わぁ…！風が気持ちいいね、Float！油も +{oilBonus}（所持: {oilCount}）",
-                $"ふわりと浮いたよ…！リングの光が油になったよ +{oilBonus}",
-                $"風に乗って……ピピッ！潤滑油 +{oilBonus}／所持: {oilCount}",
-                $"島を見下ろすと綺麗……油も増えたよ +{oilBonus}、えへへ"
+                $"わぁ…！風が気持ちいいね、Float！油 +{oilBonus}{comboTag}（所持: {oilCount}）",
+                $"ふわりと浮いたよ…！リングの光が油になったよ +{oilBonus}{comboTag}",
+                $"風に乗って……ピピッ！潤滑油 +{oilBonus}{comboTag}／所持: {oilCount}",
+                $"島を見下ろすと綺麗……油も増えたよ +{oilBonus}{comboTag}、えへへ"
             }
             : new[]
             {

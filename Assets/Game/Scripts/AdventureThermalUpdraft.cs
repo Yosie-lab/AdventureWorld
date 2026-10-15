@@ -9,8 +9,10 @@ public class AdventureThermalUpdraft : MonoBehaviour
     public float radius = 7.0f;
     public float height = 45.0f;
     public float liftSpeed = 5.2f; // 毎秒+5.2mで上空へ浮遊上昇
-    public bool autoLaunch = false; // trueの場合、地上歩行からでも自動で大空へ射出＆滑空開始
-    public bool pullToCenter = false; // 光の柱など：水平に中心へ吸い寄せる
+    public bool autoLaunch = false; // true＝光の柱専用（ForceSkybreakPillarAscend）。通常サーマルは false
+    public bool pullToCenter = false; // 水平に中心へ吸い寄せる
+    /// <summary>滑空フラグが立つ前でも、気流柱内で空中にいれば上昇（風脈クリスタル用）</summary>
+    public bool liftWhenAirborneInColumn = false;
 
     ParticleSystem _windPs;
     AudioSource _audio;
@@ -88,7 +90,9 @@ public class AdventureThermalUpdraft : MonoBehaviour
                 cc.Move(pull.normalized * Mathf.Min(distXZ, 6f * Time.deltaTime));
         }
 
-        if (player.IsGliding)
+        bool canLift = player.IsGliding
+                       || (liftWhenAirborneInColumn && !player.IsGrounded);
+        if (canLift)
         {
             player.ApplyUpdraft(liftSpeed);
             if (_audio != null)

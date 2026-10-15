@@ -29,6 +29,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         _instance = null;
     }
 
+    const int TitleCanvasSortOrder = 860;
+
     const string TitleText = "✦ Rust & Float ✦";
     const string SubTitleText = "〜 2050 静かなる脱出 〜";
     const string StoryText =
@@ -129,14 +131,57 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         // 前面へ
         var canvas = _canvasGo != null ? _canvasGo.GetComponent<Canvas>() : null;
-        if (canvas != null) canvas.sortingOrder = 400;
+        if (canvas != null) canvas.sortingOrder = TitleCanvasSortOrder;
 
         IsGameStarted = false;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
         RefreshSaveDataStatus();
+        AdventurePauseMenu.ForceCloseTitleSettings();
+        Time.timeScale = 1f;
+        RestoreTitleUiInput();
         Debug.Log("[RustAndFloat] タイトル画面を表示しました");
+    }
+
+    /// <summary>タイトル上の設定を開いている間、メニュー Canvas の入力・描画順を下げる</summary>
+    public void SetTitleOverlayForSettings(bool settingsCoveringTitle)
+    {
+        if (_modalCg != null)
+        {
+            _modalCg.interactable = !settingsCoveringTitle;
+            _modalCg.blocksRaycasts = !settingsCoveringTitle;
+        }
+
+        var canvas = _canvasGo != null ? _canvasGo.GetComponent<Canvas>() : null;
+        if (canvas != null)
+            canvas.sortingOrder = settingsCoveringTitle ? 50 : TitleCanvasSortOrder;
+    }
+
+    /// <summary>設定閉鎖後など、タイトルボードのクリック・Raycast を確実に復帰させる</summary>
+    public void RestoreTitleUiInput()
+    {
+        if (IsGameStarted || _isClosing) return;
+
+        SetTitleOverlayForSettings(false);
+
+        if (_modalCg != null)
+        {
+            _modalCg.interactable = true;
+            _modalCg.blocksRaycasts = true;
+            if (_modalBoard != null && _modalBoard.activeSelf)
+                _modalCg.alpha = 1f;
+        }
+
+        if (_overlayGo != null && _modalBoard != null && _modalBoard.activeSelf)
+            _overlayGo.SetActive(true);
+
+        var canvas = _canvasGo != null ? _canvasGo.GetComponent<Canvas>() : null;
+        if (canvas != null)
+        {
+            canvas.enabled = true;
+            canvas.sortingOrder = TitleCanvasSortOrder;
+        }
     }
 
     /// <summary>F8／はじめから等の旧互換</summary>
@@ -181,6 +226,12 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         // タイトル画面のセーブ状況を更新して表示
         RefreshSaveDataStatus();
+        AdventurePauseMenu.CloseIfOpen();
+        AdventurePauseMenu.EnsureClosedIfNotOpen();
+        if (AdventureRustWorkshopUI.Instance != null)
+            AdventureRustWorkshopUI.Instance.SetVisible(false);
+        Time.timeScale = 1f;
+        RestoreTitleUiInput();
 
         // スタート前はマウスカーソルを表示・アンロック
         Cursor.lockState = CursorLockMode.None;
@@ -257,18 +308,108 @@ public class AdventureRustFloatOpening : MonoBehaviour
             Cursor.visible = true;
         }
 
-        // タイトル画面で ESC を押した場合は設定画面を開く
+        AdventurePauseMenu.EnsureEventSystemForUi();
+        AdventurePauseMenu.EnsureClosedIfNotOpen();
+
+        if (!AdventurePauseMenu.IsOpen)
+            RestoreTitleUiInput();
+
+        if (!IsGameStarted && Time.timeScale < 0.05f && !AdventurePauseMenu.IsOpen)
+            Time.timeScale = 1f;
+
+        TryTitleKeyboardShortcuts();
+
+        // タイトル画面の ESC：設定を閉じるのは PauseMenu、開くのはここ（同一フレームで開き直さない）
         if (AdventureInputReader.EscapeDown)
         {
             if (_newGameConfirmModal != null && _newGameConfirmModal.activeSelf)
             {
                 _newGameConfirmModal.SetActive(false);
             }
-            else if (!AdventurePauseMenu.IsOpen)
+            else if (AdventurePauseMenu.IsOpen)
+            {
+                AdventurePauseMenu.ForceCloseTitleSettings();
+            }
+            else if (!AdventurePauseMenu.ShouldSuppressTitleSettingsOpen)
             {
                 OnSettingsClicked();
             }
         }
+    }
+
+    void OnGUI()
+    {
+        if (IsGameStarted || _isClosing || ShouldSkipOpeningBoard()) return;
+        if (AdventurePauseMenu.IsOpen) return;
+        if (_modalBoard == null || !_modalBoard.activeSelf) return;
+
+        Event e = Event.current;
+        if (e != null && e.type == EventType.KeyDown && e.keyCode == KeyCode.Escape
+            && !AdventurePauseMenu.ShouldSuppressTitleSettingsOpen)
+        {
+            OnSettingsClicked();
+            e.Use();
+            return;
+        }
+
+        if (_newGameConfirmModal != null && _newGameConfirmModal.activeSelf)
+            return;
+
+        DrawTitleMenuFallbackGui();
+    }
+
+    void TryTitleKeyboardShortcuts()
+    {
+        var kb = Keyboard.current;
+        if (kb == null) return;
+        if (_newGameConfirmModal != null && _newGameConfirmModal.activeSelf) return;
+
+        if (kb.digit1Key.wasPressedThisFrame || kb.numpad1Key.wasPressedThisFrame)
+        {
+            OnContinueClicked();
+            return;
+        }
+        if (kb.digit2Key.wasPressedThisFrame || kb.numpad2Key.wasPressedThisFrame)
+        {
+            OnNewGameClicked();
+            return;
+        }
+        if (kb.digit3Key.wasPressedThisFrame || kb.numpad3Key.wasPressedThisFrame)
+        {
+            OnSettingsClicked();
+            return;
+        }
+        if (kb.digit4Key.wasPressedThisFrame || kb.numpad4Key.wasPressedThisFrame)
+        {
+            OnQuitClicked();
+        }
+    }
+
+    void DrawTitleMenuFallbackGui()
+    {
+        float w = 340f;
+        float h = 46f;
+        float x = Screen.width * 0.5f + 118f;
+        float y = Screen.height * 0.5f - 72f;
+
+        var btnStyle = new GUIStyle(GUI.skin.button)
+        {
+            fontSize = 15,
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter
+        };
+
+        if (GUI.Button(new Rect(x - w * 0.5f, y, w, h), "▶  つづきから [1]", btnStyle))
+            OnContinueClicked();
+        y += 58f;
+        if (GUI.Button(new Rect(x - w * 0.5f, y, w, h), "✦  はじめから [2]", btnStyle))
+            OnNewGameClicked();
+        y += 54f;
+        if (GUI.Button(new Rect(x - w * 0.5f, y, w, h), "⚙  環境設定 [3 / ESC]", btnStyle))
+            OnSettingsClicked();
+        y += 52f;
+        if (GUI.Button(new Rect(x - w * 0.5f, y, w, h), "✖  終了 [4]", btnStyle))
+            OnQuitClicked();
     }
 
     public void OnContinueClicked()
@@ -432,19 +573,13 @@ public class AdventureRustFloatOpening : MonoBehaviour
                 Destroy(orphanCanvas.gameObject);
         }
 
-        // EventSystemの自動確保
-        if (FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
-        {
-            var esGo = new GameObject("EventSystem");
-            esGo.AddComponent<UnityEngine.EventSystems.EventSystem>();
-            var uiModule = esGo.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-            try { uiModule.AssignDefaultActions(); } catch { }
-        }
+        AdventurePauseMenu.Ensure();
+        AdventurePauseMenu.EnsureEventSystemForUi();
 
         _canvasGo = new GameObject("RustFloatHUD");
         var canvas = _canvasGo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 80;
+        canvas.sortingOrder = TitleCanvasSortOrder;
 
         var scaler = _canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -488,6 +623,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         _modalBoard = new GameObject("StoryModalBoard");
         _modalBoard.transform.SetParent(_overlayGo.transform, false);
         _modalCg = _modalBoard.AddComponent<CanvasGroup>();
+        _modalCg.interactable = true;
+        _modalCg.blocksRaycasts = true;
 
         var boardRt = _modalBoard.AddComponent<RectTransform>();
         boardRt.anchorMin = new Vector2(0.5f, 0.5f);
@@ -549,7 +686,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         // フッター情報（バージョン ＆ 操作ガイド）
         var footLeft = MakeText(_modalBoard.transform, "FootLeft", new Vector2(30f, 12f), new Vector2(0f, 0f), new Vector2(400f, 20f), 12, TextAnchor.LowerLeft, font);
         footLeft.color = new Color(0.65f, 0.78f, 0.90f, 0.75f);
-        footLeft.text = "【マウス】選択　【ESC】設定";
+        footLeft.text = "【マウス / 1〜4】選択　【ESC / 3】設定";
 
         var footRight = MakeText(_modalBoard.transform, "FootRight", new Vector2(-30f, 12f), new Vector2(1f, 0f), new Vector2(400f, 20f), 12, TextAnchor.LowerRight, font);
         footRight.color = new Color(0.50f, 0.75f, 0.85f, 0.75f);
@@ -571,6 +708,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         var cBg = cardGo.AddComponent<Image>();
         cBg.color = new Color(0.015f, 0.04f, 0.08f, 0.70f);
+        cBg.raycastTarget = false;
 
         var cOutline = cardGo.AddComponent<Outline>();
         cOutline.effectColor = new Color(0.20f, 0.50f, 0.75f, 0.35f);
@@ -603,6 +741,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         var cBg = cardGo.AddComponent<Image>();
         cBg.color = new Color(0.015f, 0.04f, 0.08f, 0.70f);
+        cBg.raycastTarget = false;
 
         var cOutline = cardGo.AddComponent<Outline>();
         cOutline.effectColor = new Color(0.20f, 0.50f, 0.75f, 0.35f);

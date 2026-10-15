@@ -80,7 +80,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
         _ambientFlockAudio = gameObject.AddComponent<AudioSource>();
         _ambientFlockAudio.spatialBlend = 0.25f; // 広域上空アンビエント
         _ambientFlockAudio.playOnAwake = false;
-        _ambientFlockAudio.volume = 0.32f;
+        _ambientFlockAudio.volume = 0.26f;
     }
 
     void SpawnSoaringFlock()
@@ -268,7 +268,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             if (_ambientFlockAudio != null && seagullCryFlock != null)
             {
                 _ambientFlockAudio.pitch = Random.Range(0.92f, 1.08f);
-                _ambientFlockAudio.PlayOneShot(seagullCryFlock, Random.Range(0.25f, 0.38f));
+                _ambientFlockAudio.PlayOneShot(seagullCryFlock, Random.Range(0.20f, 0.30f));
             }
         }
     }
@@ -583,7 +583,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
                 if (_cryAudio != null && _cryClip != null)
                 {
                     _cryAudio.pitch = Random.Range(0.95f, 1.12f);
-                    _cryAudio.PlayOneShot(_cryClip, Random.Range(0.48f, 0.65f));
+                    _cryAudio.PlayOneShot(_cryClip, Random.Range(0.38f, 0.52f));
                 }
             }
         }

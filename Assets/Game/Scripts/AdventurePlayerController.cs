@@ -107,16 +107,18 @@ public partial class AdventurePlayerController : MonoBehaviour
     const float CliffFwdSpeed    = 10.5f;
 
     // 滑空フライト定数
-    const float GlideYawRate     = 125f;
-    const float GlideYawRateBoosted = 100f;
-    const float GlideBankAngle   = 22f;
+    const float GlideYawRate     = 148f;
+    const float GlideYawRateBoosted = 172f;
+    const float GlideBankAngle   = 24f;
     const float GlidePitchRateDive = 5.5f;
-    const float GlideInputSmooth = 0.032f;
-    const float GlideYawAccel    = 420f;
-    const float GlideAttitudeSmooth = 0.05f;
-    const float GlideSpeedSmooth = 0.08f;
-    const float AirSteerAccel    = 18f;   // 空中方向転換（鈍さを減らす）
-    const float AirSteerMaxSpeed = 6.0f;
+    const float GlideInputSmooth = 0.022f;
+    const float GlideYawAccel    = 560f;
+    const float GlideAttitudeSmooth = 0.042f;
+    const float GlideSpeedSmooth = 0.07f;
+    const float GlideTurnRateDeg = 248f;
+    const float GlideTurnRateBoostedDeg = 332f;
+    const float AirSteerAccel    = 26f;
+    const float AirSteerMaxSpeed = 7.8f;
     const float AirMomentumBrake = 34f;   // 操作なし時の空中ブレーキ（ズルズル軽減）
     const float AutoGlideYawRate = 16f;
     const float AutoGlideCruiseSpeed = 7.2f;
@@ -979,9 +981,21 @@ public partial class AdventurePlayerController : MonoBehaviour
         forwardFlat.Normalize();
 
         Vector3 desiredMom = forwardFlat * Mathf.Max(_glideSpeedCurrent, 0.5f);
-        _airMomentum = Vector3.SmoothDamp(
-            _airMomentum, desiredMom, ref _airMomVel, GlideSpeedSmooth,
-            Mathf.Infinity, dt);
+        Vector3 curFlat = _airMomentum.SetY(0f);
+        float turnRateRad = (isBoosted ? GlideTurnRateBoostedDeg : GlideTurnRateDeg) * Mathf.Deg2Rad;
+        float steerBoost = 1f + (Mathf.Abs(gIn.x) + diveT * 0.25f) * 0.4f;
+        if (curFlat.sqrMagnitude < 0.04f)
+        {
+            _airMomentum = desiredMom;
+            _airMomVel = Vector3.zero;
+        }
+        else
+        {
+            Vector3 newDir = Vector3.RotateTowards(
+                curFlat.normalized, forwardFlat, turnRateRad * steerBoost * dt, 0f);
+            float spd = Mathf.MoveTowards(curFlat.magnitude, desiredMom.magnitude, 22f * dt);
+            _airMomentum = newDir * Mathf.Max(spd, 0.5f);
+        }
 
         // 上昇気流（サーマル）適用
         if (_skybreakPillarLock)
@@ -1389,14 +1403,37 @@ public partial class AdventurePlayerController : MonoBehaviour
 
     #region External Boost & Auto Glide
     /// <summary>気流リングや風のレーンに乗った時の浮揚・推進</summary>
-    public void ApplyGlideBoost(float boostMultiplier, float duration, Vector3 boostDirection = default)
+    /// <summary>風リングなど外部ギミックからの短距離吸引（滑空・空中のみ）</summary>
+    public void ApplyRingMagnetPull(Vector3 worldDelta)
+    {
+        if (_cc == null || !_cc.enabled) return;
+        if (IsGrounded && _hop <= 0.05f) return;
+        if (worldDelta.sqrMagnitude < 0.000001f) return;
+
+        _grounded = false;
+        _airborneTime = Mathf.Max(_airborneTime, 0.35f);
+        _gliding = true;
+        _glideBoostTimer = Mathf.Max(_glideBoostTimer, 0.15f);
+
+        Vector3 flat = worldDelta.SetY(0f);
+        if (flat.sqrMagnitude > 0.0001f)
+        {
+            _airMomentum = Vector3.MoveTowards(
+                _airMomentum, flat.normalized * Mathf.Max(_airMomentum.magnitude, 6f),
+                flat.magnitude * 4.5f);
+        }
+
+        _cc.Move(worldDelta);
+    }
+
+    public void ApplyGlideBoost(float boostMultiplier, float duration, Vector3 boostDirection = default, float minUpwardHop = 3.6f)
     {
         _glideBoostMultiplier = Mathf.Max(_glideBoostMultiplier, boostMultiplier);
         _glideBoostTimer      = Mathf.Max(_glideBoostTimer, duration);
         _grounded             = false;
         _gliding              = true;
         _airborneTime         = 1.0f;
-        _hop                  = 3.6f;
+        _hop                  = Mathf.Max(_hop, minUpwardHop);
 
         Vector3 dir = boostDirection.sqrMagnitude > 0.01f ? boostDirection : transform.forward;
         dir.y = 0f;
@@ -1410,6 +1447,40 @@ public partial class AdventurePlayerController : MonoBehaviour
         _glideRollCurrent  = 0f;
         _glidePitchCurrent = 0f;
         _glideYawRateCurrent = 0f;
+    }
+
+    /// <summary>風リング通過：向きの急スナップや大ジャンプを避け、進行方向へ滑らかに加速</summary>
+    public void ApplyWindRingPassBoost(float boostMultiplier, float duration, Vector3 boostDirection, float liftHop = 1.25f)
+    {
+        _glideBoostMultiplier = Mathf.Max(_glideBoostMultiplier, boostMultiplier);
+        _glideBoostTimer      = Mathf.Max(_glideBoostTimer, duration);
+        _grounded             = false;
+        _gliding              = true;
+        _airborneTime         = 1.0f;
+        _hop                  = Mathf.Max(_hop, liftHop);
+
+        Vector3 dir = boostDirection.sqrMagnitude > 0.01f ? boostDirection : transform.forward;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.001f) dir = transform.forward;
+        dir.Normalize();
+
+        float cruise = Mathf.Max(_glideSpeedCurrent, 11f * moveSpeedMultiplier);
+        Vector3 boostMom = dir * (cruise * 1.12f);
+        if (_airMomentum.sqrMagnitude > 0.5f)
+            _airMomentum = Vector3.Lerp(_airMomentum, boostMom, 0.62f);
+        else
+            _airMomentum = boostMom;
+
+        _glideSpeedCurrent = _airMomentum.magnitude;
+        _airMomVel         = Vector3.zero;
+    }
+
+    /// <summary>リング面をすり抜ける短距離押し（CharacterController のめり込み・跳ね返り見えを抑える）</summary>
+    public void NudgeThroughRingGate(Vector3 worldDelta)
+    {
+        if (_cc == null || !_cc.enabled || worldDelta.sqrMagnitude < 0.000001f) return;
+        _grounded = false;
+        _cc.Move(worldDelta);
     }
 
     /// <summary>上昇気流（サーマル）突入時の浮遊・上昇力付与</summary>

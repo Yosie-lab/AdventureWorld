@@ -19,7 +19,7 @@ public class AdventureBeachWavesManager : MonoBehaviour
 
     [Header("Wave & Seagull Settings")]
     [Range(0f, 1f)] public float masterVolume = 0.55f;
-    [Range(0f, 1f)] public float seagullVolume = 0.70f;
+    [Range(0f, 1f)] public float seagullVolume = 0.56f;
 
     float _seagullTimer = 0.5f; // 開始0.5秒後に最初のウミネコを再生
     bool _firstCallPlayed = false;

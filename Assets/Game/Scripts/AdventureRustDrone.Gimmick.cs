@@ -23,8 +23,7 @@ public partial class AdventureRustDrone
     private IEnumerator ChargeCrystalRoutine(Vector3 crystalTargetPos, Action onProgress, Action onComplete)
     {
         _isPerformingGimmick = true;
-        var prevCustState = CurrentState;
-        CurrentState = RustState.Scouting;
+        CurrentState = RustState.Follow;
 
         // 1. Rustに意気揚々と返事をさせる
         string[] startLines = {
@@ -128,14 +127,10 @@ public partial class AdventureRustDrone
             "大成功！これで気流に乗って上に行けるよ！",
             "やったぁ！回路がつながったよ！飛んでみて、Float！"
         };
-        TriggerCelebration(successLines[UnityEngine.Random.Range(0, successLines.Length)], 3.5f);
-
         onComplete?.Invoke();
 
-        // 少し余韻を置いてから通常追従に復帰
-        yield return new WaitForSeconds(0.6f);
         _isPerformingGimmick = false;
-        CurrentState = RustState.Follow;
+        TriggerCelebration(successLines[UnityEngine.Random.Range(0, successLines.Length)], 3.5f);
     }
 
     private void EnsureChargeBeamComponents()

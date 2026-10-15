@@ -14,9 +14,13 @@ public class AdventureGlidingWindRing : MonoBehaviour
     public float boostDuration = 3.2f;
     public Color normalColor = new Color(0.25f, 0.85f, 1.0f, 0.85f);
     public Color boostColor = new Color(1.0f, 0.95f, 0.40f, 1.0f);
-
-    private static int _comboCount = 0;
-    private static float _lastRingPassTime = -10f;
+    [Tooltip("この距離以内でリング中心へ吸引（半径の倍数）")]
+    public float magnetRadiusMultiplier = 5.0f;
+    public float magnetAxialHalfLength = 16f;
+    public float magnetPullSpeed = 28f;
+    public float magnetForwardPush = 18f;
+    [Tooltip("リング開口の通過判定厚み（local Z）")]
+    public float gateHalfDepth = 0.95f;
 
     private MeshFilter _meshFilter;
     private MeshRenderer _meshRenderer;
@@ -25,9 +29,23 @@ public class AdventureGlidingWindRing : MonoBehaviour
     private ParticleSystem _sparklePs;
     private bool _isCoolingDown = false;
     private float _cooldownTimer = 0f;
+    private bool _visualBuilt = false;
 
     void Awake()
     {
+        // 未起動時に SetActive(false) されると Start が走らずリングが透明のままになるため Awake で構築
+        EnsureVisualBuilt();
+    }
+
+    void Start()
+    {
+        EnsureVisualBuilt();
+    }
+
+    public void EnsureVisualBuilt()
+    {
+        if (_visualBuilt) return;
+        _visualBuilt = true;
         BuildRingMesh();
         SetupCollider();
         SetupAudio();
@@ -49,6 +67,69 @@ public class AdventureGlidingWindRing : MonoBehaviour
                 ResetVisual();
             }
         }
+
+    }
+
+    void LateUpdate()
+    {
+        // プレイヤー移動の後に吸引（同一フレームで Move が打ち消されないように）
+        TickRingMagnet();
+    }
+
+    void TickRingMagnet()
+    {
+        if (_isCoolingDown) return;
+
+        var player = AdventurePlayerController.Instance
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
+        if (player == null || player.IsGrounded) return;
+
+        bool inGate = IsPlayerInsideGate(player);
+
+        float magnetRadial = ringRadius * magnetRadiusMultiplier;
+        Vector3 center = transform.position;
+        Vector3 forward = transform.forward.normalized;
+        Vector3 playerPos = player.transform.position;
+
+        Vector3 toPlayer = playerPos - center;
+        float alongForward = Vector3.Dot(toPlayer, forward);
+        Vector3 axisPoint = center + forward * alongForward;
+        Vector3 toAxis = axisPoint - playerPos;
+        float radialDist = toAxis.magnitude;
+        float dist3D = toPlayer.magnitude;
+
+        // 旧: dist3D のみ → 進行方向から近づくと圏外になる。円柱＋球で判定
+        bool inCylinder = radialDist <= magnetRadial && Mathf.Abs(alongForward) <= magnetAxialHalfLength;
+        bool inSphere = dist3D <= magnetRadial;
+        if (!inCylinder && !inSphere) return;
+
+        Vector3 toHole = center - playerPos;
+        float holeDist = toHole.magnitude;
+        float urgency = 1f - Mathf.Clamp01(holeDist / Mathf.Max(magnetRadial, 0.01f));
+        urgency = Mathf.Pow(urgency, 0.55f) + 0.42f;
+
+        float dt = Time.deltaTime;
+        Vector3 pull = Vector3.zero;
+        if (holeDist > 0.12f)
+        {
+            float centerPull = inGate ? 0.22f : 1f;
+            pull += toHole.normalized * (magnetPullSpeed * urgency * centerPull * dt);
+        }
+
+        // 開口付近は中心へ寄せつつ、進行方向へ流す（逆向き押し戻しを避ける）
+        if (radialDist <= ringRadius * 2.2f)
+        {
+            Vector3 through = ResolveBoostDirection(player);
+            pull += through * (magnetForwardPush * urgency * dt);
+            if (inGate)
+                pull *= 0.35f;
+        }
+
+        if (pull.sqrMagnitude > 0.000001f)
+            player.ApplyRingMagnetPull(pull);
+
+        if (inGate)
+            PassThroughRing(player);
     }
 
     void OnTriggerEnter(Collider other)
@@ -57,40 +138,76 @@ public class AdventureGlidingWindRing : MonoBehaviour
 
         var player = other.GetComponent<AdventurePlayerController>()
                      ?? other.GetComponentInParent<AdventurePlayerController>();
-        if (player == null) return;
+        if (player == null || player.IsGrounded) return;
+        if (!IsPlayerInsideGate(player)) return;
 
-        Vector3 forward = transform.forward;
-
-        // 滑空状態でなくても、リングに触れれば自動で滑空ブースト射出！
-        PassThroughRing(player, forward);
+        PassThroughRing(player);
     }
 
-    public void PassThroughRing(AdventurePlayerController player, Vector3 forwardDir)
+    bool IsPlayerInsideGate(AdventurePlayerController player)
     {
-        _isCoolingDown = true;
-        _cooldownTimer = 2.0f; // 2秒間クールダウン
-
-        // コンボ判定（直前のリング通過から5秒以内ならコンボ加算）
-        if (Time.time - _lastRingPassTime < 5.0f)
+        float gateRadius = ringRadius * 1.02f;
+        Vector3 p = player.transform.position;
+        Vector3[] samples =
         {
-            _comboCount = Mathf.Min(_comboCount + 1, 5);
+            p + Vector3.up * 0.45f,
+            p + Vector3.up * 1.05f,
+            p + Vector3.up * 1.55f,
+        };
+
+        for (int i = 0; i < samples.Length; i++)
+        {
+            Vector3 local = transform.InverseTransformPoint(samples[i]);
+            float radial = Mathf.Sqrt(local.x * local.x + local.y * local.y);
+            if (radial <= gateRadius && Mathf.Abs(local.z) <= gateHalfDepth)
+                return true;
+        }
+
+        return false;
+    }
+
+    Vector3 ResolveBoostDirection(AdventurePlayerController player)
+    {
+        Vector3 through = transform.forward;
+        through.y = 0f;
+        if (through.sqrMagnitude < 0.001f)
+            through = player.transform.forward;
+        through.Normalize();
+
+        Vector3 face = player.transform.forward;
+        face.y = 0f;
+        if (face.sqrMagnitude > 0.001f)
+        {
+            face.Normalize();
+            if (Vector3.Dot(through, face) < 0f)
+                through = -through;
         }
         else
         {
-            _comboCount = 1;
+            Vector3 fromRing = player.transform.position - transform.position;
+            fromRing.y = 0f;
+            if (fromRing.sqrMagnitude > 0.001f && Vector3.Dot(through, fromRing.normalized) < 0f)
+                through = -through;
         }
-        _lastRingPassTime = Time.time;
 
-        // プレイヤーに滑空加速を適用
-        player.ApplyGlideBoost(boostMultiplier, boostDuration, forwardDir);
+        return through;
+    }
 
-        // 音響再生（コンボに応じてピッチが上がる）
-        if (_audioSource != null)
-        {
-            float pitch = 1.0f + (_comboCount - 1) * 0.15f;
-            _audioSource.pitch = pitch;
-            _audioSource.Play();
-        }
+    public void PassThroughRing(AdventurePlayerController player)
+    {
+        if (_isCoolingDown || player == null) return;
+
+        _isCoolingDown = true;
+        _cooldownTimer = 1.6f;
+
+        int comboCount = AdventureWindRingCombo.RegisterPass();
+
+        Vector3 through = ResolveBoostDirection(player);
+        float liftHop = 1.15f + (comboCount - 1) * 0.12f;
+        player.ApplyWindRingPassBoost(boostMultiplier, boostDuration, through, liftHop);
+        player.NudgeThroughRingGate(through * 2.1f);
+
+        PlayPassBoostSound(comboCount);
 
         // パーティクル放出
         if (_sparklePs != null)
@@ -104,6 +221,10 @@ public class AdventureGlidingWindRing : MonoBehaviour
             _ringMaterial.SetColor("_BaseColor", boostColor);
             _ringMaterial.SetColor("_EmissionColor", boostColor * 2.8f);
         }
+
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
+        if (drone != null)
+            drone.GrantWindRingOil(comboCount);
     }
 
     void ResetVisual()
@@ -139,23 +260,40 @@ public class AdventureGlidingWindRing : MonoBehaviour
 
     void SetupCollider()
     {
-        // 中央通過用の薄型ボックス（またはカプセル）トリガー
-        var box = gameObject.AddComponent<BoxCollider>();
-        box.isTrigger = true;
-        box.size = new Vector2(ringRadius * 2.2f, ringRadius * 2.2f);
-        box.size = new Vector3(ringRadius * 2.2f, ringRadius * 2.2f, 1.2f);
+        // 球だと手前で誤爆しやすい。開口に合わせた薄いボックスのみ
+        var gate = gameObject.AddComponent<BoxCollider>();
+        gate.isTrigger = true;
+        float d = ringRadius * 2.05f;
+        gate.size = new Vector3(d, d, gateHalfDepth * 2f);
+        gate.center = Vector3.zero;
     }
 
     void SetupAudio()
     {
+        if (_audioSource != null) return;
+
         _audioSource = gameObject.AddComponent<AudioSource>();
         _audioSource.playOnAwake = false;
-        _audioSource.spatialBlend = 0.5f;
-        _audioSource.minDistance = 5f;
-        _audioSource.maxDistance = 45f;
-        _audioSource.volume = 0.85f;
+        _audioSource.spatialBlend = 0f;
+        _audioSource.volume = 1f;
+        _audioSource.dopplerLevel = 0f;
+    }
 
-        _audioSource.clip = CreateWindChimeClip();
+    void PlayPassBoostSound(int comboCount)
+    {
+        EnsureVisualBuilt();
+        if (_audioSource == null)
+            SetupAudio();
+        if (_audioSource == null) return;
+
+        var clip = AdventureWindRing.GetSharedPassBoostClip();
+        if (clip == null) return;
+
+        float pitch = 1.0f + (comboCount - 1) * 0.12f;
+        float seVol = PlayerPrefs.GetFloat("Adventure_SeVolume", 1f);
+        _audioSource.spatialBlend = 0f;
+        _audioSource.pitch = pitch;
+        _audioSource.PlayOneShot(clip, 0.92f * seVol);
     }
 
     void SetupParticles()
@@ -243,37 +381,4 @@ public class AdventureGlidingWindRing : MonoBehaviour
         return mesh;
     }
 
-    static AudioClip CreateWindChimeClip()
-    {
-        const int rate = 44100;
-        const float duration = 0.75f;
-        int count = (int)(rate * duration);
-        float[] samples = new float[count];
-
-        // 爽快な風切りホワイトノイズ + クリスタル和音（E5, G#5, B5, E6）
-        float[] chord = { 659.25f, 830.61f, 987.77f, 1318.51f };
-
-        for (int i = 0; i < count; i++)
-        {
-            float t = (float)i / rate;
-            float env = Mathf.Exp(-t * 5.5f);
-
-            // 風の突風スウィッシュ成分
-            float whoosh = (UnityEngine.Random.value * 2f - 1f) * Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 0.35f)) * 0.35f;
-
-            // 澄んだチャイム音
-            float tone = 0f;
-            for (int c = 0; c < chord.Length; c++)
-            {
-                float f = chord[c];
-                tone += Mathf.Sin(2f * Mathf.PI * f * t) * (0.15f / (c + 1));
-            }
-
-            samples[i] = (whoosh + tone) * env * 0.85f;
-        }
-
-        var clip = AudioClip.Create("GlidingRingBoostSfx", count, 1, rate, false);
-        clip.SetData(samples, 0);
-        return clip;
-    }
 }

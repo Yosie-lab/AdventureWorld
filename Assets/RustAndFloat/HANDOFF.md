@@ -13,6 +13,11 @@ created: 2026-09-11
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
 - **コンパイルエラー**: 0件
 - **Play Mode**: 停止済み（安全に保存・編集可能）
+- **風脈ギミック検証メモ（2026-10-15 追記）**:
+  - **修正**: `AdventureAncientWindVent` の上昇気流で `autoLaunch=true` だと光の柱上昇（150mロック）に誤接続していた → **`autoLaunch=false`** ＋ `liftWhenAirborneInColumn=true` で通常サーマル＋滑空に統一。
+  - **修正**: `AdventureGlidingWindRing` が `Awake` 時点のデフォルト半径でメッシュ生成され、`CreateWindRing` の半径上書きが効いていなかった → **`Start()` で構築**。
+  - **バランス**: 上昇 `liftSpeed=17.5` / 高さ `54m`、リング `boost 1.50×4.0s`、コンボ上昇 `hop +0.38`/段、チャイム `+0.12` pitch/段、球トリガーで通過しやすく。
+  - **手動テスト手順**: Play → **F6** ワープ → **E/F/クリック** 送電 → Space 長押し滑空 → 3連リング。再テストは **Shift+F6** リセット。
 - **本セッション完了分**:
   1. **製品UIの本格化**:
      - `AdventureRustFloatOpening.cs`: 【つづきから】【はじめから（上書き確認付き）】【環境設定】【終了】の本格タイトル画面。

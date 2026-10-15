@@ -29,6 +29,7 @@ public class AdventureAncientWindVent : MonoBehaviour
         // セーブ状態の復元
         isActivated = PlayerPrefs.GetInt("RustFloat_VentActivated_" + ventId, 0) == 1;
 
+        AlignVentToTerrain();
         BuildStructure();
         BuildFlightCourse();
 
@@ -200,12 +201,34 @@ public class AdventureAncientWindVent : MonoBehaviour
     void OnChargeComplete()
     {
         _isCharging = false;
+        ActivateVentAndRings(persist: true, instant: false);
+    }
+
+    /// <summary>断崖麓クリスタル等から連動起動（空中リングコースを必ず出す）</summary>
+    public void ActivateFromLinkedGimmick()
+    {
+        ActivateVentAndRings(persist: true, instant: true);
+    }
+
+    void ActivateVentAndRings(bool persist, bool instant)
+    {
         isActivated = true;
+        if (persist)
+        {
+            PlayerPrefs.SetInt("RustFloat_VentActivated_" + ventId, 1);
+            PlayerPrefs.Save();
+        }
 
-        PlayerPrefs.SetInt("RustFloat_VentActivated_" + ventId, 1);
-        PlayerPrefs.Save();
+        SetActivatedVisual(instant);
+    }
 
-        SetActivatedVisual(instant: false);
+    void AlignVentToTerrain()
+    {
+        var land = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
+        if (land == null) return;
+
+        float groundY = land.SampleHeight(ventPosition) + land.transform.position.y;
+        ventPosition.y = groundY + 0.35f;
     }
 
     void SetDormantVisual()
@@ -225,6 +248,8 @@ public class AdventureAncientWindVent : MonoBehaviour
 
     void SetActivatedVisual(bool instant)
     {
+        EnsureFlightCourseExists();
+
         if (_crystalMaterial != null)
         {
             _crystalMaterial.SetColor("_BaseColor", new Color(0.35f, 0.98f, 0.85f, 1.0f));
@@ -240,8 +265,17 @@ public class AdventureAncientWindVent : MonoBehaviour
         // 空中の風リングフライトコースを起動
         foreach (var ring in _windRings)
         {
-            if (ring != null) ring.SetActive(true);
+            if (ring == null) continue;
+            ring.SetActive(true);
+            ring.GetComponent<AdventureGlidingWindRing>()?.EnsureVisualBuilt();
         }
+    }
+
+    void EnsureFlightCourseExists()
+    {
+        _windRings.RemoveAll(r => r == null);
+        if (_windRings.Count >= 3) return;
+        BuildFlightCourse();
     }
 
     void BuildStructure()
@@ -284,15 +318,21 @@ public class AdventureAncientWindVent : MonoBehaviour
         _updraftGo.transform.localPosition = Vector3.zero;
 
         var updraft = _updraftGo.AddComponent<AdventureThermalUpdraft>();
-        updraft.radius = 6.5f;
-        updraft.height = 48.0f;
-        updraft.liftSpeed = 16.5f; // グングン上空へ浮遊上昇！
-        updraft.autoLaunch = true; // プレイヤーが近づくだけでも自然に滑空展開！
+        updraft.radius = 7.0f;
+        updraft.height = 54.0f;
+        updraft.liftSpeed = 17.5f;
+        updraft.autoLaunch = false;
         updraft.pullToCenter = true;
+        updraft.liftWhenAirborneInColumn = true;
     }
 
     void BuildFlightCourse()
     {
+        for (int i = 0; i < _windRings.Count; i++)
+        {
+            if (_windRings[i] != null)
+                Destroy(_windRings[i]);
+        }
         _windRings.Clear();
 
         // 上昇気流（高度16.5m〜55m）から高台テラスへと続く爽快な空中リングコース（3連リング）
@@ -314,9 +354,12 @@ public class AdventureAncientWindVent : MonoBehaviour
             ringGo.transform.rotation = Quaternion.LookRotation(forwardDir);
 
         var ringComp = ringGo.AddComponent<AdventureGlidingWindRing>();
-        ringComp.ringRadius = 2.4f;
-        ringComp.boostMultiplier = 1.55f;
-        ringComp.boostDuration = 3.6f;
+        ringComp.ringRadius = 2.35f;
+        ringComp.boostMultiplier = 1.50f;
+        ringComp.boostDuration = 4.0f;
+        ringComp.magnetRadiusMultiplier = 5.2f;
+        ringComp.magnetAxialHalfLength = 18f;
+        ringComp.magnetPullSpeed = 30f;
 
         return ringGo;
     }

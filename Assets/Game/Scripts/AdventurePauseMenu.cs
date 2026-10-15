@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
@@ -80,10 +81,16 @@ public class AdventurePauseMenu : MonoBehaviour
     Image _res900BtnImg;
     Button _res720Btn;
     Image _res720BtnImg;
+    Text _displayStatusText;
 
     float _prevTimeScale = 1f;
     float _lastToggleTime = -1f;
     bool _openedFromTitle = false;
+    static float _suppressTitleSettingsOpenUntil = -1f;
+
+    /// <summary>タイトルで設定を閉じた直後、同じ ESC で開き直すのを防ぐ</summary>
+    public static bool ShouldSuppressTitleSettingsOpen =>
+        Time.unscaledTime < _suppressTitleSettingsOpenUntil;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void AutoInit()
@@ -111,16 +118,41 @@ public class AdventurePauseMenu : MonoBehaviour
         var es = UnityEngine.EventSystems.EventSystem.current;
         if (es == null)
         {
+            var all = Object.FindObjectsByType<UnityEngine.EventSystems.EventSystem>(FindObjectsInactive.Include);
+            if (all.Length > 0)
+                es = all[0];
+        }
+
+        if (es == null)
+        {
             var go = new GameObject("EventSystem");
+            Object.DontDestroyOnLoad(go);
             es = go.AddComponent<UnityEngine.EventSystems.EventSystem>();
         }
+
+        if (!es.gameObject.activeInHierarchy)
+            es.gameObject.SetActive(true);
 
         var legacy = es.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>();
         if (legacy != null)
             Object.Destroy(legacy);
 
-        if (es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>() == null)
-            es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+        var uiModule = es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+        if (uiModule == null)
+            uiModule = es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+
+        try { uiModule.AssignDefaultActions(); } catch { }
+
+        uiModule.enabled = true;
+        InputSystem.settings.updateMode = InputSettings.UpdateMode.ProcessEventsInDynamicUpdate;
+
+        // 複数 EventSystem があると UI クリックが死ぬ
+        var systems = Object.FindObjectsByType<UnityEngine.EventSystems.EventSystem>(FindObjectsInactive.Include);
+        for (int i = 0; i < systems.Length; i++)
+        {
+            if (systems[i] != null && systems[i] != es)
+                systems[i].gameObject.SetActive(false);
+        }
     }
 
     void Awake()
@@ -178,20 +210,11 @@ public class AdventurePauseMenu : MonoBehaviour
 
     void Update()
     {
-        if (Time.unscaledTime - _lastToggleTime < 0.2f) return;
-
         bool escPressed = AdventureInputReader.EscapeDown;
-        if (escPressed)
-        {
-            if (!IsOpen)
-            {
-                if (AdventureRustWorkshopUI.IsOpen) return;
-                if (AdventureBeachDriftBox.IsModalOpen) return;
-                if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal) return;
-                if (AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen()) return;
-                if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening) return;
-            }
 
+        // 設定／ポーズを閉じる ESC はデバウンスしない（開いた直後に閉じられない不具合対策）
+        if (escPressed && IsOpen)
+        {
             if (_confirmModalRoot != null && _confirmModalRoot.activeSelf)
             {
                 _confirmModalRoot.SetActive(false);
@@ -207,6 +230,20 @@ public class AdventurePauseMenu : MonoBehaviour
             }
 
             TogglePause();
+            return;
+        }
+
+        if (Time.unscaledTime - _lastToggleTime < 0.2f) return;
+
+        if (escPressed)
+        {
+            if (AdventureRustWorkshopUI.IsOpen) return;
+            if (AdventureBeachDriftBox.IsModalOpen) return;
+            if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal) return;
+            if (AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen()) return;
+            if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening) return;
+
+            TogglePause();
         }
     }
 
@@ -214,6 +251,29 @@ public class AdventurePauseMenu : MonoBehaviour
     {
         if (Instance != null && IsOpen)
             Instance.SetMenuVisible(false, instant: true);
+    }
+
+    /// <summary>タイトル／設定 UI が入力不能になったときの救済</summary>
+    public static void ForceCloseTitleSettings()
+    {
+        if (Instance == null || !IsOpen) return;
+        Instance.SetMenuVisible(false, instant: true);
+        Time.timeScale = 1f;
+        AdventureRustFloatOpening.Instance?.RestoreTitleUiInput();
+    }
+
+    /// <summary>IsOpen=false なのに Canvas だけ残ってタイトルをブロックする状態を解消</summary>
+    public static void EnsureClosedIfNotOpen()
+    {
+        if (Instance == null || IsOpen) return;
+        if (Instance._canvas != null && Instance._canvas.enabled)
+            Instance.SetMenuVisible(false, instant: true);
+        if (Instance._canvasGroup != null && Instance._canvasGroup.blocksRaycasts)
+        {
+            Instance._canvasGroup.blocksRaycasts = false;
+            Instance._canvasGroup.interactable = false;
+            Instance._canvasGroup.alpha = 0f;
+        }
     }
 
     public void OpenSettingsFromTitle()
@@ -237,7 +297,14 @@ public class AdventurePauseMenu : MonoBehaviour
             EnsureEventSystemForUi();
 
             _prevTimeScale = Time.timeScale > 0.05f ? Time.timeScale : 1f;
-            Time.timeScale = 0f;
+            bool titleSettings = _openedFromTitle || !AdventureRustFloatOpening.IsGameStarted;
+            if (titleSettings)
+            {
+                Time.timeScale = 1f;
+                AdventureRustFloatOpening.Instance?.SetTitleOverlayForSettings(true);
+            }
+            else
+                Time.timeScale = 0f;
 
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -265,7 +332,11 @@ public class AdventurePauseMenu : MonoBehaviour
                 if (_resumeBtnText != null) _resumeBtnText.text = "▶ ゲームに戻る [ESC]";
             }
 
-            if (_canvas != null) _canvas.enabled = true;
+            if (_canvas != null)
+            {
+                _canvas.enabled = true;
+                _canvas.sortingOrder = _openedFromTitle ? 920 : 110;
+            }
             if (_panelRoot != null) _panelRoot.SetActive(true);
             if (_canvasGroup != null)
             {
@@ -279,7 +350,13 @@ public class AdventurePauseMenu : MonoBehaviour
             bool wasFromTitle = _openedFromTitle;
             _openedFromTitle = false;
 
-            Time.timeScale = _prevTimeScale > 0.05f ? _prevTimeScale : 1f;
+            if (wasFromTitle)
+            {
+                _suppressTitleSettingsOpenUntil = Time.unscaledTime + 0.35f;
+                AdventureRustFloatOpening.Instance?.RestoreTitleUiInput();
+            }
+
+            Time.timeScale = wasFromTitle ? 1f : (_prevTimeScale > 0.05f ? _prevTimeScale : 1f);
 
             if (!AdventureStoryFlow.WantsFreeCursor && !wasFromTitle && AdventureRustFloatOpening.IsGameStarted)
             {
@@ -305,6 +382,25 @@ public class AdventurePauseMenu : MonoBehaviour
         }
     }
 
+    void OnGUI()
+    {
+        if (!IsOpen) return;
+
+        Event e = Event.current;
+        if (e != null && e.type == EventType.KeyDown && e.keyCode == KeyCode.Escape)
+        {
+            SetMenuVisible(false);
+            e.Use();
+            return;
+        }
+
+        if (!_openedFromTitle && AdventureRustFloatOpening.IsGameStarted) return;
+
+        var closeRect = new Rect(Screen.width * 0.5f - 110f, Screen.height - 58f, 220f, 42f);
+        if (GUI.Button(closeRect, "閉じる [ESC]"))
+            SetMenuVisible(false);
+    }
+
     void SwitchTab(int tabIndex)
     {
         _currentTab = tabIndex;
@@ -323,6 +419,9 @@ public class AdventurePauseMenu : MonoBehaviour
         if (_tabAudioBtnLabel != null) _tabAudioBtnLabel.color = (tabIndex == 0) ? Color.white : new Color(0.7f, 0.85f, 0.95f, 0.75f);
         if (_tabDisplayBtnLabel != null) _tabDisplayBtnLabel.color = (tabIndex == 1) ? Color.white : new Color(0.7f, 0.85f, 0.95f, 0.75f);
         if (_tabGuideBtnLabel != null) _tabGuideBtnLabel.color = (tabIndex == 2) ? Color.white : new Color(0.7f, 0.85f, 0.95f, 0.75f);
+
+        if (tabIndex == 1)
+            UpdateDisplayHighlights();
     }
 
     void LoadCurrentSettings()
@@ -349,8 +448,7 @@ public class AdventurePauseMenu : MonoBehaviour
         Color activeCol = new Color(0.15f, 0.65f, 0.80f, 1f);
         Color inactiveCol = new Color(0.05f, 0.10f, 0.18f, 0.80f);
 
-        // フルスクリーン
-        bool isFs = Screen.fullScreen;
+        bool isFs = AdventureDisplaySettings.IsFullscreen;
         if (_fsBtnImg != null) _fsBtnImg.color = isFs ? activeCol : inactiveCol;
         if (_winBtnImg != null) _winBtnImg.color = !isFs ? activeCol : inactiveCol;
 
@@ -371,6 +469,9 @@ public class AdventurePauseMenu : MonoBehaviour
         if (_res1080BtnImg != null) _res1080BtnImg.color = (w >= 1900) ? activeCol : inactiveCol;
         if (_res900BtnImg != null) _res900BtnImg.color = (w >= 1500 && w < 1900) ? activeCol : inactiveCol;
         if (_res720BtnImg != null) _res720BtnImg.color = (w < 1500) ? activeCol : inactiveCol;
+
+        if (_displayStatusText != null)
+            _displayStatusText.text = "現在: " + AdventureDisplaySettings.DescribeCurrent();
     }
 
     void OnBgmSliderChanged(float val)
@@ -398,12 +499,31 @@ public class AdventurePauseMenu : MonoBehaviour
         if (_sensValueText != null) _sensValueText.text = $"{val:F2}";
     }
 
+    IEnumerator RefreshDisplayHighlightsAfterDisplayChange()
+    {
+        yield return new WaitForSecondsRealtime(0.06f);
+        UpdateDisplayHighlights();
+        yield return new WaitForSecondsRealtime(0.12f);
+        UpdateDisplayHighlights();
+    }
+
     void SetFullscreen(bool fs)
     {
-        Screen.fullScreen = fs;
-        PlayerPrefs.SetInt("RustFloat_Fullscreen", fs ? 1 : 0);
-        PlayerPrefs.Save();
+        AdventureDisplaySettings.GetSavedResolution(out int w, out int h);
+        if (!fs && w >= Screen.currentResolution.width - 80)
+        {
+            w = 1280;
+            h = 720;
+        }
+
+        if (fs)
+            AdventureDisplaySettings.ApplyFullscreen();
+        else
+            AdventureDisplaySettings.ApplyWindowed(w, h);
+
+        AdventureDisplaySettings.SavePreferences(fs, w, h);
         UpdateDisplayHighlights();
+        StartCoroutine(RefreshDisplayHighlightsAfterDisplayChange());
     }
 
     void SetQuality(int level)
@@ -424,11 +544,10 @@ public class AdventurePauseMenu : MonoBehaviour
 
     void SetResolution(int w, int h)
     {
-        Screen.SetResolution(w, h, Screen.fullScreen);
-        PlayerPrefs.SetInt("RustFloat_ResW", w);
-        PlayerPrefs.SetInt("RustFloat_ResH", h);
-        PlayerPrefs.Save();
+        AdventureDisplaySettings.ApplyResolution(w, h);
+        AdventureDisplaySettings.SavePreferences(AdventureDisplaySettings.IsFullscreen, w, h);
         UpdateDisplayHighlights();
+        StartCoroutine(RefreshDisplayHighlightsAfterDisplayChange());
     }
 
     void OnRestartClicked()
@@ -706,6 +825,10 @@ public class AdventurePauseMenu : MonoBehaviour
         _res1080Btn = CreateOptionButton(row4, "Res1080", new Vector2(240f, 0f), new Vector2(160f, 38f), "1920 × 1080", () => SetResolution(1920, 1080), out _res1080BtnImg);
         _res900Btn = CreateOptionButton(row4, "Res900", new Vector2(420f, 0f), new Vector2(160f, 38f), "1600 × 900", () => SetResolution(1600, 900), out _res900BtnImg);
         _res720Btn = CreateOptionButton(row4, "Res720", new Vector2(600f, 0f), new Vector2(160f, 38f), "1280 × 720", () => SetResolution(1280, 720), out _res720BtnImg);
+
+        _displayStatusText = MakeLabel(_tabDisplayPanel.transform, "DisplayStatus", new Vector2(12f, 8f),
+            new Vector2(820f, 22f), "", 12, new Color(0.55f, 0.82f, 0.95f, 0.9f));
+        _displayStatusText.alignment = TextAnchor.LowerLeft;
     }
 
     void CreateDisplayRow(Transform parent, string title, float topY, float height, out Transform rowTransform)
@@ -721,6 +844,7 @@ public class AdventurePauseMenu : MonoBehaviour
 
         var bg = rowGo.AddComponent<Image>();
         bg.color = new Color(0.015f, 0.04f, 0.08f, 0.65f);
+        bg.raycastTarget = false;
 
         var outline = rowGo.AddComponent<Outline>();
         outline.effectColor = new Color(0.15f, 0.35f, 0.55f, 0.35f);

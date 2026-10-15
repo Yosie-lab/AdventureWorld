@@ -9,6 +9,8 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
     static AdventureTreeFrogAmbience _instance;
     public static AdventureTreeFrogAmbience Instance => _instance;
 
+    const float NightFrogExtraGain = 1.22f;
+
     AudioClip _nightFrogsClip;
     AudioClip _chorusClip;
     AudioClip _kajikaClip;
@@ -98,6 +100,9 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
         }
 
         Vector3 p = _player.position;
+        float night = AdventureDayNightDirector.NightFactor;
+        float seScale = PlayerPrefs.GetFloat("Adventure_SeVolume", 1f);
+
         for (int i = 0; i < _beds.Count; i++)
         {
             var bed = _beds[i];
@@ -107,8 +112,15 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
             float dist = Mathf.Sqrt(dx * dx + dz * dz);
             bool near = dist < bed.hear;
 
-            float targetVol = near ? bed.baseVol : 0f;
-            bed.src.volume = Mathf.MoveTowards(bed.src.volume, targetVol, 0.85f * Time.deltaTime);
+            bool nightFrog = bed.src.clip == _nightFrogsClip;
+            float nightMul = nightFrog
+                ? Mathf.Lerp(0.08f, NightFrogExtraGain, night)
+                : Mathf.Lerp(0.35f, 1.05f, night);
+            float targetVol = 0f;
+            if (near)
+                targetVol = Mathf.Min(1f, bed.baseVol * nightMul * seScale);
+
+            bed.src.volume = Mathf.MoveTowards(bed.src.volume, targetVol, 1.05f * Time.deltaTime);
 
             if (bed.src.volume <= 0.001f && !near)
             {
@@ -153,11 +165,11 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
         // 夜のカエルたちの鳴き声（dragon-studio-frogs-croaking-at-night-329855）
         if (_nightFrogsClip != null)
         {
-            AddBed(new Vector3(420f, 25.5f, 440f), 25.5f, 75f, 0.95f, _nightFrogsClip, 1.0f, "NightFrogs_CalderaCenter");
-            AddBed(new Vector3(395f, 25.5f, 435f), 25.5f, 56f, 0.90f, _nightFrogsClip, 0.98f, "NightFrogs_CalderaWest");
-            AddBed(new Vector3(445f, 25.5f, 445f), 25.5f, 56f, 0.90f, _nightFrogsClip, 1.02f, "NightFrogs_CalderaEast");
-            AddBed(new Vector3(420f, 25.5f, 465f), 25.5f, 56f, 0.88f, _nightFrogsClip, 0.96f, "NightFrogs_CalderaNorth");
-            AddBed(new Vector3(420f, 25.5f, 415f), 25.5f, 56f, 0.88f, _nightFrogsClip, 1.01f, "NightFrogs_CalderaSouth");
+            AddBed(new Vector3(420f, 25.5f, 440f), 25.5f, 82f, 1.0f, _nightFrogsClip, 1.0f, "NightFrogs_CalderaCenter");
+            AddBed(new Vector3(395f, 25.5f, 435f), 25.5f, 62f, 0.98f, _nightFrogsClip, 0.98f, "NightFrogs_CalderaWest");
+            AddBed(new Vector3(445f, 25.5f, 445f), 25.5f, 62f, 0.98f, _nightFrogsClip, 1.02f, "NightFrogs_CalderaEast");
+            AddBed(new Vector3(420f, 25.5f, 465f), 25.5f, 62f, 0.96f, _nightFrogsClip, 0.96f, "NightFrogs_CalderaNorth");
+            AddBed(new Vector3(420f, 25.5f, 415f), 25.5f, 62f, 0.96f, _nightFrogsClip, 1.01f, "NightFrogs_CalderaSouth");
         }
         // カエルの大合唱との立体ブレンド
         if (_chorusClip != null)
@@ -170,19 +182,19 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
         // ─────────────────────────────────────────────────────────────
         // オアシス湧水池 (480, 48.2, 455)
         if (_nightFrogsClip != null)
-            AddBed(new Vector3(480f, 48.2f, 455f), 48.2f, 55f, 0.92f, _nightFrogsClip, 1.02f, "NightFrogs_OasisPond");
+            AddBed(new Vector3(480f, 48.2f, 455f), 48.2f, 60f, 0.98f, _nightFrogsClip, 1.02f, "NightFrogs_OasisPond");
         if (_kajikaClip != null)
             AddBed(new Vector3(480f, 48.2f, 455f), 48.2f, 45f, 0.45f, _kajikaClip, 1.0f, "Kajika_OasisPond");
 
         // 大草原池 (290, 14.5, 320)
         if (_nightFrogsClip != null)
-            AddBed(new Vector3(290f, 14.5f, 320f), 14.5f, 60f, 0.95f, _nightFrogsClip, 0.97f, "NightFrogs_MeadowPond");
+            AddBed(new Vector3(290f, 14.5f, 320f), 14.5f, 66f, 1.0f, _nightFrogsClip, 0.97f, "NightFrogs_MeadowPond");
         if (_chorusClip != null)
             AddBed(new Vector3(290f, 14.5f, 320f), 14.5f, 48f, 0.42f, _chorusClip, 0.96f, "FrogChorus_MeadowPond");
 
         // 西側せせらぎ池 (135, 18.15, 166)
         if (_nightFrogsClip != null)
-            AddBed(new Vector3(135f, 18.15f, 166f), 18.15f, 50f, 0.88f, _nightFrogsClip, 1.03f, "NightFrogs_WestPond");
+            AddBed(new Vector3(135f, 18.15f, 166f), 18.15f, 56f, 0.96f, _nightFrogsClip, 1.03f, "NightFrogs_WestPond");
         if (_kajikaClip != null)
             AddBed(new Vector3(135f, 18.15f, 166f), 18.15f, 38f, 0.38f, _kajikaClip, 0.98f, "Kajika_WestPond");
 
@@ -191,27 +203,27 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
         // ─────────────────────────────────────────────────────────────
         // オアシス〜カルデラ湖の上流急流岩場
         if (_nightFrogsClip != null)
-            AddBed(new Vector3(460f, 38.0f, 448f), 38.0f, 52f, 0.90f, _nightFrogsClip, 1.0f, "NightFrogs_UpperRapids");
+            AddBed(new Vector3(460f, 38.0f, 448f), 38.0f, 58f, 0.96f, _nightFrogsClip, 1.0f, "NightFrogs_UpperRapids");
         if (_kajikaClip != null)
             AddBed(new Vector3(460f, 38.0f, 448f), 38.0f, 40f, 0.42f, _kajikaClip, 1.04f, "Kajika_UpperRapids");
 
         // カルデラ湖流入部
         if (_nightFrogsClip != null)
-            AddBed(new Vector3(440f, 28.0f, 445f), 28.0f, 50f, 0.88f, _nightFrogsClip, 0.99f, "NightFrogs_LakeInlet");
+            AddBed(new Vector3(440f, 28.0f, 445f), 28.0f, 56f, 0.95f, _nightFrogsClip, 0.99f, "NightFrogs_LakeInlet");
 
         // 東の深林大渓流（高地森林〜カルデラ湖）
         if (_nightFrogsClip != null)
         {
-            AddBed(new Vector3(470f, 36.0f, 490f), 36.0f, 55f, 0.90f, _nightFrogsClip, 0.96f, "NightFrogs_EastForestStream1");
-            AddBed(new Vector3(450f, 30.0f, 465f), 30.0f, 55f, 0.88f, _nightFrogsClip, 1.01f, "NightFrogs_EastForestStream2");
+            AddBed(new Vector3(470f, 36.0f, 490f), 36.0f, 60f, 0.96f, _nightFrogsClip, 0.96f, "NightFrogs_EastForestStream1");
+            AddBed(new Vector3(450f, 30.0f, 465f), 30.0f, 60f, 0.95f, _nightFrogsClip, 1.01f, "NightFrogs_EastForestStream2");
         }
 
         // 本流大河（カルデラ湖〜草原池〜海）
         if (_nightFrogsClip != null)
         {
-            AddBed(new Vector3(350f, 19.5f, 365f), 19.5f, 52f, 0.90f, _nightFrogsClip, 1.0f, "NightFrogs_MainStreamStepping");
-            AddBed(new Vector3(250f, 11.5f, 270f), 11.5f, 50f, 0.88f, _nightFrogsClip, 0.98f, "NightFrogs_MainStreamMid");
-            AddBed(new Vector3(190f, 8.5f, 215f), 8.5f, 48f, 0.85f, _nightFrogsClip, 1.02f, "NightFrogs_MainStreamLower");
+            AddBed(new Vector3(350f, 19.5f, 365f), 19.5f, 58f, 0.96f, _nightFrogsClip, 1.0f, "NightFrogs_MainStreamStepping");
+            AddBed(new Vector3(250f, 11.5f, 270f), 11.5f, 56f, 0.94f, _nightFrogsClip, 0.98f, "NightFrogs_MainStreamMid");
+            AddBed(new Vector3(190f, 8.5f, 215f), 8.5f, 54f, 0.92f, _nightFrogsClip, 1.02f, "NightFrogs_MainStreamLower");
         }
         if (_kajikaClip != null)
         {
@@ -240,7 +252,7 @@ public class AdventureTreeFrogAmbience : MonoBehaviour
         src.loop = true;
         src.spatialBlend = 0.80f; // 包み込まれるようにしっかり聴こえる3Dブレンド
         src.rolloffMode = AudioRolloffMode.Linear;
-        src.minDistance = 15f;    // 15m以内は減衰せず最高音量を維持
+        src.minDistance = 18f;    // 水辺付近で聴こえやすい減衰
         src.maxDistance = hear;
         src.dopplerLevel = 0f;
         src.playOnAwake = false;

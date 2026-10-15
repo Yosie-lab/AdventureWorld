@@ -335,7 +335,7 @@ public partial class AdventureSanctuaryTowerManager
         if (clip1 != null)
         {
             src.pitch = 1.0f;
-            src.PlayOneShot(clip1, 0.28f);
+            src.PlayOneShot(clip1, 0.22f);
         }
 
         // 2. 約5.2秒後、大空のパノラマが広がる中で遠くの群れがふわりと鳴き交わす
@@ -345,12 +345,12 @@ public partial class AdventureSanctuaryTowerManager
         if (clipMany != null)
         {
             src.pitch = 0.97f;
-            src.PlayOneShot(clipMany, 0.25f);
+            src.PlayOneShot(clipMany, 0.20f);
         }
         else if (clip1 != null)
         {
             src.pitch = 1.03f;
-            src.PlayOneShot(clip1, 0.25f);
+            src.PlayOneShot(clip1, 0.20f);
         }
 
         // 3. さらに約7.5秒後、自由を取り戻した余韻の中、遠空からもうひと鳴き
@@ -360,7 +360,7 @@ public partial class AdventureSanctuaryTowerManager
         if (clip1 != null)
         {
             src.pitch = 0.98f;
-            src.PlayOneShot(clip1, 0.28f);
+            src.PlayOneShot(clip1, 0.22f);
         }
 
         // 音声の余韻を待って片付け

@@ -81,19 +81,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
     public static void EnsureEventSystemForUi()
     {
-        var es = UnityEngine.EventSystems.EventSystem.current;
-        if (es == null)
-        {
-            var go = new GameObject("EventSystem");
-            es = go.AddComponent<UnityEngine.EventSystems.EventSystem>();
-        }
-
-        var legacy = es.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>();
-        if (legacy != null)
-            Destroy(legacy);
-
-        if (es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>() == null)
-            es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+        AdventurePauseMenu.EnsureEventSystemForUi();
     }
 
     void Awake()
@@ -152,7 +140,10 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
         if (bPressed && !pauseMenu && !openingModal && !awakening)
         {
-            SetVisible(!isVisible);
+            if (isVisible)
+                SetVisible(false);
+            else if (CanOpenWorkshopNow())
+                SetVisible(true);
         }
 
         // ESCキーで閉じる
@@ -186,6 +177,9 @@ public class AdventureRustWorkshopUI : MonoBehaviour
             UpdateDirectMouseClicks();
         }
 
+        if (isVisible && !CanOpenWorkshopNow())
+            SetVisible(false);
+
         // 作業台への接近判定とEキー入力
         UpdateWorkbenchInteraction();
     }
@@ -209,7 +203,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         bool pauseMenu = AdventurePauseMenu.IsOpen;
 
         // 1. 工房が閉じている時：画面右上に常設の「👗 Rust工房 (B)」GUIボタン
-        if (!isVisible && !pauseMenu && !openingModal && !awakening)
+        if (!isVisible && !pauseMenu && !openingModal && !awakening && CanOpenWorkshopNow())
         {
             Rect btnRect = new Rect(Screen.width - 160, 56, 145, 34);
             GUI.color = new Color(0.2f, 0.85f, 1f, 0.95f);
@@ -308,13 +302,21 @@ public class AdventureRustWorkshopUI : MonoBehaviour
             _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, isNear ? 1.0f : 0.0f, Time.deltaTime * 6f);
         }
 
-        if (isNear)
+        if (isNear && CanOpenWorkshopNow())
         {
             if (AdventureInputReader.InteractDown)
-            {
                 SetVisible(true);
-            }
         }
+    }
+
+    /// <summary>地上に立っているときだけ工房を開く（滑空・浮遊中の誤 B / E / GUI クリック防止）</summary>
+    static bool CanOpenWorkshopNow()
+    {
+        var player = AdventurePlayerController.Instance;
+        if (player == null) return true;
+        if (!player.IsGrounded) return false;
+        if (player.IsGliding || player.IsAutoGliding) return false;
+        return true;
     }
 
     public void SetVisible(bool visible)
@@ -344,7 +346,9 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         }
         else
         {
-            if (!AdventureStoryFlow.WantsFreeCursor)
+            bool titleBoard = AdventureRustFloatOpening.Instance != null
+                              && AdventureRustFloatOpening.Instance.IsModalBoardOpen();
+            if (!AdventureStoryFlow.WantsFreeCursor && !titleBoard)
             {
                 Cursor.visible = false;
                 Cursor.lockState = CursorLockMode.Locked;
@@ -973,7 +977,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         _promptText.fontSize = 22;
         _promptText.alignment = TextAnchor.MiddleCenter;
         _promptText.color = new Color(1f, 0.95f, 0.65f);
-        _promptText.text = "<b>[E / クリック] Rustの着せ替え工房</b>\n<size=16><color=#DDEEFF>または [B]キーでどこでも開く</color></size>";
+        _promptText.text = "<b>[E / クリック] Rustの着せ替え工房</b>\n<size=16><color=#DDEEFF>地上で [B] キーでも開ける</color></size>";
 
         // ビルボード（常にカメラの方を向く）
         promptCanvasGo.AddComponent<BillboardLookAtCamera>();

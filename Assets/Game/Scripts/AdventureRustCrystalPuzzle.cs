@@ -53,12 +53,22 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
     private CanvasGroup _promptCg;
     private Text _promptText;
     private float _rustGuideCooldown = 0f;
+    private bool _rustGuideSpokenOnce = false;
     private float _lastLiftToastTime = 0f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     public static void AutoEnsure()
     {
         Ensure();
+    }
+
+    /// <summary>断崖麓の古代クリスタル送電合図エリア内か（Rust通常手当てのE奪取防止）</summary>
+    public static bool IsPlayerNearChargeSite(Vector3 playerPos)
+    {
+        var puzzle = Instance ?? Object.FindAnyObjectByType<AdventureRustCrystalPuzzle>();
+        if (puzzle == null || puzzle.IsActivated || puzzle._isCharging)
+            return false;
+        return Vector3.Distance(playerPos, puzzle.crystalBasePos) <= 7.5f;
     }
 
     public static void Ensure()
@@ -98,6 +108,7 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         if (_isActivated)
         {
             ApplyActivatedState(immediate: true);
+            SyncWestCliffAirRings();
         }
         if (_isChestOpened)
         {
@@ -526,15 +537,22 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
                 _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 1f, 5f * Time.deltaTime);
                 _promptText.text = "<color=#80D8FF><b>✦ 【E / F / クリック】相棒Rustにクリスタルへの送電を合図する ✦</b></color>";
 
-                // 近づいた時にRustが自発的にアドバイス
-                _rustGuideCooldown -= Time.deltaTime;
-                if (_rustGuideCooldown <= 0f)
+                var drone = AdventureRustDrone.Instance;
+                if (drone != null && !drone.IsPerformingGimmick)
                 {
-                    _rustGuideCooldown = 30f;
-                    var drone = AdventureRustDrone.Instance;
-                    if (drone != null)
+                    if (!_rustGuideSpokenOnce)
                     {
+                        _rustGuideSpokenOnce = true;
                         drone.SpeakCustom("ピピッ！見て、古代の送電クリスタルだよ！\n【E / F / クリック】で合図してくれたら、ボクのライトでチャージしてみるよ、Float！", 6.5f);
+                    }
+                    else
+                    {
+                        _rustGuideCooldown -= Time.deltaTime;
+                        if (_rustGuideCooldown <= 0f)
+                        {
+                            _rustGuideCooldown = 28f;
+                            drone.SpeakCustom("ピピッ！ここ、光ってるクリスタルに送電できるよ！\n【E / F / クリック】で合図してね、Float！", 5.5f);
+                        }
                     }
                 }
 
@@ -648,6 +666,15 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         {
             _windAudio.Play();
         }
+
+        SyncWestCliffAirRings();
+    }
+
+    static void SyncWestCliffAirRings()
+    {
+        var vent = Object.FindAnyObjectByType<AdventureAncientWindVent>();
+        if (vent != null)
+            vent.ActivateFromLinkedGimmick();
     }
 
     void OpenChest()
@@ -721,6 +748,10 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         _isActivated = false;
         _isCharging = false;
         _isChestOpened = false;
+        _rustGuideSpokenOnce = false;
+        _rustGuideCooldown = 0f;
+
+        Object.FindAnyObjectByType<AdventureAncientWindVent>()?.ResetGimmickState();
 
         PlayerPrefs.DeleteKey(PrefKeyCrystalActivated);
         PlayerPrefs.DeleteKey(PrefKeyChestOpened);

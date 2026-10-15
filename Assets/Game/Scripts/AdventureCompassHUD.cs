@@ -149,6 +149,7 @@ public class AdventureCompassHUD : MonoBehaviour
         // 背景プレート（半透明の深藍ダークグラデーション）
         var bg = gameObject.AddComponent<Image>();
         bg.color = new Color(0.03f, 0.06f, 0.11f, 0.88f);
+        bg.raycastTarget = false;
 
         // 上部ライン（サイバーグロー）
         var borderTop = new GameObject("BorderTop", typeof(RectTransform));
