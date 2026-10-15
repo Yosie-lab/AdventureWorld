@@ -3,10 +3,11 @@ using UnityEngine.UI;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// 『Rust & Float』洗練されたポーズ＆設定メニュー。
+/// 『Rust & Float』洗練された統合ポーズ＆環境設定メニュー。
 /// 【ESCキー】で開閉し、ゲームを一時停止。
-/// BGM音量・SE音量・マウス視点感度のリアルタイム調整、
-/// 操作ガイドチートシート確認、および最初からやり直す（リスタート）機能を提供する。
+/// 【オーディオ・操作】【ディスプレイ・画質】【操作ガイド】のタブ形式で
+/// BGM/SE音量、マウス感度、フルスクリーン切替、画質プリセット、VSync、解像度、
+/// そしてタイトルへ戻る／最初からやり直す機能を提供する。
 /// </summary>
 public class AdventurePauseMenu : MonoBehaviour
 {
@@ -19,11 +20,35 @@ public class AdventurePauseMenu : MonoBehaviour
     CanvasGroup _canvasGroup;
     GameObject _panelRoot;
     GameObject _confirmModalRoot;
+    GameObject _returnTitleConfirmModal;
     Font _font;
     AudioSource _audioSource;
     AudioClip _testBeepClip;
 
-    // スライダー UI
+    // ヘッダー・フッター UI
+    Text _headerTitleText;
+    Text _headerSubTitleText;
+    GameObject _restartBtnGo;
+    GameObject _returnTitleBtnGo;
+    Text _resumeBtnText;
+
+    // タブ UI
+    int _currentTab = 0;
+    GameObject _tabAudioPanel;
+    GameObject _tabDisplayPanel;
+    GameObject _tabGuidePanel;
+
+    Button _tabAudioBtn;
+    Button _tabDisplayBtn;
+    Button _tabGuideBtn;
+    Image _tabAudioBtnImg;
+    Image _tabDisplayBtnImg;
+    Image _tabGuideBtnImg;
+    Text _tabAudioBtnLabel;
+    Text _tabDisplayBtnLabel;
+    Text _tabGuideBtnLabel;
+
+    // オーディオ＆操作 スライダー
     Slider _bgmSlider;
     Text _bgmValueText;
     Slider _seSlider;
@@ -31,8 +56,34 @@ public class AdventurePauseMenu : MonoBehaviour
     Slider _sensSlider;
     Text _sensValueText;
 
+    // ディスプレイ＆画質 ボタン
+    Button _fsBtn;
+    Image _fsBtnImg;
+    Button _winBtn;
+    Image _winBtnImg;
+
+    Button _qUltraBtn;
+    Image _qUltraBtnImg;
+    Button _qHighBtn;
+    Image _qHighBtnImg;
+    Button _qFastBtn;
+    Image _qFastBtnImg;
+
+    Button _vsyncOnBtn;
+    Image _vsyncOnBtnImg;
+    Button _vsyncOffBtn;
+    Image _vsyncOffBtnImg;
+
+    Button _res1080Btn;
+    Image _res1080BtnImg;
+    Button _res900Btn;
+    Image _res900BtnImg;
+    Button _res720Btn;
+    Image _res720BtnImg;
+
     float _prevTimeScale = 1f;
     float _lastToggleTime = -1f;
+    bool _openedFromTitle = false;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void AutoInit()
@@ -110,7 +161,6 @@ public class AdventurePauseMenu : MonoBehaviour
         int sampleCount = Mathf.RoundToInt(sampleRate * duration);
         float[] samples = new float[sampleCount];
 
-        // 澄んだ高音（E6: 1318Hz -> B6: 1975Hz のアルペジオチャイム）
         for (int i = 0; i < sampleCount; i++)
         {
             float t = (float)i / sampleRate;
@@ -128,15 +178,11 @@ public class AdventurePauseMenu : MonoBehaviour
 
     void Update()
     {
-        // 直前の開閉から0.2秒以内の連続入力は無視（キーチャタリング防止）
         if (Time.unscaledTime - _lastToggleTime < 0.2f) return;
 
-        var kb = Keyboard.current;
         bool escPressed = AdventureInputReader.EscapeDown;
-
         if (escPressed)
         {
-            // メニューが閉じていて他のモーダルが開いている場合は、そちらのESCキャンセルを優先
             if (!IsOpen)
             {
                 if (AdventureRustWorkshopUI.IsOpen) return;
@@ -146,10 +192,16 @@ public class AdventurePauseMenu : MonoBehaviour
                 if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening) return;
             }
 
-            // 確認モーダルが開いている場合は先に確認モーダルを閉じる
             if (_confirmModalRoot != null && _confirmModalRoot.activeSelf)
             {
                 _confirmModalRoot.SetActive(false);
+                _lastToggleTime = Time.unscaledTime;
+                return;
+            }
+
+            if (_returnTitleConfirmModal != null && _returnTitleConfirmModal.activeSelf)
+            {
+                _returnTitleConfirmModal.SetActive(false);
                 _lastToggleTime = Time.unscaledTime;
                 return;
             }
@@ -158,11 +210,16 @@ public class AdventurePauseMenu : MonoBehaviour
         }
     }
 
-    /// <summary>ポーズメニューが開いていれば即座に閉じる</summary>
     public static void CloseIfOpen()
     {
         if (Instance != null && IsOpen)
             Instance.SetMenuVisible(false, instant: true);
+    }
+
+    public void OpenSettingsFromTitle()
+    {
+        _openedFromTitle = true;
+        SetMenuVisible(true);
     }
 
     public void TogglePause()
@@ -186,7 +243,27 @@ public class AdventurePauseMenu : MonoBehaviour
             Cursor.visible = true;
 
             LoadCurrentSettings();
+            SwitchTab(_currentTab);
+
             if (_confirmModalRoot != null) _confirmModalRoot.SetActive(false);
+            if (_returnTitleConfirmModal != null) _returnTitleConfirmModal.SetActive(false);
+
+            if (_openedFromTitle)
+            {
+                if (_headerTitleText != null) _headerTitleText.text = "✦ SETTINGS ✦";
+                if (_headerSubTitleText != null) _headerSubTitleText.text = "音量・操作感度・画面表示の設定";
+                if (_restartBtnGo != null) _restartBtnGo.SetActive(false);
+                if (_returnTitleBtnGo != null) _returnTitleBtnGo.SetActive(false);
+                if (_resumeBtnText != null) _resumeBtnText.text = "閉じる [ESC]";
+            }
+            else
+            {
+                if (_headerTitleText != null) _headerTitleText.text = "✦ PAUSE & SETTINGS ✦";
+                if (_headerSubTitleText != null) _headerSubTitleText.text = "ゲーム設定・画面表示・操作ガイド・タイトル移動";
+                if (_restartBtnGo != null) _restartBtnGo.SetActive(true);
+                if (_returnTitleBtnGo != null) _returnTitleBtnGo.SetActive(true);
+                if (_resumeBtnText != null) _resumeBtnText.text = "▶ ゲームに戻る [ESC]";
+            }
 
             if (_canvas != null) _canvas.enabled = true;
             if (_panelRoot != null) _panelRoot.SetActive(true);
@@ -199,17 +276,25 @@ public class AdventurePauseMenu : MonoBehaviour
         }
         else
         {
+            bool wasFromTitle = _openedFromTitle;
+            _openedFromTitle = false;
+
             Time.timeScale = _prevTimeScale > 0.05f ? _prevTimeScale : 1f;
 
-            // 他のモーダルが開いていない限りカーソルをロック
-            if (!AdventureStoryFlow.WantsFreeCursor)
+            if (!AdventureStoryFlow.WantsFreeCursor && !wasFromTitle && AdventureRustFloatOpening.IsGameStarted)
             {
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
             }
+            else
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
 
             if (_panelRoot != null) _panelRoot.SetActive(false);
             if (_confirmModalRoot != null) _confirmModalRoot.SetActive(false);
+            if (_returnTitleConfirmModal != null) _returnTitleConfirmModal.SetActive(false);
             if (_canvasGroup != null)
             {
                 _canvasGroup.alpha = 0f;
@@ -220,8 +305,29 @@ public class AdventurePauseMenu : MonoBehaviour
         }
     }
 
+    void SwitchTab(int tabIndex)
+    {
+        _currentTab = tabIndex;
+
+        if (_tabAudioPanel != null) _tabAudioPanel.SetActive(tabIndex == 0);
+        if (_tabDisplayPanel != null) _tabDisplayPanel.SetActive(tabIndex == 1);
+        if (_tabGuidePanel != null) _tabGuidePanel.SetActive(tabIndex == 2);
+
+        Color activeBg = new Color(0.12f, 0.55f, 0.75f, 0.95f);
+        Color inactiveBg = new Color(0.04f, 0.08f, 0.14f, 0.70f);
+
+        if (_tabAudioBtnImg != null) _tabAudioBtnImg.color = (tabIndex == 0) ? activeBg : inactiveBg;
+        if (_tabDisplayBtnImg != null) _tabDisplayBtnImg.color = (tabIndex == 1) ? activeBg : inactiveBg;
+        if (_tabGuideBtnImg != null) _tabGuideBtnImg.color = (tabIndex == 2) ? activeBg : inactiveBg;
+
+        if (_tabAudioBtnLabel != null) _tabAudioBtnLabel.color = (tabIndex == 0) ? Color.white : new Color(0.7f, 0.85f, 0.95f, 0.75f);
+        if (_tabDisplayBtnLabel != null) _tabDisplayBtnLabel.color = (tabIndex == 1) ? Color.white : new Color(0.7f, 0.85f, 0.95f, 0.75f);
+        if (_tabGuideBtnLabel != null) _tabGuideBtnLabel.color = (tabIndex == 2) ? Color.white : new Color(0.7f, 0.85f, 0.95f, 0.75f);
+    }
+
     void LoadCurrentSettings()
     {
+        // 1. 音量・感度
         float bgm = AdventureMusicDirector.MasterBgmVolumeScale;
         if (_bgmSlider != null) _bgmSlider.SetValueWithoutNotify(bgm);
         if (_bgmValueText != null) _bgmValueText.text = $"{Mathf.RoundToInt(bgm * 100f)}%";
@@ -233,6 +339,38 @@ public class AdventurePauseMenu : MonoBehaviour
         float sens = AdventureCameraFollow.MasterSensitivity;
         if (_sensSlider != null) _sensSlider.SetValueWithoutNotify(sens);
         if (_sensValueText != null) _sensValueText.text = $"{sens:F2}";
+
+        // 2. ディスプレイ・画質
+        UpdateDisplayHighlights();
+    }
+
+    void UpdateDisplayHighlights()
+    {
+        Color activeCol = new Color(0.15f, 0.65f, 0.80f, 1f);
+        Color inactiveCol = new Color(0.05f, 0.10f, 0.18f, 0.80f);
+
+        // フルスクリーン
+        bool isFs = Screen.fullScreen;
+        if (_fsBtnImg != null) _fsBtnImg.color = isFs ? activeCol : inactiveCol;
+        if (_winBtnImg != null) _winBtnImg.color = !isFs ? activeCol : inactiveCol;
+
+        // 画質クオリティ
+        int q = QualitySettings.GetQualityLevel();
+        if (_qFastBtnImg != null) _qFastBtnImg.color = (q == 0) ? activeCol : inactiveCol;
+        if (_qHighBtnImg != null) _qHighBtnImg.color = (q == 1) ? activeCol : inactiveCol;
+        if (_qUltraBtnImg != null) _qUltraBtnImg.color = (q >= 2) ? activeCol : inactiveCol;
+
+        // VSync
+        bool vsync = QualitySettings.vSyncCount > 0;
+        if (_vsyncOnBtnImg != null) _vsyncOnBtnImg.color = vsync ? activeCol : inactiveCol;
+        if (_vsyncOffBtnImg != null) _vsyncOffBtnImg.color = !vsync ? activeCol : inactiveCol;
+
+        // 解像度
+        int w = Screen.width;
+        int h = Screen.height;
+        if (_res1080BtnImg != null) _res1080BtnImg.color = (w >= 1900) ? activeCol : inactiveCol;
+        if (_res900BtnImg != null) _res900BtnImg.color = (w >= 1500 && w < 1900) ? activeCol : inactiveCol;
+        if (_res720BtnImg != null) _res720BtnImg.color = (w < 1500) ? activeCol : inactiveCol;
     }
 
     void OnBgmSliderChanged(float val)
@@ -247,7 +385,6 @@ public class AdventurePauseMenu : MonoBehaviour
         PlayerPrefs.Save();
         if (_seValueText != null) _seValueText.text = $"{Mathf.RoundToInt(val * 100f)}%";
 
-        // スライダー操作時に音量確認用SEを再生
         if (_audioSource != null && _testBeepClip != null)
         {
             _audioSource.volume = Mathf.Clamp01(val);
@@ -259,6 +396,39 @@ public class AdventurePauseMenu : MonoBehaviour
     {
         AdventureCameraFollow.MasterSensitivity = val;
         if (_sensValueText != null) _sensValueText.text = $"{val:F2}";
+    }
+
+    void SetFullscreen(bool fs)
+    {
+        Screen.fullScreen = fs;
+        PlayerPrefs.SetInt("RustFloat_Fullscreen", fs ? 1 : 0);
+        PlayerPrefs.Save();
+        UpdateDisplayHighlights();
+    }
+
+    void SetQuality(int level)
+    {
+        QualitySettings.SetQualityLevel(level, true);
+        PlayerPrefs.SetInt("RustFloat_Quality", level);
+        PlayerPrefs.Save();
+        UpdateDisplayHighlights();
+    }
+
+    void SetVSync(bool on)
+    {
+        QualitySettings.vSyncCount = on ? 1 : 0;
+        PlayerPrefs.SetInt("RustFloat_VSync", on ? 1 : 0);
+        PlayerPrefs.Save();
+        UpdateDisplayHighlights();
+    }
+
+    void SetResolution(int w, int h)
+    {
+        Screen.SetResolution(w, h, Screen.fullScreen);
+        PlayerPrefs.SetInt("RustFloat_ResW", w);
+        PlayerPrefs.SetInt("RustFloat_ResH", h);
+        PlayerPrefs.Save();
+        UpdateDisplayHighlights();
     }
 
     void OnRestartClicked()
@@ -286,6 +456,37 @@ public class AdventurePauseMenu : MonoBehaviour
             _confirmModalRoot.SetActive(false);
     }
 
+    void OnReturnToTitleClicked()
+    {
+        if (_returnTitleConfirmModal != null)
+            _returnTitleConfirmModal.SetActive(true);
+    }
+
+    void OnConfirmReturnTitleYes()
+    {
+        if (_returnTitleConfirmModal != null)
+            _returnTitleConfirmModal.SetActive(false);
+
+        if (AdventureSaveManager.Instance != null)
+        {
+            AdventureSaveManager.Instance.SaveGame("タイトル移動セーブ完了");
+        }
+
+        SetMenuVisible(false);
+
+        var opening = AdventureRustFloatOpening.Instance;
+        if (opening != null)
+        {
+            opening.ShowTitleScreen();
+        }
+    }
+
+    void OnConfirmReturnTitleNo()
+    {
+        if (_returnTitleConfirmModal != null)
+            _returnTitleConfirmModal.SetActive(false);
+    }
+
     void CreateUI()
     {
         var canvasGo = new GameObject("PauseMenu_Canvas");
@@ -293,7 +494,7 @@ public class AdventurePauseMenu : MonoBehaviour
 
         _canvas = canvasGo.AddComponent<Canvas>();
         _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        _canvas.sortingOrder = 110; // ScrapHUD(95)より前面
+        _canvas.sortingOrder = 110;
 
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -301,38 +502,29 @@ public class AdventurePauseMenu : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
 
         canvasGo.AddComponent<GraphicRaycaster>();
-        _canvasGroup = canvasGo.AddComponent<CanvasGroup>();
 
         _font = ResolveFont();
 
-        // 1. 全画面ディム背景
-        var dimGo = new GameObject("DimOverlay");
-        dimGo.transform.SetParent(canvasGo.transform, false);
-        var dimRt = dimGo.AddComponent<RectTransform>();
-        dimRt.anchorMin = Vector2.zero;
-        dimRt.anchorMax = Vector2.one;
-        dimRt.sizeDelta = Vector2.zero;
-        var dimImg = dimGo.AddComponent<Image>();
-        dimImg.color = new Color(0.015f, 0.03f, 0.07f, 0.88f);
-
-        // 2. メインダイアログパネル（中央配置・幅860, 高さ540）
-        _panelRoot = new GameObject("MainDialogPanel");
+        // 1. パネル背景
+        _panelRoot = new GameObject("PauseMenuPanel");
         _panelRoot.transform.SetParent(canvasGo.transform, false);
+        _canvasGroup = _panelRoot.AddComponent<CanvasGroup>();
+
         var pRt = _panelRoot.AddComponent<RectTransform>();
         pRt.anchorMin = new Vector2(0.5f, 0.5f);
         pRt.anchorMax = new Vector2(0.5f, 0.5f);
         pRt.pivot = new Vector2(0.5f, 0.5f);
-        pRt.sizeDelta = new Vector2(880f, 550f);
+        pRt.sizeDelta = new Vector2(900f, 560f);
         pRt.anchoredPosition = Vector2.zero;
 
         var pBg = _panelRoot.AddComponent<Image>();
-        pBg.color = new Color(0.035f, 0.065f, 0.12f, 0.98f);
+        pBg.color = new Color(0.025f, 0.055f, 0.10f, 0.98f);
 
         var pOutline = _panelRoot.AddComponent<Outline>();
-        pOutline.effectColor = new Color(0.25f, 0.75f, 0.95f, 0.45f);
+        pOutline.effectColor = new Color(0.25f, 0.75f, 0.95f, 0.55f);
         pOutline.effectDistance = new Vector2(2f, -2f);
 
-        // 上部サイバーグラデーションアクセントバー
+        // 上部アクセントバー
         var barGo = new GameObject("TopAccentBar");
         barGo.transform.SetParent(_panelRoot.transform, false);
         var bRt = barGo.AddComponent<RectTransform>();
@@ -342,7 +534,7 @@ public class AdventurePauseMenu : MonoBehaviour
         bRt.sizeDelta = new Vector2(0f, 4f);
         bRt.anchoredPosition = Vector2.zero;
         var bImg = barGo.AddComponent<Image>();
-        bImg.color = new Color(0.35f, 0.88f, 1f, 1f);
+        bImg.color = new Color(0.35f, 0.92f, 0.85f, 1f);
 
         // ヘッダータイトル
         var titleGo = new GameObject("TitleText");
@@ -351,15 +543,16 @@ public class AdventurePauseMenu : MonoBehaviour
         tRt.anchorMin = new Vector2(0f, 1f);
         tRt.anchorMax = new Vector2(1f, 1f);
         tRt.pivot = new Vector2(0.5f, 1f);
-        tRt.anchoredPosition = new Vector2(0f, -22f);
-        tRt.sizeDelta = new Vector2(0f, 38f);
+        tRt.anchoredPosition = new Vector2(0f, -18f);
+        tRt.sizeDelta = new Vector2(0f, 32f);
         var titleText = titleGo.AddComponent<Text>();
         titleText.font = _font;
-        titleText.fontSize = 24;
+        titleText.fontSize = 22;
         titleText.fontStyle = FontStyle.Bold;
         titleText.alignment = TextAnchor.MiddleCenter;
         titleText.color = new Color(1f, 0.90f, 0.45f, 1f);
         titleText.text = "✦ PAUSE & SETTINGS ✦";
+        _headerTitleText = titleText;
 
         var subTitleGo = new GameObject("SubTitleText");
         subTitleGo.transform.SetParent(_panelRoot.transform, false);
@@ -367,67 +560,247 @@ public class AdventurePauseMenu : MonoBehaviour
         stRt.anchorMin = new Vector2(0f, 1f);
         stRt.anchorMax = new Vector2(1f, 1f);
         stRt.pivot = new Vector2(0.5f, 1f);
-        stRt.anchoredPosition = new Vector2(0f, -54f);
-        stRt.sizeDelta = new Vector2(0f, 24f);
+        stRt.anchoredPosition = new Vector2(0f, -46f);
+        stRt.sizeDelta = new Vector2(0f, 20f);
         var subTitleText = subTitleGo.AddComponent<Text>();
         subTitleText.font = _font;
-        subTitleText.fontSize = 13;
+        subTitleText.fontSize = 12;
         subTitleText.alignment = TextAnchor.MiddleCenter;
         subTitleText.color = new Color(0.65f, 0.85f, 1f, 0.85f);
-        subTitleText.text = "ゲーム設定・操作ガイド確認・進行リセット";
+        subTitleText.text = "ゲーム設定・画面表示・操作ガイド・進行管理";
+        _headerSubTitleText = subTitleText;
 
-        // 3. 2カラム領域（左: 設定, 右: 操作ガイド）
-        var contentGo = new GameObject("ContentArea");
+        // 2. タブバー（3タブ）
+        CreateTabBar(_panelRoot.transform);
+
+        // 3. コンテンツ領域（タブごとのパネル）
+        var contentGo = new GameObject("TabContentArea");
         contentGo.transform.SetParent(_panelRoot.transform, false);
         var cRt = contentGo.AddComponent<RectTransform>();
-        cRt.anchorMin = new Vector2(0f, 0f);
-        cRt.anchorMax = new Vector2(1f, 1f);
-        cRt.offsetMin = new Vector2(30f, 85f);
-        cRt.offsetMax = new Vector2(-30f, -85f);
+        cRt.anchorMin = Vector2.zero;
+        cRt.anchorMax = Vector2.one;
+        cRt.offsetMin = new Vector2(30f, 80f);
+        cRt.offsetMax = new Vector2(-30f, -115f);
 
-        CreateSettingsColumn(contentGo.transform);
-        CreateGuideColumn(contentGo.transform);
+        CreateAudioTab(contentGo.transform);
+        CreateDisplayTab(contentGo.transform);
+        CreateGuideTab(contentGo.transform);
 
-        // 4. フッターボタンバー（「ゲームに戻る」「最初からやり直す」）
+        // 4. フッターボタンバー
         CreateFooterButtons(_panelRoot.transform);
 
-        // 5. リスタート確認モーダル
+        // 5. 確認モーダル群
         CreateRestartConfirmModal(canvasGo.transform);
+        CreateReturnTitleConfirmModal(canvasGo.transform);
     }
 
-    void CreateSettingsColumn(Transform parent)
+    void CreateTabBar(Transform parent)
     {
-        var colGo = new GameObject("LeftSettingsColumn");
-        colGo.transform.SetParent(parent, false);
-        var colRt = colGo.AddComponent<RectTransform>();
-        colRt.anchorMin = new Vector2(0f, 0f);
-        colRt.anchorMax = new Vector2(0.48f, 1f);
-        colRt.offsetMin = Vector2.zero;
-        colRt.offsetMax = Vector2.zero;
+        var barGo = new GameObject("TabBar");
+        barGo.transform.SetParent(parent, false);
+        var bRt = barGo.AddComponent<RectTransform>();
+        bRt.anchorMin = new Vector2(0.5f, 1f);
+        bRt.anchorMax = new Vector2(0.5f, 1f);
+        bRt.pivot = new Vector2(0.5f, 1f);
+        bRt.anchoredPosition = new Vector2(0f, -72f);
+        bRt.sizeDelta = new Vector2(840f, 36f);
 
-        var headerGo = new GameObject("SettingsHeader");
-        headerGo.transform.SetParent(colGo.transform, false);
-        var hRt = headerGo.AddComponent<RectTransform>();
-        hRt.anchorMin = new Vector2(0f, 1f);
-        hRt.anchorMax = new Vector2(1f, 1f);
-        hRt.pivot = new Vector2(0f, 1f);
-        hRt.anchoredPosition = new Vector2(10f, 0f);
-        hRt.sizeDelta = new Vector2(0f, 26f);
-        var hText = headerGo.AddComponent<Text>();
-        hText.font = _font;
-        hText.fontSize = 16;
-        hText.fontStyle = FontStyle.Bold;
-        hText.color = new Color(0.4f, 0.9f, 1f, 1f);
-        hText.text = "⚙ 音量 ＆ 操作設定";
+        float tabW = 270f;
+        _tabAudioBtn = CreateTabButton(barGo.transform, "TabAudio", new Vector2(-280f, 0f), new Vector2(tabW, 36f), "⚙  オーディオ・操作", () => SwitchTab(0), out _tabAudioBtnImg, out _tabAudioBtnLabel);
+        _tabDisplayBtn = CreateTabButton(barGo.transform, "TabDisplay", new Vector2(0f, 0f), new Vector2(tabW, 36f), "🖥  画面・グラフィック", () => SwitchTab(1), out _tabDisplayBtnImg, out _tabDisplayBtnLabel);
+        _tabGuideBtn = CreateTabButton(barGo.transform, "TabGuide", new Vector2(280f, 0f), new Vector2(tabW, 36f), "📖  操作ガイド一覧", () => SwitchTab(2), out _tabGuideBtnImg, out _tabGuideBtnLabel);
+    }
+
+    Button CreateTabButton(Transform parent, string name, Vector2 pos, Vector2 size, string label, UnityEngine.Events.UnityAction onClick, out Image outImg, out Text outLabel)
+    {
+        var btnGo = new GameObject(name);
+        btnGo.transform.SetParent(parent, false);
+        var rt = btnGo.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.5f, 0.5f);
+        rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = size;
+
+        outImg = btnGo.AddComponent<Image>();
+        outImg.color = new Color(0.04f, 0.08f, 0.14f, 0.70f);
+
+        var outline = btnGo.AddComponent<Outline>();
+        outline.effectColor = new Color(0.25f, 0.65f, 0.85f, 0.45f);
+        outline.effectDistance = new Vector2(1f, -1f);
+
+        var btn = btnGo.AddComponent<Button>();
+        btn.onClick.AddListener(onClick);
+
+        var textGo = new GameObject("Text");
+        textGo.transform.SetParent(btnGo.transform, false);
+        var tRt = textGo.AddComponent<RectTransform>();
+        tRt.anchorMin = Vector2.zero;
+        tRt.anchorMax = Vector2.one;
+        outLabel = textGo.AddComponent<Text>();
+        outLabel.font = _font;
+        outLabel.fontSize = 14;
+        outLabel.fontStyle = FontStyle.Bold;
+        outLabel.alignment = TextAnchor.MiddleCenter;
+        outLabel.color = Color.white;
+        outLabel.text = label;
+
+        return btn;
+    }
+
+    void CreateAudioTab(Transform parent)
+    {
+        _tabAudioPanel = new GameObject("TabAudioPanel");
+        _tabAudioPanel.transform.SetParent(parent, false);
+        var rt = _tabAudioPanel.AddComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
 
         // BGM スライダー
-        CreateSettingSlider(colGo.transform, "BGM 音量", -45f, 0f, 1f, out _bgmSlider, out _bgmValueText, OnBgmSliderChanged);
+        CreateSettingSlider(_tabAudioPanel.transform, "BGM 音量", -15f, 0f, 1f, out _bgmSlider, out _bgmValueText, OnBgmSliderChanged);
 
         // SE スライダー
-        CreateSettingSlider(colGo.transform, "SE 音量", -125f, 0f, 1f, out _seSlider, out _seValueText, OnSeSliderChanged);
+        CreateSettingSlider(_tabAudioPanel.transform, "SE 音量", -95f, 0f, 1f, out _seSlider, out _seValueText, OnSeSliderChanged);
 
         // マウス視点感度 スライダー
-        CreateSettingSlider(colGo.transform, "マウス視点感度", -205f, 0.05f, 0.60f, out _sensSlider, out _sensValueText, OnSensitivitySliderChanged);
+        CreateSettingSlider(_tabAudioPanel.transform, "マウス視点感度", -175f, 0.05f, 0.60f, out _sensSlider, out _sensValueText, OnSensitivitySliderChanged);
+
+        // ガイドヒント
+        var hint = MakeLabel(_tabAudioPanel.transform, "AudioHint", new Vector2(12f, -265f), new Vector2(800f, 30f),
+            "✦ スライダーを動かすとリアルタイムに音量と感度が反映されます。SE音量はテストチャイムで確認できます。", 12, new Color(0.6f, 0.8f, 0.95f, 0.8f));
+        hint.alignment = TextAnchor.MiddleLeft;
+    }
+
+    void CreateDisplayTab(Transform parent)
+    {
+        _tabDisplayPanel = new GameObject("TabDisplayPanel");
+        _tabDisplayPanel.transform.SetParent(parent, false);
+        var rt = _tabDisplayPanel.AddComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        float rowH = 62f;
+
+        // 1. 画面モード
+        CreateDisplayRow(_tabDisplayPanel.transform, "画面モード", -10f, rowH, out var row1);
+        _fsBtn = CreateOptionButton(row1, "FsBtn", new Vector2(240f, 0f), new Vector2(220f, 38f), "⛶  フルスクリーン", () => SetFullscreen(true), out _fsBtnImg);
+        _winBtn = CreateOptionButton(row1, "WinBtn", new Vector2(480f, 0f), new Vector2(220f, 38f), "🗖  ウィンドウ", () => SetFullscreen(false), out _winBtnImg);
+
+        // 2. グラフィックス品質
+        CreateDisplayRow(_tabDisplayPanel.transform, "グラフィック品質", -10f - rowH - 12f, rowH, out var row2);
+        _qUltraBtn = CreateOptionButton(row2, "QUltra", new Vector2(240f, 0f), new Vector2(160f, 38f), "✦ 最高 (Ultra)", () => SetQuality(2), out _qUltraBtnImg);
+        _qHighBtn = CreateOptionButton(row2, "QHigh", new Vector2(420f, 0f), new Vector2(160f, 38f), "✦ 標準 (High)", () => SetQuality(1), out _qHighBtnImg);
+        _qFastBtn = CreateOptionButton(row2, "QFast", new Vector2(600f, 0f), new Vector2(160f, 38f), "✦ 軽量 (Fast)", () => SetQuality(0), out _qFastBtnImg);
+
+        // 3. 垂直同期 (VSync)
+        CreateDisplayRow(_tabDisplayPanel.transform, "垂直同期 (VSync)", -10f - (rowH + 12f) * 2, rowH, out var row3);
+        _vsyncOnBtn = CreateOptionButton(row3, "VSyncOn", new Vector2(240f, 0f), new Vector2(220f, 38f), "✓ 垂直同期 ON (安定)", () => SetVSync(true), out _vsyncOnBtnImg);
+        _vsyncOffBtn = CreateOptionButton(row3, "VSyncOff", new Vector2(480f, 0f), new Vector2(220f, 38f), "✕ 垂直同期 OFF (低遅延)", () => SetVSync(false), out _vsyncOffBtnImg);
+
+        // 4. 画面解像度
+        CreateDisplayRow(_tabDisplayPanel.transform, "画面解像度", -10f - (rowH + 12f) * 3, rowH, out var row4);
+        _res1080Btn = CreateOptionButton(row4, "Res1080", new Vector2(240f, 0f), new Vector2(160f, 38f), "1920 × 1080", () => SetResolution(1920, 1080), out _res1080BtnImg);
+        _res900Btn = CreateOptionButton(row4, "Res900", new Vector2(420f, 0f), new Vector2(160f, 38f), "1600 × 900", () => SetResolution(1600, 900), out _res900BtnImg);
+        _res720Btn = CreateOptionButton(row4, "Res720", new Vector2(600f, 0f), new Vector2(160f, 38f), "1280 × 720", () => SetResolution(1280, 720), out _res720BtnImg);
+    }
+
+    void CreateDisplayRow(Transform parent, string title, float topY, float height, out Transform rowTransform)
+    {
+        var rowGo = new GameObject(title + "_Row");
+        rowGo.transform.SetParent(parent, false);
+        var rRt = rowGo.AddComponent<RectTransform>();
+        rRt.anchorMin = new Vector2(0f, 1f);
+        rRt.anchorMax = new Vector2(1f, 1f);
+        rRt.pivot = new Vector2(0f, 1f);
+        rRt.anchoredPosition = new Vector2(0f, topY);
+        rRt.sizeDelta = new Vector2(0f, height);
+
+        var bg = rowGo.AddComponent<Image>();
+        bg.color = new Color(0.015f, 0.04f, 0.08f, 0.65f);
+
+        var outline = rowGo.AddComponent<Outline>();
+        outline.effectColor = new Color(0.15f, 0.35f, 0.55f, 0.35f);
+        outline.effectDistance = new Vector2(1f, -1f);
+
+        var l = MakeLabel(rowGo.transform, "Label", new Vector2(16f, 0f), new Vector2(200f, height), title, 14, new Color(0.92f, 0.96f, 1f, 1f));
+        l.fontStyle = FontStyle.Bold;
+        l.alignment = TextAnchor.MiddleLeft;
+
+        rowTransform = rowGo.transform;
+    }
+
+    Button CreateOptionButton(Transform parent, string name, Vector2 pos, Vector2 size, string label, UnityEngine.Events.UnityAction onClick, out Image outImg)
+    {
+        var btnGo = new GameObject(name);
+        btnGo.transform.SetParent(parent, false);
+        var rt = btnGo.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 0.5f);
+        rt.anchorMax = new Vector2(0f, 0.5f);
+        rt.pivot = new Vector2(0f, 0.5f);
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = size;
+
+        outImg = btnGo.AddComponent<Image>();
+        outImg.color = new Color(0.05f, 0.10f, 0.18f, 0.80f);
+
+        var outline = btnGo.AddComponent<Outline>();
+        outline.effectColor = new Color(0.25f, 0.65f, 0.85f, 0.45f);
+        outline.effectDistance = new Vector2(1f, -1f);
+
+        var btn = btnGo.AddComponent<Button>();
+        btn.onClick.AddListener(onClick);
+
+        var text = MakeLabel(btnGo.transform, "Text", Vector2.zero, size, label, 13, Color.white);
+        text.fontStyle = FontStyle.Bold;
+        text.alignment = TextAnchor.MiddleCenter;
+
+        return btn;
+    }
+
+    void CreateGuideTab(Transform parent)
+    {
+        _tabGuidePanel = new GameObject("TabGuidePanel");
+        _tabGuidePanel.transform.SetParent(parent, false);
+        var rt = _tabGuidePanel.AddComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        var bg = _tabGuidePanel.AddComponent<Image>();
+        bg.color = new Color(0.015f, 0.04f, 0.08f, 0.65f);
+
+        // 2カラムで操作ガイドを分かりやすく表示
+        var leftCol = MakeLabel(_tabGuidePanel.transform, "LeftCol", new Vector2(25f, -15f), new Vector2(380f, 320f), "", 13, new Color(0.95f, 0.97f, 1f, 0.95f));
+        leftCol.lineSpacing = 1.35f;
+        leftCol.alignment = TextAnchor.UpperLeft;
+        leftCol.supportRichText = true;
+        leftCol.text =
+            "<b>[ 基本操作 ＆ アクション ]</b>\n\n" +
+            "<b>[W][A][S][D]</b>  移動 / 歩行\n" +
+            "<b>[Shift]</b>  ダッシュ走行（速度アップ）\n" +
+            "<b>[マウス移動]</b>  視点回転（左右360°/上下）\n" +
+            "<b>[Space]</b>  ジャンプ / <b>長押しで滑空展開</b>\n" +
+            "<b>[J]</b>  小ジャンプ（軽快・段差乗り越え）\n" +
+            "<b>[W] / [S]</b>  ダイブ急降下 / 滞空フレア（滑空中）\n" +
+            "<b>[A] / [D]</b>  機首バンク旋回（滑空中）";
+
+        var rightCol = MakeLabel(_tabGuidePanel.transform, "RightCol", new Vector2(430f, -15f), new Vector2(380f, 320f), "", 13, new Color(0.95f, 0.97f, 1f, 0.95f));
+        rightCol.lineSpacing = 1.35f;
+        rightCol.alignment = TextAnchor.UpperLeft;
+        rightCol.supportRichText = true;
+        rightCol.text =
+            "<b>[ インタラクト ＆ システム ]</b>\n\n" +
+            "<b>[E] / [左クリック]</b>  調べる / 注油 / 撫でる\n" +
+            "<b>[B]</b>  Rustの着せ替え工房を開く\n" +
+            "<b>[Tab]</b>  クエスト目標 ⇄ ミニマルHUD切替\n" +
+            "<b>[F5] / [Cmd+S]</b>  クイックセーブ\n" +
+            "<b>[ESC]</b>  ポーズ ＆ 設定メニュー開閉\n\n" +
+            "✦ コンパスHUDが最寄りのパーツ・漂着ボックスを常時案内します。";
     }
 
     void CreateSettingSlider(Transform parent, string label, float topOffset, float minVal, float maxVal, out Slider slider, out Text valueText, UnityEngine.Events.UnityAction<float> onValueChanged)
@@ -438,61 +811,41 @@ public class AdventurePauseMenu : MonoBehaviour
         rRt.anchorMin = new Vector2(0f, 1f);
         rRt.anchorMax = new Vector2(1f, 1f);
         rRt.pivot = new Vector2(0f, 1f);
-        rRt.anchoredPosition = new Vector2(10f, topOffset);
-        rRt.sizeDelta = new Vector2(-20f, 65f);
+        rRt.anchoredPosition = new Vector2(0f, topOffset);
+        rRt.sizeDelta = new Vector2(0f, 68f);
 
-        // 背景プレート
         var rowBg = rowGo.AddComponent<Image>();
-        rowBg.color = new Color(0.02f, 0.04f, 0.08f, 0.6f);
+        rowBg.color = new Color(0.015f, 0.04f, 0.08f, 0.65f);
 
-        // ラベル
-        var lGo = new GameObject("Label");
-        lGo.transform.SetParent(rowGo.transform, false);
-        var lRt = lGo.AddComponent<RectTransform>();
-        lRt.anchorMin = new Vector2(0f, 1f);
-        lRt.anchorMax = new Vector2(0.7f, 1f);
-        lRt.pivot = new Vector2(0f, 1f);
-        lRt.anchoredPosition = new Vector2(12f, -8f);
-        lRt.sizeDelta = new Vector2(0f, 22f);
-        var lText = lGo.AddComponent<Text>();
-        lText.font = _font;
-        lText.fontSize = 14;
-        lText.color = new Color(0.92f, 0.95f, 1f, 0.95f);
-        lText.text = label;
+        var outline = rowGo.AddComponent<Outline>();
+        outline.effectColor = new Color(0.15f, 0.35f, 0.55f, 0.35f);
+        outline.effectDistance = new Vector2(1f, -1f);
 
-        // 数値表示
-        var vGo = new GameObject("ValueText");
-        vGo.transform.SetParent(rowGo.transform, false);
-        var vRt = vGo.AddComponent<RectTransform>();
-        vRt.anchorMin = new Vector2(0.7f, 1f);
-        vRt.anchorMax = new Vector2(1f, 1f);
-        vRt.pivot = new Vector2(1f, 1f);
-        vRt.anchoredPosition = new Vector2(-12f, -8f);
-        vRt.sizeDelta = new Vector2(0f, 22f);
-        valueText = vGo.AddComponent<Text>();
-        valueText.font = _font;
-        valueText.fontSize = 14;
+        var lText = MakeLabel(rowGo.transform, "Label", new Vector2(16f, -10f), new Vector2(300f, 22f), label, 14, new Color(0.92f, 0.96f, 1f, 1f));
+        lText.fontStyle = FontStyle.Bold;
+
+        valueText = MakeLabel(rowGo.transform, "ValueText", new Vector2(-20f, -10f), new Vector2(120f, 22f), "100%", 14, new Color(1f, 0.85f, 0.35f, 1f));
         valueText.fontStyle = FontStyle.Bold;
         valueText.alignment = TextAnchor.MiddleRight;
-        valueText.color = new Color(1f, 0.85f, 0.35f, 1f);
-        valueText.text = "100%";
+        var vRt = valueText.rectTransform;
+        vRt.anchorMin = new Vector2(1f, 1f);
+        vRt.anchorMax = new Vector2(1f, 1f);
+        vRt.pivot = new Vector2(1f, 1f);
 
-        // スライダーバー本体
         var sGo = new GameObject("Slider");
         sGo.transform.SetParent(rowGo.transform, false);
         var sRt = sGo.AddComponent<RectTransform>();
         sRt.anchorMin = new Vector2(0f, 0f);
         sRt.anchorMax = new Vector2(1f, 0f);
         sRt.pivot = new Vector2(0.5f, 0f);
-        sRt.anchoredPosition = new Vector2(0f, 12f);
-        sRt.sizeDelta = new Vector2(-24f, 20f);
+        sRt.anchoredPosition = new Vector2(0f, 14f);
+        sRt.sizeDelta = new Vector2(-32f, 20f);
 
         slider = sGo.AddComponent<Slider>();
         slider.minValue = minVal;
         slider.maxValue = maxVal;
         slider.onValueChanged.AddListener(onValueChanged);
 
-        // 背景レール
         var bgRailGo = new GameObject("Background");
         bgRailGo.transform.SetParent(sGo.transform, false);
         var brRt = bgRailGo.AddComponent<RectTransform>();
@@ -503,7 +856,6 @@ public class AdventurePauseMenu : MonoBehaviour
         var brImg = bgRailGo.AddComponent<Image>();
         brImg.color = new Color(0.12f, 0.18f, 0.28f, 0.9f);
 
-        // 塗りつぶし領域
         var fillAreaGo = new GameObject("Fill Area");
         fillAreaGo.transform.SetParent(sGo.transform, false);
         var faRt = fillAreaGo.AddComponent<RectTransform>();
@@ -520,7 +872,6 @@ public class AdventurePauseMenu : MonoBehaviour
         fImg.color = new Color(0.28f, 0.78f, 1f, 1f);
         slider.fillRect = fRt;
 
-        // つまみハンドル
         var handleAreaGo = new GameObject("Handle Slide Area");
         handleAreaGo.transform.SetParent(sGo.transform, false);
         var haRt = handleAreaGo.AddComponent<RectTransform>();
@@ -532,77 +883,11 @@ public class AdventurePauseMenu : MonoBehaviour
         var handleGo = new GameObject("Handle");
         handleGo.transform.SetParent(handleAreaGo.transform, false);
         var hRtObj = handleGo.AddComponent<RectTransform>();
-        hRtObj.sizeDelta = new Vector2(20f, 20f);
+        hRtObj.sizeDelta = new Vector2(22f, 22f);
         var hImg = handleGo.AddComponent<Image>();
         hImg.color = new Color(1f, 0.92f, 0.5f, 1f);
         slider.handleRect = hRtObj;
         slider.targetGraphic = hImg;
-    }
-
-    void CreateGuideColumn(Transform parent)
-    {
-        var colGo = new GameObject("RightGuideColumn");
-        colGo.transform.SetParent(parent, false);
-        var colRt = colGo.AddComponent<RectTransform>();
-        colRt.anchorMin = new Vector2(0.52f, 0f);
-        colRt.anchorMax = new Vector2(1f, 1f);
-        colRt.offsetMin = Vector2.zero;
-        colRt.offsetMax = Vector2.zero;
-
-        var headerGo = new GameObject("GuideHeader");
-        headerGo.transform.SetParent(colGo.transform, false);
-        var hRt = headerGo.AddComponent<RectTransform>();
-        hRt.anchorMin = new Vector2(0f, 1f);
-        hRt.anchorMax = new Vector2(1f, 1f);
-        hRt.pivot = new Vector2(0f, 1f);
-        hRt.anchoredPosition = new Vector2(10f, 0f);
-        hRt.sizeDelta = new Vector2(0f, 26f);
-        var hText = headerGo.AddComponent<Text>();
-        hText.font = _font;
-        hText.fontSize = 16;
-        hText.fontStyle = FontStyle.Bold;
-        hText.color = new Color(0.4f, 0.9f, 1f, 1f);
-        hText.text = "📖 操作ガイド一覧";
-
-        var cardGo = new GameObject("GuideCard");
-        cardGo.transform.SetParent(colGo.transform, false);
-        var cardRt = cardGo.AddComponent<RectTransform>();
-        cardRt.anchorMin = new Vector2(0f, 0f);
-        cardRt.anchorMax = new Vector2(1f, 1f);
-        cardRt.offsetMin = new Vector2(5f, 5f);
-        cardRt.offsetMax = new Vector2(-5f, -32f);
-
-        var cardBg = cardGo.AddComponent<Image>();
-        cardBg.color = new Color(0.02f, 0.04f, 0.08f, 0.6f);
-
-        // ガイドテキスト
-        var guideTextGo = new GameObject("GuideText");
-        guideTextGo.transform.SetParent(cardGo.transform, false);
-        var gtRt = guideTextGo.AddComponent<RectTransform>();
-        gtRt.anchorMin = Vector2.zero;
-        gtRt.anchorMax = Vector2.one;
-        gtRt.offsetMin = new Vector2(14f, 10f);
-        gtRt.offsetMax = new Vector2(-14f, -10f);
-
-        var gText = guideTextGo.AddComponent<Text>();
-        gText.font = _font;
-        gText.fontSize = 13;
-        gText.lineSpacing = 1.35f;
-        gText.supportRichText = true;
-        gText.color = new Color(0.92f, 0.95f, 1f, 0.95f);
-        gText.alignment = TextAnchor.MiddleLeft;
-
-        gText.text =
-            "<b>[W][A][S][D]</b>  移動 / 歩行\n" +
-            "<b>[マウス移動]</b>  視点回転（左右360°/上下）\n" +
-            "<b>[J]</b>  小ジャンプ（軽快・段差や小岩乗り越え）\n" +
-            "<b>[Space]</b>  通常ジャンプ / <b>長押しで滑空</b>\n" +
-            "<b>[W] / [S]</b>  ダイブ急降下 / 滞空ブレーキ（滑空中）\n" +
-            "<b>[A] / [D]</b>  機首旋回バンク（滑空中）\n" +
-            "<b>[E]</b>  相棒Rustへ手当て(注油) / <b>長押しで撫でる</b>\n" +
-            "<b>[F]</b>  相棒Rustへ遠隔回収・調査指示\n" +
-            "<b>[Tab]</b>  クエスト目標 ⇄ ミニマルHUD切替\n" +
-            "<b>[F5]</b>  クイックセーブ / <b>[ESC]</b>  ポーズ切替";
     }
 
     void CreateFooterButtons(Transform panel)
@@ -613,70 +898,62 @@ public class AdventurePauseMenu : MonoBehaviour
         fRt.anchorMin = new Vector2(0f, 0f);
         fRt.anchorMax = new Vector2(1f, 0f);
         fRt.pivot = new Vector2(0.5f, 0f);
-        fRt.anchoredPosition = new Vector2(0f, 20f);
-        fRt.sizeDelta = new Vector2(-60f, 50f);
+        fRt.anchoredPosition = new Vector2(0f, 18f);
+        fRt.sizeDelta = new Vector2(-60f, 48f);
 
-        // 1. 「ゲームに戻る」（Resume）ボタン（右寄り）
+        // 1. 「最初からやり直す」（左: 0.02〜0.31）
+        _restartBtnGo = new GameObject("RestartButton");
+        _restartBtnGo.transform.SetParent(footerGo.transform, false);
+        var restRt = _restartBtnGo.AddComponent<RectTransform>();
+        restRt.anchorMin = new Vector2(0.02f, 0f);
+        restRt.anchorMax = new Vector2(0.31f, 1f);
+        restRt.offsetMin = Vector2.zero;
+        restRt.offsetMax = Vector2.zero;
+
+        var restImg = _restartBtnGo.AddComponent<Image>();
+        restImg.color = new Color(0.48f, 0.15f, 0.18f, 0.95f);
+        var restBtn = _restartBtnGo.AddComponent<Button>();
+        restBtn.onClick.AddListener(OnRestartClicked);
+
+        var resttText = MakeLabel(_restartBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "🗑 最初からやり直す", 15, new Color(1f, 0.88f, 0.88f, 1f));
+        resttText.fontStyle = FontStyle.Bold;
+        resttText.alignment = TextAnchor.MiddleCenter;
+
+        // 2. 「タイトルへ戻る」（中央: 0.35〜0.64）
+        _returnTitleBtnGo = new GameObject("ReturnTitleButton");
+        _returnTitleBtnGo.transform.SetParent(footerGo.transform, false);
+        var titleRt = _returnTitleBtnGo.AddComponent<RectTransform>();
+        titleRt.anchorMin = new Vector2(0.35f, 0f);
+        titleRt.anchorMax = new Vector2(0.64f, 1f);
+        titleRt.offsetMin = Vector2.zero;
+        titleRt.offsetMax = Vector2.zero;
+
+        var titleImg = _returnTitleBtnGo.AddComponent<Image>();
+        titleImg.color = new Color(0.20f, 0.35f, 0.55f, 0.95f);
+        var titleBtn = _returnTitleBtnGo.AddComponent<Button>();
+        titleBtn.onClick.AddListener(OnReturnToTitleClicked);
+
+        var titleTextComp = MakeLabel(_returnTitleBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "✦ タイトルへ戻る", 15, new Color(0.90f, 0.96f, 1f, 1f));
+        titleTextComp.fontStyle = FontStyle.Bold;
+        titleTextComp.alignment = TextAnchor.MiddleCenter;
+
+        // 3. 「ゲームに戻る」（右: 0.68〜0.98）
         var resumeGo = new GameObject("ResumeButton");
         resumeGo.transform.SetParent(footerGo.transform, false);
         var rRt = resumeGo.AddComponent<RectTransform>();
-        rRt.anchorMin = new Vector2(0.55f, 0f);
-        rRt.anchorMax = new Vector2(0.95f, 1f);
+        rRt.anchorMin = new Vector2(0.68f, 0f);
+        rRt.anchorMax = new Vector2(0.98f, 1f);
         rRt.offsetMin = Vector2.zero;
         rRt.offsetMax = Vector2.zero;
 
         var rImg = resumeGo.AddComponent<Image>();
         rImg.color = new Color(0.12f, 0.55f, 0.85f, 1f);
         var rBtn = resumeGo.AddComponent<Button>();
-        var rColors = rBtn.colors;
-        rColors.highlightedColor = new Color(0.25f, 0.75f, 1f, 1f);
-        rColors.pressedColor = new Color(0.08f, 0.45f, 0.75f, 1f);
-        rBtn.colors = rColors;
         rBtn.onClick.AddListener(() => SetMenuVisible(false));
 
-        var rTextGo = new GameObject("Text");
-        rTextGo.transform.SetParent(resumeGo.transform, false);
-        var rtRt = rTextGo.AddComponent<RectTransform>();
-        rtRt.anchorMin = Vector2.zero;
-        rtRt.anchorMax = Vector2.one;
-        var rtText = rTextGo.AddComponent<Text>();
-        rtText.font = _font;
-        rtText.fontSize = 17;
-        rtText.fontStyle = FontStyle.Bold;
-        rtText.alignment = TextAnchor.MiddleCenter;
-        rtText.color = Color.white;
-        rtText.text = "▶ ゲームに戻る [ESC]";
-
-        // 2. 「最初からやり直す」（Restart）ボタン（左寄り）
-        var restartGo = new GameObject("RestartButton");
-        restartGo.transform.SetParent(footerGo.transform, false);
-        var restRt = restartGo.AddComponent<RectTransform>();
-        restRt.anchorMin = new Vector2(0.05f, 0f);
-        restRt.anchorMax = new Vector2(0.45f, 1f);
-        restRt.offsetMin = Vector2.zero;
-        restRt.offsetMax = Vector2.zero;
-
-        var restImg = restartGo.AddComponent<Image>();
-        restImg.color = new Color(0.48f, 0.15f, 0.18f, 0.95f);
-        var restBtn = restartGo.AddComponent<Button>();
-        var restColors = restBtn.colors;
-        restColors.highlightedColor = new Color(0.68f, 0.22f, 0.25f, 1f);
-        restColors.pressedColor = new Color(0.35f, 0.10f, 0.12f, 1f);
-        restBtn.colors = restColors;
-        restBtn.onClick.AddListener(OnRestartClicked);
-
-        var restTextGo = new GameObject("Text");
-        restTextGo.transform.SetParent(restartGo.transform, false);
-        var resttRt = restTextGo.AddComponent<RectTransform>();
-        resttRt.anchorMin = Vector2.zero;
-        resttRt.anchorMax = Vector2.one;
-        var resttText = restTextGo.AddComponent<Text>();
-        resttText.font = _font;
-        resttText.fontSize = 16;
-        resttText.fontStyle = FontStyle.Bold;
-        resttText.alignment = TextAnchor.MiddleCenter;
-        resttText.color = new Color(1f, 0.88f, 0.88f, 1f);
-        resttText.text = "🗑 最初からやり直す";
+        _resumeBtnText = MakeLabel(resumeGo.transform, "Text", Vector2.zero, Vector2.zero, "▶ ゲームに戻る [ESC]", 15, Color.white);
+        _resumeBtnText.fontStyle = FontStyle.Bold;
+        _resumeBtnText.alignment = TextAnchor.MiddleCenter;
     }
 
     void CreateRestartConfirmModal(Transform canvasRoot)
@@ -692,7 +969,6 @@ public class AdventurePauseMenu : MonoBehaviour
         var mBg = _confirmModalRoot.AddComponent<Image>();
         mBg.color = new Color(0f, 0f, 0f, 0.85f);
 
-        // 中央確認カード
         var cardGo = new GameObject("ConfirmCard");
         cardGo.transform.SetParent(_confirmModalRoot.transform, false);
         var cRt = cardGo.AddComponent<RectTransform>();
@@ -708,42 +984,16 @@ public class AdventurePauseMenu : MonoBehaviour
         cOutline.effectColor = new Color(0.85f, 0.35f, 0.35f, 0.8f);
         cOutline.effectDistance = new Vector2(2f, -2f);
 
-        // タイトル
-        var tGo = new GameObject("Title");
-        tGo.transform.SetParent(cardGo.transform, false);
-        var tRt = tGo.AddComponent<RectTransform>();
-        tRt.anchorMin = new Vector2(0f, 1f);
-        tRt.anchorMax = new Vector2(1f, 1f);
-        tRt.pivot = new Vector2(0.5f, 1f);
-        tRt.anchoredPosition = new Vector2(0f, -24f);
-        tRt.sizeDelta = new Vector2(0f, 32f);
-        var tText = tGo.AddComponent<Text>();
-        tText.font = _font;
-        tText.fontSize = 20;
+        var tText = MakeLabel(cardGo.transform, "Title", new Vector2(0f, -24f), new Vector2(480f, 32f), "⚠️ 冒険の初期化確認", 20, new Color(1f, 0.45f, 0.45f, 1f));
         tText.fontStyle = FontStyle.Bold;
         tText.alignment = TextAnchor.MiddleCenter;
-        tText.color = new Color(1f, 0.45f, 0.45f, 1f);
-        tText.text = "⚠️ 冒険の初期化確認";
 
-        // 説明文
-        var descGo = new GameObject("Desc");
-        descGo.transform.SetParent(cardGo.transform, false);
-        var dRt = descGo.AddComponent<RectTransform>();
-        dRt.anchorMin = new Vector2(0f, 1f);
-        dRt.anchorMax = new Vector2(1f, 1f);
-        dRt.pivot = new Vector2(0.5f, 1f);
-        dRt.anchoredPosition = new Vector2(0f, -68f);
-        dRt.sizeDelta = new Vector2(-40f, 75f);
-        var dText = descGo.AddComponent<Text>();
-        dText.font = _font;
-        dText.fontSize = 14;
+        var dText = MakeLabel(cardGo.transform, "Desc", new Vector2(0f, -68f), new Vector2(440f, 75f),
+            "セーブデータと全パーツ・ポイントを初期化し、\n西側白砂ビーチの座礁艇前から新規開始します。\nよろしいですか？", 14, new Color(0.95f, 0.92f, 0.92f, 0.95f));
         dText.lineSpacing = 1.35f;
         dText.alignment = TextAnchor.MiddleCenter;
-        dText.color = new Color(0.95f, 0.92f, 0.92f, 0.95f);
-        dText.text = "セーブデータと全パーツ・ポイントを初期化し、\n西側白砂ビーチの座礁艇前から新規開始します。\nよろしいですか？";
 
-        // ボタン領域
-        // 1. 「はい、やり直す」
+        // はい
         var yesGo = new GameObject("YesButton");
         yesGo.transform.SetParent(cardGo.transform, false);
         var yRt = yesGo.AddComponent<RectTransform>();
@@ -756,20 +1006,11 @@ public class AdventurePauseMenu : MonoBehaviour
         yImg.color = new Color(0.75f, 0.18f, 0.22f, 1f);
         var yBtn = yesGo.AddComponent<Button>();
         yBtn.onClick.AddListener(OnConfirmRestartYes);
-        var ytGo = new GameObject("Text");
-        ytGo.transform.SetParent(yesGo.transform, false);
-        var ytRt = ytGo.AddComponent<RectTransform>();
-        ytRt.anchorMin = Vector2.zero;
-        ytRt.anchorMax = Vector2.one;
-        var ytText = ytGo.AddComponent<Text>();
-        ytText.font = _font;
-        ytText.fontSize = 15;
+        var ytText = MakeLabel(yesGo.transform, "Text", Vector2.zero, Vector2.zero, "はい、初期化する", 15, Color.white);
         ytText.fontStyle = FontStyle.Bold;
         ytText.alignment = TextAnchor.MiddleCenter;
-        ytText.color = Color.white;
-        ytText.text = "はい、初期化する";
 
-        // 2. 「キャンセル」
+        // キャンセル
         var noGo = new GameObject("NoButton");
         noGo.transform.SetParent(cardGo.transform, false);
         var nRt = noGo.AddComponent<RectTransform>();
@@ -782,28 +1023,132 @@ public class AdventurePauseMenu : MonoBehaviour
         nImg.color = new Color(0.2f, 0.3f, 0.45f, 1f);
         var nBtn = noGo.AddComponent<Button>();
         nBtn.onClick.AddListener(OnConfirmRestartNo);
-        var ntGo = new GameObject("Text");
-        ntGo.transform.SetParent(noGo.transform, false);
-        var ntRt = ntGo.AddComponent<RectTransform>();
-        ntRt.anchorMin = Vector2.zero;
-        ntRt.anchorMax = Vector2.one;
-        var ntText = ntGo.AddComponent<Text>();
-        ntText.font = _font;
-        ntText.fontSize = 15;
+        var ntText = MakeLabel(noGo.transform, "Text", Vector2.zero, Vector2.zero, "キャンセル", 15, Color.white);
         ntText.fontStyle = FontStyle.Bold;
         ntText.alignment = TextAnchor.MiddleCenter;
-        ntText.color = Color.white;
-        ntText.text = "キャンセル";
 
         _confirmModalRoot.SetActive(false);
     }
 
+    void CreateReturnTitleConfirmModal(Transform canvasRoot)
+    {
+        _returnTitleConfirmModal = new GameObject("ReturnTitleConfirmModal");
+        _returnTitleConfirmModal.transform.SetParent(canvasRoot, false);
+        var mRt = _returnTitleConfirmModal.AddComponent<RectTransform>();
+        mRt.anchorMin = Vector2.zero;
+        mRt.anchorMax = Vector2.one;
+        mRt.offsetMin = Vector2.zero;
+        mRt.offsetMax = Vector2.zero;
+
+        var mBg = _returnTitleConfirmModal.AddComponent<Image>();
+        mBg.color = new Color(0f, 0f, 0f, 0.85f);
+
+        var cardGo = new GameObject("ConfirmCard");
+        cardGo.transform.SetParent(_returnTitleConfirmModal.transform, false);
+        var cRt = cardGo.AddComponent<RectTransform>();
+        cRt.anchorMin = new Vector2(0.5f, 0.5f);
+        cRt.anchorMax = new Vector2(0.5f, 0.5f);
+        cRt.pivot = new Vector2(0.5f, 0.5f);
+        cRt.sizeDelta = new Vector2(520f, 260f);
+        cRt.anchoredPosition = Vector2.zero;
+
+        var cBg = cardGo.AddComponent<Image>();
+        cBg.color = new Color(0.04f, 0.07f, 0.12f, 0.98f);
+        var cOutline = cardGo.AddComponent<Outline>();
+        cOutline.effectColor = new Color(0.35f, 0.75f, 1f, 0.8f);
+        cOutline.effectDistance = new Vector2(2f, -2f);
+
+        var tText = MakeLabel(cardGo.transform, "Title", new Vector2(0f, -24f), new Vector2(480f, 32f), "✦ タイトル画面へ戻る", 20, new Color(0.45f, 0.90f, 1f, 1f));
+        tText.fontStyle = FontStyle.Bold;
+        tText.alignment = TextAnchor.MiddleCenter;
+
+        var dText = MakeLabel(cardGo.transform, "Desc", new Vector2(0f, -68f), new Vector2(440f, 75f),
+            "現在の冒険の進行状況をオートセーブして\nタイトル画面へ戻ります。\nよろしいですか？", 14, new Color(0.92f, 0.95f, 1f, 0.95f));
+        dText.lineSpacing = 1.35f;
+        dText.alignment = TextAnchor.MiddleCenter;
+
+        // はい
+        var yesGo = new GameObject("YesButton");
+        yesGo.transform.SetParent(cardGo.transform, false);
+        var yRt = yesGo.AddComponent<RectTransform>();
+        yRt.anchorMin = new Vector2(0.1f, 0f);
+        yRt.anchorMax = new Vector2(0.48f, 0f);
+        yRt.pivot = new Vector2(0.5f, 0f);
+        yRt.anchoredPosition = new Vector2(0f, 22f);
+        yRt.sizeDelta = new Vector2(0f, 44f);
+        var yImg = yesGo.AddComponent<Image>();
+        yImg.color = new Color(0.15f, 0.55f, 0.75f, 1f);
+        var yBtn = yesGo.AddComponent<Button>();
+        yBtn.onClick.AddListener(OnConfirmReturnTitleYes);
+        var ytText = MakeLabel(yesGo.transform, "Text", Vector2.zero, Vector2.zero, "はい、保存して戻る", 15, Color.white);
+        ytText.fontStyle = FontStyle.Bold;
+        ytText.alignment = TextAnchor.MiddleCenter;
+
+        // キャンセル
+        var noGo = new GameObject("NoButton");
+        noGo.transform.SetParent(cardGo.transform, false);
+        var nRt = noGo.AddComponent<RectTransform>();
+        nRt.anchorMin = new Vector2(0.52f, 0f);
+        nRt.anchorMax = new Vector2(0.9f, 0f);
+        nRt.pivot = new Vector2(0.5f, 0f);
+        nRt.anchoredPosition = new Vector2(0f, 22f);
+        nRt.sizeDelta = new Vector2(0f, 44f);
+        var nImg = noGo.AddComponent<Image>();
+        nImg.color = new Color(0.2f, 0.3f, 0.45f, 1f);
+        var nBtn = noGo.AddComponent<Button>();
+        nBtn.onClick.AddListener(OnConfirmReturnTitleNo);
+        var ntText = MakeLabel(noGo.transform, "Text", Vector2.zero, Vector2.zero, "キャンセル", 15, Color.white);
+        ntText.fontStyle = FontStyle.Bold;
+        ntText.alignment = TextAnchor.MiddleCenter;
+
+        _returnTitleConfirmModal.SetActive(false);
+    }
+
+    Text MakeLabel(Transform parent, string name, Vector2 pos, Vector2 size, string textStr, int fontSize, Color col)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0f, 1f);
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = size;
+
+        var t = go.AddComponent<Text>();
+        t.font = _font;
+        t.fontSize = fontSize;
+        t.color = col;
+        t.text = textStr;
+        t.raycastTarget = false;
+        return t;
+    }
+
     Font ResolveFont()
     {
+        string[] candidates =
+        {
+            "Hiragino Sans",
+            "Hiragino Kaku Gothic ProN",
+            "Hiragino Sans GB",
+            "YuGothic",
+            "Apple SD Gothic Neo",
+            "Noto Sans CJK JP",
+            "Arial Unicode MS"
+        };
+        foreach (string name in candidates)
+        {
+            try
+            {
+                Font os = Font.CreateDynamicFontFromOSFont(name, 20);
+                if (os != null)
+                    return os;
+            }
+            catch { }
+        }
+
         var f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (f != null) return f;
-        f = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        if (f != null) return f;
-        return Font.CreateDynamicFontFromOSFont("Hiragino Sans", 14);
+        return Resources.GetBuiltinResource<Font>("Arial.ttf");
     }
 }

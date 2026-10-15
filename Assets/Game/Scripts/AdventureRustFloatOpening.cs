@@ -2,10 +2,12 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using System.Collections;
+using System.IO;
 
 /// <summary>
-/// 『Rust & Float』専用の2050年世界観オープニング＆スタートモーダル
-/// スタート前に時代背景説明ボードを表示し、【Play】ボタンクリックで冒険を開始する
+/// 『Rust & Float』本格タイトル画面（Title Menu）＆ プロローグシステム。
+/// 【つづきから】【はじめから】【設定】【終了】を備えた製品クオリティのメインメニューを提供し、
+/// セーブデータの状況に応じてスムーズにゲームプレイへ突入する。
 /// </summary>
 public class AdventureRustFloatOpening : MonoBehaviour
 {
@@ -42,9 +44,20 @@ public class AdventureRustFloatOpening : MonoBehaviour
     GameObject _modalBoard;
     CanvasGroup _modalCg;
     Text _guideText;
-    Button _playButton;
-    RectTransform _playBtnRt;
-    Image _playBtnImg;
+
+    // メインメニューボタン群
+    Button _continueBtn;
+    Text _continueBtnLabel;
+    Text _continueSubText;
+    Image _continueBtnImg;
+
+    Button _newGameBtn;
+    Button _settingsBtn;
+    Button _quitBtn;
+
+    // 新規開始時の上書き確認モーダル
+    GameObject _newGameConfirmModal;
+
     bool _isClosing = false;
     float _openTime = 0f;
     static float _inputGuardUntil = 0f;
@@ -95,8 +108,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         }
     }
 
-    /// <summary>F8／はじめから：時代背景ボードを再表示し、Play後にプロローグへ</summary>
-    public void ShowForNewGame()
+    /// <summary>タイトル画面を再表示（ポーズメニューやF8キーから呼ばれる）</summary>
+    public void ShowTitleScreen()
     {
         StopAllCoroutines();
         _isClosing = false;
@@ -105,24 +118,31 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_canvasGo == null)
             BuildHud();
 
-        // ボードを先に出してから IsGameStarted=false（途中でゲーム開始扱いになる事故を防ぐ）
         if (_overlayGo != null) _overlayGo.SetActive(true);
         if (_modalBoard != null)
         {
             _modalBoard.SetActive(true);
             if (_modalCg != null) _modalCg.alpha = 1f;
         }
+        if (_newGameConfirmModal != null) _newGameConfirmModal.SetActive(false);
         if (_guideText != null) _guideText.gameObject.SetActive(false);
-        if (_playButton != null) _playButton.interactable = true;
 
-        // オープニング中は前面へ
+        // 前面へ
         var canvas = _canvasGo != null ? _canvasGo.GetComponent<Canvas>() : null;
         if (canvas != null) canvas.sortingOrder = 400;
 
         IsGameStarted = false;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-        Debug.Log("[RustAndFloat] 時代背景オープニングボードを再表示しました");
+
+        RefreshSaveDataStatus();
+        Debug.Log("[RustAndFloat] タイトル画面を表示しました");
+    }
+
+    /// <summary>F8／はじめから等の旧互換</summary>
+    public void ShowForNewGame()
+    {
+        ShowTitleScreen();
     }
 
     static bool ShouldSkipOpeningBoard() => AdventureStoryFlow.ShouldSkipOpening;
@@ -136,7 +156,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
             _isGameStarted = true;
             return;
         }
-        // 通常の新規起動のみ初期化（進行中の false 強制はしない）
+        // 通常の新規起動のみ初期化
         if (!_isGameStarted)
             _isGameStarted = false;
     }
@@ -146,11 +166,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         _openTime = Time.realtimeSinceStartup;
         BuildHud();
 
-        // 進行済み／エンディング中／パーツ取得済みならオープニングを出さない
-        var scrapMgr = FindAnyObjectByType<AdventureScrapManager>();
-        bool skip = ShouldSkipOpeningBoard()
-                    || (scrapMgr != null && scrapMgr.CollectedCount > 0)
-                    || IsGameStarted;
+        // エンディング進行中や既にゲーム開始済みの場合はスキップ
+        bool skip = ShouldSkipOpeningBoard() || IsGameStarted;
         if (skip)
         {
             if (_overlayGo != null) _overlayGo.SetActive(false);
@@ -162,9 +179,50 @@ public class AdventureRustFloatOpening : MonoBehaviour
             return;
         }
 
+        // タイトル画面のセーブ状況を更新して表示
+        RefreshSaveDataStatus();
+
         // スタート前はマウスカーソルを表示・アンロック
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+    }
+
+    void RefreshSaveDataStatus()
+    {
+        bool hasSave = AdventureSaveManager.HasSaveData;
+        var summary = hasSave ? AdventureSaveManager.GetSaveDataSummary() : null;
+
+        if (_continueBtn != null)
+        {
+            _continueBtn.interactable = hasSave;
+        }
+
+        if (_continueBtnImg != null)
+        {
+            _continueBtnImg.color = hasSave
+                ? new Color(0.12f, 0.58f, 0.72f, 0.96f)
+                : new Color(0.10f, 0.16f, 0.22f, 0.60f);
+        }
+
+        if (_continueBtnLabel != null)
+        {
+            _continueBtnLabel.color = hasSave ? Color.white : new Color(0.6f, 0.7f, 0.8f, 0.5f);
+            _continueBtnLabel.text = hasSave ? "▶  つづきから（Continue）" : "つづきから（記録なし）";
+        }
+
+        if (_continueSubText != null)
+        {
+            if (hasSave && summary != null)
+            {
+                _continueSubText.text = $"✦ パーツ: {summary.collectedCount}/3個　油: {summary.oilCount}　保存: {summary.saveTime}";
+                _continueSubText.color = new Color(0.45f, 0.95f, 0.85f, 0.95f);
+            }
+            else
+            {
+                _continueSubText.text = "※ セーブデータは見つかりませんでした";
+                _continueSubText.color = new Color(0.6f, 0.7f, 0.8f, 0.5f);
+            }
+        }
     }
 
     void Update()
@@ -176,18 +234,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
             return;
         }
 
-        // セーブ継続／パーツ取得済みなのにボードが残っていたら強制閉じ
-        if (!IsGameStarted)
-        {
-            var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
-            if (scrapMgr != null && scrapMgr.CollectedCount > 0)
-            {
-                DismissBecauseContinuingSave();
-                return;
-            }
-        }
-
-        // 閉じかけで止まった場合の救済（コルーチン中断対策）
+        // 閉じかけで止まった場合の救済
         if (_isClosing && !IsGameStarted)
         {
             ForceDismissForGameplay();
@@ -199,68 +246,113 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (IsGameStarted || _isClosing)
             return;
 
-        // 起動直後（0.3秒間）はエディタのPlayクリックの余韻による即時誤爆を防止
+        // 起動直後（0.3秒間）は誤爆防止
         if (Time.realtimeSinceStartup - _openTime < 0.3f)
             return;
 
-        // スタート前は常にカーソルを表示（じっくり読める状態を維持）
+        // スタート前は常にカーソルを表示
         if (Cursor.lockState != CursorLockMode.None)
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
 
-        // キーボード・ゲームパッド・クリック操作検知（AdventureInputReader 統合）
-        bool triggerPlay = false;
-
-        // WASD/矢印キー移動、または決定キー（E, Space, Enter, Escape）
-        if (AdventureInputReader.HasAnyMove 
-            || AdventureInputReader.InteractDown 
-            || AdventureInputReader.SpaceOrJDown 
-            || AdventureInputReader.DialogAdvanceDown 
-            || AdventureInputReader.EscapeDown)
+        // タイトル画面で ESC を押した場合は設定画面を開く
+        if (AdventureInputReader.EscapeDown)
         {
-            triggerPlay = true;
-        }
-
-        // ゲームパッドでの操作
-        var pad = Gamepad.current;
-        if (pad != null)
-        {
-            if (pad.leftStick.ReadValue().sqrMagnitude > 0.2f 
-                || pad.buttonSouth.wasPressedThisFrame 
-                || pad.startButton.wasPressedThisFrame)
+            if (_newGameConfirmModal != null && _newGameConfirmModal.activeSelf)
             {
-                triggerPlay = true;
+                _newGameConfirmModal.SetActive(false);
+            }
+            else if (!AdventurePauseMenu.IsOpen)
+            {
+                OnSettingsClicked();
             }
         }
-
-        if (triggerPlay)
-        {
-            OnPlayButtonClicked();
-        }
     }
 
-    public void OnPlayButtonClicked()
+    public void OnContinueClicked()
     {
-        if (IsGameStarted)
-            return;
-        if (_isClosing)
+        if (IsGameStarted || _isClosing) return;
+
+        // セーブデータをロードしてゲーム開始
+        if (AdventureSaveManager.Instance != null)
         {
-            // 閉じ途中で止まった場合でも確実に完了させる
-            ForceDismissForGameplay();
-            AdventurePrologueDrama.Ensure();
-            AdventurePrologueDrama.Instance?.BeginAfterOpening();
+            AdventureSaveManager.Instance.TryLoadGame();
+        }
+
+        StartGameTransition(isNewGame: false);
+    }
+
+    public void OnNewGameClicked()
+    {
+        if (IsGameStarted || _isClosing) return;
+
+        // セーブデータが既に存在する場合は確認モーダルを挟む
+        if (AdventureSaveManager.HasSaveData)
+        {
+            if (_newGameConfirmModal != null)
+            {
+                _newGameConfirmModal.SetActive(true);
+            }
             return;
         }
 
-        _isClosing = true;
-        // PLAYボタン押下・決定キーのゲーム内誤爆（ジャンプや滑空）を確実に防ぐ入力ガードを設定
-        _inputGuardUntil = Time.unscaledTime + 0.85f;
-        StartCoroutine(StartGameRoutine());
+        // セーブデータがない場合は直接新規開始
+        StartNewGameDirectly();
     }
 
-    IEnumerator StartGameRoutine()
+    void OnConfirmNewGameYes()
+    {
+        if (_newGameConfirmModal != null)
+            _newGameConfirmModal.SetActive(false);
+
+        StartNewGameDirectly();
+    }
+
+    void OnConfirmNewGameNo()
+    {
+        if (_newGameConfirmModal != null)
+            _newGameConfirmModal.SetActive(false);
+    }
+
+    void StartNewGameDirectly()
+    {
+        // 全進行状況をリセットして初期化
+        if (AdventureSaveManager.Instance != null)
+        {
+            AdventureSaveManager.Instance.ResetToNewGame();
+        }
+
+        StartGameTransition(isNewGame: true);
+    }
+
+    public void OnSettingsClicked()
+    {
+        AdventurePauseMenu.Ensure();
+        if (AdventurePauseMenu.Instance != null)
+        {
+            AdventurePauseMenu.Instance.OpenSettingsFromTitle();
+        }
+    }
+
+    public void OnQuitClicked()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
+    void StartGameTransition(bool isNewGame)
+    {
+        _isClosing = true;
+        _inputGuardUntil = Time.unscaledTime + 0.85f;
+        StartCoroutine(StartGameRoutine(isNewGame));
+    }
+
+    IEnumerator StartGameRoutine(bool isNewGame)
     {
         float t = 0f;
         while (t < 0.35f)
@@ -280,12 +372,11 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         IsGameStarted = true;
         _isClosing = false;
-        // ボード完全消去後もさらに0.4秒間入力ガードを維持（クリックやSpaceキーの余韻による誤爆ジャンプを完全防止）
         _inputGuardUntil = Mathf.Max(_inputGuardUntil, Time.unscaledTime + 0.40f);
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        // ゲーム開始時にカメラ視線を自然な標準見下ろし（WalkPitch）へリセット
+        // カメラ視線を自然な標準見下ろしへリセット
         var camFollow = AdventureCameraFollow.InstanceOrFind();
         if (camFollow != null)
         {
@@ -294,20 +385,23 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         if (_guideText != null)
         {
-            _guideText.text = "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【B】ドレスアップ工房";
+            _guideText.text = "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【ESC】設定";
             _guideText.gameObject.SetActive(true);
         }
 
-        AdventurePrologueDrama.Ensure();
-        var prologue = AdventurePrologueDrama.Instance;
-        if (prologue != null)
+        if (isNewGame)
         {
-            prologue.BeginAfterOpening();
-            AdventureStoryFlow.InvalidateCache();
-            if (!prologue.IsPrologueActive)
+            AdventurePrologueDrama.Ensure();
+            var prologue = AdventurePrologueDrama.Instance;
+            if (prologue != null)
             {
-                var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
-                drone?.PlayStartupGreeting();
+                prologue.BeginAfterOpening();
+                AdventureStoryFlow.InvalidateCache();
+                if (!prologue.IsPrologueActive)
+                {
+                    var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
+                    drone?.PlayStartupGreeting();
+                }
             }
         }
         else
@@ -323,7 +417,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_guideText == null) return;
         _guideText.text = isGliding
             ? "【A / D】旋回　【W】ダイブ　【S】フレア　【Space長押し】滑空"
-            : "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【B】ドレスアップ工房";
+            : "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【ESC】設定";
     }
 
     void BuildHud()
@@ -331,14 +425,14 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_canvasGo != null)
             return;
 
-        // 孤児化した旧HUDがあれば掃除（再コンパイル／二重生成対策）
+        // 孤児化した旧HUDがあれば掃除
         foreach (var orphanCanvas in FindObjectsByType<Canvas>(FindObjectsInactive.Include))
         {
             if (orphanCanvas != null && orphanCanvas.gameObject.name == "RustFloatHUD")
                 Destroy(orphanCanvas.gameObject);
         }
 
-        // EventSystemの自動確保（シーンにEventSystemがない場合でもuGUIボタンと入力モジュールを確実に動作させる）
+        // EventSystemの自動確保
         if (FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
         {
             var esGo = new GameObject("EventSystem");
@@ -363,7 +457,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         // 1. 画面最上部中央の水平リボンコンパスHUD
         AdventureCompassHUD.Create(_canvasGo.transform, font);
 
-        // 2. 上部中央の操作ガイド（コンパス・パーツナビと一切被らないよう y=-86f にゆったり配置）
+        // 2. 上部中央の操作ガイド
         _guideText = MakeText(_canvasGo.transform, "Guide", Vector2.zero, new Vector2(0.5f, 1f), new Vector2(980f, 32f), 13, TextAnchor.UpperCenter, font);
         var guideRt = _guideText.rectTransform;
         guideRt.anchorMin = new Vector2(0.5f, 1f);
@@ -379,7 +473,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         guideOutline.effectDistance = new Vector2(1f, -1f);
         _guideText.gameObject.SetActive(false);
 
-        // 3. 全画面のアンビエントオーバーレイ（暗転させず、背景の明るいビーチ・青空の陽光をそのまま活かす）
+        // 3. 全画面のアンビエントオーバーレイ（暗転させず背景の自然光を活かす）
         _overlayGo = new GameObject("OpeningOverlay");
         _overlayGo.transform.SetParent(_canvasGo.transform, false);
         var overlayRt = _overlayGo.AddComponent<RectTransform>();
@@ -387,10 +481,10 @@ public class AdventureRustFloatOpening : MonoBehaviour
         overlayRt.anchorMax = Vector2.one;
         overlayRt.sizeDelta = Vector2.zero;
         var overlayImg = _overlayGo.AddComponent<Image>();
-        overlayImg.color = new Color(0f, 0f, 0f, 0f); // 暗転ベールを排除し、待機中も世界を明るく見せる
+        overlayImg.color = new Color(0.02f, 0.05f, 0.09f, 0.45f); // 落ち着いた微細なビネット
         overlayImg.raycastTarget = false;
 
-        // 4. 中央の時代背景説明ボード（爽やかなシースルーグラスモーフィズム：背後の海と光が透けて明るい）
+        // 4. メインタイトルボード（洗練されたグラスモーフィズムカード: 幅860, 高さ540）
         _modalBoard = new GameObject("StoryModalBoard");
         _modalBoard.transform.SetParent(_overlayGo.transform, false);
         _modalCg = _modalBoard.AddComponent<CanvasGroup>();
@@ -399,18 +493,18 @@ public class AdventureRustFloatOpening : MonoBehaviour
         boardRt.anchorMin = new Vector2(0.5f, 0.5f);
         boardRt.anchorMax = new Vector2(0.5f, 0.5f);
         boardRt.pivot = new Vector2(0.5f, 0.5f);
-        boardRt.anchoredPosition = new Vector2(0f, 6f);
-        boardRt.sizeDelta = new Vector2(740f, 560f); // 縦幅・横幅をゆったり拡張し、本文・ボタン・操作説明の余白を完璧に確保
+        boardRt.anchoredPosition = new Vector2(0f, 0f);
+        boardRt.sizeDelta = new Vector2(860f, 540f);
 
-        // ボード背景（透明感のあるマリンブルーグラス・背後の陽光が美しく透ける）
+        // ボード背景
         var boardImg = _modalBoard.AddComponent<Image>();
-        boardImg.color = new Color(0.03f, 0.09f, 0.16f, 0.58f);
+        boardImg.color = new Color(0.025f, 0.065f, 0.12f, 0.88f);
         boardImg.raycastTarget = false;
 
-        // 外枠線アウトライン（繊細なガラスの光彩エッジ）
+        // 外枠線アウトライン（サイバーエメラルド光彩）
         var boardOutline = _modalBoard.AddComponent<Outline>();
-        boardOutline.effectColor = new Color(0.35f, 0.90f, 1.0f, 0.60f);
-        boardOutline.effectDistance = new Vector2(1.5f, -1.5f);
+        boardOutline.effectColor = new Color(0.35f, 0.85f, 1.0f, 0.65f);
+        boardOutline.effectDistance = new Vector2(2f, -2f);
 
         // 上部アクセントバー
         var accentGo = new GameObject("AccentLine");
@@ -420,81 +514,243 @@ public class AdventureRustFloatOpening : MonoBehaviour
         accentRt.anchorMax = new Vector2(1f, 1f);
         accentRt.pivot = new Vector2(0.5f, 1f);
         accentRt.anchoredPosition = Vector2.zero;
-        accentRt.sizeDelta = new Vector2(0f, 2.5f);
+        accentRt.sizeDelta = new Vector2(0f, 3.5f);
         var accentImg = accentGo.AddComponent<Image>();
-        accentImg.color = new Color(0.30f, 0.95f, 0.88f, 0.85f);
+        accentImg.color = new Color(0.35f, 0.95f, 0.85f, 1f);
         accentImg.raycastTarget = false;
 
-        // タイトル（大きく鮮やかに）
-        var titleText = MakeText(_modalBoard.transform, "Title", new Vector2(0f, -22f), new Vector2(0.5f, 1f), new Vector2(700f, 32f), 23, TextAnchor.MiddleCenter, font);
+        // タイトルヘッダー
+        var titleText = MakeText(_modalBoard.transform, "Title", new Vector2(0f, -20f), new Vector2(0.5f, 1f), new Vector2(800f, 40f), 28, TextAnchor.MiddleCenter, font);
         titleText.fontStyle = FontStyle.Bold;
-        titleText.color = new Color(0.40f, 0.96f, 1.0f, 1f);
+        titleText.color = new Color(1.0f, 0.90f, 0.45f, 1f);
         var titleOutline = titleText.gameObject.AddComponent<Outline>();
-        titleOutline.effectColor = new Color(0f, 0f, 0f, 0.8f);
-        titleOutline.effectDistance = new Vector2(1f, -1f);
+        titleOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
+        titleOutline.effectDistance = new Vector2(1.5f, -1.5f);
+        titleText.text = TitleText;
 
         // サブタイトル
-        var subText = MakeText(_modalBoard.transform, "SubTitle", new Vector2(0f, -56f), new Vector2(0.5f, 1f), new Vector2(700f, 20f), 13, TextAnchor.MiddleCenter, font);
-        subText.color = new Color(0.85f, 0.90f, 0.95f, 0.85f);
-        titleText.text = TitleText;
+        var subText = MakeText(_modalBoard.transform, "SubTitle", new Vector2(0f, -58f), new Vector2(0.5f, 1f), new Vector2(800f, 22f), 14, TextAnchor.MiddleCenter, font);
+        subText.color = new Color(0.50f, 0.90f, 1.0f, 0.95f);
+        subText.fontStyle = FontStyle.Bold;
         subText.text = SubTitleText;
 
-        // 本文（15pt 太字 ＋ 黒アウトラインフチ取り。横幅680px・行間1.30fで縦長さを抑え、PLAYボタンとの間に130px以上の広大な余白を確保）
-        var bodyText = MakeText(_modalBoard.transform, "StoryBody", new Vector2(0f, -86f), new Vector2(0.5f, 1f), new Vector2(680f, 240f), 15, TextAnchor.UpperLeft, font);
-        bodyText.fontStyle = FontStyle.Bold; // 太字で視認性抜群
-        bodyText.lineSpacing = 1.30f;
-        bodyText.color = Color.white; // 純白
-        var bodyOutline = bodyText.gameObject.AddComponent<Outline>();
-        bodyOutline.effectColor = new Color(0f, 0f, 0f, 0.85f); // 黒フチ取りで背景に一切埋もれない
+        // 2カラムレイアウト（左: 世界観カード, 右: メニューボタン）
+        var contentGo = new GameObject("ContentColumns");
+        contentGo.transform.SetParent(_modalBoard.transform, false);
+        var contentRt = contentGo.AddComponent<RectTransform>();
+        contentRt.anchorMin = Vector2.zero;
+        contentRt.anchorMax = Vector2.one;
+        contentRt.offsetMin = new Vector2(25f, 35f);
+        contentRt.offsetMax = new Vector2(-25f, -88f);
+
+        CreateLeftStoryCard(contentGo.transform, font);
+        CreateRightMenuCard(contentGo.transform, font);
+
+        // フッター情報（バージョン ＆ 操作ガイド）
+        var footLeft = MakeText(_modalBoard.transform, "FootLeft", new Vector2(30f, 12f), new Vector2(0f, 0f), new Vector2(400f, 20f), 12, TextAnchor.LowerLeft, font);
+        footLeft.color = new Color(0.65f, 0.78f, 0.90f, 0.75f);
+        footLeft.text = "【マウス】選択　【ESC】設定";
+
+        var footRight = MakeText(_modalBoard.transform, "FootRight", new Vector2(-30f, 12f), new Vector2(1f, 0f), new Vector2(400f, 20f), 12, TextAnchor.LowerRight, font);
+        footRight.color = new Color(0.50f, 0.75f, 0.85f, 0.75f);
+        footRight.text = "✦ Rust & Float Project  v1.0.0";
+
+        // New Game 確認モーダル
+        CreateNewGameConfirmModal(_canvasGo.transform, font);
+    }
+
+    void CreateLeftStoryCard(Transform parent, Font font)
+    {
+        var cardGo = new GameObject("LeftStoryCard");
+        cardGo.transform.SetParent(parent, false);
+        var cRt = cardGo.AddComponent<RectTransform>();
+        cRt.anchorMin = new Vector2(0f, 0f);
+        cRt.anchorMax = new Vector2(0.48f, 1f);
+        cRt.offsetMin = Vector2.zero;
+        cRt.offsetMax = Vector2.zero;
+
+        var cBg = cardGo.AddComponent<Image>();
+        cBg.color = new Color(0.015f, 0.04f, 0.08f, 0.70f);
+
+        var cOutline = cardGo.AddComponent<Outline>();
+        cOutline.effectColor = new Color(0.20f, 0.50f, 0.75f, 0.35f);
+        cOutline.effectDistance = new Vector2(1f, -1f);
+
+        var header = MakeText(cardGo.transform, "StoryHeader", new Vector2(18f, -16f), new Vector2(0f, 1f), new Vector2(360f, 24f), 14, TextAnchor.UpperLeft, font);
+        header.fontStyle = FontStyle.Bold;
+        header.color = new Color(0.40f, 0.88f, 1.0f, 1f);
+        header.text = "📜 時代背景と物語";
+
+        var body = MakeText(cardGo.transform, "StoryBody", new Vector2(18f, -48f), new Vector2(0f, 1f), new Vector2(350f, 320f), 13, TextAnchor.UpperLeft, font);
+        body.fontStyle = FontStyle.Bold;
+        body.lineSpacing = 1.35f;
+        body.color = new Color(0.95f, 0.97f, 1.0f, 0.95f);
+        var bodyOutline = body.gameObject.AddComponent<Outline>();
+        bodyOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
         bodyOutline.effectDistance = new Vector2(1f, -1f);
-        bodyText.text = StoryText;
+        body.text = StoryText;
+    }
 
-        // 5. 【▶ PLAY】ボタン（文章の下・ボード最下部にゆったり配置、文章と絶対に重ならない）
-        var btnGo = new GameObject("PlayButton");
-        btnGo.transform.SetParent(_modalBoard.transform, false);
-        _playBtnRt = btnGo.AddComponent<RectTransform>();
-        _playBtnRt.anchorMin = new Vector2(0.5f, 0f);
-        _playBtnRt.anchorMax = new Vector2(0.5f, 0f);
-        _playBtnRt.pivot = new Vector2(0.5f, 0f);
-        _playBtnRt.anchoredPosition = new Vector2(0f, 68f); // ボード下端から68px上に配置し、操作ヒントとの間隔も20px確保
-        _playBtnRt.sizeDelta = new Vector2(210f, 48f);
+    void CreateRightMenuCard(Transform parent, Font font)
+    {
+        var cardGo = new GameObject("RightMenuCard");
+        cardGo.transform.SetParent(parent, false);
+        var cRt = cardGo.AddComponent<RectTransform>();
+        cRt.anchorMin = new Vector2(0.52f, 0f);
+        cRt.anchorMax = new Vector2(1f, 1f);
+        cRt.offsetMin = Vector2.zero;
+        cRt.offsetMax = Vector2.zero;
 
-        _playBtnImg = btnGo.AddComponent<Image>();
-        _playBtnImg.color = new Color(0.10f, 0.55f, 0.68f, 0.96f); // 高不透明度シアンガラスで背後文字を完全遮断
-        _playBtnImg.raycastTarget = true; // ボタン自身のみレイキャストを受け取る
+        var cBg = cardGo.AddComponent<Image>();
+        cBg.color = new Color(0.015f, 0.04f, 0.08f, 0.70f);
 
-        var btnOutline = btnGo.AddComponent<Outline>();
-        btnOutline.effectColor = new Color(0.40f, 0.95f, 1.0f, 0.80f); // 鮮明なシアン光彩エッジ
-        btnOutline.effectDistance = new Vector2(1.5f, -1.5f);
+        var cOutline = cardGo.AddComponent<Outline>();
+        cOutline.effectColor = new Color(0.20f, 0.50f, 0.75f, 0.35f);
+        cOutline.effectDistance = new Vector2(1f, -1f);
 
-        _playButton = btnGo.AddComponent<Button>();
-        var colors = _playButton.colors;
-        colors.normalColor = new Color(0.10f, 0.55f, 0.68f, 0.96f);
-        colors.highlightedColor = new Color(0.20f, 0.88f, 0.98f, 1.0f);
-        colors.pressedColor = new Color(0.08f, 0.45f, 0.55f, 1.0f);
-        colors.selectedColor = colors.highlightedColor;
-        _playButton.colors = colors;
-        _playButton.onClick.AddListener(OnPlayButtonClicked);
+        var header = MakeText(cardGo.transform, "MenuHeader", new Vector2(18f, -16f), new Vector2(0f, 1f), new Vector2(360f, 24f), 14, TextAnchor.UpperLeft, font);
+        header.fontStyle = FontStyle.Bold;
+        header.color = new Color(0.40f, 0.88f, 1.0f, 1f);
+        header.text = "✦ メインメニュー";
 
-        // ボタン内ラベル
-        var btnLabel = MakeText(btnGo.transform, "BtnLabel", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(210f, 48f), 16, TextAnchor.MiddleCenter, font);
-        btnLabel.fontStyle = FontStyle.Bold;
-        btnLabel.color = Color.white;
-        var btnLabelOutline = btnLabel.gameObject.AddComponent<Outline>();
-        btnLabelOutline.effectColor = new Color(0f, 0f, 0f, 0.80f);
-        btnLabelOutline.effectDistance = new Vector2(1f, -1f);
-        btnLabel.text = "▶  PLAY";
-        btnLabel.raycastTarget = false; // ラベルがクリック判定を遮らない
+        float btnW = 340f;
+        float startY = -52f;
 
-        // ボタン下の補助テキスト（13pt 太字 ＋ 黒アウトラインでくっきり視認）
-        var hintText = MakeText(_modalBoard.transform, "PlayHint", new Vector2(0f, 22f), new Vector2(0.5f, 0f), new Vector2(700f, 26f), 13, TextAnchor.MiddleCenter, font);
-        hintText.fontStyle = FontStyle.Bold;
-        hintText.color = new Color(0.92f, 0.96f, 1.0f, 0.95f);
-        var hintOutline = hintText.gameObject.AddComponent<Outline>();
-        hintOutline.effectColor = new Color(0f, 0f, 0f, 0.90f);
-        hintOutline.effectDistance = new Vector2(1f, -1f);
-        hintText.text = "【PLAYボタン】または【Space / Enter】で開始　（WASDでもそのまま歩き出せます）";
-        hintText.raycastTarget = false;
+        // 1. 【つづきから（Continue）】
+        _continueBtn = CreateMenuButton(cardGo.transform, "ContinueBtn", new Vector2(0f, startY), new Vector2(btnW, 56f),
+            new Color(0.12f, 0.58f, 0.72f, 0.96f), new Color(0.25f, 0.85f, 0.98f, 1f),
+            "▶  つづきから（Continue）", 16, OnContinueClicked, font, out _continueBtnImg, out _continueBtnLabel);
+
+        // つづきから サブ情報テキスト
+        _continueSubText = MakeText(_continueBtn.transform, "ContinueSub", new Vector2(0f, 8f), new Vector2(0.5f, 0f), new Vector2(btnW - 20f, 18f), 11, TextAnchor.MiddleCenter, font);
+        _continueSubText.color = new Color(0.45f, 0.95f, 0.85f, 0.95f);
+
+        // ラベル位置を少し上へ
+        if (_continueBtnLabel != null)
+        {
+            var lRt = _continueBtnLabel.rectTransform;
+            lRt.anchoredPosition = new Vector2(0f, 8f);
+        }
+
+        // 2. 【はじめから（New Game）】
+        _newGameBtn = CreateMenuButton(cardGo.transform, "NewGameBtn", new Vector2(0f, startY - 72f), new Vector2(btnW, 48f),
+            new Color(0.15f, 0.60f, 0.52f, 0.96f), new Color(0.25f, 0.85f, 0.75f, 1f),
+            "✦  はじめから（New Game）", 16, OnNewGameClicked, font, out _, out _);
+
+        // 3. 【設定（Settings）】
+        _settingsBtn = CreateMenuButton(cardGo.transform, "SettingsBtn", new Vector2(0f, startY - 138f), new Vector2(btnW, 46f),
+            new Color(0.18f, 0.32f, 0.50f, 0.96f), new Color(0.30f, 0.52f, 0.75f, 1f),
+            "⚙  環境設定（Settings）", 15, OnSettingsClicked, font, out _, out _);
+
+        // 4. 【ゲーム終了（Quit）】
+        _quitBtn = CreateMenuButton(cardGo.transform, "QuitBtn", new Vector2(0f, startY - 200f), new Vector2(btnW, 44f),
+            new Color(0.38f, 0.16f, 0.18f, 0.95f), new Color(0.60f, 0.22f, 0.25f, 1f),
+            "✖  ゲーム終了（Quit）", 14, OnQuitClicked, font, out _, out _);
+    }
+
+    Button CreateMenuButton(Transform parent, string name, Vector2 pos, Vector2 size, Color normalCol, Color highlightCol,
+        string label, int fontSize, UnityEngine.Events.UnityAction onClick, Font font, out Image outImg, out Text outLabel)
+    {
+        var btnGo = new GameObject(name);
+        btnGo.transform.SetParent(parent, false);
+        var bRt = btnGo.AddComponent<RectTransform>();
+        bRt.anchorMin = new Vector2(0.5f, 1f);
+        bRt.anchorMax = new Vector2(0.5f, 1f);
+        bRt.pivot = new Vector2(0.5f, 1f);
+        bRt.anchoredPosition = pos;
+        bRt.sizeDelta = size;
+
+        outImg = btnGo.AddComponent<Image>();
+        outImg.color = normalCol;
+        outImg.raycastTarget = true;
+
+        var outline = btnGo.AddComponent<Outline>();
+        outline.effectColor = new Color(highlightCol.r, highlightCol.g, highlightCol.b, 0.65f);
+        outline.effectDistance = new Vector2(1.5f, -1.5f);
+
+        var btn = btnGo.AddComponent<Button>();
+        var colors = btn.colors;
+        colors.normalColor = normalCol;
+        colors.highlightedColor = highlightCol;
+        colors.pressedColor = normalCol * 0.8f;
+        colors.disabledColor = new Color(0.1f, 0.15f, 0.2f, 0.5f);
+        btn.colors = colors;
+        btn.onClick.AddListener(onClick);
+
+        outLabel = MakeText(btnGo.transform, "Label", Vector2.zero, new Vector2(0.5f, 0.5f), size, fontSize, TextAnchor.MiddleCenter, font);
+        outLabel.fontStyle = FontStyle.Bold;
+        outLabel.color = Color.white;
+        var lOutline = outLabel.gameObject.AddComponent<Outline>();
+        lOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
+        lOutline.effectDistance = new Vector2(1f, -1f);
+        outLabel.text = label;
+
+        return btn;
+    }
+
+    void CreateNewGameConfirmModal(Transform parent, Font font)
+    {
+        _newGameConfirmModal = new GameObject("NewGameConfirmModal");
+        _newGameConfirmModal.transform.SetParent(parent, false);
+        var mRt = _newGameConfirmModal.AddComponent<RectTransform>();
+        mRt.anchorMin = Vector2.zero;
+        mRt.anchorMax = Vector2.one;
+        mRt.offsetMin = Vector2.zero;
+        mRt.offsetMax = Vector2.zero;
+
+        var mBg = _newGameConfirmModal.AddComponent<Image>();
+        mBg.color = new Color(0f, 0f, 0f, 0.85f);
+
+        // 中央カード
+        var cardGo = new GameObject("Card");
+        cardGo.transform.SetParent(_newGameConfirmModal.transform, false);
+        var cRt = cardGo.AddComponent<RectTransform>();
+        cRt.anchorMin = new Vector2(0.5f, 0.5f);
+        cRt.anchorMax = new Vector2(0.5f, 0.5f);
+        cRt.pivot = new Vector2(0.5f, 0.5f);
+        cRt.sizeDelta = new Vector2(520f, 260f);
+        cRt.anchoredPosition = Vector2.zero;
+
+        var cBg = cardGo.AddComponent<Image>();
+        cBg.color = new Color(0.04f, 0.08f, 0.14f, 0.98f);
+        var cOutline = cardGo.AddComponent<Outline>();
+        cOutline.effectColor = new Color(0.95f, 0.65f, 0.25f, 0.85f);
+        cOutline.effectDistance = new Vector2(2f, -2f);
+
+        // タイトル
+        var title = MakeText(cardGo.transform, "Title", new Vector2(0f, -24f), new Vector2(0.5f, 1f), new Vector2(480f, 32f), 20, TextAnchor.MiddleCenter, font);
+        title.fontStyle = FontStyle.Bold;
+        title.color = new Color(1f, 0.75f, 0.35f, 1f);
+        title.text = "⚠️ セーブデータの上書き確認";
+
+        // 説明文
+        var desc = MakeText(cardGo.transform, "Desc", new Vector2(0f, -68f), new Vector2(0.5f, 1f), new Vector2(440f, 80f), 14, TextAnchor.MiddleCenter, font);
+        desc.lineSpacing = 1.35f;
+        desc.color = new Color(0.95f, 0.95f, 1.0f, 0.95f);
+        desc.text = "これまでのセーブデータと収集記録をリセットし、\n最初から新しく冒険を開始します。\n本当によろしいですか？";
+
+        // ボタン領域
+        // 1. 「はい、新しくはじめる」
+        var yesBtn = CreateMenuButton(cardGo.transform, "YesBtn", new Vector2(-120f, 22f), new Vector2(210f, 44f),
+            new Color(0.75f, 0.25f, 0.20f, 1f), new Color(0.95f, 0.35f, 0.30f, 1f),
+            "はい、新しくはじめる", 15, OnConfirmNewGameYes, font, out _, out _);
+        var yRt = yesBtn.GetComponent<RectTransform>();
+        yRt.anchorMin = new Vector2(0.5f, 0f);
+        yRt.anchorMax = new Vector2(0.5f, 0f);
+        yRt.pivot = new Vector2(0.5f, 0f);
+        yRt.anchoredPosition = new Vector2(-115f, 22f);
+
+        // 2. 「キャンセル」
+        var cancelBtn = CreateMenuButton(cardGo.transform, "CancelBtn", new Vector2(120f, 22f), new Vector2(180f, 44f),
+            new Color(0.20f, 0.35f, 0.50f, 1f), new Color(0.30f, 0.50f, 0.70f, 1f),
+            "キャンセル", 15, OnConfirmNewGameNo, font, out _, out _);
+        var cBtnRt = cancelBtn.GetComponent<RectTransform>();
+        cBtnRt.anchorMin = new Vector2(0.5f, 0f);
+        cBtnRt.anchorMax = new Vector2(0.5f, 0f);
+        cBtnRt.pivot = new Vector2(0.5f, 0f);
+        cBtnRt.anchoredPosition = new Vector2(115f, 22f);
+
+        _newGameConfirmModal.SetActive(false);
     }
 
     static Text MakeText(Transform parent, string name, Vector2 pos, Vector2 anchor, Vector2 size, int fontSize, TextAnchor align, Font font)
@@ -514,7 +770,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         text.alignment = align;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Overflow;
-        text.raycastTarget = false; // テキストがボタンのクリックを遮らないようにする
+        text.raycastTarget = false;
         return text;
     }
 
@@ -541,9 +797,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
             catch { }
         }
 
-        Font builtin = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (builtin != null)
-            return builtin;
+        var f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (f != null) return f;
         return Resources.GetBuiltinResource<Font>("Arial.ttf");
     }
 }

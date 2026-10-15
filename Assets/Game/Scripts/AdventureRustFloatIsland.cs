@@ -38,5 +38,15 @@ public class AdventureRustFloatIsland : MonoBehaviour
             gameObject.AddComponent<AdventureRustFloatOpening>();
 
         AdventureWestSlopeFloraManager.Ensure();
+        EnsureAncientWindVent();
+    }
+
+    void EnsureAncientWindVent()
+    {
+        if (Object.FindAnyObjectByType<AdventureAncientWindVent>() == null)
+        {
+            var ventGo = new GameObject("AncientWindVent_WestCliff");
+            ventGo.AddComponent<AdventureAncientWindVent>();
+        }
     }
 }

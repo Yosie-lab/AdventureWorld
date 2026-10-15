@@ -59,7 +59,25 @@ public class AdventureSaveManager : MonoBehaviour
         public void SetPosition(Vector3 pos) => Position = pos;
     }
 
-    static string SaveFilePath => Path.Combine(Application.persistentDataPath, "rust_and_float_save.json");
+    public static string SaveFilePath => Path.Combine(Application.persistentDataPath, "rust_and_float_save.json");
+
+    /// <summary>セーブデータファイルが存在するか確認</summary>
+    public static bool HasSaveData => File.Exists(SaveFilePath);
+
+    /// <summary>セーブデータの概要情報を取得（存在しない場合はnull）</summary>
+    public static SaveData GetSaveDataSummary()
+    {
+        if (!File.Exists(SaveFilePath)) return null;
+        try
+        {
+            string json = File.ReadAllText(SaveFilePath);
+            return JsonUtility.FromJson<SaveData>(json);
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     // uGUI 通知バナー
     Canvas _canvas;

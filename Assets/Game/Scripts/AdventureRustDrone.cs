@@ -1552,6 +1552,10 @@ public partial class AdventureRustDrone : MonoBehaviour
             AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(player.transform.position))
             return;
 
+        // 風脈クリスタル近くでは E / クリックをクリスタル送電チャージに譲る（Rust手当てと取り合いにしない）
+        if (AdventureAncientWindVent.IsPlayerNearAnyVent(player.transform.position))
+            return;
+
         if (_isPlayerNear && ePressed && Time.time - _lastInteractTime > 0.35f)
         {
             _lastInteractTime = Time.time;
