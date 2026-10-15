@@ -17,6 +17,9 @@ public partial class AdventureSanctuaryTowerManager
 
     void TickScriptAdvanceInputRelease()
     {
+        // 第1幕中はレバー／Space 等の余韻で離し待ちを解除しない（即スキップ防止）
+        if (_canopyBeatIndex == 0)
+            return;
         if (_scriptRequireInputRelease && IsEndingAdvanceInputReleased())
             _scriptRequireInputRelease = false;
     }
@@ -34,7 +37,7 @@ public partial class AdventureSanctuaryTowerManager
     {
         if (!_scriptBoardVisible || _scriptBoardAdvance || _scriptRequireInputRelease)
             return false;
-        if (blockCanopyBeat0 && _canopyBeatIndex == 0)
+        if (_canopyBeatIndex == 0)
             return false;
         if (Time.unscaledTime - _scriptBoardOpenedAt < minShowSec)
             return false;

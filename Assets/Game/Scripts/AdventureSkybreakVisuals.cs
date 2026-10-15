@@ -47,6 +47,20 @@ public static class AdventureSkybreakVisuals
         }
     }
 
+    /// <summary>
+    /// 「ピピッ！……ありがとう、Float！」以降：天蓋の白い亀裂ライン（SkyCanopyLattice）と残留パーティクルを除去。
+    /// WildernessPanorama の解放空は別途 SpawnWildernessPanorama(false) で差し替える。
+    /// </summary>
+    public static void HidePersistentSkyTearCrack()
+    {
+        DestroyNamed("SkyTearOpening");
+        DestroyNamed("SkyTearFlashCanvas");
+        DestroyNamed("SkyTearMiniFlashCanvas");
+        DestroyNamed("SkyTearAftershockFlashCanvas");
+        DestroyNamed("SkybreakEffect");
+        Debug.Log("[RustAndFloat] 天空の白い割れ目ビジュアルを非表示（全出力セリフ〜）");
+    }
+
     public static void SpawnWildernessPanorama(bool coldCrisis)
     {
         DestroyNamed("WildernessPanorama");

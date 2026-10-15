@@ -120,6 +120,8 @@ public partial class AdventureSanctuaryTowerManager
             if (player != null)
                 player.ApplyGlideBoost(1.25f, 6f);
 
+            StopSkybreakAftershockLoop();
+            AdventureSkybreakVisuals.HidePersistentSkyTearCrack();
             SpawnWildernessPanorama(coldCrisis: false);
             SoftenSkybreakColdAtmosphere();
             // 「ありがとう、Float！」からは風の音を控えめ（0.45f -> 0.18f）に下げてBGMとセリフを引き立てる

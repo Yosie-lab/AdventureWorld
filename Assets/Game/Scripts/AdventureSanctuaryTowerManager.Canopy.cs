@@ -59,6 +59,12 @@ public partial class AdventureSanctuaryTowerManager
 
     void BeginCanopyScriptBeats()
     {
+        if (_canopyBeatIndex >= 0)
+        {
+            Debug.LogWarning("[RustAndFloat] 天蓋台本は既に進行中 — BeginCanopyScriptBeats をスキップ");
+            return;
+        }
+
         _suppressClimax = true;
         _climaxCrisisStarted = false;
         _endingSequenceActive = true;
@@ -110,6 +116,9 @@ public partial class AdventureSanctuaryTowerManager
 
         _canopyBeatIndex = 0;
         _skyTearPlayed = false;
+        _canopyBeat0TimerArmed = false;
+        _canopyBeat0VisibleStreak = 0;
+        _canopyBeat0LockUntil = float.PositiveInfinity;
         _scriptRequireInputRelease = true; // レバー引いた操作の余韻による即時スキップを完全防止
         PresentCanopyBeat(0);
         AdventureStoryFlow.InvalidateCache();
@@ -130,6 +139,12 @@ public partial class AdventureSanctuaryTowerManager
         _scriptBoardAdvance = false;
         _scriptBoardVisible = true;
         _scriptBoardOpenedAt = Time.unscaledTime;
+        if (index == 0)
+        {
+            _canopyBeat0TimerArmed = false;
+            _canopyBeat0VisibleStreak = 0;
+            _canopyBeat0LockUntil = float.PositiveInfinity;
+        }
         _scriptHoldTimer = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -179,6 +194,49 @@ public partial class AdventureSanctuaryTowerManager
         }
     }
 
+    bool IsCanopyBeat0SubtitleVisible()
+    {
+        if (!_scriptBoardVisible || _canopyBeatIndex != 0)
+            return false;
+        if (_letterboxRoot == null || !_letterboxRoot.activeSelf)
+            return false;
+        if (_letterboxCg != null && _letterboxCg.alpha < 0.35f)
+            return false;
+        if (_filmSubtitleUi == null || string.IsNullOrEmpty(_filmSubtitleUi.text))
+            return false;
+        return _filmSubtitleUi.color.a >= 0.35f;
+    }
+
+    void TryArmCanopyBeat0Timer()
+    {
+        if (_canopyBeatIndex != 0 || _canopyBeat0TimerArmed)
+            return;
+
+        if (!IsCanopyBeat0SubtitleVisible())
+        {
+            _canopyBeat0VisibleStreak = 0;
+            return;
+        }
+
+        _canopyBeat0VisibleStreak++;
+        if (_canopyBeat0VisibleStreak < 2)
+            return;
+
+        float autoSec = CanopyBeats[0].AutoAdvanceSeconds;
+        _canopyBeat0TimerArmed = true;
+        _canopyBeat0LockUntil = Time.unscaledTime + autoSec;
+        _scriptBoardOpenedAt = Time.unscaledTime;
+        Debug.Log("[RustAndFloat] 第1幕タイマー開始（字幕表示確認後 " + autoSec.ToString("0.#") + " 秒）");
+    }
+
+    void RefreshCanopyBeat0Subtitle()
+    {
+        if (_canopyBeatIndex != 0)
+            return;
+        var beat = CanopyBeats[0];
+        SetScreenScriptSubtitle(beat.Title, beat.Speaker, beat.Body, beat.Accent, beat.IsDive);
+    }
+
     IEnumerator SkybreakAftershockLoopRoutine()
     {
         while (_canopyBeatIndex >= 3 && _endingSequenceActive)
@@ -199,82 +257,93 @@ public partial class AdventureSanctuaryTowerManager
         {
             if (_endingSequenceActive && _scriptBoardVisible && !_climaxCrisisStarted && !_epilogueTriggered)
             {
-                Debug.LogWarning("[RustAndFloat] 台本インデックス喪失を検出 → Update駆動で再開");
+                Debug.LogWarning("[RustAndFloat] 台本インデックス喪失を検出 → 字幕のみ復旧（第1幕タイマーは維持）");
                 _canopyBeatIndex = 0;
-                PresentCanopyBeat(0);
+                if (!_canopyBeat0TimerArmed)
+                {
+                    _canopyBeat0VisibleStreak = 0;
+                    _canopyBeat0LockUntil = float.PositiveInfinity;
+                }
+                RefreshCanopyBeat0Subtitle();
             }
             return;
         }
 
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
+        if (_canopyBeatIndex == 0)
+            TryArmCanopyBeat0Timer();
+
         // 字幕自己修復：他処理（リセット・発話クリア等）で字幕が消されても、表示中のビートを毎フレーム保証する
         if (_scriptBoardVisible && !_scriptBoardIsDive && _canopyBeatIndex < CanopyBeats.Length
             && (_filmSubtitleUi == null || string.IsNullOrEmpty(_filmSubtitleUi.text) || _filmSubtitleUi.color.a < 0.99f))
         {
-            var cur = CanopyBeats[_canopyBeatIndex];
-            SetScreenScriptSubtitle(cur.Title, cur.Speaker, cur.Body, cur.Accent, cur.IsDive);
+            if (_canopyBeatIndex == 0)
+                RefreshCanopyBeat0Subtitle();
+            else
+            {
+                var cur = CanopyBeats[_canopyBeatIndex];
+                SetScreenScriptSubtitle(cur.Title, cur.Speaker, cur.Body, cur.Accent, cur.IsDive);
+            }
         }
 
-        // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2枚目5.2s／3枚目5.8s／Float・Rust 4.2s／ダイブ6.0s）
+        // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2・3枚目5.2s／Float・Rust 4.2s／ダイブ6.0s）
         float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
             : 3.5f;
 
-        // 第1幕「天蓋崩壊 未知の荒野への眺望」は映画の導入シーンのため、レバーの余韻や誤クリックで飛ばされず7.5秒間しっかり表示を保証
-        float minShow = (_canopyBeatIndex == 0) ? autoSec : 0.45f;
-
-        // 最小表示時間に達するまでは外部入力や残留フラグによるスキップを完全遮断
-        if (openFor < minShow)
+        // 第1幕：専用ロック時刻まで手動・自動・残留フラグすべて無効（PresentCanopyBeat 再入でもリセットされない）
+        if (_canopyBeatIndex == 0)
         {
-            _scriptBoardAdvance = false;
-            return;
-        }
-
-        // 入力判定
-        // キーを一度離すまで次のセリフ送りを待つガードが解除されていれば入力を受付
-        if (!_scriptRequireInputRelease)
-        {
-            if (!_scriptBoardIsDive)
+            if (!_canopyBeat0TimerArmed || Time.unscaledTime < _canopyBeat0LockUntil)
             {
-                PollScriptBoardAdvance();
+                _scriptBoardAdvance = false;
+                return;
             }
-        }
-
-        // ダイブビート（光の柱へダイブ）：長押し操作判定（0.35秒ホールドで即座に突入）
-        if (_scriptBoardIsDive)
-        {
-            if (IsDiveConfirmHeld())
-            {
-                _scriptHoldTimer += Time.unscaledDeltaTime;
-                if (_filmSubtitleUi != null)
-                {
-                    _filmSubtitleUi.text = "<size=34><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
-                }
-                if (_scriptHoldTimer >= 0.35f)
-                {
-                    _scriptBoardAdvance = true;
-                }
-            }
-            else
-            {
-                _scriptHoldTimer = 0f;
-                if (_filmSubtitleUi != null)
-                {
-                    _filmSubtitleUi.text = "<size=34><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 光の柱へダイブ！</size>";
-                }
-            }
-        }
-        // 放置タイムアウトによる自動進行（ダイブビート含め、全ビートが指定時間 autoSec 経過で自動的に次へ推移）
-        if (openFor >= autoSec)
-        {
             _scriptBoardAdvance = true;
+        }
+        else
+        {
+            float minShow = 0.45f;
+            if (openFor < minShow)
+            {
+                _scriptBoardAdvance = false;
+                return;
+            }
+
+            if (!_scriptRequireInputRelease && !_scriptBoardIsDive)
+                PollScriptBoardAdvance();
+
+            if (_scriptBoardIsDive)
+            {
+                if (IsDiveConfirmHeld())
+                {
+                    _scriptHoldTimer += Time.unscaledDeltaTime;
+                    if (_filmSubtitleUi != null)
+                    {
+                        _filmSubtitleUi.text = "<size=34><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
+                    }
+                    if (_scriptHoldTimer >= 0.35f)
+                        _scriptBoardAdvance = true;
+                }
+                else
+                {
+                    _scriptHoldTimer = 0f;
+                    if (_filmSubtitleUi != null)
+                    {
+                        _filmSubtitleUi.text = "<size=34><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 光の柱へダイブ！</size>";
+                    }
+                }
+            }
+
+            if (openFor >= autoSec)
+                _scriptBoardAdvance = true;
         }
 
         if (!_scriptBoardAdvance) return;
 
-        // 最終ガード：第1幕は経過 autoSec 未満では何があっても次へ進めない
-        if (_canopyBeatIndex == 0 && openFor < autoSec)
+        if (_canopyBeatIndex == 0
+            && (!_canopyBeat0TimerArmed || Time.unscaledTime < _canopyBeat0LockUntil))
         {
             _scriptBoardAdvance = false;
             return;
@@ -285,7 +354,17 @@ public partial class AdventureSanctuaryTowerManager
         _scriptRequireInputRelease = true; // セリフ送り時の突き抜けを完全防止（キーを一度離すまで次を受け付けない）
 
         int next = _canopyBeatIndex + 1;
-        Debug.Log($"[RustAndFloat] 台本ビート送り: {_canopyBeatIndex} → {next}（表示={openFor:F2}s / 自動={autoSec:F1}s）");
+        if (_canopyBeatIndex == 0)
+        {
+            float shown = _canopyBeat0TimerArmed
+                ? Time.unscaledTime - (_canopyBeat0LockUntil - CanopyBeats[0].AutoAdvanceSeconds)
+                : 0f;
+            Debug.Log("[RustAndFloat] 台本ビート送り: 0 → 1（第1幕表示=" + shown.ToString("F2") + "s / 規定=" + CanopyBeats[0].AutoAdvanceSeconds.ToString("F1") + "s / armed=" + _canopyBeat0TimerArmed + "）");
+            _canopyBeat0TimerArmed = false;
+            _canopyBeat0VisibleStreak = 0;
+        }
+        else
+            Debug.Log($"[RustAndFloat] 台本ビート送り: {_canopyBeatIndex} → {next}（表示={openFor:F2}s / 自動={autoSec:F1}s）");
         if (next >= CanopyBeats.Length)
         {
             FinishCanopyScriptBeats();
@@ -300,6 +379,9 @@ public partial class AdventureSanctuaryTowerManager
     {
         Debug.Log("[RustAndFloat] 天蓋スクリーンスクリプト完了 → 光の柱上昇 → クライマックスへ");
         _canopyBeatIndex = -1;
+        _canopyBeat0LockUntil = 0f;
+        _canopyBeat0TimerArmed = false;
+        _canopyBeat0VisibleStreak = 0;
         _scriptBoardAdvance = false;
         _scriptBoardVisible = false;
         _scriptBoardIsDive = false;
@@ -416,6 +498,7 @@ public partial class AdventureSanctuaryTowerManager
     public void NotifyScriptBoardAdvance()
     {
         if (!_scriptBoardVisible) return;
+        if (_canopyBeatIndex == 0) return;
         if (_climaxCrisisStarted) return;
         if (_scriptBoardIsDive) return;
         if (PollManualScriptAdvance(minShowSec: 0.45f, blockCanopyBeat0: true))

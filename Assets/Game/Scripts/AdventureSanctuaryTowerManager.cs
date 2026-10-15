@@ -129,6 +129,10 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     // Update駆動の天蓋台本（コルーチンが死んでも進む）
     int _canopyBeatIndex = -1;
+    /// <summary>第1幕はこの時刻まで絶対に次ビートへ進めない（字幕表示確認後にのみセット）</summary>
+    float _canopyBeat0LockUntil;
+    bool _canopyBeat0TimerArmed;
+    int _canopyBeat0VisibleStreak;
     bool _skyTearPlayed;
     struct CanopyBeat
     {
@@ -153,7 +157,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 7.5f),
         new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
-        new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Float！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.8f),
+        new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Float！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
         new CanopyBeat("", "✦ Float", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f), autoSec: 4.2f),
         new CanopyBeat("", "✦ 相棒 Rust", "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Float！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 4.2f),
         new CanopyBeat("", "", "タワー中央の光の柱へ飛び込み、\n空の裂け目へ突き抜ける。", new Color(0.85f, 0.95f, 1f, 1f), autoSec: 3.5f),
@@ -401,6 +405,9 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _scriptBoardSpeaker = "";
         _scriptBoardBody = "";
         _canopyBeatIndex = -1;
+        _canopyBeat0LockUntil = 0f;
+        _canopyBeat0TimerArmed = false;
+        _canopyBeat0VisibleStreak = 0;
         _skyTearPlayed = false;
         _scriptHoldTimer = 0f;
         ClearPendingClimax();
@@ -1366,6 +1373,12 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             }
             if (_audio != null)
                 _audio.PlayOneShot(MakeClankSound(), 0.6f);
+            return;
+        }
+
+        if (_canopyBeatIndex >= 0)
+        {
+            Debug.Log("[RustAndFloat] 天蓋台本進行中のためレバー再作動を無視");
             return;
         }
 
