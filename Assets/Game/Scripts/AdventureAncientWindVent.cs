@@ -96,8 +96,12 @@ public class AdventureAncientWindVent : MonoBehaviour
             }
             else
             {
-                // F6: 風脈クリスタルの前へワープ
-                Vector3 warpPos = ventPosition + new Vector3(0f, 0.5f, -3.2f);
+                // F6: 風脈クリスタルの手前へ安全にワープ
+                Vector3 warpTarget = ventPosition + new Vector3(0f, 0f, -3.8f);
+                var land = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
+                float groundY = land != null ? (land.SampleHeight(warpTarget) + land.transform.position.y) : ventPosition.y;
+                Vector3 warpPos = new Vector3(warpTarget.x, groundY + 0.65f, warpTarget.z);
+
                 var cc = player.GetComponent<CharacterController>();
                 if (cc != null) cc.enabled = false;
                 player.transform.position = warpPos;
@@ -282,12 +286,14 @@ public class AdventureAncientWindVent : MonoBehaviour
     {
         transform.position = ventPosition;
 
-        // 1. 円形石造り台座
+        // 1. 円形石造り台座（地形に沿わせ、物理コリジョン引っかかりを防ぐためコライダーは削除）
         var baseGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         baseGo.name = "VentStonePedestal";
         baseGo.transform.SetParent(transform, false);
         baseGo.transform.localPosition = new Vector3(0f, 0.25f, 0f);
         baseGo.transform.localScale = new Vector3(4.5f, 0.25f, 4.5f);
+        var baseCol = baseGo.GetComponent<Collider>();
+        if (baseCol != null) Destroy(baseCol);
 
         var baseMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
         baseMat.color = new Color(0.22f, 0.26f, 0.32f);
@@ -308,9 +314,9 @@ public class AdventureAncientWindVent : MonoBehaviour
         _crystalMaterial.EnableKeyword("_EMISSION");
         _crystalCoreGo.GetComponent<Renderer>().sharedMaterial = _crystalMaterial;
 
-        // コライダー
+        // コライダー（プレイヤーが引っかかってスタックしないようトリガー化）
         var col = _crystalCoreGo.GetComponent<Collider>();
-        if (col != null) col.isTrigger = false;
+        if (col != null) col.isTrigger = true;
 
         // 3. 通風孔から立ち上る上昇気流（AdventureThermalUpdraft）
         _updraftGo = new GameObject("ThermalUpdraft");
@@ -318,11 +324,11 @@ public class AdventureAncientWindVent : MonoBehaviour
         _updraftGo.transform.localPosition = Vector3.zero;
 
         var updraft = _updraftGo.AddComponent<AdventureThermalUpdraft>();
-        updraft.radius = 7.0f;
+        updraft.radius = 6.5f;
         updraft.height = 54.0f;
         updraft.liftSpeed = 17.5f;
         updraft.autoLaunch = false;
-        updraft.pullToCenter = true;
+        updraft.pullToCenter = false; // 地上での引っ張られスタックを防止
         updraft.liftWhenAirborneInColumn = true;
     }
 

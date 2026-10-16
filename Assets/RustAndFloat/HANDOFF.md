@@ -13,6 +13,10 @@ created: 2026-09-11
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
 - **コンパイルエラー**: 0件
 - **Play Mode**: 停止済み（安全に保存・編集可能）
+- **風脈ギミック検証メモ（2026-10-17 追記）**:
+  - **台座スタック解消**: `AdventureThermalUpdraft` の `pullToCenter` が接地中のプレイヤーも吸着していたバグを修正（空中のみ適用）。`AdventureAncientWindVent` の石造り台座コライダーを削除しクリスタルをトリガー化、F6ワープ着地高さを安全化。
+  - **画面ぼやけ解消**: `DefaultVolumeProfile` および実行時 `AdventureRustFloatFeel` にて Motion Blur（視線移動時のブレ）と Depth of Field（上空浮遊時のピンボケ）を完全無効化。
+  - **気流視界改善**: `AdventureThermalUpdraft` のスモークパーティクルを中心ドーナツ状に退避・透明度適正化し、カメラ視界の濁りを解消。
 - **風脈ギミック検証メモ（2026-10-15 追記）**:
   - **修正**: `AdventureAncientWindVent` の上昇気流で `autoLaunch=true` だと光の柱上昇（150mロック）に誤接続していた → **`autoLaunch=false`** ＋ `liftWhenAirborneInColumn=true` で通常サーマル＋滑空に統一。
   - **修正**: `AdventureGlidingWindRing` が `Awake` 時点のデフォルト半径でメッシュ生成され、`CreateWindRing` の半径上書きが効いていなかった → **`Start()` で構築**。

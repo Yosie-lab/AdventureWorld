@@ -79,7 +79,8 @@ public class AdventureThermalUpdraft : MonoBehaviour
             return;
         }
 
-        if (pullToCenter && distXZ > 0.35f)
+        // 接地中は自由に歩けるようにし、空中（滑空中・ジャンプ中）のみ中心へ誘導する
+        if (pullToCenter && distXZ > 0.35f && !player.IsGrounded)
         {
             Vector3 p = player.transform.position;
             Vector3 center = new Vector3(transform.position.x, p.y, transform.position.z);
@@ -109,19 +110,20 @@ public class AdventureThermalUpdraft : MonoBehaviour
         _windPs = pGo.AddComponent<ParticleSystem>();
         var main = _windPs.main;
         main.loop = true;
-        main.startLifetime = 3.2f;
-        main.startSpeed = 12.0f; // 上昇風
-        main.startSize = new ParticleSystem.MinMaxCurve(0.4f, 0.9f);
-        main.startColor = new Color(0.35f, 1.0f, 0.85f, 0.45f);
+        main.startLifetime = 2.8f;
+        main.startSpeed = 13.5f; // 上昇風
+        main.startSize = new ParticleSystem.MinMaxCurve(0.25f, 0.65f);
+        main.startColor = new Color(0.35f, 1.0f, 0.88f, 0.22f);
         main.gravityModifier = -0.15f; // さらに上向き加速
         main.simulationSpace = ParticleSystemSimulationSpace.World;
 
         var emission = _windPs.emission;
-        emission.rateOverTime = 28f;
+        emission.rateOverTime = 22f;
 
         var shape = _windPs.shape;
         shape.shapeType = ParticleSystemShapeType.Circle;
-        shape.radius = radius * 0.85f;
+        shape.radius = radius * 0.90f;
+        shape.radiusThickness = 0.35f; // 中心（カメラ・プレイヤーの視線）を塞がず外周の風柱として演出
         shape.rotation = new Vector3(-90f, 0f, 0f); // 上向き
 
         var colorOverLife = _windPs.colorOverLifetime;
@@ -129,15 +131,15 @@ public class AdventureThermalUpdraft : MonoBehaviour
         var grad = new Gradient();
         grad.SetKeys(
             new[] { new GradientColorKey(new Color(0.4f, 1.0f, 0.9f), 0f), new GradientColorKey(Color.white, 1f) },
-            new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.45f, 0.2f), new GradientAlphaKey(0f, 1f) }
+            new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.25f, 0.2f), new GradientAlphaKey(0f, 1f) }
         );
         colorOverLife.color = grad;
 
         // らせん回転ノイズ
         var noise = _windPs.noise;
         noise.enabled = true;
-        noise.strength = 0.55f;
-        noise.frequency = 0.18f;
+        noise.strength = 0.45f;
+        noise.frequency = 0.16f;
         noise.scrollSpeed = 0.25f;
 
         var rend = pGo.GetComponent<ParticleSystemRenderer>();
@@ -146,7 +148,7 @@ public class AdventureThermalUpdraft : MonoBehaviour
             var pShader = Shader.Find("RustAndFloat/WhiteSmoke") ?? Shader.Find("Sprites/Default");
             var pMat = new Material(pShader);
             pMat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
-            pMat.SetColor("_BaseColor", new Color(0.3f, 1.0f, 0.85f, 0.6f));
+            pMat.SetColor("_BaseColor", new Color(0.3f, 1.0f, 0.88f, 0.35f));
             rend.material = pMat;
         }
     }

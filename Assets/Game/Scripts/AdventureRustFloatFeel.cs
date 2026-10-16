@@ -109,5 +109,20 @@ public static class AdventureRustFloatFeel
         unityCam.useOcclusionCulling = false;
         if (unityCam.fieldOfView < 60f || unityCam.fieldOfView > 68f)
             unityCam.fieldOfView = WalkFov;
+
+        // 視線移動時のブレや空中浮遊時のピンボケを防止するため、VolumeのMotionBlurとDepthOfFieldを確実に無効化
+        try
+        {
+            var volumes = Object.FindObjectsByType<UnityEngine.Rendering.Volume>(FindObjectsInactive.Include);
+            foreach (var vol in volumes)
+            {
+                if (vol.profile == null) continue;
+                if (vol.profile.TryGet<UnityEngine.Rendering.Universal.MotionBlur>(out var mb))
+                    mb.active = false;
+                if (vol.profile.TryGet<UnityEngine.Rendering.Universal.DepthOfField>(out var dof))
+                    dof.active = false;
+            }
+        }
+        catch { }
     }
 }
