@@ -361,14 +361,15 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
 
         void BuildBirdVisuals(Material bodyMat, Material wingMat, Material beakMat)
         {
-            // 1. 胴体（流線型・紡錘形）
-            var bodyGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            bodyGo.name = "Body";
+            // 1. 胴体（滑らかな有機的流線型・紡錘形プロシージャルメッシュ）
+            var bodyGo = new GameObject("Body");
             bodyGo.transform.SetParent(transform, false);
-            bodyGo.transform.localScale = new Vector3(0.36f, 0.30f, 0.82f);
+            bodyGo.transform.localScale = Vector3.one;
             bodyGo.transform.localPosition = Vector3.zero;
-            bodyGo.GetComponent<Renderer>().sharedMaterial = bodyMat;
-            Object.Destroy(bodyGo.GetComponent<Collider>());
+            var bodyMf = bodyGo.AddComponent<MeshFilter>();
+            bodyMf.sharedMesh = CreateBirdBodyMesh();
+            var bodyMr = bodyGo.AddComponent<MeshRenderer>();
+            bodyMr.sharedMaterial = bodyMat;
             _body = bodyGo.transform;
 
             // 2. 頭部（Head）
@@ -386,10 +387,10 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             beakGo.transform.SetParent(_head, false);
             beakGo.transform.localPosition = new Vector3(0f, -0.02f, 0.18f);
             beakGo.transform.localScale = new Vector3(0.07f, 0.07f, 0.25f);
-            var bMf = beakGo.AddComponent<MeshFilter>();
-            bMf.sharedMesh = CreateConeMesh(6);
-            var bMr = beakGo.AddComponent<MeshRenderer>();
-            bMr.sharedMaterial = beakMat;
+            var beakMf = beakGo.AddComponent<MeshFilter>();
+            beakMf.sharedMesh = CreateConeMesh(10);
+            var beakMr = beakGo.AddComponent<MeshRenderer>();
+            beakMr.sharedMaterial = beakMat;
 
             // 4. 左右の翼（カモメの雄大な翼幅：翼長1.45m）
             var rWingGo = new GameObject("RightWing");
@@ -619,6 +620,92 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
     }
 
     #region Procedural Bird Meshes
+    static Mesh CreateBirdBodyMesh()
+    {
+        var mesh = new Mesh { name = "ProcBirdBodySmooth" };
+        var verts = new List<Vector3>();
+        var tris = new List<int>();
+
+        // 7断面（前〜後ろ）のロフト形状で胸がふっくらと丸く、尾に向かって自然に細くなる滑らかな鳥体
+        var sections = new (float z, float y, float rx, float ry)[]
+        {
+            ( 0.38f,  0.13f, 0.05f, 0.05f), // 首付け根先端
+            ( 0.30f,  0.11f, 0.13f, 0.12f), // 首〜胸のふくらみ
+            ( 0.16f,  0.05f, 0.18f, 0.16f), // 丸みのある胸部
+            ( 0.00f,  0.00f, 0.19f, 0.15f), // 胴体中央（翼基部）
+            (-0.16f, -0.02f, 0.15f, 0.12f), // 腹部
+            (-0.30f,  0.01f, 0.09f, 0.07f), // 後部絞り込み
+            (-0.44f,  0.03f, 0.04f, 0.03f)  // 尾羽付け根
+        };
+
+        const int radialSegments = 12;
+
+        // 前端キャップ頂点
+        verts.Add(new Vector3(0f, 0.14f, 0.40f));
+        int frontTipIndex = 0;
+
+        // 各段のリング頂点
+        int ringStart = 1;
+        for (int s = 0; s < sections.Length; s++)
+        {
+            var sec = sections[s];
+            for (int r = 0; r < radialSegments; r++)
+            {
+                float ang = (r / (float)radialSegments) * Mathf.PI * 2f;
+                float x = Mathf.Cos(ang) * sec.rx;
+                float y = sec.y + Mathf.Sin(ang) * sec.ry;
+                verts.Add(new Vector3(x, y, sec.z));
+            }
+        }
+
+        // 後端キャップ頂点
+        int backTipIndex = verts.Count;
+        verts.Add(new Vector3(0f, 0.03f, -0.46f));
+
+        // 前端ファン
+        for (int r = 0; r < radialSegments; r++)
+        {
+            int next = (r + 1) % radialSegments;
+            tris.Add(frontTipIndex);
+            tris.Add(ringStart + next);
+            tris.Add(ringStart + r);
+        }
+
+        // 胴体リング間のクアッド
+        for (int s = 0; s < sections.Length - 1; s++)
+        {
+            int curRing = ringStart + s * radialSegments;
+            int nextRing = curRing + radialSegments;
+            for (int r = 0; r < radialSegments; r++)
+            {
+                int nextR = (r + 1) % radialSegments;
+                int a = curRing + r;
+                int b = curRing + nextR;
+                int c = nextRing + nextR;
+                int d = nextRing + r;
+
+                tris.Add(a); tris.Add(b); tris.Add(c);
+                tris.Add(a); tris.Add(c); tris.Add(d);
+            }
+        }
+
+        // 後端ファン
+        int lastRing = ringStart + (sections.Length - 1) * radialSegments;
+        for (int r = 0; r < radialSegments; r++)
+        {
+            int next = (r + 1) % radialSegments;
+            tris.Add(backTipIndex);
+            tris.Add(lastRing + r);
+            tris.Add(lastRing + next);
+        }
+
+        mesh.SetVertices(verts);
+        mesh.SetTriangles(tris, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
     static Mesh CreateConeMesh(int subdivisions = 6)
     {
         var mesh = new Mesh { name = "ProcBeakCone" };

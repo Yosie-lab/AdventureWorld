@@ -13,6 +13,9 @@ created: 2026-09-11
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
 - **コンパイルエラー**: 0件
 - **Play Mode**: 停止済み（安全に保存・編集可能）
+- **環境生物ビジュアル刷新（2026-10-17 追記）**:
+  - **ウミネコの流線型化**: `AdventureSoaringSeagullsManager` にて直方体（Cube）だった胴体を、7断面12角形ロフトの滑らかな有機的紡錘形メッシュ（`CreateBirdBodyMesh`）に刷新。クチバシの分割数も10角形に引き上げ。
+  - **カエルの本格造形化＆跳躍アニメーション**: `AdventureParadiseCreatures.cs` の `FrogHop` を改修し、シーン内の全36匹のカエルに対して「洋ナシ型ボディ＋白腹、平たい頭部、飛び出し目、ちょこんと揃えた前脚、くの字に折りたたまれた力強い後脚、ペコペコ脈打つ喉袋呼吸、跳躍キック＆屈伸」を実装し、エディタ上でシーンへ永続適用。
 - **風脈ギミック検証メモ（2026-10-17 追記）**:
   - **台座スタック解消**: `AdventureThermalUpdraft` の `pullToCenter` が接地中のプレイヤーも吸着していたバグを修正（空中のみ適用）。`AdventureAncientWindVent` の石造り台座コライダーを削除しクリスタルをトリガー化、F6ワープ着地高さを安全化。
   - **画面ぼやけ解消**: `DefaultVolumeProfile` および実行時 `AdventureRustFloatFeel` にて Motion Blur（視線移動時のブレ）と Depth of Field（上空浮遊時のピンボケ）を完全無効化。

@@ -476,12 +476,12 @@ public static class AdventureParadiseBeachDecor
 
         for (int side = -1; side <= 1; side += 2)
         {
-            var wing = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var wing = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             wing.name = side < 0 ? "LeftWing" : "RightWing";
             wing.transform.SetParent(gull.transform, false);
-            wing.transform.localScale = new Vector3(0.04f, 0.18f, 0.42f);
-            wing.transform.localPosition = new Vector3(side * 0.13f, 0.14f, -0.05f);
-            wing.transform.localRotation = Quaternion.Euler(0f, 0f, side * -12f);
+            wing.transform.localScale = new Vector3(0.04f, 0.16f, 0.42f);
+            wing.transform.localPosition = new Vector3(side * 0.12f, 0.14f, -0.05f);
+            wing.transform.localRotation = Quaternion.Euler(6f, side * 4f, side * -12f);
             wing.GetComponent<Renderer>().sharedMaterial = wingMat;
             Object.DestroyImmediate(wing.GetComponent<Collider>());
         }

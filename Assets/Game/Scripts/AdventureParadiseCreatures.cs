@@ -174,7 +174,7 @@ public class CrabWander : MonoBehaviour
 }
 
 
-/// <summary>池や小川のカエル（時々ピョンと跳ねる）</summary>
+/// <summary>池や小川のカエル（本格的な流線型フォルム、飛び出し目、折りたたみ後脚、ペコペコ喉袋呼吸、キック跳躍）</summary>
 public class FrogHop : MonoBehaviour
 {
     Vector3 _basePos;
@@ -188,10 +188,182 @@ public class FrogHop : MonoBehaviour
     private bool _isCulled;
     private const float CullDistanceSqr = 30f * 30f; // 30m以遠でスリープ
 
+    // アニメーション用トランスフォーム
+    private Transform _visualRoot;
+    private Transform _throat;
+    private Transform _leftHindLeg;
+    private Transform _rightHindLeg;
+    private Transform _leftForeLeg;
+    private Transform _rightForeLeg;
+    private float _breathePhase;
+
     void Start()
     {
         _basePos = transform.position;
-        _nextHop = 2f + Random.value * 4f;
+        _nextHop = 1.5f + Random.value * 4.5f;
+        _breathePhase = Random.value * 10f;
+        EnsureFrogVisuals();
+    }
+
+    void EnsureFrogVisuals()
+    {
+        // 既に刷新済みの場合はスキップ
+        if (transform.Find("FrogVisualRoot") != null) return;
+
+        // 古いプリミティブ（旧Body, 旧Eyeなど球体乗せのみの構造）を一掃
+        for (int i = transform.childCount - 1; i >= 0; i--)
+        {
+            var child = transform.GetChild(i);
+            Destroy(child.gameObject);
+        }
+
+        // 新しいビジュアルルート
+        var rootGo = new GameObject("FrogVisualRoot");
+        rootGo.transform.SetParent(transform, false);
+        rootGo.transform.localPosition = Vector3.zero;
+        rootGo.transform.localRotation = Quaternion.identity;
+        _visualRoot = rootGo.transform;
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+
+        // アマガエル特有の艶やかなエメラルドグリーン（濡れたみずみずしい肌質）
+        var skinMat = new Material(shader);
+        skinMat.SetColor("_BaseColor", new Color(0.24f, 0.76f, 0.22f));
+        skinMat.SetFloat("_Smoothness", 0.65f);
+
+        // お腹・喉元の淡いクリームイエロー
+        var bellyMat = new Material(shader);
+        bellyMat.SetColor("_BaseColor", new Color(0.92f, 0.95f, 0.74f));
+        bellyMat.SetFloat("_Smoothness", 0.45f);
+
+        // 瞳（つぶらな黒目）
+        var eyeMat = new Material(shader);
+        eyeMat.SetColor("_BaseColor", new Color(0.06f, 0.05f, 0.04f));
+        eyeMat.SetFloat("_Smoothness", 0.95f);
+
+        // 1. 胴体（カエルらしい平たく丸みのある洋ナシ型）
+        var body = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        body.name = "Body";
+        body.transform.SetParent(_visualRoot, false);
+        body.transform.localPosition = new Vector3(0f, 0.09f, -0.02f);
+        body.transform.localScale = new Vector3(0.28f, 0.17f, 0.32f);
+        body.GetComponent<Renderer>().sharedMaterial = skinMat;
+        Destroy(body.GetComponent<Collider>());
+
+        // 2. お腹（淡い白腹）
+        var belly = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        belly.name = "Belly";
+        belly.transform.SetParent(body.transform, false);
+        belly.transform.localPosition = new Vector3(0f, -0.32f, 0.08f);
+        belly.transform.localScale = new Vector3(0.88f, 0.65f, 0.88f);
+        belly.GetComponent<Renderer>().sharedMaterial = bellyMat;
+        Destroy(belly.GetComponent<Collider>());
+
+        // 3. 頭部（平たく尖り気味の口元）
+        var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        head.name = "Head";
+        head.transform.SetParent(_visualRoot, false);
+        head.transform.localPosition = new Vector3(0f, 0.11f, 0.12f);
+        head.transform.localScale = new Vector3(0.24f, 0.14f, 0.20f);
+        head.transform.localRotation = Quaternion.Euler(6f, 0f, 0f);
+        head.GetComponent<Renderer>().sharedMaterial = skinMat;
+        Destroy(head.GetComponent<Collider>());
+
+        // 4. 喉袋（呼吸でペコペコ膨らむ）
+        var throat = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        throat.name = "Throat";
+        throat.transform.SetParent(head.transform, false);
+        throat.transform.localPosition = new Vector3(0f, -0.45f, 0.12f);
+        throat.transform.localScale = new Vector3(0.70f, 0.50f, 0.70f);
+        throat.GetComponent<Renderer>().sharedMaterial = bellyMat;
+        Destroy(throat.GetComponent<Collider>());
+        _throat = throat.transform;
+
+        // 5. 左右の大きな飛び出し目（まぶた盛り上がり＋黒い瞳）
+        for (int side = -1; side <= 1; side += 2)
+        {
+            var socket = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            socket.name = side < 0 ? "EyeSocket_L" : "EyeSocket_R";
+            socket.transform.SetParent(head.transform, false);
+            socket.transform.localPosition = new Vector3(side * 0.42f, 0.48f, 0.15f);
+            socket.transform.localScale = new Vector3(0.48f, 0.55f, 0.48f);
+            socket.GetComponent<Renderer>().sharedMaterial = skinMat;
+            Destroy(socket.GetComponent<Collider>());
+
+            var pupil = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            pupil.name = "Pupil";
+            pupil.transform.SetParent(socket.transform, false);
+            pupil.transform.localPosition = new Vector3(side * 0.18f, 0.08f, 0.35f);
+            pupil.transform.localScale = new Vector3(0.68f, 0.68f, 0.68f);
+            pupil.GetComponent<Renderer>().sharedMaterial = eyeMat;
+            Destroy(pupil.GetComponent<Collider>());
+        }
+
+        // 6. 前脚（地面にちょこんと揃えて上半身を支える）
+        for (int side = -1; side <= 1; side += 2)
+        {
+            var foreRoot = new GameObject(side < 0 ? "ForeLeg_L" : "ForeLeg_R");
+            foreRoot.transform.SetParent(_visualRoot, false);
+            foreRoot.transform.localPosition = new Vector3(side * 0.11f, 0.09f, 0.10f);
+
+            var arm = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            arm.name = "Arm";
+            arm.transform.SetParent(foreRoot.transform, false);
+            arm.transform.localPosition = new Vector3(side * 0.03f, -0.05f, 0.02f);
+            arm.transform.localScale = new Vector3(0.045f, 0.11f, 0.055f);
+            arm.transform.localRotation = Quaternion.Euler(18f, 0f, side * -16f);
+            arm.GetComponent<Renderer>().sharedMaterial = skinMat;
+            Destroy(arm.GetComponent<Collider>());
+
+            var hand = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            hand.name = "Hand";
+            hand.transform.SetParent(foreRoot.transform, false);
+            hand.transform.localPosition = new Vector3(side * 0.05f, -0.09f, 0.05f);
+            hand.transform.localScale = new Vector3(0.065f, 0.015f, 0.065f);
+            hand.GetComponent<Renderer>().sharedMaterial = skinMat;
+            Destroy(hand.GetComponent<Collider>());
+
+            if (side < 0) _leftForeLeg = foreRoot.transform;
+            else _rightForeLeg = foreRoot.transform;
+        }
+
+        // 7. 力強い後脚（くの字に折りたたまれた太もも＋すね＋水かき足先）
+        for (int side = -1; side <= 1; side += 2)
+        {
+            var hindRoot = new GameObject(side < 0 ? "HindLeg_L" : "HindLeg_R");
+            hindRoot.transform.SetParent(_visualRoot, false);
+            hindRoot.transform.localPosition = new Vector3(side * 0.13f, 0.07f, -0.08f);
+
+            var thigh = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            thigh.name = "Thigh";
+            thigh.transform.SetParent(hindRoot.transform, false);
+            thigh.transform.localPosition = new Vector3(side * 0.04f, 0.03f, -0.02f);
+            thigh.transform.localScale = new Vector3(0.11f, 0.10f, 0.20f);
+            thigh.transform.localRotation = Quaternion.Euler(-12f, side * 24f, side * 18f);
+            thigh.GetComponent<Renderer>().sharedMaterial = skinMat;
+            Destroy(thigh.GetComponent<Collider>());
+
+            var calf = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            calf.name = "Calf";
+            calf.transform.SetParent(hindRoot.transform, false);
+            calf.transform.localPosition = new Vector3(side * 0.06f, -0.01f, 0.04f);
+            calf.transform.localScale = new Vector3(0.06f, 0.06f, 0.18f);
+            calf.transform.localRotation = Quaternion.Euler(14f, side * -18f, side * -12f);
+            calf.GetComponent<Renderer>().sharedMaterial = skinMat;
+            Destroy(calf.GetComponent<Collider>());
+
+            var foot = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            foot.name = "Foot";
+            foot.transform.SetParent(hindRoot.transform, false);
+            foot.transform.localPosition = new Vector3(side * 0.07f, -0.06f, 0.02f);
+            foot.transform.localScale = new Vector3(0.09f, 0.018f, 0.14f);
+            foot.transform.localRotation = Quaternion.Euler(0f, side * 35f, 0f);
+            foot.GetComponent<Renderer>().sharedMaterial = skinMat;
+            Destroy(foot.GetComponent<Collider>());
+
+            if (side < 0) _leftHindLeg = hindRoot.transform;
+            else _rightHindLeg = hindRoot.transform;
+        }
     }
 
     void Update()
@@ -208,6 +380,15 @@ public class FrogHop : MonoBehaviour
         }
         if (_isCulled) return;
 
+        // 待機時のペコペコ呼吸アニメーション
+        _breathePhase += Time.deltaTime * 6.5f;
+        if (_throat != null)
+        {
+            float pulse = Mathf.Sin(_breathePhase);
+            float throatScale = 0.65f + Mathf.Max(0f, pulse) * 0.42f;
+            _throat.localScale = new Vector3(throatScale, 0.50f + Mathf.Max(0f, pulse) * 0.25f, throatScale);
+        }
+
         if (_isHopping)
         {
             _hopTime += Time.deltaTime * 3.2f;
@@ -216,11 +397,44 @@ public class FrogHop : MonoBehaviour
             float arc = Mathf.Sin(t * Mathf.PI) * 0.45f;
             transform.position = Vector3.Lerp(_basePos, _hopTarget, t) + Vector3.up * arc;
 
+            // ジャンプ中の脚キック＆伸びアニメーション
+            float kick = Mathf.Sin(t * Mathf.PI);
+            if (_leftHindLeg != null && _rightHindLeg != null)
+            {
+                float kickRotX = Mathf.Lerp(0f, 42f, kick);
+                float kickScaleZ = Mathf.Lerp(1.0f, 1.35f, kick);
+                _leftHindLeg.localRotation = Quaternion.Euler(kickRotX, 0f, 0f);
+                _rightHindLeg.localRotation = Quaternion.Euler(kickRotX, 0f, 0f);
+                _leftHindLeg.localScale = new Vector3(1f, 1f, kickScaleZ);
+                _rightHindLeg.localScale = new Vector3(1f, 1f, kickScaleZ);
+            }
+
+            if (_leftForeLeg != null && _rightForeLeg != null)
+            {
+                float forePitch = Mathf.Lerp(0f, -22f, kick);
+                _leftForeLeg.localRotation = Quaternion.Euler(forePitch, 0f, 0f);
+                _rightForeLeg.localRotation = Quaternion.Euler(forePitch, 0f, 0f);
+            }
+
+            if (_visualRoot != null)
+            {
+                float stretchY = 1.0f + kick * 0.20f;
+                float stretchXZ = 1.0f - kick * 0.10f;
+                _visualRoot.localScale = new Vector3(stretchXZ, stretchY, stretchXZ);
+            }
+
             if (t >= 1f)
             {
                 _isHopping = false;
                 _basePos = transform.position;
                 _nextHop = 2.5f + Random.value * 5f;
+
+                // 脚と体のスケールをリセット
+                if (_leftHindLeg != null) { _leftHindLeg.localRotation = Quaternion.identity; _leftHindLeg.localScale = Vector3.one; }
+                if (_rightHindLeg != null) { _rightHindLeg.localRotation = Quaternion.identity; _rightHindLeg.localScale = Vector3.one; }
+                if (_leftForeLeg != null) _leftForeLeg.localRotation = Quaternion.identity;
+                if (_rightForeLeg != null) _rightForeLeg.localRotation = Quaternion.identity;
+                if (_visualRoot != null) _visualRoot.localScale = Vector3.one;
             }
         }
         else
@@ -230,7 +444,7 @@ public class FrogHop : MonoBehaviour
             {
                 _isHopping = true;
                 _hopTime = 0f;
-                // 向きを変えて小さく跳ねる
+                // 向きを変えて跳ねる
                 float ang = Random.value * 360f;
                 transform.rotation = Quaternion.Euler(0f, ang, 0f);
                 _hopTarget = _basePos + transform.forward * (0.35f + Random.value * 0.4f);
