@@ -727,8 +727,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             if (kb != null && kb.tabKey.wasPressedThisFrame)
                 SetGameClearModalVisible(!_showGameClearModal);
 
-            // クリア後（大空飛行中・自由探索中問わず）Nキーで直接ニューゲーム開始可能
-            if (AdventureInputReader.NDown)
+            // モーダル表示中は TickGameClearModal が N / クリックを処理
+            if (!_showGameClearModal && AdventureInputReader.NDown)
             {
                 StartNewGameFromClearModal();
                 return;

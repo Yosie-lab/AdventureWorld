@@ -59,6 +59,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     // 新規開始時の上書き確認モーダル
     GameObject _newGameConfirmModal;
+    Button _confirmNewGameYesBtn;
+    Button _confirmNewGameNoBtn;
 
     bool _isClosing = false;
     float _openTime = 0f;
@@ -77,9 +79,6 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     public bool IsModalBoardOpen()
     {
-        // エンディング進行中は絶対に操作ロックしない（再表示バグ対策）
-        if (ShouldSkipOpeningBoard())
-            return false;
         return !IsGameStarted && _modalBoard != null && _modalBoard.activeSelf;
     }
 
@@ -87,7 +86,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
     public void ForceDismissForGameplay()
     {
         StopAllCoroutines();
-        _isClosing = true;
+        _isClosing = false;
         IsGameStarted = true;
         if (_overlayGo != null) _overlayGo.SetActive(false);
         if (_modalBoard != null) _modalBoard.SetActive(false);
@@ -279,27 +278,24 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     void Update()
     {
-        // エンディング進行中にモーダルが復活したら即消す
+        // エンディング中にタイトルが勝手に復活したときだけ即消す（ShowTitleScreen 意図表示は除外）
         if (!IsGameStarted && ShouldSkipOpeningBoard())
         {
-            ForceDismissForGameplay();
-            return;
+            bool titleMenuVisible = _modalBoard != null && _modalBoard.activeSelf;
+            if (!titleMenuVisible)
+            {
+                ForceDismissForGameplay();
+                return;
+            }
         }
 
-        // 閉じかけで止まった場合の救済
-        if (_isClosing && !IsGameStarted)
-        {
-            ForceDismissForGameplay();
-            AdventurePrologueDrama.Ensure();
-            AdventurePrologueDrama.Instance?.BeginAfterOpening();
-            return;
-        }
-
-        if (IsGameStarted || _isClosing)
+        bool titleMenuUp = IsModalBoardOpen()
+            || (_newGameConfirmModal != null && _newGameConfirmModal.activeSelf);
+        if (!titleMenuUp && (IsGameStarted || _isClosing))
             return;
 
         // 起動直後（0.3秒間）は誤爆防止
-        if (Time.realtimeSinceStartup - _openTime < 0.3f)
+        if (!titleMenuUp && Time.realtimeSinceStartup - _openTime < 0.3f)
             return;
 
         // スタート前は常にカーソルを表示
@@ -324,8 +320,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (!IsGameStarted && Time.timeScale < 0.05f && !AdventurePauseMenu.IsOpen)
             Time.timeScale = 1f;
 
-        TryTitleDirectMouseClicks();
         TryTitleKeyboardShortcuts();
+        TryTitleNewGameConfirmKeyboard();
 
         if (TitleEscapePressed())
         {
@@ -344,6 +340,17 @@ public class AdventureRustFloatOpening : MonoBehaviour
         }
     }
 
+    void LateUpdate()
+    {
+        if (IsGameStarted && !IsModalBoardOpen()
+            && (_newGameConfirmModal == null || !_newGameConfirmModal.activeSelf))
+            return;
+
+        AdventurePauseMenu.EnsureEventSystemForUi();
+        TryTitleNewGameConfirmDirectMouseClicks();
+        TryTitleDirectMouseClicks();
+    }
+
     static bool TitleEscapePressed()
     {
         if (AdventureInputReader.EscapeDown) return true;
@@ -352,6 +359,27 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     static bool TitleDigitPressed(int digit) => AdventureInputReader.TitleMenuDigitDown(digit);
 
+    void TryTitleNewGameConfirmDirectMouseClicks()
+    {
+        if (AdventurePauseMenu.IsOpen) return;
+        if (_newGameConfirmModal == null || !_newGameConfirmModal.activeSelf) return;
+        if (!AdventureInputReader.MouseLeftDown) return;
+
+        Vector2 mousePos = ReadTitleMouseScreenPos();
+
+        if (TryClickButton(_confirmNewGameYesBtn, mousePos)) { OnConfirmNewGameYes(); return; }
+        if (TryClickButton(_confirmNewGameNoBtn, mousePos)) OnConfirmNewGameNo();
+    }
+
+    void TryTitleNewGameConfirmKeyboard()
+    {
+        if (_newGameConfirmModal == null || !_newGameConfirmModal.activeSelf) return;
+        if (AdventurePauseMenu.IsOpen) return;
+
+        if (AdventureInputReader.SpaceOrJDown || AdventureInputReader.EnterDown)
+            OnConfirmNewGameYes();
+    }
+
     void TryTitleDirectMouseClicks()
     {
         if (AdventurePauseMenu.IsOpen) return;
@@ -359,8 +387,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (!IsModalBoardOpen()) return;
         if (!AdventureInputReader.MouseLeftDown) return;
 
-        var mouse = Mouse.current;
-        Vector2 mousePos = mouse != null ? mouse.position.ReadValue() : (Vector2)Input.mousePosition;
+        Vector2 mousePos = ReadTitleMouseScreenPos();
 
         if (TryClickButton(_continueBtn, mousePos)) { OnContinueClicked(); return; }
         if (TryClickButton(_newGameBtn, mousePos)) { OnNewGameClicked(); return; }
@@ -370,9 +397,15 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     static bool TryClickButton(Button btn, Vector2 screenPos)
     {
-        if (btn == null || !btn.isActiveAndEnabled) return false;
+        if (btn == null || !btn.gameObject.activeInHierarchy) return false;
         var rt = btn.GetComponent<RectTransform>();
         return rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);
+    }
+
+    static Vector2 ReadTitleMouseScreenPos()
+    {
+        var mouse = Mouse.current;
+        return mouse != null ? mouse.position.ReadValue() : (Vector2)Input.mousePosition;
     }
 
     void TryTitleKeyboardShortcuts()
@@ -389,6 +422,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
     public void OnContinueClicked()
     {
         if (IsGameStarted || _isClosing) return;
+        if (_continueBtn != null && !_continueBtn.interactable) return;
 
         // セーブデータをロードしてゲーム開始
         if (AdventureSaveManager.Instance != null)
@@ -419,6 +453,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     void OnConfirmNewGameYes()
     {
+        if (IsGameStarted || _isClosing) return;
         if (_newGameConfirmModal != null)
             _newGameConfirmModal.SetActive(false);
 
@@ -433,12 +468,9 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     void StartNewGameDirectly()
     {
-        // 全進行状況をリセットして初期化
-        if (AdventureSaveManager.Instance != null)
-        {
-            AdventureSaveManager.Instance.ResetToNewGame();
-        }
-
+        if (IsGameStarted || _isClosing) return;
+        AdventureSaveManager.Ensure();
+        AdventureSaveManager.Instance?.ResetToNewGame(returnToOpeningTitle: false);
         StartGameTransition(isNewGame: true);
     }
 
@@ -847,9 +879,10 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
         // ボタン領域
         // 1. 「はい、新しくはじめる」
-        var yesBtn = CreateMenuButton(cardGo.transform, "YesBtn", new Vector2(-120f, 22f), new Vector2(210f, 44f),
+        _confirmNewGameYesBtn = CreateMenuButton(cardGo.transform, "YesBtn", new Vector2(-120f, 22f), new Vector2(210f, 44f),
             new Color(0.75f, 0.25f, 0.20f, 1f), new Color(0.95f, 0.35f, 0.30f, 1f),
             "はい、新しくはじめる", 15, OnConfirmNewGameYes, font, out _, out _);
+        var yesBtn = _confirmNewGameYesBtn;
         var yRt = yesBtn.GetComponent<RectTransform>();
         yRt.anchorMin = new Vector2(0.5f, 0f);
         yRt.anchorMax = new Vector2(0.5f, 0f);
@@ -857,9 +890,10 @@ public class AdventureRustFloatOpening : MonoBehaviour
         yRt.anchoredPosition = new Vector2(-115f, 22f);
 
         // 2. 「キャンセル」
-        var cancelBtn = CreateMenuButton(cardGo.transform, "CancelBtn", new Vector2(120f, 22f), new Vector2(180f, 44f),
+        _confirmNewGameNoBtn = CreateMenuButton(cardGo.transform, "CancelBtn", new Vector2(120f, 22f), new Vector2(180f, 44f),
             new Color(0.20f, 0.35f, 0.50f, 1f), new Color(0.30f, 0.50f, 0.70f, 1f),
             "キャンセル", 15, OnConfirmNewGameNo, font, out _, out _);
+        var cancelBtn = _confirmNewGameNoBtn;
         var cBtnRt = cancelBtn.GetComponent<RectTransform>();
         cBtnRt.anchorMin = new Vector2(0.5f, 0f);
         cBtnRt.anchorMax = new Vector2(0.5f, 0f);

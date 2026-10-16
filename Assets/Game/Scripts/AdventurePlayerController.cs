@@ -218,11 +218,14 @@ public partial class AdventurePlayerController : MonoBehaviour
 
         // オープニングボード表示中、または決定直後の入力ガード中（クリック・Space誤爆防止）は操作不可
         var opening = AdventureRustFloatOpening.Instance;
-        if (opening != null && (opening.IsModalBoardOpen() || AdventureRustFloatOpening.IsInputGuarded))
+        if (opening != null && opening.IsModalBoardOpen())
+            return;
+
+        if (opening != null && AdventureRustFloatOpening.IsInputGuarded)
         {
             if (AdventureStoryFlow.ShouldSkipOpening)
                 opening.ForceDismissForGameplay();
-            else if (AdventureRustFloatOpening.IsInputGuarded && AdventureInputReader.HasAnyMove)
+            else if (AdventureInputReader.HasAnyMove)
             {
                 // 移動キーが押されたら入力ガードを即座に破棄して歩行開始
                 AdventureRustFloatOpening.DismissInputGuard();

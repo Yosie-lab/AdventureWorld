@@ -36,10 +36,33 @@ public partial class AdventureSanctuaryTowerManager
         if (_clearModalRequireRelease && IsEndingAdvanceInputReleased())
             _clearModalRequireRelease = false;
 
+        if (elapsedSinceOpen >= 0.3f && WasClearModalPointerPressedThisFrame(out Vector2 pointer))
+        {
+            if (PointerHitsClearModalButton(_clearNewBtn, pointer))
+            {
+                Debug.Log("[RustAndFloat] マウス【N はじめから】→ StartNewGameFromClearModal");
+                StartNewGameFromClearModal();
+                return;
+            }
+            if (PointerHitsClearModalButton(_clearDiveBtn, pointer))
+            {
+                Debug.Log("[RustAndFloat] マウス【Space 大空へ】→ RelaunchIntoSky");
+                RelaunchIntoSky();
+                return;
+            }
+            if (PointerHitsClearModalButton(_clearCloseBtn, pointer))
+            {
+                Debug.Log("[RustAndFloat] マウス【E 閉じる】→ CloseGameClearModalForFreeExplore");
+                CloseGameClearModalForFreeExplore();
+                return;
+            }
+        }
+
         // AdventureInputReader に委譲（新旧InputSystem統合）
         bool nPressed = AdventureInputReader.NDown;
         bool spacePressed = !_clearModalRequireRelease && elapsedSinceOpen >= 0.4f && AdventureInputReader.SpaceOrJDown;
-        bool closePressed = elapsedSinceOpen >= 0.3f && (AdventureInputReader.InteractDown || AdventureInputReader.EscapeDown);
+        // 左クリックは InteractDown に含まれるため、ここではキーボード E / Esc のみ（ボタンクリック誤爆防止）
+        bool closePressed = elapsedSinceOpen >= 0.3f && (ClearModalCloseKeyDown() || AdventureInputReader.EscapeDown);
 
         // ★キーボード操作判定（N＝はじめから、Space＝大空へ、E/Esc＝閉じる）
         if (nPressed)
@@ -60,6 +83,44 @@ public partial class AdventureSanctuaryTowerManager
             CloseGameClearModalForFreeExplore();
             return;
         }
+    }
+
+    static bool ClearModalCloseKeyDown()
+    {
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.E)) return true;
+        }
+        catch { }
+        var kb = AdventureInputReader.Keyboard;
+        return kb != null && kb.eKey.wasPressedThisFrame;
+    }
+
+    static bool WasClearModalPointerPressedThisFrame(out Vector2 pointer)
+    {
+        pointer = Vector2.zero;
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+        {
+            pointer = mouse.position.ReadValue();
+            return true;
+        }
+        try
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                pointer = Input.mousePosition;
+                return true;
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    static bool PointerHitsClearModalButton(RectTransform rt, Vector2 screenPos)
+    {
+        if (rt == null || !rt.gameObject.activeInHierarchy) return false;
+        return RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);
     }
 
     void SetGameClearModalVisible(bool visible)
@@ -133,6 +194,15 @@ public partial class AdventureSanctuaryTowerManager
         if (_clearUiRoot != null)
         {
             _clearUiRoot.SetActive(true);
+            var existingCanvas = _clearUiRoot.GetComponent<Canvas>();
+            if (existingCanvas != null)
+                existingCanvas.sortingOrder = 10100;
+            if (_clearNewBtn == null)
+                _clearNewBtn = _clearUiRoot.transform.Find("Panel/NewBtn") as RectTransform;
+            if (_clearDiveBtn == null)
+                _clearDiveBtn = _clearUiRoot.transform.Find("Panel/DiveBtn") as RectTransform;
+            if (_clearCloseBtn == null)
+                _clearCloseBtn = _clearUiRoot.transform.Find("Panel/CloseBtn") as RectTransform;
             return;
         }
 
@@ -140,7 +210,7 @@ public partial class AdventureSanctuaryTowerManager
         var canvasGo = new GameObject("GameClearModalCanvas");
         var canvas = canvasGo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 6000;
+        canvas.sortingOrder = 10100;
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1280f, 720f);
@@ -164,6 +234,7 @@ public partial class AdventureSanctuaryTowerManager
         panelRt.sizeDelta = new Vector2(980f, 560f);
         var panelImg = panelGo.AddComponent<Image>();
         panelImg.color = new Color(0.02f, 0.05f, 0.10f, 0.96f);
+        panelImg.raycastTarget = false;
 
         var title = MakeScriptText(panelGo.transform, "Title", new Vector2(0f, -28f), new Vector2(0.5f, 1f), new Vector2(900f, 48f), 34, TextAnchor.MiddleCenter, font);
         title.color = new Color(1f, 0.88f, 0.4f, 1f);
@@ -213,8 +284,6 @@ public partial class AdventureSanctuaryTowerManager
         btn.colors = colors;
         btn.navigation = new Navigation { mode = Navigation.Mode.None };
         btn.onClick.AddListener(onClick);
-        var forwarder = go.AddComponent<ClearModalButtonClickForwarder>();
-        forwarder.Init(onClick);
         var text = MakeScriptText(go.transform, "Label", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(260f, 48f), 20, TextAnchor.MiddleCenter, font);
         text.color = Color.white;
         text.fontStyle = FontStyle.Bold;
@@ -274,7 +343,12 @@ public partial class AdventureSanctuaryTowerManager
             drone.ResetClimaxState();
         }
         AdventureSaveManager.Ensure();
-        AdventureSaveManager.Instance?.ResetToNewGame();
+        AdventureSaveManager.Instance?.ResetToNewGame(returnToOpeningTitle: false);
+        var opening = AdventureRustFloatOpening.Instance ?? FindAnyObjectByType<AdventureRustFloatOpening>();
+        opening?.ForceDismissForGameplay();
+        AdventurePrologueDrama.Ensure();
+        AdventurePrologueDrama.Instance?.BeginAfterOpening();
+        AdventureStoryFlow.InvalidateCache();
     }
 
     void CloseGameClearModalForFreeExplore()
@@ -366,24 +440,4 @@ public partial class AdventureSanctuaryTowerManager
     }
 
     #endregion
-}
-
-/// <summary>
-/// クリアモーダルの各ボタン専用クリックフォワーダー。
-/// uGUIのEventSystemから直接ポインタクリックを受け取り、割り当てられたコールバックを確実に実行する。
-/// 自前座標計算によるボタン誤ヒット・誤爆を完全防止。
-/// </summary>
-public class ClearModalButtonClickForwarder : MonoBehaviour, UnityEngine.EventSystems.IPointerClickHandler
-{
-    private UnityEngine.Events.UnityAction _callback;
-
-    public void Init(UnityEngine.Events.UnityAction callback)
-    {
-        _callback = callback;
-    }
-
-    public void OnPointerClick(UnityEngine.EventSystems.PointerEventData eventData)
-    {
-        _callback?.Invoke();
-    }
 }

@@ -722,7 +722,8 @@ public class AdventureSaveManager : MonoBehaviour
     public void ResetAllForNewGame() => ResetToNewGame();
 
     /// <summary>セーブデータを初期化し、西側砂浜からパーツ0個で始めるニューゲームを実行</summary>
-    public void ResetToNewGame()
+    /// <param name="returnToOpeningTitle">true なら時代背景タイトルへ。タイトル上の「はじめから」確定後は false にする。</param>
+    public void ResetToNewGame(bool returnToOpeningTitle = true)
     {
         Time.timeScale = 1f;
         AdventurePauseMenu.CloseIfOpen();
@@ -827,12 +828,14 @@ public class AdventureSaveManager : MonoBehaviour
         ShowSaveNotification("新規冒険を開始しました", "時代背景ボードからスタート");
         Debug.Log("[AdventureSaveManager] ニューゲーム開始：全ポイント0・パーツ配置を再抽選しました。");
 
-        // 時代背景オープニングから再開（Play後にプロローグ）
-        var opening = AdventureRustFloatOpening.Instance ?? FindAnyObjectByType<AdventureRustFloatOpening>();
-        if (opening != null)
-            opening.ShowForNewGame();
-        else
-            AdventurePrologueDrama.Instance?.BeginAfterOpening();
+        if (returnToOpeningTitle)
+        {
+            var opening = AdventureRustFloatOpening.Instance ?? FindAnyObjectByType<AdventureRustFloatOpening>();
+            if (opening != null)
+                opening.ShowForNewGame();
+            else
+                AdventurePrologueDrama.Instance?.BeginAfterOpening();
+        }
     }
 
     public void ShowSaveNotification(string title, string subText = "")
