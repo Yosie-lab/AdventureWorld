@@ -177,8 +177,12 @@ public class AdventureRustWorkshopUI : MonoBehaviour
             UpdateDirectMouseClicks();
         }
 
-        if (isVisible && !CanOpenWorkshopNow())
-            SetVisible(false);
+        if (isVisible)
+        {
+            var p = AdventurePlayerController.Instance;
+            if (p != null && (p.IsGliding || p.IsAutoGliding))
+                SetVisible(false);
+        }
 
         // 作業台への接近判定とEキー入力
         UpdateWorkbenchInteraction();
@@ -319,12 +323,28 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         return true;
     }
 
+    void EnsureWorkshopUiLayout()
+    {
+        if (_panelRoot != null)
+        {
+            var scroll = _panelRoot.transform.Find("BodyContainer/CatalogColumn/CatalogScroll");
+            if (scroll != null) return;
+        }
+
+        _cardUIs.Clear();
+        _textSakuragai = _textEmerald = _textSapphire = _textAmber = _textConch = null;
+        if (_canvas != null)
+            Destroy(_canvas.gameObject);
+        _canvas = null;
+        _panelRoot = null;
+        _canvasGroup = null;
+        CreateUI();
+    }
+
     public void SetVisible(bool visible)
     {
-        if (visible && _panelRoot == null)
-        {
-            CreateUI();
-        }
+        if (visible)
+            EnsureWorkshopUiLayout();
 
         isVisible = visible;
         if (_panelRoot != null)
@@ -339,6 +359,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
         if (visible)
         {
+            AdventureBeachSeashellManager.Ensure();
+            AdventureRustCosmetics.Ensure();
             EnsureEventSystemForUi();
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
@@ -358,6 +380,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
     public void RefreshUI()
     {
+        AdventureBeachSeashellManager.Ensure();
+        AdventureRustCosmetics.Ensure();
         var shellMgr = AdventureBeachSeashellManager.Instance;
         var cosmetics = AdventureRustCosmetics.Instance;
 
@@ -447,8 +471,16 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
     void OnCardButtonClicked(CosmeticCardUI card)
     {
+        AdventureBeachSeashellManager.Ensure();
+        AdventureRustCosmetics.Ensure();
         var cosmetics = AdventureRustCosmetics.Instance;
-        if (cosmetics == null || card == null || card.def == null) return;
+        if (card == null || card.def == null) return;
+        if (cosmetics == null)
+        {
+            PlayErrorSound();
+            Debug.LogWarning("[RustAndFloat] 工房: AdventureRustCosmetics が初期化できません");
+            return;
+        }
 
         bool isUnlocked = cosmetics.IsUnlocked(card.def.id);
         if (!isUnlocked)
@@ -542,6 +574,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         bdRect.sizeDelta = Vector2.zero;
         var bdImg = backdrop.AddComponent<Image>();
         bdImg.color = new Color(0.04f, 0.06f, 0.10f, 0.88f);
+        bdImg.raycastTarget = false;
 
         // ── メインパネル（幅 960 × 高 580） ──
         _panelRoot = new GameObject("WorkshopPanel");
@@ -689,18 +722,62 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
         var bg = catGo.AddComponent<Image>();
         bg.color = new Color(0.07f, 0.10f, 0.16f, 0.95f);
+        bg.raycastTarget = false;
 
-        var vlg = catGo.AddComponent<VerticalLayoutGroup>();
+        var scrollGo = new GameObject("CatalogScroll");
+        scrollGo.transform.SetParent(catGo.transform, false);
+        var scrollRt = scrollGo.AddComponent<RectTransform>();
+        scrollRt.anchorMin = Vector2.zero;
+        scrollRt.anchorMax = Vector2.one;
+        scrollRt.offsetMin = Vector2.zero;
+        scrollRt.offsetMax = Vector2.zero;
+
+        var scroll = scrollGo.AddComponent<ScrollRect>();
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 24f;
+
+        var viewportGo = new GameObject("Viewport");
+        viewportGo.transform.SetParent(scrollGo.transform, false);
+        var viewportRt = viewportGo.AddComponent<RectTransform>();
+        viewportRt.anchorMin = Vector2.zero;
+        viewportRt.anchorMax = Vector2.one;
+        viewportRt.offsetMin = Vector2.zero;
+        viewportRt.offsetMax = Vector2.zero;
+        var viewportImg = viewportGo.AddComponent<Image>();
+        viewportImg.color = new Color(0f, 0f, 0f, 0.01f);
+        viewportGo.AddComponent<Mask>().showMaskGraphic = false;
+
+        var contentGo = new GameObject("Content");
+        contentGo.transform.SetParent(viewportGo.transform, false);
+        var contentRt = contentGo.AddComponent<RectTransform>();
+        contentRt.anchorMin = new Vector2(0f, 1f);
+        contentRt.anchorMax = new Vector2(1f, 1f);
+        contentRt.pivot = new Vector2(0.5f, 1f);
+        contentRt.anchoredPosition = Vector2.zero;
+        contentRt.sizeDelta = new Vector2(0f, 0f);
+
+        var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
         vlg.padding = new RectOffset(16, 16, 16, 16);
         vlg.spacing = 10;
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
+        vlg.childControlWidth = true;
+        vlg.childControlHeight = true;
+
+        var fitter = contentGo.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        scroll.viewport = viewportRt;
+        scroll.content = contentRt;
 
         // 全5アクセサリーカードの構築
         for (int i = 0; i < AdventureRustCosmetics.AllDefs.Length; i++)
         {
             var def = AdventureRustCosmetics.AllDefs[i];
-            var card = BuildCosmeticCard(catGo.transform, def, font);
+            var card = BuildCosmeticCard(contentGo.transform, def, font);
             _cardUIs.Add(card);
         }
     }

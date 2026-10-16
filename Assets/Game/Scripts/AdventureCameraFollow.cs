@@ -70,6 +70,11 @@ public class AdventureCameraFollow : MonoBehaviour
     float _shakeUntil;
     float _shakeSeed;
 
+    /// <summary>接地フラグの瞬間切替で歩行↔空中カメラが揺れないようブレンド</summary>
+    float _walkGroundBlend = 1f;
+    const float WalkPivotVerticalSmooth = 0.095f;
+    const float WalkDistanceSmooth = 0.075f;
+
     public void SetCinematicMode(bool enabled)
     {
         _cinematic = enabled;
@@ -149,6 +154,7 @@ public class AdventureCameraFollow : MonoBehaviour
         _pivotVelocity = Vector3.zero;
         _currentDistance = distance;
         _distVel = 0f;
+        _walkGroundBlend = 1f;
         _framedPitch = WalkPitch;
         CurrentYaw = _yaw;
     }
@@ -501,9 +507,16 @@ public class AdventureCameraFollow : MonoBehaviour
         bool playerGrounded = player != null && player.IsGrounded;
         bool playerMoving = player != null && player.HasMoveInput;
         float cine = _cinematicBlend;
-        bool inAir = !playerGrounded && !isGliding && !isAutoGlide;
-        // 接地フラグが1F遅れても、移動入力中は歩行扱い（ただし空中ジャンプ中は除く）
-        bool walkingGround = !isGliding && !isAutoGlide && !inAir && cine < 0.05f && (playerGrounded || playerMoving);
+
+        if (playerGrounded)
+            _walkGroundBlend = Mathf.MoveTowards(_walkGroundBlend, 1f, Time.deltaTime / 0.07f);
+        else
+            _walkGroundBlend = Mathf.MoveTowards(_walkGroundBlend, 0f, Time.deltaTime / 0.11f);
+
+        bool inAir = !isGliding && !isAutoGlide && _walkGroundBlend < 0.32f;
+        // 斜面・凸凹で接地が揺れても、歩行カメラを維持（移動中はより寛容）
+        bool walkingGround = !isGliding && !isAutoGlide && cine < 0.05f
+                             && _walkGroundBlend > (playerMoving ? 0.38f : 0.52f);
 
         Quaternion currentRot = Quaternion.Euler(_pitch, _yaw, 0f);
 
@@ -525,11 +538,15 @@ public class AdventureCameraFollow : MonoBehaviour
             _distVel = 0f;
         }
 
-        // 歩行：ピボットもほぼスナップ（カメラ遅れ＝操作の重さ）
+        // 歩行：XZは即応、Yだけ斜面の微細な上下を吸収
         if (walkingGround)
         {
-            _currentPivot = targetPivot;
-            _pivotVelocity = Vector3.zero;
+            float smoothY = Mathf.SmoothDamp(
+                _currentPivot.y, targetPivot.y, ref _pivotVelocity.y,
+                WalkPivotVerticalSmooth, Mathf.Infinity, Time.deltaTime);
+            _currentPivot = new Vector3(targetPivot.x, smoothY, targetPivot.z);
+            _pivotVelocity.x = 0f;
+            _pivotVelocity.z = 0f;
         }
         else if (inAir)
         {
@@ -575,8 +592,9 @@ public class AdventureCameraFollow : MonoBehaviour
 
         if (walkingGround)
         {
-            _currentDistance = safeTargetDist;
-            _distVel = 0f;
+            _currentDistance = Mathf.SmoothDamp(
+                _currentDistance, safeTargetDist, ref _distVel,
+                WalkDistanceSmooth, Mathf.Infinity, Time.deltaTime);
         }
         else
         {
@@ -596,15 +614,16 @@ public class AdventureCameraFollow : MonoBehaviour
         if (_land != null)
         {
             float groundY = AdventureQuestLocations.GroundY(_land, targetPos.x, targetPos.z) + 0.85f;
-            if (targetPos.y < groundY)
+            float groundSmooth = walkingGround ? 0.14f : 0.06f;
+            if (targetPos.y < groundY - 0.015f)
             {
                 if (_camGroundY < 0.1f) _camGroundY = groundY;
-                _camGroundY = Mathf.SmoothDamp(_camGroundY, groundY, ref _camGroundYVel, 0.06f);
+                _camGroundY = Mathf.SmoothDamp(_camGroundY, groundY, ref _camGroundYVel, groundSmooth);
                 targetPos.y = Mathf.Max(targetPos.y, _camGroundY);
             }
             else
             {
-                _camGroundY = targetPos.y;
+                _camGroundY = Mathf.SmoothDamp(_camGroundY, targetPos.y, ref _camGroundYVel, groundSmooth);
             }
         }
 
