@@ -52,8 +52,11 @@ public class AdventureWindRing : MonoBehaviour
     {
         if (transform.Find("RingVisual") != null)
         {
-            _ringVisual = transform.Find("RingVisual");
-            return;
+            var oldVisual = transform.Find("RingVisual");
+            if (Application.isPlaying)
+                Destroy(oldVisual.gameObject);
+            else
+                DestroyImmediate(oldVisual.gameObject);
         }
 
         var visualGo = new GameObject("RingVisual");
@@ -64,51 +67,45 @@ public class AdventureWindRing : MonoBehaviour
         _ringMat = new Material(shader);
         _ringMat.SetColor("_BaseColor", ringColor);
         _ringMat.EnableKeyword("_EMISSION");
-        _ringMat.SetColor("_EmissionColor", ringColor * 3.5f); // 昼間でも圧倒的に目立つ強烈な発光
-        _ringMat.SetFloat("_Metallic", 0.85f);
+        _ringMat.SetColor("_EmissionColor", ringColor * 3.2f); // 昼間でも美しく際立つ発光
+        _ringMat.SetFloat("_Metallic", 0.5f);
         _ringMat.SetFloat("_Smoothness", 0.95f);
 
-        // 直径約8.0m、太さ0.65mの迫力ある20セグメント円環
-        int segments = 20;
-        float radius = 4.0f;
-        for (int i = 0; i < segments; i++)
+        // 継ぎ目やカクカクのない滑らかな真円トーラス（外径約3.8m、太さ0.24m）
+        var mf = visualGo.AddComponent<MeshFilter>();
+        var mr = visualGo.AddComponent<MeshRenderer>();
+        mf.sharedMesh = CreateTorusMesh(3.8f, 0.24f, 48, 16);
+        mr.sharedMaterial = _ringMat;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+        // 既存パーティクルがあれば再生成（繊細でシンプルな気流に調整）
+        var existingPs = transform.Find("RingParticles");
+        if (existingPs != null)
         {
-            float angle = i * (Mathf.PI * 2f / segments);
-            Vector3 pos = new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0f);
-            var seg = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            seg.name = "Seg_" + i;
-            seg.transform.SetParent(_ringVisual, false);
-            seg.transform.localPosition = pos;
-            seg.transform.localScale = new Vector3(0.65f, 0.75f, 0.65f);
-
-            float deg = angle * Mathf.Rad2Deg;
-            seg.transform.localRotation = Quaternion.Euler(0f, 0f, deg + 90f);
-            DestroyImmediate(seg.GetComponent<Collider>());
-
-            var rend = seg.GetComponent<Renderer>();
-            if (rend != null)
-                rend.material = _ringMat;
+            if (Application.isPlaying)
+                Destroy(existingPs.gameObject);
+            else
+                DestroyImmediate(existingPs.gameObject);
         }
 
-        // リング周囲を回転する風の気流パーティクル
         var pGo = new GameObject("RingParticles");
         pGo.transform.SetParent(transform, false);
         var ps = pGo.AddComponent<ParticleSystem>();
 
         var main = ps.main;
         main.loop = true;
-        main.startLifetime = 1.4f;
-        main.startSpeed = 4.5f;
-        main.startSize = 0.45f;
-        main.startColor = new Color(0.3f, 1.0f, 0.85f, 0.8f);
+        main.startLifetime = 1.2f;
+        main.startSpeed = 3.8f;
+        main.startSize = 0.25f; // 主役のリングを邪魔しない繊細な光粒
+        main.startColor = new Color(0.35f, 1.0f, 0.88f, 0.6f);
         main.simulationSpace = ParticleSystemSimulationSpace.World;
 
         var emission = ps.emission;
-        emission.rateOverTime = 24f;
+        emission.rateOverTime = 18f;
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Circle;
-        shape.radius = radius;
+        shape.radius = 3.8f;
 
         var rendPs = pGo.GetComponent<ParticleSystemRenderer>();
         if (rendPs != null)
@@ -116,9 +113,65 @@ public class AdventureWindRing : MonoBehaviour
             var pShader = Shader.Find("RustAndFloat/WhiteSmoke") ?? Shader.Find("Sprites/Default");
             var pMat = new Material(pShader);
             pMat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
-            pMat.SetColor("_BaseColor", ringColor * 2.0f);
+            pMat.SetColor("_BaseColor", ringColor * 1.8f);
             rendPs.material = pMat;
+            rendPs.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
+    }
+
+    /// <summary>滑らかで継ぎ目のない真円トーラス（ドーナツ型）メッシュを生成</summary>
+    public static Mesh CreateTorusMesh(float rTorus, float rTube, int radialSegments, int tubeSegments)
+    {
+        Mesh mesh = new Mesh();
+        mesh.name = "SmoothWindRingMesh";
+        int numVertices = (radialSegments + 1) * (tubeSegments + 1);
+        Vector3[] vertices = new Vector3[numVertices];
+        Vector3[] normals = new Vector3[numVertices];
+        Vector2[] uvs = new Vector2[numVertices];
+        int[] triangles = new int[radialSegments * tubeSegments * 6];
+
+        for (int i = 0; i <= radialSegments; i++)
+        {
+            float u = (float)i / radialSegments * Mathf.PI * 2f;
+            Vector3 center = new Vector3(Mathf.Cos(u) * rTorus, Mathf.Sin(u) * rTorus, 0f);
+
+            for (int j = 0; j <= tubeSegments; j++)
+            {
+                float v = (float)j / tubeSegments * Mathf.PI * 2f;
+                Vector3 normal = new Vector3(Mathf.Cos(u) * Mathf.Cos(v), Mathf.Sin(u) * Mathf.Cos(v), Mathf.Sin(v));
+                Vector3 vertex = center + normal * rTube;
+
+                int index = i * (tubeSegments + 1) + j;
+                vertices[index] = vertex;
+                normals[index] = normal;
+                uvs[index] = new Vector2((float)i / radialSegments, (float)j / tubeSegments);
+            }
+        }
+
+        int triIndex = 0;
+        for (int i = 0; i < radialSegments; i++)
+        {
+            for (int j = 0; j < tubeSegments; j++)
+            {
+                int current = i * (tubeSegments + 1) + j;
+                int next = (i + 1) * (tubeSegments + 1) + j;
+
+                triangles[triIndex++] = current;
+                triangles[triIndex++] = next;
+                triangles[triIndex++] = next + 1;
+
+                triangles[triIndex++] = current;
+                triangles[triIndex++] = next + 1;
+                triangles[triIndex++] = current + 1;
+            }
+        }
+
+        mesh.vertices = vertices;
+        mesh.normals = normals;
+        mesh.uv = uvs;
+        mesh.triangles = triangles;
+        mesh.RecalculateBounds();
+        return mesh;
     }
 
     /// <summary>
@@ -185,7 +238,7 @@ public class AdventureWindRing : MonoBehaviour
             Vector3 localPos = transform.InverseTransformPoint(samplePoints[i]);
             float radiusDist = Mathf.Sqrt(localPos.x * localPos.x + localPos.y * localPos.y);
             float zDist = Mathf.Abs(localPos.z);
-            if (radiusDist <= 3.8f && zDist <= 1.35f)
+            if (radiusDist <= 4.2f && zDist <= 1.8f)
                 return true;
         }
         return false;

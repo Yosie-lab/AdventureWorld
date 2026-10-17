@@ -890,31 +890,42 @@ public static class AdventureBuildRustFloatIsland
 
         var streamClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/AudioFiles/03_amb/watershore_amb.wav");
 
-        // 4. 上流小川: オアシス湧水池(480, 455) から カルデラ湖(420, 440) へ下るせせらぎ
+        // 4. 上流小川: オアシス湧水池(475, 48.2, 455) から カルデラ湖(425, 25.5, 440) へ下る連続スロープせせらぎ（段差ゼロ）
         var upRoot = GameObject.Find("UpperParadiseStream");
         if (upRoot != null) Object.DestroyImmediate(upRoot);
         upRoot = new GameObject("UpperParadiseStream");
 
-        const int upSegs = 9;
+        Vector3 pStart = new Vector3(475f, 48.20f, 455f);
+        Vector3 pEnd   = new Vector3(425f, 25.50f, 440f);
+        Vector3 pCtrl  = new Vector3(453f, 36.85f, 451f);
+
+        System.Func<float, Vector3> evalUpStream = (t) =>
+        {
+            float u = 1f - t;
+            return u * u * pStart + 2f * u * t * pCtrl + t * t * pEnd;
+        };
+
+        const int upSegs = 18;
         for (int i = 0; i < upSegs; i++)
         {
-            float t = (float)i / (upSegs - 1);
-            float wx = Mathf.Lerp(475f, 425f, t);
-            float wz = Mathf.Lerp(455f, 440f, t);
-            float wy = Mathf.Lerp(48.0f, 25.6f, t);
+            float t0 = (float)i / upSegs;
+            float t1 = (float)(i + 1) / upSegs;
+
+            Vector3 p0 = evalUpStream(t0);
+            Vector3 p1 = evalUpStream(t1);
+
+            Vector3 center = (p0 + p1) * 0.5f;
+            Vector3 dir = p1 - p0;
+            float len = dir.magnitude;
 
             var seg = GameObject.CreatePrimitive(PrimitiveType.Plane);
             seg.name = "UpSeg_" + i;
             seg.transform.SetParent(upRoot.transform, false);
-            seg.transform.position = new Vector3(wx, wy, wz);
+            seg.transform.position = center;
+            seg.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
 
-            float nextT = Mathf.Min(1f, t + 0.12f);
-            float nextX = Mathf.Lerp(475f, 425f, nextT);
-            float nextZ = Mathf.Lerp(455f, 440f, nextT);
-            Vector3 fwd = new Vector3(nextX - wx, 0f, nextZ - wz).normalized;
-            if (fwd != Vector3.zero) seg.transform.rotation = Quaternion.LookRotation(fwd);
-
-            seg.transform.localScale = new Vector3(0.9f, 1f, 1.2f); // 幅9m x 長さ12m
+            float width = Mathf.Lerp(7.5f, 9.5f, (t0 + t1) * 0.5f);
+            seg.transform.localScale = new Vector3(width / 10f, 1f, (len / 10f) * 1.03f);
 
             var col = seg.GetComponent<Collider>();
             if (col != null) Object.DestroyImmediate(col);
@@ -924,7 +935,7 @@ public static class AdventureBuildRustFloatIsland
                 if (rend != null) rend.sharedMaterial = waterMat;
             }
 
-            if (i % 3 == 0 && streamClip != null)
+            if (i % 4 == 0 && streamClip != null)
             {
                 var sndGo = new GameObject("UpSound_" + i);
                 sndGo.transform.SetParent(seg.transform, false);
@@ -936,7 +947,7 @@ public static class AdventureBuildRustFloatIsland
                 src.spatialBlend = 1.0f;
                 src.minDistance = 6f;
                 src.maxDistance = 25f;
-                src.volume = 0.22f;
+                src.volume = 0.20f;
                 src.rolloffMode = AudioRolloffMode.Linear;
             }
         }

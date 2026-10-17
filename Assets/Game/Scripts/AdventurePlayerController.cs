@@ -385,6 +385,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         AdventureScrapManager.Ensure();
         AdventureScrapHUD.Ensure();
         AdventureFlightManager.Ensure();
+        AdventureSteamVentManager.Ensure();
         AdventureRustDrone.Ensure();
         AdventureBeachFlotsamManager.Ensure();
         AdventureLakeVisualEnhancer.Ensure();
@@ -937,6 +938,18 @@ public partial class AdventurePlayerController : MonoBehaviour
         _glideYawRateCurrent = Mathf.MoveTowards(
             _glideYawRateCurrent, desiredYawRate, GlideYawAccel * dt);
         float currentYaw = transform.eulerAngles.y + _glideYawRateCurrent * dt;
+
+        // カメラ視点追従アシスト：Wキー前進時または入力ニュートラル時、カメラの水平正面へスムーズに機首を向ける
+        if (cameraPivot != null && Mathf.Abs(gIn.x) < 0.35f)
+        {
+            Vector3 camFwd = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
+            if (camFwd.sqrMagnitude > 0.01f)
+            {
+                float targetCamYaw = Quaternion.LookRotation(camFwd.normalized).eulerAngles.y;
+                float alignSpeed = (gIn.y > 0.15f ? 85f : 40f); // 前進入力中はしっかりカメラ前方へ向く
+                currentYaw = Mathf.MoveTowardsAngle(currentYaw, targetCamYaw, alignSpeed * dt);
+            }
+        }
 
         // バンク（機体傾き）
         float targetRoll = -gIn.x * GlideBankAngle;
@@ -1517,6 +1530,48 @@ public partial class AdventurePlayerController : MonoBehaviour
         _updraftLift  = liftForce;
         _updraftTimer = 0.25f;
         if (!_grounded) _gliding = true;
+    }
+
+    /// <summary>地上スチーム・上昇気流噴出孔（スチーム・ウィンド）に入った際の大跳躍射出＆前方推進＆滑空展開</summary>
+    public void LaunchFromSteamVent(float launchHop = 18f, Vector3 forwardHint = default)
+    {
+        bool isMega = launchHop >= 32f;
+        _grounded = false;
+        _hop = Mathf.Max(_hop, launchHop);
+        _gliding = true;
+        _doubleJumpUsed = false;
+        _airborneTime = 0.4f;
+
+        // メガ・スチームウィンド（70m級）は上昇力と維持時間を大幅強化して一気に大空へ突き抜ける
+        _updraftLift = isMega ? launchHop * 0.72f : launchHop * 0.45f;
+        _updraftTimer = isMega ? 2.45f : 0.85f;
+        _glideBoostTimer = Mathf.Max(_glideBoostTimer, isMega ? 5.0f : 3.2f);
+
+        // 前進推進力（水平速度）：カメラ正面（または入力・キャラクター前方）へ力強く射出
+        Vector3 launchDir = forwardHint;
+        if (launchDir.sqrMagnitude < 0.01f && cameraPivot != null)
+        {
+            var follow = cameraPivot.GetComponent<AdventureCameraFollow>()
+                         ?? AdventureCameraFollow.InstanceOrFind();
+            if (follow != null)
+                follow.GetPlanarMoveBasis(out launchDir, out _);
+            else
+                launchDir = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
+        }
+        if (launchDir.sqrMagnitude < 0.01f)
+            launchDir = transform.forward;
+        launchDir.y = 0f;
+        if (launchDir.sqrMagnitude < 0.01f)
+            launchDir = Vector3.forward;
+        launchDir.Normalize();
+
+        float forwardSpeed = (isMega ? 12.0f : 9.5f) * moveSpeedMultiplier;
+        _airMomentum = launchDir * forwardSpeed;
+        _glideSpeedCurrent = forwardSpeed;
+        _airMomVel = Vector3.zero;
+
+        // キャラクターの向きも進行方向へ自然に合わせる
+        transform.rotation = Quaternion.LookRotation(launchDir);
     }
 
     /// <summary>エピローグ用：高度を保ちながら雄大に水平旋回するオートグライド</summary>

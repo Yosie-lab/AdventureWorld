@@ -514,12 +514,13 @@ public partial class AdventureSanctuaryTowerManager
         var pillarMat = new Material(shader);
         pillarMat.SetColor("_BaseColor", new Color(0.82f, 0.85f, 0.88f));
 
-        // 階段最上部からテラス床面への接続大理石スラブ（厚み3.0mの重厚ブロック、上面はテラス床面63.00mと段差ゼロで完全一致）
+        // 階段最上部からテラス床面への接続大理石スラブ
+        // 上面をテラス床面より0.025mだけ高くオフセットし、同一平面重なり（Z-fighting/チカチカ）を物理的に完全解消
         var bridgeObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
         bridgeObj.name = "StairsToTerraceBridge";
         bridgeObj.transform.SetParent(stairsRoot.transform, false);
-        bridgeObj.transform.position = new Vector3(512f, TerraceFloorY - 1.50f, 480f);
-        bridgeObj.transform.localScale = new Vector3(width, 3.0f, 4.5f);
+        bridgeObj.transform.position = new Vector3(512f, TerraceFloorY - 1.50f + 0.025f, 479.5f);
+        bridgeObj.transform.localScale = new Vector3(width, 3.0f, 3.8f);
         var bridgeMr = bridgeObj.GetComponent<MeshRenderer>();
         if (bridgeMr != null) bridgeMr.material = marbleMat;
 
