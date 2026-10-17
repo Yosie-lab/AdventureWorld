@@ -941,5 +941,84 @@ public partial class AdventureSanctuaryTowerManager
         }
     }
 
+    /// <summary>台座東側〜南東側の崖下空洞を大理石基壇外壁＋ソリッドBoxCollider群で密閉（下からの突き抜け・頭挟まりを物理的に100%遮断）</summary>
+    void EnsurePodiumCliffFoundation(GameObject tower)
+    {
+        var found = tower.transform.Find("PodiumCliffFoundation");
+        if (found == null)
+        {
+            var go = new GameObject("PodiumCliffFoundation");
+            go.transform.SetParent(tower.transform, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+            found = go.transform;
+
+            var mf = go.AddComponent<MeshFilter>();
+            var mr = go.AddComponent<MeshRenderer>();
+
+#if UNITY_EDITOR
+            var meshAsset = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Assets/RustAndFloat/Meshes/PodiumCliffFoundation_Mesh.asset");
+            if (meshAsset != null)
+            {
+                mf.sharedMesh = meshAsset;
+            }
+#endif
+            var podium = tower.transform.Find("WhiteMarblePodium");
+            if (podium != null)
+            {
+                var pmr = podium.GetComponent<MeshRenderer>();
+                if (pmr != null) mr.sharedMaterial = pmr.sharedMaterial;
+            }
+        }
+
+        // 東側崖下からの侵入・頭突き抜けを物理的に100%遮断するソリッドBoxCollider群を保証
+        var wallBoxes = found.Find("SolidWallColliders");
+        if (wallBoxes == null)
+        {
+            var wallRoot = new GameObject("SolidWallColliders");
+            wallRoot.transform.SetParent(found, false);
+            wallRoot.transform.localPosition = Vector3.zero;
+            wallRoot.transform.localRotation = Quaternion.identity;
+
+            var terr = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
+            const float topY = 63.00f;
+            const float radius = 34.2f;
+            const float thickness = 2.5f;
+
+            void BuildBoxes(int count, float startDeg, float endDeg, string prefix)
+            {
+                float arcLen = (endDeg - startDeg) * Mathf.Deg2Rad * radius;
+                float segWidth = (arcLen / count) * 1.15f;
+                for (int i = 0; i < count; i++)
+                {
+                    float t = (float)(i + 0.5f) / count;
+                    float deg = Mathf.Lerp(startDeg, endDeg, t);
+                    float rad = deg * Mathf.Deg2Rad;
+                    float nx = Mathf.Sin(rad);
+                    float nz = Mathf.Cos(rad);
+                    Vector3 outDir = new Vector3(nx, 0, nz);
+                    float px = 512f + nx * radius;
+                    float pz = 512f + nz * radius;
+                    float gh = 45f;
+                    if (terr != null) gh = terr.SampleHeight(new Vector3(px, 0, pz)) + terr.transform.position.y;
+                    float botY = Mathf.Min(topY - 1.0f, gh - 3.0f);
+                    float h = topY - botY;
+                    float midY = (topY + botY) * 0.5f;
+
+                    var bGo = new GameObject($"{prefix}_{deg:F0}deg");
+                    bGo.transform.SetParent(wallRoot.transform, false);
+                    bGo.transform.position = new Vector3(px, midY, pz);
+                    bGo.transform.rotation = Quaternion.LookRotation(outDir, Vector3.up);
+                    var box = bGo.AddComponent<BoxCollider>();
+                    box.size = new Vector3(segWidth, h, thickness);
+                }
+            }
+
+            BuildBoxes(24, 60f, 182f, "EastWallBox");
+            BuildBoxes(6, 184.5f, 205f, "WestWallBox");
+        }
+    }
+
     #endregion
 }
