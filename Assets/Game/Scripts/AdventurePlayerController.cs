@@ -86,11 +86,12 @@ public partial class AdventurePlayerController : MonoBehaviour
     float   _autoGlideAltitude = 120f;
     bool    _wasMoveInput;
     float   _startupBoostTimer;
+    int     _rockStuckFrames;
     #endregion
 
     #region Constants & Geographic Data
     const float Skin                 = 0.05f;
-    const float StepOffsetGround     = 0.45f;
+    const float StepOffsetGround     = 0.65f;
     const float SteepNormalThreshold = 0.20f;
 
     // 湖脱出ジャンプ定数
@@ -344,10 +345,10 @@ public partial class AdventurePlayerController : MonoBehaviour
     void InitCharacterController()
     {
         _cc = GetComponent<CharacterController>();
-        _cc.slopeLimit      = 78f;
+        _cc.slopeLimit      = 86f;
         _cc.stepOffset      = StepOffsetGround;
         _cc.minMoveDistance = 0f;
-        _cc.skinWidth       = 0.02f;
+        _cc.skinWidth       = 0.038f;
         _cc.radius          = 0.28f;
         _cc.center          = new Vector3(0f, 0.78f, 0f);
         _cc.height          = 1.55f;
@@ -1097,30 +1098,54 @@ public partial class AdventurePlayerController : MonoBehaviour
         }
 
         Vector3 motion = ClipMotion(horizontal * Time.deltaTime);
+        Vector3 prevPos = transform.position;
 
-        // 接地吸着：
-        // 坂道を登っている（horizontal.y > 0）場合は上向き登坂ベクトルを維持し、地面への過度な押し付け（摩擦スタック）を防止
+        // 接地吸着＆段差走破：
+        // 水平移動（段差乗り越え）を先に行い、その後に接地吸着（垂直）を行う。
+        // Unity の CharacterController は、下向き押し付けベクトルが同時に加わると stepOffset による
+        // 段差乗り上げがキャンセルされるため、2段階に分けて Move することで岩や凸凹をスムーズに踏み越えられる。
         if (_grounded && _hop <= 0.05f && !_gliding && !_autoGlide)
         {
-            bool moving = horizontal.magnitude > 0.01f;
+            bool moving = horizontal.sqrMagnitude > 0.01f;
+
+            // スタック検知＆岩の隙間脱出アシスト（Unstuck Assist）:
+            // 前進入力があるのに岩や地形の隙間に挟まって動けない場合、斜め上微小リフトを与えてスルッと抜ける
+            Vector3 hMove = new Vector3(motion.x, Mathf.Max(0f, motion.y), motion.z);
+            if (moving && _rockStuckFrames > 2)
+            {
+                hMove.y += 0.08f * Mathf.Min(_rockStuckFrames * 0.5f, 2.0f);
+            }
+
+            _cc.Move(hMove);
+
+            // 水平移動の実績を測定（スタック判定）
+            Vector3 actualHorizontal = Vector3.ProjectOnPlane(transform.position - prevPos, Vector3.up);
+            if (moving && actualHorizontal.sqrMagnitude < 0.00005f)
+            {
+                _rockStuckFrames = Mathf.Min(_rockStuckFrames + 1, 10);
+            }
+            else
+            {
+                _rockStuckFrames = 0;
+            }
+
+            // 垂直方向の接地吸着
             float stickSpeed = AdventureSceneContext.IsRustFloat
                 ? AdventureRustFloatFeel.GroundStickSpeed(moving)
                 : (moving ? 3.2f : 2.0f);
 
-            if (motion.y > 0.001f)
-            {
-                // 登坂ベクトルを維持（斜面に沿ってスムーズに登る）
-                motion.y = Mathf.Max(motion.y, -stickSpeed * Time.deltaTime * 0.2f);
-            }
-            else
-            {
-                motion.y = -stickSpeed * Time.deltaTime;
-            }
+            float vertY = (motion.y > 0.001f)
+                ? Mathf.Max(motion.y, -stickSpeed * Time.deltaTime * 0.2f)
+                : -stickSpeed * Time.deltaTime;
+
+            _cc.Move(new Vector3(0f, vertY, 0f));
         }
         else
+        {
+            _rockStuckFrames = 0;
             motion.y = _hop * Time.deltaTime;
-
-        _cc.Move(motion);
+            _cc.Move(motion);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
