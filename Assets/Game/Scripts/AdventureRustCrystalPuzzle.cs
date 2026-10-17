@@ -151,6 +151,8 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         basePillar.transform.SetParent(crystalRoot.transform, false);
         basePillar.transform.localPosition = new Vector3(0f, 0.9f, 0f);
         basePillar.transform.localScale = new Vector3(1.4f, 0.9f, 1.4f);
+        var baseCol = basePillar.GetComponent<Collider>();
+        if (baseCol != null) Destroy(baseCol); // プレイヤーの空中浮遊・引っかかり防止
         var baseRend = basePillar.GetComponent<Renderer>();
         var stoneMat = new Material(litShader);
         stoneMat.SetColor("_BaseColor", new Color(0.42f, 0.44f, 0.46f));
@@ -167,7 +169,7 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         _crystalCore = crystalCoreGo.transform;
 
         var coreCol = crystalCoreGo.GetComponent<Collider>();
-        if (coreCol != null) Destroy(coreCol); // 当たり判定は台座側で持つ
+        if (coreCol != null) Destroy(coreCol);
 
         _crystalMat = new Material(litShader);
         _crystalMat.SetColor("_BaseColor", new Color(0.2f, 0.85f, 1.0f, 0.95f));
@@ -208,12 +210,14 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         ventRoot.transform.SetParent(transform, false);
         ventRoot.transform.position = ventBasePos;
 
-        // 外枠リング
+        // 外枠リング（CylinderプリミティブのCapsuleColliderがプレイヤーを宙に浮かせるのを防ぐためコライダー削除）
         var ventRim = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         ventRim.name = "VentRim";
         ventRim.transform.SetParent(ventRoot.transform, false);
         ventRim.transform.localPosition = new Vector3(0f, 0.15f, 0f);
         ventRim.transform.localScale = new Vector3(3.4f, 0.15f, 3.4f);
+        var vCol = ventRim.GetComponent<Collider>();
+        if (vCol != null) Destroy(vCol);
         var rimRend = ventRim.GetComponent<Renderer>();
         var bronzeMat = new Material(litShader);
         bronzeMat.SetColor("_BaseColor", new Color(0.35f, 0.38f, 0.36f));
@@ -411,6 +415,19 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         curve.AddKey(0.5f, 1.0f);
         curve.AddKey(1f, 0.2f);
         sol.size = new ParticleSystem.MinMaxCurve(1f, curve);
+
+        var rend = ps.GetComponent<ParticleSystemRenderer>();
+        if (rend != null)
+        {
+            var pShader = Shader.Find("RustAndFloat/WhiteSmoke")
+                          ?? Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                          ?? Shader.Find("Sprites/Default");
+            var pMat = new Material(pShader);
+            pMat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
+            pMat.SetColor("_BaseColor", new Color(0.35f, 0.95f, 1.0f, 0.40f));
+            rend.material = pMat;
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
     }
 
     AudioClip CreateWindAudioClip()

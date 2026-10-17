@@ -49,13 +49,13 @@ public class AdventureSteamVentManager : MonoBehaviour
         root.transform.SetParent(transform, false);
 
         // 1. 西海岸白砂ビーチ（冒険の出発点・岩場）★メガ70m級（島全体への大テイクオフ）
-        CreateSteamVent(root.transform, "SteamVent_WestBeach", new Vector3(172f, 0f, 265f), 7.5f, 90f, 38.0f, land, isMega: true);
+        CreateSteamVent(root.transform, "SteamVent_WestBeach", new Vector3(172f, 0f, 265f), 7.5f, 110f, 56.0f, land, isMega: true);
 
         // 2. 大草原せせらぎ池畔（低地から一気に台地へ）
         CreateSteamVent(root.transform, "SteamVent_MeadowPond", new Vector3(275f, 0f, 365f), 6.5f, 55f, 19.5f, land, isMega: false);
 
         // 3. 中央聖域タワー台座麓（タワー中腹・頂上へ直行）★メガ70m級（神聖なタワー天蓋をも超える絶景高度）
-        CreateSteamVent(root.transform, "SteamVent_TowerFoot", new Vector3(480f, 0f, 485f), 8.5f, 95f, 38.0f, land, isMega: true);
+        CreateSteamVent(root.transform, "SteamVent_TowerFoot", new Vector3(480f, 0f, 485f), 8.5f, 115f, 56.0f, land, isMega: true);
 
         // 4. 東部大渓谷の谷底（キャニオン底からの脱出＆復帰）
         CreateSteamVent(root.transform, "SteamVent_CanyonFloor", new Vector3(585f, 0f, 475f), 7.0f, 55f, 20.0f, land, isMega: false);
@@ -64,7 +64,7 @@ public class AdventureSteamVentManager : MonoBehaviour
         CreateSteamVent(root.transform, "SteamVent_CalderaLake", new Vector3(380f, 0f, 440f), 6.5f, 52f, 19.0f, land, isMega: false);
 
         // 6. 北の最高峰崖下アプローチ（スカイダイブ台へのショートカット）★メガ70m級（雲海を突き抜けるウルトラハイジャンプ）
-        CreateSteamVent(root.transform, "SteamVent_NorthCliffApproach", new Vector3(512f, 0f, 660f), 8.0f, 100f, 40.0f, land, isMega: true);
+        CreateSteamVent(root.transform, "SteamVent_NorthCliffApproach", new Vector3(512f, 0f, 660f), 8.0f, 120f, 58.0f, land, isMega: true);
 
         // 7. 南岬シーサイドクリフ（海風パノラマビュー）
         CreateSteamVent(root.transform, "SteamVent_SouthCape", new Vector3(195f, 0f, 195f), 6.0f, 52f, 19.0f, land, isMega: false);
@@ -99,7 +99,7 @@ public class AdventureSteamVentManager : MonoBehaviour
         updraft.isMegaVent = isMega;
         updraft.radius = radius;
         updraft.height = height;
-        updraft.liftSpeed = isMega ? 26.0f : 6.5f;
+        updraft.liftSpeed = isMega ? 42.0f : 6.5f;
         updraft.enableGroundLaunch = true;
         updraft.groundLaunchForce = launchForce;
         updraft.pullToCenter = false; // 射出後にプレイヤーが前方へ自由に前進・脱出できるようにする

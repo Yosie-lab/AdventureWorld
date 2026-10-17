@@ -890,7 +890,7 @@ public static class AdventureBuildRustFloatIsland
 
         var streamClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/AudioFiles/03_amb/watershore_amb.wav");
 
-        // 4. 上流小川: オアシス湧水池(475, 48.2, 455) から カルデラ湖(425, 25.5, 440) へ下る連続スロープせせらぎ（段差ゼロ）
+        // 4. 上流小川: オアシス湧水池(475, 48.2, 455) から カルデラ湖(425, 25.5, 440) へ下る連続スロープせせらぎ（段差ゼロ・シームレスリボンメッシュ）
         var upRoot = GameObject.Find("UpperParadiseStream");
         if (upRoot != null) Object.DestroyImmediate(upRoot);
         upRoot = new GameObject("UpperParadiseStream");
@@ -899,47 +899,96 @@ public static class AdventureBuildRustFloatIsland
         Vector3 pEnd   = new Vector3(425f, 25.50f, 440f);
         Vector3 pCtrl  = new Vector3(453f, 36.85f, 451f);
 
-        System.Func<float, Vector3> evalUpStream = (t) =>
+        const int upSegs = 36;
+        Vector3[] streamVerts = new Vector3[(upSegs + 1) * 2];
+        Vector3[] streamNorms = new Vector3[(upSegs + 1) * 2];
+        Vector2[] streamUVs   = new Vector2[(upSegs + 1) * 2];
+        int[] streamTris      = new int[upSegs * 6];
+
+        float cumDist = 0f;
+        Vector3 prevCenter = pStart;
+
+        for (int i = 0; i <= upSegs; i++)
         {
+            float t = (float)i / upSegs;
             float u = 1f - t;
-            return u * u * pStart + 2f * u * t * pCtrl + t * t * pEnd;
-        };
 
-        const int upSegs = 18;
-        for (int i = 0; i < upSegs; i++)
-        {
-            float t0 = (float)i / upSegs;
-            float t1 = (float)(i + 1) / upSegs;
+            Vector3 center = u * u * pStart + 2f * u * t * pCtrl + t * t * pEnd;
+            Vector3 tangent = (2f * u * (pCtrl - pStart) + 2f * t * (pEnd - pCtrl)).normalized;
+            Vector3 binormal = Vector3.Cross(tangent, Vector3.up).normalized;
+            Vector3 norm = Vector3.Cross(binormal, tangent).normalized;
 
-            Vector3 p0 = evalUpStream(t0);
-            Vector3 p1 = evalUpStream(t1);
+            if (i > 0) cumDist += Vector3.Distance(center, prevCenter);
+            prevCenter = center;
 
-            Vector3 center = (p0 + p1) * 0.5f;
-            Vector3 dir = p1 - p0;
-            float len = dir.magnitude;
+            float width = Mathf.Lerp(7.5f, 9.5f, t);
+            Vector3 vLeft  = center - binormal * (width * 0.5f);
+            Vector3 vRight = center + binormal * (width * 0.5f);
 
-            var seg = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            seg.name = "UpSeg_" + i;
-            seg.transform.SetParent(upRoot.transform, false);
-            seg.transform.position = center;
-            seg.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+            int vIdx = i * 2;
+            streamVerts[vIdx]     = vLeft;
+            streamVerts[vIdx + 1] = vRight;
+            streamNorms[vIdx]     = norm;
+            streamNorms[vIdx + 1] = norm;
 
-            float width = Mathf.Lerp(7.5f, 9.5f, (t0 + t1) * 0.5f);
-            seg.transform.localScale = new Vector3(width / 10f, 1f, (len / 10f) * 1.03f);
+            float vCoord = cumDist * 0.2f;
+            streamUVs[vIdx]     = new Vector2(0f, vCoord);
+            streamUVs[vIdx + 1] = new Vector2(1f, vCoord);
 
-            var col = seg.GetComponent<Collider>();
-            if (col != null) Object.DestroyImmediate(col);
-            if (waterMat != null)
+            if (i < upSegs)
             {
-                var rend = seg.GetComponent<Renderer>();
-                if (rend != null) rend.sharedMaterial = waterMat;
+                int tIdx = i * 6;
+                int currentLeft  = vIdx;
+                int currentRight = vIdx + 1;
+                int nextLeft     = vIdx + 2;
+                int nextRight    = vIdx + 3;
+
+                streamTris[tIdx + 0] = currentLeft;
+                streamTris[tIdx + 1] = nextLeft;
+                streamTris[tIdx + 2] = currentRight;
+
+                streamTris[tIdx + 3] = currentRight;
+                streamTris[tIdx + 4] = nextLeft;
+                streamTris[tIdx + 5] = nextRight;
             }
+        }
 
-            if (i % 4 == 0 && streamClip != null)
+        Mesh seamlessStreamMesh = new Mesh();
+        seamlessStreamMesh.name = "UpperParadiseStream_Mesh";
+        seamlessStreamMesh.vertices = streamVerts;
+        seamlessStreamMesh.normals = streamNorms;
+        seamlessStreamMesh.uv = streamUVs;
+        seamlessStreamMesh.triangles = streamTris;
+        seamlessStreamMesh.RecalculateBounds();
+
+        if (!AssetDatabase.IsValidFolder("Assets/RustAndFloat/Meshes"))
+        {
+            AssetDatabase.CreateFolder("Assets/RustAndFloat", "Meshes");
+        }
+        string streamMeshPath = "Assets/RustAndFloat/Meshes/UpperParadiseStream_Mesh.asset";
+        AssetDatabase.CreateAsset(seamlessStreamMesh, streamMeshPath);
+        AssetDatabase.SaveAssets();
+
+        var mf = upRoot.AddComponent<MeshFilter>();
+        mf.sharedMesh = seamlessStreamMesh;
+
+        var mr = upRoot.AddComponent<MeshRenderer>();
+        if (waterMat != null) mr.sharedMaterial = waterMat;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = true;
+
+        if (streamClip != null)
+        {
+            for (int i = 0; i < 4; i++)
             {
-                var sndGo = new GameObject("UpSound_" + i);
-                sndGo.transform.SetParent(seg.transform, false);
-                sndGo.transform.localPosition = Vector3.zero;
+                float t = (i + 0.5f) / 4f;
+                float u = 1f - t;
+                Vector3 sndPos = u * u * pStart + 2f * u * t * pCtrl + t * t * pEnd;
+
+                var sndGo = new GameObject("StreamSound_" + i);
+                sndGo.transform.SetParent(upRoot.transform, false);
+                sndGo.transform.position = sndPos;
+
                 var src = sndGo.AddComponent<AudioSource>();
                 src.clip = streamClip;
                 src.loop = true;
@@ -947,7 +996,7 @@ public static class AdventureBuildRustFloatIsland
                 src.spatialBlend = 1.0f;
                 src.minDistance = 6f;
                 src.maxDistance = 25f;
-                src.volume = 0.20f;
+                src.volume = 0.22f;
                 src.rolloffMode = AudioRolloffMode.Linear;
             }
         }
@@ -1007,47 +1056,104 @@ public static class AdventureBuildRustFloatIsland
             }
         }
 
-        // 6. 東の深林大渓流（標高40mの森林高台からカルデラ湖25.5mへ急流で下る段々水面メッシュ）
+        // 6. 東の深林大渓流（標高40mの森林高台からタワー横を経てカルデラ湖25.5mへ下る連続シームレスリボン急流・段差ゼロ）
         var torrentRoot = GameObject.Find("EasternMountainTorrent");
         if (torrentRoot != null) Object.DestroyImmediate(torrentRoot);
         torrentRoot = new GameObject("EasternMountainTorrent");
 
-        const int tSegs = 24;
-        for (int i = 0; i < tSegs; i++)
+        const int tSegs = 48;
+        Vector3[] tVerts = new Vector3[(tSegs + 1) * 2];
+        Vector3[] tNorms = new Vector3[(tSegs + 1) * 2];
+        Vector2[] tUVs   = new Vector2[(tSegs + 1) * 2];
+        int[] tTris      = new int[tSegs * 6];
+
+        float tCumDist = 0f;
+        Vector3 tPrevCenter = Vector3.zero;
+
+        for (int i = 0; i <= tSegs; i++)
         {
-            float t = (float)i / (tSegs - 1);
+            float t = (float)i / tSegs;
             float wx = Mathf.Lerp(715f, 425f, t);
             float wz = Mathf.Lerp(570f, 440f, t) + Mathf.Sin(wx * 0.035f) * 16f;
-            float wy = Mathf.Lerp(39.5f, 25.5f, t); // 標高40mから25.5mへ激しく下る
+            float wy = Mathf.Lerp(39.5f, 25.5f, t);
+            Vector3 center = new Vector3(wx, wy, wz);
 
-            var seg = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            seg.name = "TorrentSeg_" + i;
-            seg.transform.SetParent(torrentRoot.transform, false);
-            seg.transform.position = new Vector3(wx, wy, wz);
-
-            float nextT = Mathf.Min(1f, t + 0.05f);
+            float nextT = Mathf.Min(1f, t + 0.02f);
             float nextX = Mathf.Lerp(715f, 425f, nextT);
             float nextZ = Mathf.Lerp(570f, 440f, nextT) + Mathf.Sin(nextX * 0.035f) * 16f;
-            Vector3 forward = new Vector3(nextX - wx, 0f, nextZ - wz).normalized;
-            if (forward != Vector3.zero)
-                seg.transform.rotation = Quaternion.LookRotation(forward);
+            float nextY = Mathf.Lerp(39.5f, 25.5f, nextT);
+            Vector3 tangent = (new Vector3(nextX, nextY, nextZ) - center).normalized;
 
-            seg.transform.localScale = new Vector3(1.2f, 1f, 1.6f); // 幅12m x 長さ16m
+            Vector3 binormal = Vector3.Cross(tangent, Vector3.up).normalized;
+            Vector3 norm = Vector3.Cross(binormal, tangent).normalized;
 
-            var col = seg.GetComponent<Collider>();
-            if (col != null) Object.DestroyImmediate(col);
+            if (i > 0) tCumDist += Vector3.Distance(center, tPrevCenter);
+            tPrevCenter = center;
 
-            if (waterMat != null)
+            float width = Mathf.Lerp(12f, 15f, t);
+            Vector3 vLeft  = center - binormal * (width * 0.5f);
+            Vector3 vRight = center + binormal * (width * 0.5f);
+
+            int vIdx = i * 2;
+            tVerts[vIdx]     = vLeft;
+            tVerts[vIdx + 1] = vRight;
+            tNorms[vIdx]     = norm;
+            tNorms[vIdx + 1] = norm;
+
+            float vCoord = tCumDist * 0.15f;
+            tUVs[vIdx]     = new Vector2(0f, vCoord);
+            tUVs[vIdx + 1] = new Vector2(1f, vCoord);
+
+            if (i < tSegs)
             {
-                var rend = seg.GetComponent<Renderer>();
-                if (rend != null) rend.sharedMaterial = waterMat;
+                int tIdx = i * 6;
+                int currentLeft  = vIdx;
+                int currentRight = vIdx + 1;
+                int nextLeft     = vIdx + 2;
+                int nextRight    = vIdx + 3;
+
+                tTris[tIdx + 0] = currentLeft;
+                tTris[tIdx + 1] = nextLeft;
+                tTris[tIdx + 2] = currentRight;
+
+                tTris[tIdx + 3] = currentRight;
+                tTris[tIdx + 4] = nextLeft;
+                tTris[tIdx + 5] = nextRight;
             }
+        }
 
-            if (i % 3 == 0 && streamClip != null)
+        Mesh seamlessTorrentMesh = new Mesh();
+        seamlessTorrentMesh.name = "EasternMountainTorrent_SeamlessMesh";
+        seamlessTorrentMesh.vertices = tVerts;
+        seamlessTorrentMesh.normals = tNorms;
+        seamlessTorrentMesh.uv = tUVs;
+        seamlessTorrentMesh.triangles = tTris;
+        seamlessTorrentMesh.RecalculateBounds();
+
+        string torrentMeshPath = "Assets/RustAndFloat/Meshes/EasternMountainTorrent_Mesh.asset";
+        AssetDatabase.CreateAsset(seamlessTorrentMesh, torrentMeshPath);
+        AssetDatabase.SaveAssets();
+
+        var tmf = torrentRoot.AddComponent<MeshFilter>();
+        tmf.sharedMesh = seamlessTorrentMesh;
+
+        var tmr = torrentRoot.AddComponent<MeshRenderer>();
+        if (waterMat != null) tmr.sharedMaterial = waterMat;
+        tmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        tmr.receiveShadows = true;
+
+        if (streamClip != null)
+        {
+            for (int i = 0; i < 5; i++)
             {
+                float t = (i + 0.5f) / 5f;
+                float wx = Mathf.Lerp(715f, 425f, t);
+                float wz = Mathf.Lerp(570f, 440f, t) + Mathf.Sin(wx * 0.035f) * 16f;
+                float wy = Mathf.Lerp(39.5f, 25.5f, t);
+
                 var sndGo = new GameObject("TorrentSound_" + i);
-                sndGo.transform.SetParent(seg.transform, false);
-                sndGo.transform.localPosition = Vector3.zero;
+                sndGo.transform.SetParent(torrentRoot.transform, false);
+                sndGo.transform.position = new Vector3(wx, wy, wz);
 
                 var src = sndGo.AddComponent<AudioSource>();
                 src.clip = streamClip;
@@ -1056,7 +1162,7 @@ public static class AdventureBuildRustFloatIsland
                 src.spatialBlend = 1.0f;
                 src.minDistance = 8f;
                 src.maxDistance = 40f;
-                src.volume = 0.25f;
+                src.volume = 0.22f;
                 src.rolloffMode = AudioRolloffMode.Linear;
             }
         }

@@ -1537,15 +1537,18 @@ public partial class AdventurePlayerController : MonoBehaviour
     {
         bool isMega = launchHop >= 32f;
         _grounded = false;
-        _hop = Mathf.Max(_hop, launchHop);
+
+        // メガ・スチームウィンド（70m超）は急速＆爽快感100%の猛烈なジェット推進
+        float actualHop = isMega ? Mathf.Max(launchHop, 56.0f) : launchHop;
+        _hop = Mathf.Max(_hop, actualHop);
         _gliding = true;
         _doubleJumpUsed = false;
-        _airborneTime = 0.4f;
+        _airborneTime = 0.5f;
 
-        // メガ・スチームウィンド（70m級）は上昇力と維持時間を大幅強化して一気に大空へ突き抜ける
-        _updraftLift = isMega ? launchHop * 0.72f : launchHop * 0.45f;
-        _updraftTimer = isMega ? 2.45f : 0.85f;
-        _glideBoostTimer = Mathf.Max(_glideBoostTimer, isMega ? 5.0f : 3.2f);
+        // メガは減速させずにトップスピード（秒速54m超）のまま一気に上空70m超へ突き抜ける
+        _updraftLift = isMega ? actualHop * 0.96f : launchHop * 0.45f;
+        _updraftTimer = isMega ? 1.45f : 0.85f;
+        _glideBoostTimer = Mathf.Max(_glideBoostTimer, isMega ? 6.5f : 3.2f);
 
         // 前進推進力（水平速度）：カメラ正面（または入力・キャラクター前方）へ力強く射出
         Vector3 launchDir = forwardHint;
@@ -1565,7 +1568,7 @@ public partial class AdventurePlayerController : MonoBehaviour
             launchDir = Vector3.forward;
         launchDir.Normalize();
 
-        float forwardSpeed = (isMega ? 12.0f : 9.5f) * moveSpeedMultiplier;
+        float forwardSpeed = (isMega ? 18.0f : 9.5f) * moveSpeedMultiplier;
         _airMomentum = launchDir * forwardSpeed;
         _glideSpeedCurrent = forwardSpeed;
         _airMomVel = Vector3.zero;

@@ -144,15 +144,15 @@ public class AdventureThermalUpdraft : MonoBehaviour
         _windPs = pGo.AddComponent<ParticleSystem>();
         var main = _windPs.main;
         main.loop = true;
-        main.startLifetime = isMegaVent ? 3.6f : 2.8f;
-        main.startSpeed = isMegaVent ? 26.0f : 13.5f; // メガは上空70m以上まで一気に立ち昇る
-        main.startSize = isMegaVent ? new ParticleSystem.MinMaxCurve(0.35f, 0.95f) : new ParticleSystem.MinMaxCurve(0.25f, 0.65f);
-        main.startColor = isMegaVent ? new Color(0.25f, 1.0f, 0.85f, 0.35f) : new Color(0.35f, 1.0f, 0.88f, 0.22f);
-        main.gravityModifier = isMegaVent ? -0.28f : -0.15f; // 上向き急加速
+        main.startLifetime = isMegaVent ? 2.8f : 2.8f;
+        main.startSpeed = isMegaVent ? 38.0f : 13.5f; // メガは上空100m以上まで猛烈なスピードで一気に立ち昇る
+        main.startSize = isMegaVent ? new ParticleSystem.MinMaxCurve(0.40f, 1.10f) : new ParticleSystem.MinMaxCurve(0.25f, 0.65f);
+        main.startColor = isMegaVent ? new Color(0.25f, 1.0f, 0.88f, 0.38f) : new Color(0.35f, 1.0f, 0.88f, 0.22f);
+        main.gravityModifier = isMegaVent ? -0.35f : -0.15f; // 上向き超急加速
         main.simulationSpace = ParticleSystemSimulationSpace.World;
 
         var emission = _windPs.emission;
-        emission.rateOverTime = isMegaVent ? 42f : 22f;
+        emission.rateOverTime = isMegaVent ? 48f : 22f;
 
         var shape = _windPs.shape;
         shape.shapeType = ParticleSystemShapeType.Circle;
@@ -197,14 +197,14 @@ public class AdventureThermalUpdraft : MonoBehaviour
             var sps = sparkleGo.AddComponent<ParticleSystem>();
             var sMain = sps.main;
             sMain.loop = true;
-            sMain.startLifetime = 3.2f;
-            sMain.startSpeed = 30.0f;
-            sMain.startSize = new ParticleSystem.MinMaxCurve(0.18f, 0.35f);
-            sMain.startColor = new Color(0.3f, 1.0f, 0.95f, 0.9f);
+            sMain.startLifetime = 2.6f;
+            sMain.startSpeed = 42.0f; // 光の粒子も超高速上昇
+            sMain.startSize = new ParticleSystem.MinMaxCurve(0.22f, 0.45f);
+            sMain.startColor = new Color(0.35f, 1.0f, 0.95f, 0.95f);
             sMain.simulationSpace = ParticleSystemSimulationSpace.World;
 
             var sEmission = sps.emission;
-            sEmission.rateOverTime = 25f;
+            sEmission.rateOverTime = 32f;
 
             var sShape = sps.shape;
             sShape.shapeType = ParticleSystemShapeType.Circle;
@@ -259,41 +259,48 @@ public class AdventureThermalUpdraft : MonoBehaviour
         return clip;
     }
 
-    /// <summary>「シュボーン！！」という爽快・大迫力のスチームジェット噴射・上昇気流SE合成</summary>
+    /// <summary>「シュボーンッ！！」という爽快・超ハイスピードなスチームジェット噴射・ロケット上昇気流SE合成</summary>
     static AudioClip SynthesizeShubonLaunchClip()
     {
         const int rate = 44100;
-        float duration = 1.15f;
+        float duration = 1.35f;
         int count = (int)(rate * duration);
         float[] data = new float[count];
         var rng = new System.Random(777);
 
         float prevNoise = 0f;
         float phaseSub = 0f;
+        float phaseSweep = 0f;
 
         for (int i = 0; i < count; i++)
         {
             float t = i / (float)count;
 
-            // 1. 低音インパクト（発射瞬間の「ドムッ」という重圧）
-            phaseSub += 2f * Mathf.PI * Mathf.Lerp(85f, 45f, t) / rate;
-            float subImpact = Mathf.Sin(phaseSub) * Mathf.Exp(-t * 8f) * 0.75f;
+            // 1. 低音インパクト（発射瞬間の「ドムッ！」という重厚な爆発的推進圧）
+            phaseSub += 2f * Mathf.PI * Mathf.Lerp(110f, 40f, t) / rate;
+            float subImpact = Mathf.Sin(phaseSub) * Mathf.Exp(-t * 9.5f) * 0.95f;
 
-            // 2. 「シュウゥゥーン！」という高圧スチーム噴射ノイズ（レゾナンススイープ）
+            // 2. 超高速エアジェットスイープ（低域から一気に超高域へ駆け上がる爽快な「シュバァァーン！！」）
+            float sweepFreq = Mathf.Lerp(300f, 3200f, Mathf.Pow(t, 0.45f));
+            phaseSweep += 2f * Mathf.PI * sweepFreq / rate;
+            float jetSweep = Mathf.Sin(phaseSweep) * Mathf.Exp(-t * 2.2f) * 0.35f;
+
+            // 3. 高圧スチームのレゾナンスホワイトノイズ
             float rawNoise = (float)(rng.NextDouble() * 2.0 - 1.0);
-            float filterAlpha = Mathf.Lerp(0.08f, 0.35f, Mathf.Sin(t * Mathf.PI * 0.75f));
+            float filterAlpha = Mathf.Lerp(0.12f, 0.55f, Mathf.Pow(t, 0.35f));
             float smoothNoise = Mathf.Lerp(prevNoise, rawNoise, filterAlpha);
             prevNoise = smoothNoise;
 
-            // 音量エンベロープ（一気に立ち上がり、爽快に抜けていく）
+            // 音量エンベロープ（0.04秒で爆速立ち上がり、突き抜けていく爽快な余韻）
             float env = 0f;
-            if (t < 0.08f) env = t / 0.08f;
-            else env = Mathf.Exp(-(t - 0.08f) * 3.2f);
+            if (t < 0.04f) env = t / 0.04f;
+            else env = Mathf.Exp(-(t - 0.04f) * 2.6f);
 
-            // チャイムのような澄んだ高周波倍音
-            float chime = Mathf.Sin(t * Mathf.PI * 2f * 1480f) * Mathf.Exp(-t * 4.5f) * 0.25f;
+            // 4. 青空へ突き抜ける風の倍音チャイム（高揚感）
+            float chime = (Mathf.Sin(t * Mathf.PI * 2f * 1760f) + Mathf.Sin(t * Mathf.PI * 2f * 2640f) * 0.5f)
+                          * Mathf.Exp(-t * 3.8f) * 0.30f;
 
-            data[i] = Mathf.Clamp((subImpact * 0.65f + smoothNoise * 0.75f + chime) * env * 0.85f, -1f, 1f);
+            data[i] = Mathf.Clamp((subImpact * 0.70f + smoothNoise * 0.85f + jetSweep + chime) * env * 0.95f, -1f, 1f);
         }
 
         var clip = AudioClip.Create("SteamShubonLaunch", count, 1, rate, false);

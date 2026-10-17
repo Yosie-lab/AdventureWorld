@@ -76,8 +76,9 @@ public partial class AdventureSanctuaryTowerManager
     /// <summary>タワー白亜テラス上（またはレバー基壇上、スロープ上）なら歩行面Y、それ以外は負の無限大</summary>
     public static float GetTerraceSurfaceY(Vector3 worldPos)
     {
-        // 標高45m以上、68m以下ならタワーテラス・スロープ歩行面を判定
-        if (worldPos.y < 45.0f || worldPos.y > 68.0f)
+        // 台座天面は 63.00m。台座上面に乗っている／踏み込んでいる高度（62.85m以上）のみ有効。
+        // 台座下層（62.85m未満）や東側崖下にいるプレイヤーを誤って台座上面に吸着させてはならない。
+        if (worldPos.y < 62.85f || worldPos.y > 68.0f)
             return float.NegativeInfinity;
 
         Vector2 posXZ = new Vector2(worldPos.x, worldPos.z);
@@ -135,15 +136,16 @@ public partial class AdventureSanctuaryTowerManager
             bool onStairs = (pos.z <= 481.5f && Mathf.Abs(pos.x - 512f) <= 4.8f);
             if (!onStairs)
             {
-                // テラス床面(63.0m)より下、かつ標高45.0m以上の空洞・床下・岩間に挟まったら即座にテラス上面へ安全救出！
-                if (pos.y < 62.90f && pos.y >= 45.0f)
+                // テラス床面(63.0m)よりわずかに下（62.80m〜62.98m）の床板・メッシュ隙間に挟まった時のみ救出。
+                // 62.80m未満（床下・崖下・下からのジャンプ突入）は絶対に上面へワープさせない（下抜け・突き抜け防止）！
+                if (pos.y < 62.98f && pos.y >= 62.80f)
                 {
                     var cc = player.GetComponent<CharacterController>();
                     if (cc != null) cc.enabled = false;
-                    player.transform.position = new Vector3(pos.x, 63.05f, pos.z);
+                    player.transform.position = new Vector3(pos.x, 63.02f, pos.z);
                     if (cc != null) cc.enabled = true;
                     player.ForceGroundReset();
-                    Debug.LogWarning($"[RustAndFloat] テラス下に潜り込んだプレイヤーを即座に安全救出: {pos} -> Y=63.05");
+                    Debug.LogWarning($"[RustAndFloat] テラス上面に挟まったプレイヤーを安全復帰: {pos} -> Y=63.02");
                 }
             }
         }
