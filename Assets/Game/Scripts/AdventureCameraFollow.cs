@@ -569,11 +569,23 @@ public class AdventureCameraFollow : MonoBehaviour
         float glideBaseFov = walkBaseFov + 4f;
         float cineFov = (isAutoGlide && cine > 0.3f) ? 78f : CinematicFov;
         float targetFov = Mathf.Lerp(isGliding ? glideBaseFov : walkBaseFov, cineFov, cine);
+
+        // 70mメガジャンプ・急上昇・高速滑空ブーストによるダイナミックFOV（最大82°までワイド化）
+        if (player != null && player.SpeedIntensity > 0.05f)
+        {
+            float speedBoostFov = player.SpeedIntensity * (player.IsUpdraftAscending ? 15.0f : 10.0f);
+            targetFov = Mathf.Min(82f, targetFov + speedBoostFov);
+        }
+
         if (_cam != null)
-            _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, targetFov, (cine > 0.01f ? 18f : 8f) * Time.deltaTime);
+        {
+            float fovSpeed = (cine > 0.01f || (player != null && player.IsUpdraftAscending)) ? 26f : 10f;
+            _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, targetFov, fovSpeed * Time.deltaTime);
+        }
 
         float cineDist = (isAutoGlide && cine > 0.3f) ? 8.5f : CinematicDistance;
-        float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.2f) : distance, cineDist, cine);
+        float speedExtraDist = (player != null && player.IsUpdraftAscending) ? (player.SpeedIntensity * 1.6f) : 0f;
+        float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.2f) : distance, cineDist, cine) + speedExtraDist;
         
         // 上空（高度80m以上またはオートグライド中）は障害物がないため、天蓋破片等の誤遮蔽SphereCastをバイパスして安定追従
         float safeTargetDist;

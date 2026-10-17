@@ -147,6 +147,24 @@ public partial class AdventurePlayerController : MonoBehaviour
     public bool IsAutoGliding => _autoGlide;
     /// <summary>このフレーム移動入力あり（カメラの歩行スナップ用）</summary>
     public bool HasMoveInput { get; private set; }
+
+    /// <summary>上昇気流やメガジャンプによる強烈な上昇中判定（秒速15m超または上昇気流タイマー中）</summary>
+    public bool IsUpdraftAscending => !_grounded && (_hop > 15f || _updraftTimer > 0f);
+
+    /// <summary>急上昇・高速滑空・ブーストによる風圧スピード強度（0.0〜1.0）</summary>
+    public float SpeedIntensity
+    {
+        get
+        {
+            if (_grounded) return 0f;
+            float vertSpeed = Mathf.Max(0f, _hop);
+            float horizSpeed = _airMomentum.magnitude;
+            float vFactor = Mathf.Clamp01(vertSpeed / 38f);
+            float hFactor = Mathf.Clamp01(horizSpeed / 20f);
+            float boostFactor = _glideBoostTimer > 0f ? 0.35f : 0f;
+            return Mathf.Clamp01(Mathf.Max(vFactor, hFactor) + boostFactor);
+        }
+    }
     #endregion
 
     #region Unity Lifecycle
