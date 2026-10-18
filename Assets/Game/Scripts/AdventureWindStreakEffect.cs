@@ -56,8 +56,10 @@ public class AdventureWindStreakEffect : MonoBehaviour
 
         var emission = _streakPs.emission;
 
-        // 速度が乗っている時（intensity > 0.18f）かつシネマティック中以外のみウィンドストリークを放出
-        if (!isTowerAscendOrClimax && intensity > 0.18f && !_player.IsGrounded)
+        bool isValidFlight = !_player.IsGrounded && (_player.IsGliding || isAscending || intensity > 0.40f);
+
+        // 速度が乗っている時（intensity > 0.18f）かつ飛行中かつシネマティック中以外のみウィンドストリークを放出
+        if (!isTowerAscendOrClimax && isValidFlight && intensity > 0.18f)
         {
             float targetRate = Mathf.Lerp(12f, 75f, (intensity - 0.18f) / 0.82f);
             if (isAscending) targetRate *= 1.35f; // メガジャンプ急上昇時はさらに増量

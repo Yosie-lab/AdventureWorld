@@ -158,8 +158,11 @@ public partial class AdventurePlayerController : MonoBehaviour
         get
         {
             if (_grounded) return 0f;
+            // 滑空でも急上昇でもなく、短時間の空中移動（段差や木の根を踏んだ微小浮遊等）なら風圧強度はゼロ
+            if (!_gliding && !IsUpdraftAscending && _airborneTime < 0.45f) return 0f;
+
             float vertSpeed = Mathf.Max(0f, _hop);
-            float horizSpeed = _airMomentum.magnitude;
+            float horizSpeed = _gliding ? _airMomentum.magnitude : 0f;
             float vFactor = Mathf.Clamp01(vertSpeed / 38f);
             float hFactor = Mathf.Clamp01(horizSpeed / 20f);
             float boostFactor = _glideBoostTimer > 0f ? 0.35f : 0f;

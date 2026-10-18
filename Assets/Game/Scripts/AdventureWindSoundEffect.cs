@@ -56,6 +56,7 @@ public class AdventureWindSoundEffect : MonoBehaviour
         float intensity = _player.SpeedIntensity;
         bool isGrounded = _player.IsGrounded;
         bool isAscending = _player.IsUpdraftAscending;
+        bool isGliding = _player.IsGliding;
 
         // タワー崩壊後の上昇（光の柱上昇）および天蓋崩壊〜クライマックス〜エピローグ演出中は追加風切り音を完全無効化
         bool isTowerAscendOrClimax = _player.IsSkybreakPillarAscending
@@ -63,10 +64,13 @@ public class AdventureWindSoundEffect : MonoBehaviour
             || (AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.IsCanopyToEpilogueSequence)
             || AdventureStoryFlow.KeepsAirborne(_player);
 
-        // 接地中、またはタワー崩壊後の上昇・クライマックス演出中は無音化
-        if (isTowerAscendOrClimax || isGrounded || intensity < 0.12f)
+        // 有効なフライト・急上昇状態（滑空、またはメガジャンプ急上昇、または高高度急降下）
+        bool isValidWindFlight = !isGrounded && (isGliding || isAscending || intensity > 0.40f);
+
+        // 接地中、森の木の間などの通常歩行中、または非フライト時は瞬時に完全無音化
+        if (isTowerAscendOrClimax || !isValidWindFlight || intensity < 0.12f)
         {
-            _audio.volume = Mathf.MoveTowards(_audio.volume, 0f, Time.deltaTime * 5.0f);
+            _audio.volume = Mathf.MoveTowards(_audio.volume, 0f, Time.deltaTime * 10.0f);
             if (_audio.volume <= 0.001f && _audio.isPlaying)
                 _audio.Stop();
             return;

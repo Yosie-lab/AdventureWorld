@@ -12,6 +12,12 @@ created: 2026-09-11
 ### 概要・現在の状態
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
 - **コンパイルエラー**: 0件
+- **地上歩行時（森の木の間など）のホワイトノイズ風音誤発火の完全解消（2026-10-18 追記）**:
+  1. **原因の特定**: 森の木の間や傾斜地を歩行・走行中、凸凹や木の根で一瞬の離地（微小浮遊）が発生した際、水平走行速度（7〜9m/s）が `SpeedIntensity` の空中水平速度判定（`horizSpeed`）に誤反映され、滑空・上昇用のホワイトノイズ風切り音が誤発火していた。
+  2. **厳格ガードの実装**:
+     - `AdventurePlayerController.cs`: `SpeedIntensity` の水平速度評価を滑空（`_gliding`）時のみに限定し、短時間の空中移動（滞空0.45秒未満）では風圧強度を完全にゼロ化。
+     - `AdventureWindSoundEffect.cs`: 有効なフライト（滑空・メガジャンプ急上昇・高高度急降下）時のみ風切り音を鳴らし、通常歩行中や段差浮遊時は瞬時に完全ミュートするガード（`isValidWindFlight`）を導入。
+     - `AdventureWindStreakEffect.cs`: 速度線の放出条件も同様にフライト状態に厳格化。
 - **ハーネス必須7スキル＆自律ループエンジニアリング構築（2026-10-18 追記）**:
   - 公式ワークスペース形式 `.agents/skills/<name>/SKILL.md` にハーネス必須7スキルを配備：
     1. `harness-loop-engineering`: 閉ループ自律実行サイクル（Plan ➔ Execute ➔ Gate Verify ➔ Self-Correct ➔ Commit）
