@@ -972,7 +972,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             float nearestVentDist = float.MaxValue;
             for (int i = 0; i < vents.Length; i++)
             {
-                if (vents[i] != null && !vents[i].IsActivated)
+                if (vents[i] != null && !vents[i].isActivated)
                 {
                     float d = Vector3.Distance(playerPos, vents[i].transform.position);
                     if (d < nearestVentDist)

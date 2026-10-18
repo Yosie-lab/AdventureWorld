@@ -13,6 +13,7 @@ public class AdventureAncientWindVent : MonoBehaviour
     public string ventName = "古代の風脈クリスタル（西の断崖）";
     public Vector3 ventPosition = new Vector3(210f, 16.5f, 310f); // 西側の美しい岩場テラス
     public bool isActivated = false;
+    public bool IsActivated => isActivated;
 
     // 視覚オブジェクト
     private GameObject _crystalCoreGo;
