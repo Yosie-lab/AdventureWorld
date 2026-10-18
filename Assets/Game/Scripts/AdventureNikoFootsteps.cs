@@ -24,6 +24,10 @@ public class AdventureNikoFootsteps : MonoBehaviour
     AudioClip _sandStepL;
     AudioClip _sandStepR;
 
+    // 着地インパクト音クリップ（案A：陸地＆砂浜のソフトクッション着地）
+    AudioClip _landImpact;
+    AudioClip _sandLanding;
+
     float _stepTimer = 0f;
     int _stepCount = 0;
     Vector3 _lastPos;
@@ -72,6 +76,10 @@ public class AdventureNikoFootsteps : MonoBehaviour
         // 白砂ビーチのサクサク砂踏み足音（乾いた細粒砂の擦過音＋低音レゾナンス）
         _sandStepL = SynthesizeSandStep("SandStep_L", isLeft: true);
         _sandStepR = SynthesizeSandStep("SandStep_R", isLeft: false);
+
+        // 着地インパクト音（案A：柔らかな土煙クッション音＆白砂ザフッ沈み込み音）
+        _landImpact = SynthesizeLandImpact("LandImpact");
+        _sandLanding = SynthesizeSandLanding("SandLanding");
     }
 
     void Update()
@@ -82,14 +90,6 @@ public class AdventureNikoFootsteps : MonoBehaviour
         bool isGrounded = (_player != null) ? _player.IsGrounded : (_cc != null && _cc.isGrounded);
         bool isGliding = (_player != null && _player.IsGliding);
 
-        // 着地した瞬間の水しぶき音判定
-        if (!_wasGrounded && isGrounded && !isGliding)
-        {
-            if (CheckIsInWater(transform.position))
-            {
-                PlayWaterLanding();
-            }
-        }
         _wasGrounded = isGrounded;
 
         if (!isGrounded || isGliding)
@@ -225,6 +225,135 @@ public class AdventureNikoFootsteps : MonoBehaviour
             _audioSource.pitch = 1.35f;
             _audioSource.PlayOneShot(clip, volume * 1.35f * seVol);
         }
+    }
+
+    static Material _dustMat;
+    static Material GetDustMaterial()
+    {
+        if (_dustMat == null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") 
+                         ?? Shader.Find("Universal Render Pipeline/Unlit") 
+                         ?? Shader.Find("Mobile/Particles/Alpha Blended")
+                         ?? Shader.Find("Particles/Standard Unlit");
+            _dustMat = new Material(shader) { name = "FootstepDust_Mat" };
+            var tex = AdventureRustDrone.GetSoftSmokeTexture();
+            _dustMat.SetTexture("_BaseMap", tex);
+            _dustMat.mainTexture = tex;
+            _dustMat.SetFloat("_Surface", 1f); // Transparent
+            _dustMat.SetFloat("_Blend", 0f); // Alpha blend
+            _dustMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            _dustMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            _dustMat.SetInt("_ZWrite", 0);
+            _dustMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            _dustMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            _dustMat.SetColor("_BaseColor", new Color(1f, 1f, 1f, 0.7f));
+            _dustMat.color = new Color(1f, 1f, 1f, 0.7f);
+        }
+        return _dustMat;
+    }
+
+    /// <summary>
+    /// 案A：70m大滑空や急降下着地時の「ランディング・インパクトJUICE」。
+    /// 落下速度と滞空時間に応じた着地SE、足元ダスト煙リング、心地よいカメラバンプを一括演出。
+    /// </summary>
+    public void PlayLandImpact(float airborneDuration, float fallSpeed, bool wasGliding)
+    {
+        if (_audioSource == null) return;
+        Vector3 footPos = transform.position;
+
+        // 水面浅瀬着地
+        if (CheckIsInWater(footPos))
+        {
+            PlayWaterLanding();
+            return;
+        }
+
+        // わずかな段差歩行（滞空0.16秒未満かつ低速）は無視して足音に任せる
+        if (airborneDuration < 0.16f && fallSpeed < 3.0f) return;
+
+        bool onSand = AdventureBeachVisualEnhancer.CheckIsOnSandBeach(footPos);
+        float seVol = PlayerPrefs.GetFloat("Adventure_SeVolume", 1.0f);
+
+        // インパクト強度（0.0〜1.0）
+        float impactStrength = Mathf.Clamp01(Mathf.Max(
+            Mathf.InverseLerp(0.20f, 1.4f, airborneDuration),
+            Mathf.InverseLerp(3.5f, 16.0f, fallSpeed)
+        ));
+
+        // 着地SE再生
+        AudioClip clip = onSand ? _sandLanding : _landImpact;
+        if (clip != null)
+        {
+            float vol = Mathf.Lerp(0.28f, 0.72f, impactStrength) * volume * 2.2f * seVol;
+            _audioSource.pitch = Random.Range(0.95f, 1.05f) - (impactStrength * 0.06f);
+            _audioSource.PlayOneShot(clip, Mathf.Clamp01(vol));
+        }
+
+        // 足元ダスト煙リング生成
+        SpawnLandingDustFx(footPos, impactStrength, onSand);
+
+        // 高所落下・急降下着地・大滑空着地時のカメラバンプ（JUICE演出）
+        if (impactStrength > 0.32f || fallSpeed > 6.5f || wasGliding)
+        {
+            float shakeIntensity = Mathf.Lerp(0.04f, 0.18f, impactStrength);
+            AdventureCameraFollow.Instance?.Shake(shakeIntensity, 0.12f);
+        }
+    }
+
+    /// <summary>着地時に足元から外周へドーナツ状に広がるダスト煙リングエフェクト</summary>
+    void SpawnLandingDustFx(Vector3 pos, float impactStrength, bool onSand)
+    {
+        var fxGo = new GameObject("LandingDustFx");
+        fxGo.transform.position = pos + Vector3.up * 0.05f;
+
+        var ps = fxGo.AddComponent<ParticleSystem>();
+        var psr = fxGo.GetComponent<ParticleSystemRenderer>();
+        if (psr != null)
+        {
+            psr.sharedMaterial = GetDustMaterial();
+            psr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            psr.receiveShadows = false;
+        }
+
+        var main = ps.main;
+        main.startLifetime = Mathf.Lerp(0.32f, 0.48f, impactStrength);
+        main.startSpeed = Mathf.Lerp(1.2f, 3.2f, impactStrength);
+        main.startSize = Mathf.Lerp(0.28f, 0.68f, impactStrength);
+        // 砂浜は温かみのある白砂クリーム、陸地は柔らかなオフホワイト
+        Color dustColor = onSand ? new Color(0.96f, 0.93f, 0.85f, 0.65f) : new Color(0.92f, 0.92f, 0.90f, 0.60f);
+        main.startColor = dustColor;
+        main.gravityModifier = -0.04f;
+        main.loop = false;
+        main.stopAction = ParticleSystemStopAction.Destroy;
+
+        var emission = ps.emission;
+        int particleCount = (int)Mathf.Lerp(8, 22, impactStrength);
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, particleCount) });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = 0.28f;
+        shape.rotation = new Vector3(90f, 0f, 0f); // 水平リング状に全方向へ拡散
+
+        var colOverLifetime = ps.colorOverLifetime;
+        colOverLifetime.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(dustColor, 1f) },
+            new[] { new GradientAlphaKey(dustColor.a, 0f), new GradientAlphaKey(0f, 1f) }
+        );
+        colOverLifetime.color = grad;
+
+        var sizeOverLifetime = ps.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        var curve = new AnimationCurve();
+        curve.AddKey(0f, 0.5f);
+        curve.AddKey(0.4f, 1.0f);
+        curve.AddKey(1f, 1.35f);
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, curve);
+
+        Destroy(fxGo, 0.8f);
     }
 
     static Material _splashMat;
@@ -400,6 +529,80 @@ public class AdventureNikoFootsteps : MonoBehaviour
 
             float total = (filteredNoise * 0.68f + lowThump * 0.32f) * env;
             data[i] = Mathf.Clamp(total * 0.75f, -1f, 1f);
+        }
+
+        var ac = AudioClip.Create(name, count, 1, rate, false);
+        ac.SetData(data, 0);
+        return ac;
+    }
+
+    /// <summary>陸地着地用の柔らかくコシのあるドフッという衝撃クッション音波形合成</summary>
+    static AudioClip SynthesizeLandImpact(string name)
+    {
+        const int rate = 44100;
+        float duration = 0.22f;
+        int count = (int)(rate * duration);
+        float[] data = new float[count];
+
+        float phase = 0f;
+        float lastFilter = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float p = t / duration;
+
+            // 115Hzから48Hzへ落ちる低周波ボディインパクト
+            float freq = Mathf.Lerp(115f, 48f, Mathf.Sqrt(p));
+            phase += 2f * Mathf.PI * freq / rate;
+            float lowThump = Mathf.Sin(phase);
+
+            // 着地時の布擦れ・衣類クッション微細ノイズ
+            float rawNoise = (Random.value * 2f - 1f);
+            float filteredNoise = lastFilter * 0.65f + rawNoise * 0.35f;
+            lastFilter = filteredNoise;
+
+            // エンベロープ
+            float env = (t < 0.005f) ? (t / 0.005f) : Mathf.Exp(-(t - 0.005f) * 28f) * (1f - p);
+
+            float total = (lowThump * 0.65f + filteredNoise * 0.35f) * env;
+            data[i] = Mathf.Clamp(total * 0.88f, -1f, 1f);
+        }
+
+        var ac = AudioClip.Create(name, count, 1, rate, false);
+        ac.SetData(data, 0);
+        return ac;
+    }
+
+    /// <summary>白砂ビーチ着地用のザフッと沈み込む細粒砂クッション音波形合成</summary>
+    static AudioClip SynthesizeSandLanding(string name)
+    {
+        const int rate = 44100;
+        float duration = 0.25f;
+        int count = (int)(rate * duration);
+        float[] data = new float[count];
+
+        float phase = 0f;
+        float lastFilter = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float p = t / duration;
+
+            // 135Hzから52Hzの柔らかな砂めり込み低音
+            float freq = Mathf.Lerp(135f, 52f, Mathf.Pow(p, 0.7f));
+            phase += 2f * Mathf.PI * freq / rate;
+            float lowThump = Mathf.Sin(phase);
+
+            // 砂粒が広がる心地よいザフッというホワイトノイズ
+            float rawNoise = (Random.value * 2f - 1f);
+            float filteredNoise = lastFilter * 0.50f + rawNoise * 0.50f;
+            lastFilter = filteredNoise;
+
+            // エンベロープ
+            float env = (t < 0.006f) ? (t / 0.006f) : Mathf.Exp(-(t - 0.006f) * 22f) * (1f - p);
+
+            float total = (lowThump * 0.48f + filteredNoise * 0.52f) * env;
+            data[i] = Mathf.Clamp(total * 0.85f, -1f, 1f);
         }
 
         var ac = AudioClip.Create(name, count, 1, rate, false);

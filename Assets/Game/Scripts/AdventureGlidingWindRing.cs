@@ -318,6 +318,8 @@ public class AdventureGlidingWindRing : MonoBehaviour
         var vel = _sparklePs.velocityOverLifetime;
         vel.enabled = true;
         vel.space = ParticleSystemSimulationSpace.Local;
+        vel.x = new ParticleSystem.MinMaxCurve(0f, 0f);
+        vel.y = new ParticleSystem.MinMaxCurve(0f, 0f);
         vel.z = new ParticleSystem.MinMaxCurve(6f, 12f); // 前方に吹き出す
 
         var renderer = psGo.GetComponent<ParticleSystemRenderer>();

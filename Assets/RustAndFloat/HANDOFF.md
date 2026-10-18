@@ -12,7 +12,18 @@ created: 2026-09-11
 ### 概要・現在の状態
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
 - **コンパイルエラー**: 0件
-- **Play Mode**: 停止済み（安全に保存・編集可能）
+- **案A：70m急降下＆大滑空着地の「ランディング・インパクトJUICE」完成（2026-10-18 追記）**:
+  1. **足元ダスト煙リング（`AdventureNikoFootsteps.cs`）**:
+     - 高所落下や急降下着地時、足元から外周へドーナツ状に広がる微細なダスト煙リングパーティクル（`SpawnLandingDustFx`）を自動射出。
+     - 砂浜では温かみのあるクリーム白砂ダスト、陸地では柔らかなオフホワイト土煙、水面浅瀬では涼やかな水しぶきを完璧に環境出し分け。
+  2. **接地SEのダイナミック合成＆クッション音（`AdventureNikoFootsteps.cs`）**:
+     - 落下速度と滞空時間に応じたプロシージャル接地音（`SynthesizeLandImpact`、`SynthesizeSandLanding`）を生成・再生。
+     - 陸地でのコシのある低音クッション音、白砂ビーチでの「ザフッ」と足がめり込む細粒砂音をブレンド再生。
+  3. **カメラの軽快な着地バンプJUICE（`AdventureCameraFollow.cs` & `AdventurePlayerController.cs`）**:
+     - 滞空時間と落下速度に基づき、着地瞬間に心地よいカメラの縦方向マイクロバンプ（0.04m〜0.18m）を付与。大空滑空からの着地時に手応えと質量感を付加。
+  4. **Unityエンジン例外の徹底根絶**:
+     - `AdventureGlidingWindRing.cs`: `velocityOverLifetime` の全軸モード不一致（`TwoConstants`）による毎フレーム例外を全軸統一して完全根絶。
+     - `AdventureCapytaBlessing.cs`: パーティクル再生中の `duration` 変更による例外を事前停止処理により防止。
 - **環境生物・地形・台座・スチームウィンド刷新（2026-10-17 追記）**:
   - **70m級メガジャンプJUICE演出爆発強化（FOV・速度線・耳元風切り音）**:
     1. **ダイナミックFOV（`AdventureCameraFollow.cs`）**: メガジャンプ急上昇時や高速滑空ブースト時に、カメラ視野角が通常64°から最大82°へとダイナミックにワイド化。大地が一気に遠ざかる強烈なスケール感を創出。頂点到達・減速時は滑らかに通常FOVへ復帰。

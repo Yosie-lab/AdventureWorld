@@ -649,6 +649,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
         var fxGo = new GameObject("Capyta_HeartFx");
         fxGo.transform.position = worldPos;
         var ps = fxGo.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = ps.main;
         main.duration = 1.0f;
         main.loop = false;
