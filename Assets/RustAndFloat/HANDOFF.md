@@ -12,6 +12,28 @@ created: 2026-09-11
 ### 概要・現在の状態
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
 - **コンパイルエラー**: 0件
+- **ハーネス必須7スキル＆自律ループエンジニアリング構築（2026-10-18 追記）**:
+  - 公式ワークスペース形式 `.agents/skills/<name>/SKILL.md` にハーネス必須7スキルを配備：
+    1. `harness-loop-engineering`: 閉ループ自律実行サイクル（Plan ➔ Execute ➔ Gate Verify ➔ Self-Correct ➔ Commit）
+    2. `harness-quality-gates`: Unityコンパイルエラー0件・コンソール例外0件・PlayMode停止の決定論的検証
+    3. `harness-tool-coverage`: Unity MCP・ファイル編集・Shellツールの完全連携
+    4. `harness-context-efficiency`: JIT読み込み・局所差分編集・トークン最適化
+    5. `harness-memory-persistence`: HANDOFF同期・アトミックコミット・状態永続化
+    6. `harness-eval-coverage`: 95点以上水準のゲームフィール・情緒感・演出密度の評価指標
+    7. `harness-security-guardrails`: AdventureWorld・Land_Terrainの不可侵防護
+- **案B：相棒Floatとの情緒的深化 完成（2026-10-18 追記）**:
+  1. **待機居眠り＆頭上/肩口着地（`AdventureRustDrone.cs`）**:
+     - Nikoが地上で3秒以上静止した際、Floatが「ふわぁ〜…」と羽を休めてNikoの頭上・首元へそっと舞い降りてペタッと座る休息ステート（`RustState.Perching`）。
+     - 呼吸のようなゆっくりした浮遊ボブ（周期2秒）＋淡いシアンのZzzスリープ粒子（`SpawnSleepZzzParticle`）。
+     - Nikoが動いた瞬間に「ピピッ！」と元気に目覚めて光の粒子をパッと散らして即座に追従へ復帰。
+  2. **スキンシップ・注油・道案内後の喜びエモーション＆星屑スパーク（`AdventureRustDrone.cs`）**:
+     - 注油時やスキンシップ完了時に `TriggerAffectionJoy()` を発火。
+     - 360度宙返り（Celebrating）とともに、シアン＆ゴールドの星屑・黄金ハートスパークルをパッと周囲に咲かせ、愛らしい高音チャイムを再生。
+- **案C：ワールドライティング＆大気遠近感の映画的フィニッシュ 完成（2026-10-18 追記）**:
+  1. **映画的大気光粒子（`AdventureDayNightDirector.cs`）**:
+     - カメラ周辺にゆっくり漂う陽光の浮遊チリ（Atmospheric Sun Motes）システムを配備。昼は黄金琥珀、夕暮れは茜色、夜は蒼白い星屑の輝きへと時間帯にシームレス同期。
+  2. **フォグと水平線パノラマの調和（`AdventureDayNightDirector.cs`）**:
+     - `RenderSettings.fogMode = FogMode.ExponentialSquared` および時間帯別フォグ密度のブレンドにより、島全景の視界を保ちつつ遠方の海と空が映画のように滑らかに溶け合う大気遠近感を完成。
 - **案A：70m急降下＆大滑空着地の「ランディング・インパクトJUICE」完成（2026-10-18 追記）**:
   1. **足元ダスト煙リング（`AdventureNikoFootsteps.cs`）**:
      - 高所落下や急降下着地時、足元から外周へドーナツ状に広がる微細なダスト煙リングパーティクル（`SpawnLandingDustFx`）を自動射出。

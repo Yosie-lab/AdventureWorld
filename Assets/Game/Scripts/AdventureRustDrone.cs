@@ -95,13 +95,18 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
     }
 
-    // 連携アクション（Qキー道案内・Fキー指示・遠隔回収・偵察・宙返り・撫でスキンシップ・焚き火チル）
-    public enum RustState { Follow, Fetching, Returning, Scouting, Celebrating, Petting, CampfireChill, Guiding }
+    // 連携アクション（Qキー道案内・Fキー指示・遠隔回収・偵察・宙返り・撫でスキンシップ・焚き火チル・待機居眠り）
+    public enum RustState { Follow, Fetching, Returning, Scouting, Celebrating, Petting, CampfireChill, Guiding, Perching }
     public RustState CurrentState { get; private set; } = RustState.Follow;
     AdventureScrapItem _targetScrap;
     Vector3 _scoutTargetPos;
     float _stateTimer = 0f;
     AdventureScrapItem _aimedScrap;
+
+    // 案B：相棒Floatの情緒的深化（待機居眠り・頭上着地・スキンシップ喜びスパークル）
+    float _nikoStillDuration = 0f;
+    Vector3 _lastNikoPos;
+    float _nextSleepZzzTime = 0f;
 
     // Qキー道案内（Floatのガイドシグナル＆先行フライト）
     Vector3 _guideLeadPos;
@@ -122,7 +127,9 @@ public partial class AdventureRustDrone : MonoBehaviour
         else
         {
             if (CurrentState == RustState.Petting)
-                CurrentState = RustState.Follow;
+            {
+                TriggerAffectionJoy();
+            }
         }
     }
 
@@ -397,6 +404,137 @@ public partial class AdventureRustDrone : MonoBehaviour
         _stateTimer = 1.4f;
     }
 
+    /// <summary>
+    /// 案B：スキンシップ・注油・道案内後のハッピーリアクション。
+    /// 360度宙返り＆星屑・黄金ハートスパークルと愛らしい高音チャイムをパッと咲かせる。
+    /// </summary>
+    public void TriggerAffectionJoy()
+    {
+        if (IsClimaxCrisis || _prologueDistress) return;
+        _velocity += Vector3.up * 1.8f;
+        CurrentState = RustState.Celebrating;
+        _stateTimer = 1.35f;
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.35f, 32);
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = Random.Range(1.30f, 1.45f);
+            _audio.PlayOneShot(_happyBeepClip, 0.9f);
+        }
+    }
+
+    /// <summary>Nikoが地上で3秒以上静止したときの待機居眠り開始</summary>
+    void EnterPerchSleep()
+    {
+        CurrentState = RustState.Perching;
+        _nextSleepZzzTime = Time.time + 0.5f;
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = 0.88f; // 安心した穏やかなトーン
+            _audio.PlayOneShot(_happyBeepClip, 0.42f);
+        }
+    }
+
+    /// <summary>Nikoが歩行・ジャンプを開始したときの目覚め</summary>
+    void WakeUpFromPerch()
+    {
+        CurrentState = RustState.Follow;
+        _nikoStillDuration = 0f;
+        _velocity += Vector3.up * 1.2f;
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = 1.28f; // 元気な「ピピッ！」
+            _audio.PlayOneShot(_happyBeepClip, 0.65f);
+        }
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.2f, 12);
+    }
+
+    /// <summary>居眠り中の小さな淡いシアンのZzzパーティクル</summary>
+    void SpawnSleepZzzParticle(Vector3 pos)
+    {
+        var fxGo = new GameObject("SleepZzzFx");
+        fxGo.transform.position = pos;
+
+        var ps = fxGo.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        var psr = fxGo.GetComponent<ParticleSystemRenderer>();
+        if (psr != null)
+        {
+            psr.sharedMaterial = GetSoftSmokeMaterial();
+            psr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            psr.receiveShadows = false;
+        }
+
+        var main = ps.main;
+        main.startLifetime = 1.2f;
+        main.startSpeed = 0.35f;
+        main.startSize = 0.16f;
+        main.startColor = new Color(0.6f, 0.90f, 1f, 0.75f);
+        main.gravityModifier = -0.06f; // ふわふわと優しく立ち上る
+        main.loop = false;
+        main.stopAction = ParticleSystemStopAction.Destroy;
+
+        var emission = ps.emission;
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 2) });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 0.08f;
+
+        var colOverLifetime = ps.colorOverLifetime;
+        colOverLifetime.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new[] { new GradientColorKey(new Color(0.6f, 0.9f, 1f), 0f), new GradientColorKey(Color.white, 1f) },
+            new[] { new GradientAlphaKey(0.75f, 0f), new GradientAlphaKey(0f, 1f) }
+        );
+        colOverLifetime.color = grad;
+
+        Destroy(fxGo, 1.8f);
+    }
+
+    /// <summary>Nikoの静止状態検知による待機居眠り・目覚め判定</summary>
+    void TickPerchingDetection()
+    {
+        if (_lookAt == null) return;
+        var player = AdventurePlayerController.Instance;
+        if (player == null) return;
+
+        Vector3 curNikoPos = _lookAt.position;
+        float moveDist = Vector3.Distance(curNikoPos, _lastNikoPos);
+        _lastNikoPos = curNikoPos;
+
+        bool isNikoMoving = moveDist > 0.04f || player.IsInAir || player.IsGliding;
+
+        if (CurrentState == RustState.Perching)
+        {
+            if (isNikoMoving || IsClimaxCrisis || _prologueDistress || player.HasMoveInput)
+            {
+                WakeUpFromPerch();
+            }
+            return;
+        }
+
+        if (CurrentState == RustState.Follow && Time.time >= _hitchUntil && !IsClimaxCrisis && !_prologueDistress && !_climaxHealing && !_skybreakNestle)
+        {
+            if (!isNikoMoving && player.IsGrounded && !player.HasMoveInput)
+            {
+                _nikoStillDuration += Time.deltaTime;
+                if (_nikoStillDuration >= 3.2f)
+                {
+                    EnterPerchSleep();
+                }
+            }
+            else
+            {
+                _nikoStillDuration = 0f;
+            }
+        }
+        else
+        {
+            _nikoStillDuration = 0f;
+        }
+    }
+
     float _nextIdleTalk;
     string _lastIdleLine = "";
     float _nextDriftBoxCheckTime = 5.0f;
@@ -447,6 +585,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             return;
 
         TickDriftBoxDetection();
+        TickPerchingDetection();
         UpdateCommandInput();
 
         Vector3 goal;
@@ -574,6 +713,21 @@ public partial class AdventureRustDrone : MonoBehaviour
             goal.y += Mathf.Sin(Time.time * 2.2f) * 0.012f;
             _lagTarget = goal;
         }
+        else if (CurrentState == RustState.Perching)
+        {
+            // Nikoの頭上・首元にちょこんと着地（穏やかな呼吸ボブ）
+            Vector3 headPos = GetNikoHeadPosition();
+            goal = headPos + Vector3.up * 0.30f + _lookAt.right * 0.16f - _lookAt.forward * 0.08f;
+            goal.y += Mathf.Sin(Time.time * 2.0f) * 0.012f;
+            _lagTarget = goal;
+
+            // Zzzスリープパーティクル
+            if (Time.time >= _nextSleepZzzTime)
+            {
+                _nextSleepZzzTime = Time.time + 1.35f;
+                SpawnSleepZzzParticle(transform.position + Vector3.up * 0.15f);
+            }
+        }
         else // Follow
         {
             goal = FollowPoint();
@@ -598,7 +752,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
 
         _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-2.2f * Time.deltaTime));
-        float smoothTime = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning || CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill) ? 0.28f : (wellOiled ? 0.38f : 0.52f);
+        float smoothTime = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning || CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill || CurrentState == RustState.Perching) ? 0.32f : (wellOiled ? 0.38f : 0.52f);
         if (CurrentState == RustState.Guiding)
             smoothTime = 0.20f;
         else if (_climaxHealing)
@@ -678,6 +832,11 @@ public partial class AdventureRustDrone : MonoBehaviour
                 float headBob = Mathf.Sin(Time.time * 1.5f) * 4f;
                 float lookNikoBlend = Mathf.Clamp01(Mathf.Sin(Time.time * 0.35f) * 1.8f - 0.9f);
                 look *= Quaternion.Euler(headBob, lookNikoBlend * 20f, 0f);
+            }
+            else if (CurrentState == RustState.Perching)
+            {
+                // Nikoの頭上で首を傾げて穏やかに居眠り
+                look = _lookAt.rotation * Quaternion.Euler(10f, 20f, Mathf.Sin(Time.time * 1.5f) * 4f);
             }
             else if (CurrentState == RustState.Celebrating)
             {
@@ -1892,6 +2051,17 @@ public partial class AdventureRustDrone : MonoBehaviour
         mat.SetColor("_BaseColor", new Color(1f, 1f, 1f, 0.85f));
         mat.renderQueue = 3100;
         return mat;
+    }
+
+    static Material _softSmokeMat;
+    public static Material GetSoftSmokeMaterial()
+    {
+        if (_softSmokeMat == null)
+        {
+            _softSmokeMat = LoadHeatMaterial();
+            _softSmokeMat.name = "SoftSmoke_Mat";
+        }
+        return _softSmokeMat;
     }
 
     void PlayCreak(bool force)
