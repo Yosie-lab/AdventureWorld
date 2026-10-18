@@ -241,6 +241,10 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (_cc != null && !_cc.enabled)
             _cc.enabled = true;
 
+        // 案C：フォトモード起動中は移動・アクションを停止
+        if (AdventurePhotoMode.IsActive)
+            return;
+
 
         // オープニングボード表示中、または決定直後の入力ガード中（クリック・Space誤爆防止）は操作不可
         var opening = AdventureRustFloatOpening.Instance;

@@ -266,6 +266,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void Update()
     {
+        if (AdventurePhotoMode.IsActive) return;
         _lookUpdatedThisFrame = false;
         EnsureTarget();
         if (target == null) return;
@@ -275,6 +276,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
+        if (AdventurePhotoMode.IsActive) return;
         EnsureTarget();
         if (target == null) return;
 
@@ -295,6 +297,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void UpdateLookInputOnly()
     {
+        if (AdventurePhotoMode.IsActive) return;
         var kb = AdventureInputReader.Keyboard;
         var mouse = Mouse.current;
 
