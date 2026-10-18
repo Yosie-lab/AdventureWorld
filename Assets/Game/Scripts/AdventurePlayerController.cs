@@ -66,6 +66,9 @@ public partial class AdventurePlayerController : MonoBehaviour
     AdventureNikoFootsteps _footsteps;
     float               _hop;
     bool                _grounded = true;
+    float               _apexHangTimer;
+    bool                _hasHighUpdraftHop;
+    bool                _apexTriggeredThisAir;
     float               _spawnTime = 0f;
     string              _clip;
 
@@ -596,6 +599,9 @@ public partial class AdventurePlayerController : MonoBehaviour
             _doubleJumpUsed = false;
             _gliding        = false;
             _airborneTime   = 0f;
+            _apexHangTimer  = 0f;
+            _hasHighUpdraftHop = false;
+            _apexTriggeredThisAir = false;
             // 毎フレーム慣性クリアしない（出だしで速度を殺さない）。着地瞬間のみ。
             if (!wasGrounded)
             {
@@ -608,6 +614,10 @@ public partial class AdventurePlayerController : MonoBehaviour
         {
             _grounded = false;
             _airborneTime += Time.deltaTime;
+            if (_hop > 14f || _updraftTimer > 0f)
+            {
+                _hasHighUpdraftHop = true;
+            }
         }
     }
     #endregion
@@ -1115,7 +1125,25 @@ public partial class AdventurePlayerController : MonoBehaviour
                 _airMomentum = Vector3.zero;
         }
 
-        _hop += gravity * Time.deltaTime;
+        // 案A：メガジャンプ・急上昇頂点での無重力ハングタイム（Apex Hang-Time JUICE）
+        if (_hasHighUpdraftHop && !_apexTriggeredThisAir && _hop <= 3.5f && !_grounded)
+        {
+            _apexTriggeredThisAir = true;
+            _apexHangTimer = 0.38f;
+            AdventureCameraFollow.Instance?.TriggerApexPanorama(0.42f);
+            AdventureRustDrone.Instance?.TriggerApexFlyby();
+        }
+
+        if (_apexHangTimer > 0f)
+        {
+            _apexHangTimer -= Time.deltaTime;
+            _hop += gravity * 0.10f * Time.deltaTime; // 重力を90%カットしたフワッとした無重力浮遊
+            _hop = Mathf.Max(_hop, -0.4f);
+        }
+        else
+        {
+            _hop += gravity * Time.deltaTime;
+        }
         return _airMomentum;
     }
     #endregion
@@ -1563,6 +1591,11 @@ public partial class AdventurePlayerController : MonoBehaviour
         _updraftLift  = liftForce;
         _updraftTimer = 0.25f;
         if (!_grounded) _gliding = true;
+        if (liftForce >= 14f)
+        {
+            _hasHighUpdraftHop = true;
+            _apexTriggeredThisAir = false;
+        }
     }
 
     /// <summary>地上スチーム・上昇気流噴出孔（スチーム・ウィンド）に入った際の大跳躍射出＆前方推進＆滑空展開</summary>
@@ -1570,6 +1603,8 @@ public partial class AdventurePlayerController : MonoBehaviour
     {
         bool isMega = launchHop >= 32f;
         _grounded = false;
+        _hasHighUpdraftHop = true;
+        _apexTriggeredThisAir = false;
 
         // メガ・スチームウィンド（70m超）は急速＆爽快感100%の猛烈なジェット推進
         float actualHop = isMega ? Mathf.Max(launchHop, 56.0f) : launchHop;

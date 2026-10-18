@@ -93,6 +93,14 @@ public class AdventureCameraFollow : MonoBehaviour
 
     public bool IsCinematic => _cinematic;
 
+    float _apexPanoramaTimer = 0f;
+
+    /// <summary>案A：メガジャンプ頂点での無重力ハングタイム用絶景パノラマカメラ</summary>
+    public void TriggerApexPanorama(float duration)
+    {
+        _apexPanoramaTimer = Mathf.Max(_apexPanoramaTimer, duration);
+    }
+
     static AdventureCameraFollow _instance;
     public static AdventureCameraFollow Instance => _instance != null ? _instance : (_instance = Object.FindAnyObjectByType<AdventureCameraFollow>());
 
@@ -577,15 +585,22 @@ public class AdventureCameraFollow : MonoBehaviour
             targetFov = Mathf.Min(82f, targetFov + speedBoostFov);
         }
 
+        if (_apexPanoramaTimer > 0f)
+        {
+            _apexPanoramaTimer -= Time.deltaTime;
+            targetFov = Mathf.Max(targetFov, 82f); // 頂点到達時に絶景パノラマFOV
+        }
+
         if (_cam != null)
         {
-            float fovSpeed = (cine > 0.01f || (player != null && player.IsUpdraftAscending)) ? 26f : 10f;
+            float fovSpeed = (cine > 0.01f || (player != null && player.IsUpdraftAscending) || _apexPanoramaTimer > 0f) ? 26f : 10f;
             _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, targetFov, fovSpeed * Time.deltaTime);
         }
 
         float cineDist = (isAutoGlide && cine > 0.3f) ? 8.5f : CinematicDistance;
         float speedExtraDist = (player != null && player.IsUpdraftAscending) ? (player.SpeedIntensity * 1.6f) : 0f;
-        float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.2f) : distance, cineDist, cine) + speedExtraDist;
+        float apexExtraDist = (_apexPanoramaTimer > 0f) ? 2.4f : 0f;
+        float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.2f) : distance, cineDist, cine) + speedExtraDist + apexExtraDist;
         
         // 上空（高度80m以上またはオートグライド中）は障害物がないため、天蓋破片等の誤遮蔽SphereCastをバイパスして安定追従
         float safeTargetDist;

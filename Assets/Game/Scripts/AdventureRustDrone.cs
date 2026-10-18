@@ -422,6 +422,22 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 案A：メガジャンプ頂点での無重力ハングタイム時の並走＆合図エモーション。
+    /// Nikoの前にピタッと並び、「ピピッ！」と鳴いて星屑をキラッと散らす。
+    /// </summary>
+    public void TriggerApexFlyby()
+    {
+        if (IsClimaxCrisis || _prologueDistress || CurrentState == RustState.Perching) return;
+        _velocity += Vector3.up * 1.6f;
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.25f, 20);
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = 1.36f;
+            _audio.PlayOneShot(_happyBeepClip, 0.72f);
+        }
+    }
+
     /// <summary>Nikoが地上で3秒以上静止したときの待機居眠り開始</summary>
     void EnterPerchSleep()
     {
