@@ -104,7 +104,7 @@ public static class AdventureRustFloatFeel
             cam.distance = CameraDistance;
 
         if (unityCam == null) return;
-        unityCam.nearClipPlane = 0.05f;
+        unityCam.nearClipPlane = 0.25f;
         unityCam.farClipPlane = 1200f;
         unityCam.useOcclusionCulling = false;
         if (unityCam.fieldOfView < 60f || unityCam.fieldOfView > 68f)

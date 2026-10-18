@@ -473,11 +473,16 @@ public class AdventureCameraFollow : MonoBehaviour
                 _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading + driftYaw, followRate * 0.85f * dt);
                 _targetPitch = Mathf.MoveTowards(_targetPitch, driftPitch, 14f * dt);
             }
-            else
+            else if (isAutoGlide)
             {
                 _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading, followRate * dt);
                 if (cine > 0.01f)
                     _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, 24f * dt);
+            }
+            else
+            {
+                // 手動滑空中・ダイブ中：ヨーのみ緩やかに追従し、プレイヤーが向けた見下ろしピッチは100%維持
+                _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading, followRate * 0.5f * dt);
             }
         }
         else if (walkingGround)
@@ -488,9 +493,9 @@ public class AdventureCameraFollow : MonoBehaviour
         if (cine > 0.4f && !isAutoGlide)
             _targetPitch = Mathf.Clamp(_targetPitch, -6f, 22f);
 
-        // 手動操作時（マウス操作直後や歩行中）は SmoothDamp による遅延を完全排除し、ダイレクト即時反映
-        bool isManualAiming = (Time.time - _lastMouseInputTime < 0.60f);
-        if (walkingGround || isManualAiming || cine < 0.05f)
+        // 手動操作時（マウス操作直後、歩行中、または手動滑空中）は SmoothDamp による遅延・揺れを排除しダイレクト即時反映
+        bool isManualAiming = (Time.time - _lastMouseInputTime < 0.80f);
+        if (walkingGround || isManualAiming || isGliding || cine < 0.05f)
         {
             _yaw = _targetYaw;
             _pitch = _targetPitch;
@@ -572,7 +577,8 @@ public class AdventureCameraFollow : MonoBehaviour
         }
         else
         {
-            float pivotSmooth = isAutoGlide ? 0.06f : (isGliding ? 0.035f : positionSmoothTime);
+            // 滑空中は物理落下・ダイブ速度が大きいため、追従遅延（バネ揺れ）を排除してプレイヤーと剛体追従（0.008秒）
+            float pivotSmooth = isAutoGlide ? 0.045f : (isGliding ? 0.008f : positionSmoothTime);
             _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, pivotSmooth);
         }
 
@@ -581,33 +587,34 @@ public class AdventureCameraFollow : MonoBehaviour
         float cineFov = (isAutoGlide && cine > 0.3f) ? 78f : CinematicFov;
         float targetFov = Mathf.Lerp(isGliding ? glideBaseFov : walkBaseFov, cineFov, cine);
 
-        // 70mメガジャンプ・急上昇・高速滑空ブーストによるダイナミックFOV（最大82°までワイド化）
+        // 高速滑空・ブースト時のダイナミックFOV（上空見下ろし時の急激な画面伸縮揺れを防ぐため穏やかに制御）
         if (player != null && player.SpeedIntensity > 0.05f)
         {
-            float speedBoostFov = player.SpeedIntensity * (player.IsUpdraftAscending ? 15.0f : 10.0f);
-            targetFov = Mathf.Min(82f, targetFov + speedBoostFov);
+            float speedBoostFov = player.SpeedIntensity * (player.IsUpdraftAscending ? 10.0f : 6.0f);
+            targetFov = Mathf.Min(76f, targetFov + speedBoostFov);
         }
 
         if (_apexPanoramaTimer > 0f)
         {
             _apexPanoramaTimer -= Time.deltaTime;
-            targetFov = Mathf.Max(targetFov, 82f); // 頂点到達時に絶景パノラマFOV
+            targetFov = Mathf.Max(targetFov, 78f); // 頂点到達時に絶景パノラマFOV
         }
 
         if (_cam != null)
         {
-            float fovSpeed = (cine > 0.01f || (player != null && player.IsUpdraftAscending) || _apexPanoramaTimer > 0f) ? 26f : 10f;
+            // FOV急変による地上の歪み揺れを防止するため、滑らかな補間速度を適用
+            float fovSpeed = (cine > 0.01f || _apexPanoramaTimer > 0f) ? 18f : 8.0f;
             _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, targetFov, fovSpeed * Time.deltaTime);
         }
 
         float cineDist = (isAutoGlide && cine > 0.3f) ? 8.5f : CinematicDistance;
-        float speedExtraDist = (player != null && player.IsUpdraftAscending) ? (player.SpeedIntensity * 1.6f) : 0f;
-        float apexExtraDist = (_apexPanoramaTimer > 0f) ? 2.4f : 0f;
-        float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.2f) : distance, cineDist, cine) + speedExtraDist + apexExtraDist;
+        float speedExtraDist = (player != null && player.IsUpdraftAscending) ? (player.SpeedIntensity * 1.0f) : 0f;
+        float apexExtraDist = (_apexPanoramaTimer > 0f) ? 1.6f : 0f;
+        float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.0f) : distance, cineDist, cine) + speedExtraDist + apexExtraDist;
         
-        // 上空（高度80m以上またはオートグライド中）は障害物がないため、天蓋破片等の誤遮蔽SphereCastをバイパスして安定追従
+        // 滑空中または上空（高度45m以上またはオートグライド中）は、障害物誤遮蔽SphereCastをバイパスして安定追従
         float safeTargetDist;
-        if (isAutoGlide || (target != null && target.position.y > 80f))
+        if (isGliding || isAutoGlide || (target != null && target.position.y > 45f))
         {
             safeTargetDist = desiredDist;
         }
@@ -628,7 +635,8 @@ public class AdventureCameraFollow : MonoBehaviour
         }
         else
         {
-            float distSmooth = cine > 0.2f ? 0.12f : 0.08f;
+            // 滑空ダイブ中の前後揺れを排除するため、速やかな追従（0.04s）を採用
+            float distSmooth = isGliding ? 0.04f : (cine > 0.2f ? 0.12f : 0.08f);
             _currentDistance = Mathf.SmoothDamp(_currentDistance, safeTargetDist, ref _distVel, distSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
         }
 
