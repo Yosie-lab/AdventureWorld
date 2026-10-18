@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ParadiseCurvedOcean
+  m_Shader: {fileID: 4800000, guid: f1c3a13312366457f8ee9f5b9d3c91e9, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _NormalMap1:
+        m_Texture: {fileID: 2800000, guid: 55b82c9f8a4c6ca4989e21bfa90687e7, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalMap2:
+        m_Texture: {fileID: 2800000, guid: cbaa63a286b85324a9ac9e524a41ac7c, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _CurvatureAmount: 22
+    - _DeepRadius: 800
+    - _HorizonRadius: 4500
+    - _NormalStrength: 1.25
+    - _OverheadSparkleIntensity: 1.6
+    - _ShallowRadius: 360
+    - _Smoothness: 0.985
+    - _SparkleScale: 1.8
+    - _SunGlitterExponent: 80
+    - _SunGlitterIntensity: 4.8
+    - _WaveScale1: 0.035
+    - _WaveScale2: 0.085
+    m_Colors:
+    - _DeepColor: {r: 0.015, g: 0.68, b: 0.72, a: 0.98}
+    - _HorizonColor: {r: 0.35, g: 0.88, b: 0.92, a: 1}
+    - _IslandCenter: {r: 512, g: 5.5, b: 512, a: 0}
+    - _MidColor: {r: 0.04, g: 0.88, b: 0.8, a: 0.9}
+    - _ShallowColor: {r: 0.08, g: 0.99, b: 0.82, a: 0.78}
+    - _SunGlitterColor: {r: 1, g: 0.98, b: 0.88, a: 1}
+    - _WaveSpeed1: {r: 0.025, g: 0.015, b: 0, a: 0}
+    - _WaveSpeed2: {r: -0.02, g: 0.03, b: 0, a: 0}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
