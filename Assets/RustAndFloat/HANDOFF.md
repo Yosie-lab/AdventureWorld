@@ -15,11 +15,14 @@ created: 2026-09-11
 - **夕暮れの太陽光・大気・フォグ色を「赤寄りの鮮明なオレンジ（茜色）」に刷新（2026-10-18 追記）**:
   1. **茶色味の排除と赤橙トーンへの統一（`AdventureDayNightDirector.cs`）**:
      - 沈みかけた夕陽の色（`targetSunColor`）を、茶色く濁っていた `(1f, 0.45f, 0.20f)` から、赤寄りの鮮やかで温かいオレンジ `new Color(1.0f, 0.36f, 0.08f)` に刷新。
-     - 陰影部に濁った茶色を落としていた環境光（`targetAmbient`）を温かい茜色 `new Color(0.68f, 0.36f, 0.24f)` に、フォグ（`targetFog`）も燃えるような夕焼け赤橙色 `new Color(0.92f, 0.38f, 0.16f)` に刷新。
-     - 光量強度（`targetIntensity`）も 0.85f ➔ 1.10f〜1.30f へ底上げし、画面が暗く茶色に沈むのを完全に防止。
-  2. **プロシージャル・スカイボックスとの連動（`AdventureDayNightDirector.cs`）**:
+     - 陰影部に濁った茶色を落としていた環境光（`targetAmbient`）を温かい茜色 `new Color(0.58f, 0.26f, 0.16f)` に、フォグ（`targetFog`）も燃えるような夕焼け赤橙色 `new Color(0.82f, 0.28f, 0.12f)` に刷新。
+     - 光量強度（`targetIntensity`）は「少し暗め（0.95f〜1.05f）」と「明るめ（1.35f〜1.38f）」の中間となる絶妙な明るめ寄り（1.20f〜1.28f, Preview 1.22f）に設定し、景観の視認性と夕暮れの情緒を両立。
+  2. **太陽の光芒（7〜12方向のトゲトゲ光条）の削ぎ落としとソフト円形ハロー化（`AdventureDayNightDirector.cs`）**:
+     - 以前の三角関数による12条放射光条・クロス光芒を完全撤廃。
+     - 太陽コア（36m）の周囲をふんわりと包み込む自然で柔らかな丸いハロー（円形ソフトグロー、72m）に刷新し、回転も停止して穏やかで落ち着いた沈みゆく夕陽を表現。
+  3. **プロシージャル・スカイボックスとの連動（`AdventureDayNightDirector.cs`）**:
      - `RenderSettings.skybox` の `_GroundColor` を温かい夕陽の反射色へ、`_AtmosphereThickness` を 1.28f に連動させ、水平線周りの大気散乱も鮮烈な赤橙色に広がるよう調整。
-  3. **波打ち際の夕陽照り返し（`AdventureBeachVisualEnhancer.cs`）**:
+  4. **波打ち際の夕陽照り返し（`AdventureBeachVisualEnhancer.cs`）**:
      - 波の色（`sunsetWaveColor`）を赤寄りの温かいオレンジに連動。
 - **新・案A：メガジャンプ頂点「無重力ハングタイム＆絶景パノラマ JUICE」完成（2026-10-18 追記）**:
   1. **無重力ハングタイム浮遊（`AdventurePlayerController.cs`）**:
