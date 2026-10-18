@@ -64,10 +64,12 @@ public class AdventureDayNightDirector : MonoBehaviour
     public enum DayNightMode
     {
         ProgressBased, // スクラップ探索進捗連動
-        AlwaysDay,     // 爽快な昼の青空
-        AlwaysSunset,  // 黄金と茜色の夕暮れマジックアワー
-        AlwaysNight,   // 満天の星空と夜光虫の幻想夜
-        RealtimeCycle  // リアルタイム時間サイクル（約8分で1日）
+        AlwaysDawn,    // 清冽な夜明け・朝焼けのブルー＆ゴールドアワー
+        AlwaysDay,     // 爽快な昼の青空と南国の陽光
+        AlwaysSunset,  // 息をのむ茜色とロイヤルパープルの夕暮れマジックアワー
+        AlwaysTwilight,// 宵闇の黄昏・街灯が灯る薄暮
+        AlwaysNight,   // 満天の星空と蒼白い月光の幻想夜
+        RealtimeCycle  // リアルタイム時間サイクル（約8分で24時間循環）
     }
 
     public static DayNightMode CurrentMode { get; private set; } = DayNightMode.ProgressBased;
@@ -78,7 +80,10 @@ public class AdventureDayNightDirector : MonoBehaviour
     /// <summary>夕暮れマジックアワーの深さ（0.0=昼/夜、1.0=最も鮮烈な夕焼け）。</summary>
     public static float SunsetFactor { get; private set; } = 0f;
 
-    private float _realtimeCyclePhase = 0.15f; // 0.0〜1.0 (0.15=朝昼, 0.55=夕暮れ, 0.85=深夜)
+    /// <summary>夜明け・朝の深さ（0.0=昼/夜、1.0=最も澄んだ朝焼け）。</summary>
+    public static float DawnFactor { get; private set; } = 0f;
+
+    private float _realtimeCyclePhase = 0.25f; // 0.0〜1.0 (0.08=朝焼け, 0.30=昼, 0.58=夕暮れ, 0.78=黄昏, 0.90=月夜)
 
     void Start()
     {
@@ -121,60 +126,118 @@ public class AdventureDayNightDirector : MonoBehaviour
         // 時間進行度（0.0 〜 1.0）の決定
         float progress = CalculateCurrentProgress();
 
-        // NightFactor & SunsetFactor の計算
-        if (progress < 0.35f)
+        // ── 各時間帯因子の計算（シームレスな山型ブレンド） ──
+        // 1. 夕暮れ因子 (0.42 〜 0.72 で山型、0.58で最大1.0)
+        if (progress >= 0.42f && progress <= 0.72f)
         {
-            NightFactor = 0f;
-            SunsetFactor = 0f;
-        }
-        else if (progress < 0.70f)
-        {
-            float t = (progress - 0.35f) / 0.35f;
-            SunsetFactor = Mathf.Sin(t * Mathf.PI); // 夕暮れ中央で1.0
-            NightFactor = Mathf.Max(0f, (progress - 0.55f) / 0.15f * 0.3f);
+            float st = (progress - 0.42f) / 0.30f;
+            SunsetFactor = Mathf.Sin(st * Mathf.PI);
         }
         else
         {
-            SunsetFactor = Mathf.Max(0f, 1f - (progress - 0.70f) / 0.12f);
-            NightFactor = Mathf.Clamp01((progress - 0.65f) / 0.25f);
+            SunsetFactor = 0f;
         }
 
-        // 進行度に応じたライティング補間
+        // 2. 夜因子 (0.74 〜 1.00、および 0.00 〜 0.06 で最大1.0)
+        if (progress >= 0.74f)
+        {
+            float nt = Mathf.Clamp01((progress - 0.74f) / 0.12f);
+            NightFactor = Mathf.SmoothStep(0f, 1f, nt);
+        }
+        else if (progress <= 0.06f)
+        {
+            float nt = Mathf.Clamp01(1f - (progress / 0.06f));
+            NightFactor = Mathf.SmoothStep(0f, 1f, nt);
+        }
+        else
+        {
+            NightFactor = 0f;
+        }
+
+        // 3. 夜明け因子 (0.02 〜 0.18 で山型、0.09で最大1.0)
+        if (progress >= 0.02f && progress <= 0.18f)
+        {
+            float dawnT = (progress - 0.02f) / 0.16f;
+            DawnFactor = Mathf.Sin(dawnT * Mathf.PI);
+        }
+        else
+        {
+            DawnFactor = 0f;
+        }
+
+        // ── 進行度に応じたシネマティック24時間ライティング補間 ──
         Color targetSunColor;
         Color targetAmbient;
         Color targetFog;
         float targetIntensity;
         Vector3 targetSunAngles;
+        float targetFogDensity;
 
-        if (progress < 0.35f)
+        if (progress < 0.08f)
         {
-            // 【昼】爽やかな青空と澄んだピュアな太陽光
-            float t = progress / 0.35f;
-            targetSunColor = Color.Lerp(new Color(1f, 1f, 0.98f), new Color(1f, 0.98f, 0.94f), t);
-            targetAmbient = Color.Lerp(new Color(0.58f, 0.70f, 0.85f), new Color(0.62f, 0.68f, 0.78f), t);
-            targetFog = Color.Lerp(new Color(0.70f, 0.88f, 1.0f), new Color(0.75f, 0.85f, 0.98f), t);
-            targetIntensity = Mathf.Lerp(1.35f, 1.25f, t);
-            targetSunAngles = Vector3.Lerp(new Vector3(50f, -30f, 0f), new Vector3(32f, -15f, 0f), t);
+            // 【未明〜ブルーアワー】(0.00 〜 0.08) 静寂の蒼白い月夜から地平線が淡く紫に染まる
+            float t = Mathf.SmoothStep(0f, 1f, progress / 0.08f);
+            targetSunColor = Color.Lerp(new Color(0.42f, 0.60f, 0.95f), new Color(0.92f, 0.58f, 0.48f), t);
+            targetAmbient = Color.Lerp(new Color(0.14f, 0.18f, 0.32f), new Color(0.38f, 0.32f, 0.45f), t);
+            targetFog = Color.Lerp(new Color(0.08f, 0.12f, 0.24f), new Color(0.55f, 0.38f, 0.52f), t);
+            targetIntensity = Mathf.Lerp(0.42f, 0.78f, t);
+            targetSunAngles = Vector3.Lerp(new Vector3(-25f, 45f, 0f), new Vector3(8f, 75f, 0f), t);
+            targetFogDensity = Mathf.Lerp(0.0016f, 0.0018f, t);
         }
-        else if (progress < 0.75f)
+        else if (progress < 0.18f)
         {
-            // 【夕暮れ】息をのむシネマティックな赤橙・茜色のマジックアワー
-            float t = (progress - 0.35f) / 0.40f;
-            targetSunColor = Color.Lerp(new Color(1.0f, 0.45f, 0.12f), new Color(1.0f, 0.30f, 0.05f), t); // シネマティックな夕陽の赤橙
-            targetAmbient = Color.Lerp(new Color(0.76f, 0.42f, 0.26f), new Color(0.72f, 0.35f, 0.20f), t); // 深みのある夕暮れ陰影
-            targetFog = Color.Lerp(new Color(0.98f, 0.46f, 0.20f), new Color(0.98f, 0.40f, 0.16f), t); // 空と水平線に微量の夕暮れオレンジをプラス
-            targetIntensity = Mathf.Lerp(1.35f, 1.38f, t); // 絶妙なコントラスト
-            targetSunAngles = Vector3.Lerp(new Vector3(42f, 225f, 0f), new Vector3(35.2f, 237.5f, 0f), t); // スカイボックスの太陽と一致
+            // 【朝焼け〜清冽な朝陽】(0.08 〜 0.18) 東の海から朝陽が昇り、爽やかな朝露と光が島を満たす
+            float t = Mathf.SmoothStep(0f, 1f, (progress - 0.08f) / 0.10f);
+            targetSunColor = Color.Lerp(new Color(0.92f, 0.58f, 0.48f), new Color(1.0f, 0.94f, 0.86f), t);
+            targetAmbient = Color.Lerp(new Color(0.38f, 0.32f, 0.45f), new Color(0.65f, 0.72f, 0.82f), t);
+            targetFog = Color.Lerp(new Color(0.55f, 0.38f, 0.52f), new Color(0.72f, 0.86f, 1.0f), t);
+            targetIntensity = Mathf.Lerp(0.78f, 1.30f, t);
+            targetSunAngles = Vector3.Lerp(new Vector3(8f, 75f, 0f), new Vector3(32f, 110f, 0f), t);
+            targetFogDensity = Mathf.Lerp(0.0018f, 0.0015f, t);
+        }
+        else if (progress < 0.45f)
+        {
+            // 【昼・南国の陽光】(0.18 〜 0.45) 澄み渡る深い青空、白い雲、輝くエメラルドの海
+            float t = Mathf.SmoothStep(0f, 1f, (progress - 0.18f) / 0.27f);
+            targetSunColor = Color.Lerp(new Color(1.0f, 0.94f, 0.86f), new Color(1.0f, 0.99f, 0.96f), t);
+            targetAmbient = Color.Lerp(new Color(0.65f, 0.72f, 0.82f), new Color(0.72f, 0.78f, 0.86f), t);
+            targetFog = Color.Lerp(new Color(0.72f, 0.86f, 1.0f), new Color(0.75f, 0.88f, 1.0f), t);
+            targetIntensity = Mathf.Lerp(1.30f, 1.35f, t);
+            targetSunAngles = Vector3.Lerp(new Vector3(32f, 110f, 0f), new Vector3(45f, 195f, 0f), t);
+            targetFogDensity = 0.0014f;
+        }
+        else if (progress < 0.65f)
+        {
+            // 【夕暮れ・息をのむ茜色マジックアワー】(0.45 〜 0.65) 承認された完成版シネマティック夕暮れ
+            float t = Mathf.SmoothStep(0f, 1f, (progress - 0.45f) / 0.20f);
+            targetSunColor = Color.Lerp(new Color(1.0f, 0.85f, 0.55f), new Color(1.0f, 0.30f, 0.05f), t); // 鮮烈な赤橙
+            targetAmbient = Color.Lerp(new Color(0.72f, 0.60f, 0.50f), new Color(0.74f, 0.36f, 0.20f), t); // 情緒的な深み
+            targetFog = Color.Lerp(new Color(0.85f, 0.65f, 0.45f), new Color(0.96f, 0.34f, 0.12f), t); // 茜色フォグ
+            targetIntensity = Mathf.Lerp(1.35f, 1.38f, t);
+            targetSunAngles = Vector3.Lerp(new Vector3(45f, 195f, 0f), new Vector3(35.2f, 237.5f, 0f), t); // スカイボックス太陽と一致
+            targetFogDensity = Mathf.Lerp(0.0014f, 0.0020f, t);
+        }
+        else if (progress < 0.78f)
+        {
+            // 【黄昏・薄暮の静寂】(0.65 〜 0.78) 西の海に夕陽が沈み、地平線の残光と天頂の深い藍色
+            float t = Mathf.SmoothStep(0f, 1f, (progress - 0.65f) / 0.13f);
+            targetSunColor = Color.Lerp(new Color(1.0f, 0.30f, 0.05f), new Color(0.65f, 0.25f, 0.22f), t);
+            targetAmbient = Color.Lerp(new Color(0.74f, 0.36f, 0.20f), new Color(0.28f, 0.22f, 0.38f), t);
+            targetFog = Color.Lerp(new Color(0.96f, 0.34f, 0.12f), new Color(0.38f, 0.20f, 0.32f), t);
+            targetIntensity = Mathf.Lerp(1.38f, 0.65f, t);
+            targetSunAngles = Vector3.Lerp(new Vector3(35.2f, 237.5f, 0f), new Vector3(8f, 255f, 0f), t);
+            targetFogDensity = Mathf.Lerp(0.0020f, 0.0022f, t);
         }
         else
         {
-            // 【黄昏〜満天の星空】深い藍色・星明かりと夜光虫
-            float t = (progress - 0.75f) / 0.25f;
-            targetSunColor = Color.Lerp(new Color(1.0f, 0.30f, 0.05f), new Color(0.32f, 0.50f, 0.85f), t); // 夕暮れから月光へ
-            targetAmbient = Color.Lerp(new Color(0.72f, 0.35f, 0.20f), new Color(0.12f, 0.16f, 0.30f), t);
-            targetFog = Color.Lerp(new Color(0.98f, 0.40f, 0.16f), new Color(0.08f, 0.12f, 0.24f), t);
-            targetIntensity = Mathf.Lerp(1.38f, 0.40f, t);
-            targetSunAngles = Vector3.Lerp(new Vector3(35.2f, 237.5f, 0f), new Vector3(-25f, 45f, 0f), t); // 太陽は沈み、反対側から月光
+            // 【満天の星空・蒼白い月夜】(0.78 〜 1.00) 太陽は沈み、反対側からクールで神秘的な月光が海を照らす
+            float t = Mathf.SmoothStep(0f, 1f, (progress - 0.78f) / 0.22f);
+            targetSunColor = Color.Lerp(new Color(0.65f, 0.25f, 0.22f), new Color(0.42f, 0.60f, 0.95f), t);
+            targetAmbient = Color.Lerp(new Color(0.28f, 0.22f, 0.38f), new Color(0.14f, 0.18f, 0.32f), t);
+            targetFog = Color.Lerp(new Color(0.38f, 0.20f, 0.32f), new Color(0.08f, 0.12f, 0.24f), t);
+            targetIntensity = Mathf.Lerp(0.65f, 0.42f, t);
+            targetSunAngles = Vector3.Lerp(new Vector3(8f, 255f, 0f), new Vector3(-25f, 45f, 0f), t);
+            targetFogDensity = Mathf.Lerp(0.0022f, 0.0016f, t);
         }
 
         // スムーズな徐変（フレームごとの穏やかなブレンド）
@@ -192,7 +255,7 @@ public class AdventureDayNightDirector : MonoBehaviour
         RenderSettings.fogColor = Color.Lerp(RenderSettings.fogColor, targetFog, dt);
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, Mathf.Lerp(0.0016f, 0.0022f, SunsetFactor), dt);
+        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, targetFogDensity, dt);
 
         // スカイボックスの夕暮れブレンド（大気厚みを濁らせず澄んだ発色を維持）
         if (RenderSettings.skybox != null)
@@ -213,7 +276,8 @@ public class AdventureDayNightDirector : MonoBehaviour
             }
             if (RenderSettings.skybox.HasProperty("_Exposure"))
             {
-                RenderSettings.skybox.SetFloat("_Exposure", 1.0f);
+                float targetExposure = Mathf.Lerp(1.0f, 0.45f, NightFactor);
+                RenderSettings.skybox.SetFloat("_Exposure", Mathf.Lerp(RenderSettings.skybox.GetFloat("_Exposure"), targetExposure, dt));
             }
             if (RenderSettings.skybox.HasProperty("_SunColor"))
             {
@@ -222,31 +286,117 @@ public class AdventureDayNightDirector : MonoBehaviour
             }
         }
 
-        // 夕暮れの太陽キラキラ度・Bloom・海面反射の連動
-        UpdateBloomGlitter(SunsetFactor, dt);
-        UpdateOceanSunGlitter(SunsetFactor, dt);
+        // 夕暮れ・昼・夜に応じた太陽キラキラ度・Bloom・海面反射の連動
+        UpdateBloomGlitter(SunsetFactor, NightFactor, dt);
+        UpdateOceanSunGlitter(SunsetFactor, NightFactor, dt);
         UpdateSunsetSunSparkleVisual(new Color(1.0f, 0.26f, 0.03f), SunsetFactor);
     }
 
-    /// <summary>エディタ非再生時でも夕暮れキラキラ太陽とライティングを即座に反映するプレビューヘルパー</summary>
-    public void ForceUpdateSunsetPreview()
+    /// <summary>指定した時間帯のシネマティックライティングを即座に反映するプレビューヘルパー</summary>
+    public void ForceUpdateProgressPreview(float progress)
     {
         FindMainSun();
         if (_mainSunLight == null) return;
 
-        Color sunLightCol = new Color(1.0f, 0.30f, 0.05f);
-        _mainSunLight.color = sunLightCol;
-        _mainSunLight.intensity = 1.38f;
-        _mainSunLight.transform.rotation = Quaternion.LookRotation(-SkyboxSunDir, Vector3.up);
+        // 夕暮れ・夜因子の計算
+        float sunset = 0f;
+        if (progress >= 0.42f && progress <= 0.72f)
+        {
+            float st = (progress - 0.42f) / 0.30f;
+            sunset = Mathf.Sin(st * Mathf.PI);
+        }
+        SunsetFactor = sunset;
 
-        Color amb = new Color(0.74f, 0.36f, 0.20f);
+        float night = 0f;
+        if (progress >= 0.74f)
+        {
+            night = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((progress - 0.74f) / 0.12f));
+        }
+        else if (progress <= 0.06f)
+        {
+            night = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(1f - (progress / 0.06f)));
+        }
+        NightFactor = night;
+
+        Color sunCol;
+        Color amb;
+        Color fog;
+        float intensity;
+        Vector3 angles;
+        float fogDensity;
+
+        if (progress < 0.08f)
+        {
+            float t = Mathf.SmoothStep(0f, 1f, progress / 0.08f);
+            sunCol = Color.Lerp(new Color(0.42f, 0.60f, 0.95f), new Color(0.92f, 0.58f, 0.48f), t);
+            amb = Color.Lerp(new Color(0.14f, 0.18f, 0.32f), new Color(0.38f, 0.32f, 0.45f), t);
+            fog = Color.Lerp(new Color(0.08f, 0.12f, 0.24f), new Color(0.55f, 0.38f, 0.52f), t);
+            intensity = Mathf.Lerp(0.42f, 0.78f, t);
+            angles = Vector3.Lerp(new Vector3(-25f, 45f, 0f), new Vector3(8f, 75f, 0f), t);
+            fogDensity = Mathf.Lerp(0.0016f, 0.0018f, t);
+        }
+        else if (progress < 0.18f)
+        {
+            float t = Mathf.SmoothStep(0f, 1f, (progress - 0.08f) / 0.10f);
+            sunCol = Color.Lerp(new Color(0.92f, 0.58f, 0.48f), new Color(1.0f, 0.94f, 0.86f), t);
+            amb = Color.Lerp(new Color(0.38f, 0.32f, 0.45f), new Color(0.65f, 0.72f, 0.82f), t);
+            fog = Color.Lerp(new Color(0.55f, 0.38f, 0.52f), new Color(0.72f, 0.86f, 1.0f), t);
+            intensity = Mathf.Lerp(0.78f, 1.30f, t);
+            angles = Vector3.Lerp(new Vector3(8f, 75f, 0f), new Vector3(32f, 110f, 0f), t);
+            fogDensity = Mathf.Lerp(0.0018f, 0.0015f, t);
+        }
+        else if (progress < 0.45f)
+        {
+            float t = Mathf.SmoothStep(0f, 1f, (progress - 0.18f) / 0.27f);
+            sunCol = Color.Lerp(new Color(1.0f, 0.94f, 0.86f), new Color(1.0f, 0.99f, 0.96f), t);
+            amb = Color.Lerp(new Color(0.65f, 0.72f, 0.82f), new Color(0.72f, 0.78f, 0.86f), t);
+            fog = Color.Lerp(new Color(0.72f, 0.86f, 1.0f), new Color(0.75f, 0.88f, 1.0f), t);
+            intensity = Mathf.Lerp(1.30f, 1.35f, t);
+            angles = Vector3.Lerp(new Vector3(32f, 110f, 0f), new Vector3(45f, 195f, 0f), t);
+            fogDensity = 0.0014f;
+        }
+        else if (progress < 0.65f)
+        {
+            float t = Mathf.SmoothStep(0f, 1f, (progress - 0.45f) / 0.20f);
+            sunCol = Color.Lerp(new Color(1.0f, 0.85f, 0.55f), new Color(1.0f, 0.30f, 0.05f), t);
+            amb = Color.Lerp(new Color(0.72f, 0.60f, 0.50f), new Color(0.74f, 0.36f, 0.20f), t);
+            fog = Color.Lerp(new Color(0.85f, 0.65f, 0.45f), new Color(0.96f, 0.34f, 0.12f), t);
+            intensity = Mathf.Lerp(1.35f, 1.38f, t);
+            angles = Vector3.Lerp(new Vector3(45f, 195f, 0f), new Vector3(35.2f, 237.5f, 0f), t);
+            fogDensity = Mathf.Lerp(0.0014f, 0.0020f, t);
+        }
+        else if (progress < 0.78f)
+        {
+            float t = Mathf.SmoothStep(0f, 1f, (progress - 0.65f) / 0.13f);
+            sunCol = Color.Lerp(new Color(1.0f, 0.30f, 0.05f), new Color(0.65f, 0.25f, 0.22f), t);
+            amb = Color.Lerp(new Color(0.74f, 0.36f, 0.20f), new Color(0.28f, 0.22f, 0.38f), t);
+            fog = Color.Lerp(new Color(0.96f, 0.34f, 0.12f), new Color(0.38f, 0.20f, 0.32f), t);
+            intensity = Mathf.Lerp(1.38f, 0.65f, t);
+            angles = Vector3.Lerp(new Vector3(35.2f, 237.5f, 0f), new Vector3(8f, 255f, 0f), t);
+            fogDensity = Mathf.Lerp(0.0020f, 0.0022f, t);
+        }
+        else
+        {
+            float t = Mathf.SmoothStep(0f, 1f, (progress - 0.78f) / 0.22f);
+            sunCol = Color.Lerp(new Color(0.65f, 0.25f, 0.22f), new Color(0.42f, 0.60f, 0.95f), t);
+            amb = Color.Lerp(new Color(0.28f, 0.22f, 0.38f), new Color(0.14f, 0.18f, 0.32f), t);
+            fog = Color.Lerp(new Color(0.38f, 0.20f, 0.32f), new Color(0.08f, 0.12f, 0.24f), t);
+            intensity = Mathf.Lerp(0.65f, 0.42f, t);
+            angles = Vector3.Lerp(new Vector3(8f, 255f, 0f), new Vector3(-25f, 45f, 0f), t);
+            fogDensity = Mathf.Lerp(0.0022f, 0.0016f, t);
+        }
+
+        _mainSunLight.color = sunCol;
+        _mainSunLight.intensity = intensity;
+        _mainSunLight.transform.rotation = Quaternion.Euler(angles);
+
         RenderSettings.ambientLight = amb;
         RenderSettings.ambientSkyColor = amb;
         RenderSettings.ambientEquatorColor = amb;
         RenderSettings.ambientGroundColor = amb;
 
-        RenderSettings.fogColor = new Color(0.96f, 0.34f, 0.12f);
-        RenderSettings.fogDensity = 0.0020f;
+        RenderSettings.fogColor = fog;
+        RenderSettings.fogDensity = fogDensity;
 
         if (RenderSettings.skybox != null)
         {
@@ -257,34 +407,69 @@ public class AdventureDayNightDirector : MonoBehaviour
             if (RenderSettings.skybox.HasProperty("_Tint"))
                 RenderSettings.skybox.SetColor("_Tint", new Color(0.60377f, 0.60377f, 0.60377f, 0.447f));
             if (RenderSettings.skybox.HasProperty("_Exposure"))
-                RenderSettings.skybox.SetFloat("_Exposure", 1.0f);
+                RenderSettings.skybox.SetFloat("_Exposure", Mathf.Lerp(1.0f, 0.45f, night));
         }
 
-        SunsetFactor = 1.0f;
-        UpdateBloomGlitter(1.0f, 1.0f);
-        UpdateOceanSunGlitter(1.0f, 1.0f);
-        UpdateSunsetSunSparkleVisual(new Color(1.0f, 0.26f, 0.03f), 1.0f);
+        UpdateBloomGlitter(sunset, night, 1.0f);
+        UpdateOceanSunGlitter(sunset, night, 1.0f);
+        UpdateSunsetSunSparkleVisual(new Color(1.0f, 0.26f, 0.03f), sunset);
+    }
+
+    /// <summary>エディタ非再生時でも夕暮れキラキラ太陽とライティングを即座に反映するプレビューヘルパー</summary>
+    public void ForceUpdateSunsetPreview()
+    {
+        ForceUpdateProgressPreview(0.58f);
+    }
+
+    public void ForceUpdateDawnPreview()
+    {
+        ForceUpdateProgressPreview(0.10f);
+    }
+
+    public void ForceUpdateDayPreview()
+    {
+        ForceUpdateProgressPreview(0.30f);
+    }
+
+    public void ForceUpdateTwilightPreview()
+    {
+        ForceUpdateProgressPreview(0.72f);
+    }
+
+    public void ForceUpdateNightPreview()
+    {
+        ForceUpdateProgressPreview(0.90f);
     }
 
     float CalculateCurrentProgress()
     {
         switch (CurrentMode)
         {
+            case DayNightMode.AlwaysDawn:
+                return 0.10f; // 清冽な朝焼け・夜明け
             case DayNightMode.AlwaysDay:
-                return 0.10f; // 爽快な昼
+                return 0.30f; // 爽快な昼の南国陽光
             case DayNightMode.AlwaysSunset:
-                return 0.58f; // 黄金と茜色の夕暮れマジックアワー
+                return 0.58f; // 息をのむ茜色とロイヤルパープルの夕暮れ
+            case DayNightMode.AlwaysTwilight:
+                return 0.72f; // 宵闇の黄昏・薄暮
             case DayNightMode.AlwaysNight:
-                return 0.95f; // 満天の星空と夜光虫
+                return 0.90f; // 満天の星空と蒼白い月光
             case DayNightMode.RealtimeCycle:
-                // 約8分（480秒）で1周期
+                // 約8分（480秒）で1日（24時間）がドラマチックに移り変わる
                 _realtimeCyclePhase = Mathf.Repeat(_realtimeCyclePhase + (Time.deltaTime / 480f), 1f);
                 return _realtimeCyclePhase;
             case DayNightMode.ProgressBased:
             default:
                 var mgr = AdventureScrapManager.Instance;
                 int count = mgr != null ? mgr.CollectedCount : 0;
-                return Mathf.Clamp01((float)count / 12f);
+                // スクラップ 0〜4: 昼(0.30) ➔ 5〜8: 夕暮れ(0.58) ➔ 9〜11: 黄昏(0.74) ➔ 12: 月夜(0.90)
+                if (count <= 4)
+                    return Mathf.Lerp(0.20f, 0.38f, count / 4f);
+                else if (count <= 8)
+                    return Mathf.Lerp(0.45f, 0.65f, (count - 4) / 4f);
+                else
+                    return Mathf.Lerp(0.68f, 0.90f, (count - 8) / 4f);
         }
     }
 
@@ -293,20 +478,28 @@ public class AdventureDayNightDirector : MonoBehaviour
         switch (CurrentMode)
         {
             case DayNightMode.ProgressBased:
+                CurrentMode = DayNightMode.AlwaysDawn;
+                AdventureNotificationToast.Show("時間帯: 【夜明け】清冽な朝露と朝焼け 🌅", 2.2f);
+                break;
+            case DayNightMode.AlwaysDawn:
                 CurrentMode = DayNightMode.AlwaysDay;
-                AdventureNotificationToast.Show("時間帯: 【昼】青空と輝く海 ☀️", 2.2f);
+                AdventureNotificationToast.Show("時間帯: 【昼】青空と輝くエメラルドの海 ☀️", 2.2f);
                 break;
             case DayNightMode.AlwaysDay:
                 CurrentMode = DayNightMode.AlwaysSunset;
-                AdventureNotificationToast.Show("時間帯: 【夕暮れ】茜色のマジックアワー 🌅", 2.2f);
+                AdventureNotificationToast.Show("時間帯: 【夕暮れ】茜色のシネマティックサンセット 🌇", 2.2f);
                 break;
             case DayNightMode.AlwaysSunset:
+                CurrentMode = DayNightMode.AlwaysTwilight;
+                AdventureNotificationToast.Show("時間帯: 【黄昏】夕暮れ残光と街灯が灯る薄暮 🌆", 2.2f);
+                break;
+            case DayNightMode.AlwaysTwilight:
                 CurrentMode = DayNightMode.AlwaysNight;
                 AdventureNotificationToast.Show("時間帯: 【夜】満天の星空と波打ち際の夜光虫 🌌", 2.2f);
                 break;
             case DayNightMode.AlwaysNight:
                 CurrentMode = DayNightMode.RealtimeCycle;
-                AdventureNotificationToast.Show("時間帯: 【移ろい】自然な時間サイクル（約8分/日） ⏳", 2.2f);
+                AdventureNotificationToast.Show("時間帯: 【移ろい】自然な24時間サイクル（約8分/日） ⏳", 2.2f);
                 break;
             case DayNightMode.RealtimeCycle:
                 CurrentMode = DayNightMode.ProgressBased;
@@ -368,7 +561,7 @@ public class AdventureDayNightDirector : MonoBehaviour
     UnityEngine.Rendering.Universal.Bloom _bloomComp;
     bool _searchedBloom;
 
-    void UpdateBloomGlitter(float sunset, float dt)
+    void UpdateBloomGlitter(float sunset, float night, float dt)
     {
         if (!_searchedBloom || _bloomComp == null)
         {
@@ -381,9 +574,15 @@ public class AdventureDayNightDirector : MonoBehaviour
         }
         if (_bloomComp != null)
         {
-            float targetIntensity = Mathf.Lerp(0.55f, 1.45f, sunset);
-            float targetThreshold = Mathf.Lerp(0.88f, 0.78f, sunset);
-            Color targetTint = Color.Lerp(Color.white, new Color(1.0f, 0.68f, 0.40f), sunset);
+            // 昼=0.55f, 夕暮れ=1.45f, 夜=0.38f
+            float baseIntensity = Mathf.Lerp(0.55f, 0.38f, night);
+            float targetIntensity = Mathf.Lerp(baseIntensity, 1.45f, sunset);
+
+            float baseThreshold = Mathf.Lerp(0.88f, 0.92f, night);
+            float targetThreshold = Mathf.Lerp(baseThreshold, 0.78f, sunset);
+
+            Color baseTint = Color.Lerp(Color.white, new Color(0.75f, 0.85f, 1.0f), night);
+            Color targetTint = Color.Lerp(baseTint, new Color(1.0f, 0.68f, 0.40f), sunset);
 
             _bloomComp.intensity.Override(Mathf.Lerp(_bloomComp.intensity.value, targetIntensity, dt * 2.0f));
             _bloomComp.threshold.Override(Mathf.Lerp(_bloomComp.threshold.value, targetThreshold, dt * 2.0f));
@@ -394,7 +593,7 @@ public class AdventureDayNightDirector : MonoBehaviour
     Material _oceanMat;
     bool _searchedOcean;
 
-    void UpdateOceanSunGlitter(float sunset, float dt)
+    void UpdateOceanSunGlitter(float sunset, float night, float dt)
     {
         if (!_searchedOcean || _oceanMat == null)
         {
@@ -408,8 +607,14 @@ public class AdventureDayNightDirector : MonoBehaviour
         }
         if (_oceanMat != null)
         {
-            Color targetGlitterCol = Color.Lerp(new Color(1.0f, 0.98f, 0.88f), new Color(1.0f, 0.46f, 0.12f), sunset);
-            float targetGlitterInt = Mathf.Lerp(5.2f, 11.0f, sunset);
+            // 昼=エメラルド白, 夕暮れ=琥珀ゴールド, 夜=月光シルバー
+            Color dayCol = new Color(1.0f, 0.98f, 0.88f);
+            Color nightCol = new Color(0.45f, 0.65f, 1.0f);
+            Color baseCol = Color.Lerp(dayCol, nightCol, night);
+            Color targetGlitterCol = Color.Lerp(baseCol, new Color(1.0f, 0.46f, 0.12f), sunset);
+
+            float baseInt = Mathf.Lerp(5.2f, 3.2f, night);
+            float targetGlitterInt = Mathf.Lerp(baseInt, 11.0f, sunset);
 
             if (_oceanMat.HasProperty("_SunGlitterColor"))
             {
