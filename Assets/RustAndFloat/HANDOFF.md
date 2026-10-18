@@ -13,15 +13,14 @@ created: 2026-09-11
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
 - **コンパイルエラー**: 0件
 - **夕暮れの太陽光・大気・フォグ色を「赤寄りの鮮明なオレンジ（茜色）」に刷新（2026-10-18 追記）**:
-  1. **茶色味の排除・明るさ底上げとTrilight環境光同期（`AdventureDayNightDirector.cs`）**:
-     - 沈みかけた夕陽の光（`targetSunColor`）を、地面や植物の質感を豊かに明るく照らす黄金茜色 `new Color(1.0f, 0.68f, 0.38f)` に設定。
-     - 陰影部の黒つぶれを防ぐため、Trilight環境光（`ambientSkyColor`, `ambientEquatorColor`, `ambientGroundColor`）を温かい茜色 `(0.70f, 0.48f, 0.36f)` に同期。フォグも澄んだ明るい茜色 `(0.90f, 0.54f, 0.34f)`（濃度 0.0014f）に調整。
-     - 光量強度（`targetIntensity`）を 1.38f〜1.40f へ引き上げ、爽快で明るい夕暮れ景観と鮮烈なマジックアワーを達成。
+  1. **最初の画像の美しいトーン・光量への完全復元（`AdventureDayNightDirector.cs`）**:
+     - 太陽光カラー（`targetSunColor`）を、最初の鮮烈な赤寄り茜色オレンジ `new Color(1.0f, 0.26f, 0.03f)`、強度（`targetIntensity`）を当時のままの高輝度 `1.38f` に完全復元。
+     - 環境光（`ambientLight`）を `Color(0.74f, 0.36f, 0.20f)`、フォグ（`fogColor`）を `Color(0.96f, 0.38f, 0.14f)`（濃度 0.0022f）に復元し、最初の画像で好評だった温かく澄んだ茜色の夕暮れ大気を再現。
   2. **太陽の光芒（7〜12方向のトゲトゲ光条）の削ぎ落としとソフト円形ハロー化（`AdventureDayNightDirector.cs`）**:
      - 以前の三角関数による12条放射光条・クロス光芒を完全撤廃。
      - 太陽コア（36m）の周囲をふんわりと包み込む自然で柔らかな丸いハロー（円形ソフトグロー、72m）に刷新し、回転も停止して穏やかで落ち着いた沈みゆく夕陽を表現。
   3. **プロシージャル・スカイボックスとの連動（`AdventureDayNightDirector.cs`）**:
-     - `RenderSettings.skybox` の `_Exposure` を 1.15f に底上げし、`_GroundColor` を温かい夕陽の反射色へ、`_AtmosphereThickness` を 1.28f に連動させ、水平線周りの大気散乱も鮮烈な赤橙色に広がるよう調整。
+     - `RenderSettings.skybox` の `_Exposure` を 1.0f（標準露出）、`_GroundColor` を温かい夕陽の反射色へ、`_AtmosphereThickness` を 1.28f に連動させ、水平線周りの大気散乱も鮮烈な赤橙色に広がるよう調整。
   4. **波打ち際の夕陽照り返し（`AdventureBeachVisualEnhancer.cs`）**:
      - 波の色（`sunsetWaveColor`）を赤寄りの温かいオレンジに連動。
 - **新・案A：メガジャンプ頂点「無重力ハングタイム＆絶景パノラマ JUICE」完成（2026-10-18 追記）**:
