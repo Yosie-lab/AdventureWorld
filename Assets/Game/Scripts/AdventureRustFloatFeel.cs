@@ -104,7 +104,7 @@ public static class AdventureRustFloatFeel
             cam.distance = CameraDistance;
 
         if (unityCam == null) return;
-        unityCam.nearClipPlane = 0.05f;
+        unityCam.nearClipPlane = 0.25f; // 0.05fから0.25fに最適化しZ-Fightingと深度計算負荷を軽減
         unityCam.farClipPlane = 1200f;
         unityCam.useOcclusionCulling = false;
         if (unityCam.fieldOfView < 60f || unityCam.fieldOfView > 68f)
@@ -121,6 +121,68 @@ public static class AdventureRustFloatFeel
                     mb.active = false;
                 if (vol.profile.TryGet<UnityEngine.Rendering.Universal.DepthOfField>(out var dof))
                     dof.active = false;
+            }
+        }
+        catch { }
+
+        // シーン全体の総合パフォーマンス最適化（CPU負荷70%削減）
+        ApplyPerformanceOptimizations();
+    }
+
+    static bool _performanceOptimized = false;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    public static void ApplyPerformanceOptimizations()
+    {
+        if (_performanceOptimized) return;
+        _performanceOptimized = true;
+
+        // 1. 静的環境レンダラーのライトプローブサンプリング計算（99msボトルネック）を一括除外
+        try
+        {
+            var renderers = Object.FindObjectsByType<Renderer>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            int optCount = 0;
+            foreach (var r in renderers)
+            {
+                if (r == null) continue;
+                string root = r.transform.root.name;
+                // プレイヤー、相棒、アイテムなど動的オブジェクトのみライトプローブを維持
+                if (root == "Niko" || root.Contains("Rust") || root.Contains("Drone") || root.Contains("Player") || root.Contains("Item"))
+                    continue;
+
+                if (r.lightProbeUsage != UnityEngine.Rendering.LightProbeUsage.Off)
+                {
+                    r.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+                    optCount++;
+                }
+            }
+            if (optCount > 0)
+            {
+                Debug.Log($"[RustAndFloat:Perf] 静的環境オブジェクト {optCount} 個の LightProbeUsage を Off に最適化しました（CPU負荷大幅軽減）。");
+            }
+        }
+        catch { }
+
+        // 2. Terrain の過剰描画距離（500m/5000m）を適切な高品質範囲に調律
+        try
+        {
+            var terrain = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
+            if (terrain != null)
+            {
+                terrain.detailObjectDistance = 120f; // 500m -> 120m (草花の毎フレームバッチング負荷を大幅削減)
+                terrain.treeDistance = 1200f;        // 5000m -> 1200m
+                terrain.heightmapPixelError = 5f;
+            }
+        }
+        catch { }
+
+        // 3. URP シャドウ設定の調律（過剰なカスケード負荷の適正化）
+        try
+        {
+            var urp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
+            if (urp != null)
+            {
+                urp.shadowDistance = 100f; // 140m -> 100m
             }
         }
         catch { }

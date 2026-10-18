@@ -37,6 +37,9 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     AudioSource _audioSource;
     static AudioClip _chimeClip;
     bool _initialized = false;
+    float _cullTimer = 0f;
+    bool _isCulled = false;
+    static AdventurePlayerController _cachedPlayer;
 
     public bool IsCollected => _isCollected;
     public Color itemColor => themeColor;
@@ -884,18 +887,36 @@ public class AdventureBeachSeashellItem : MonoBehaviour
             return;
         }
 
-        // ライトの優しいパルス
+        // プレイヤー接近・距離カリング判定（0.25秒おきに距離評価）
+        _cullTimer -= Time.deltaTime;
+        if (_cullTimer <= 0f)
+        {
+            _cullTimer = 0.20f + (itemId != null ? (itemId.GetHashCode() & 7) * 0.02f : 0f);
+            if (_cachedPlayer == null) _cachedPlayer = AdventurePlayerController.Instance;
+            if (_cachedPlayer != null)
+            {
+                float sqrDist = (transform.position - _cachedPlayer.transform.position).sqrMagnitude;
+                _isCulled = sqrDist > (25f * 25f);
+                if (_pointLight != null && _pointLight.enabled == _isCulled)
+                {
+                    _pointLight.enabled = !_isCulled;
+                }
+            }
+        }
+        if (_isCulled) return;
+
+        // ライトの優しいパルス（近傍時のみ計算）
         float pulseTime = (Time.time * 3.2f) + (itemId != null ? itemId.GetHashCode() % 10 : 0);
         float pulse = Mathf.Sin(pulseTime);
 
-        if (_pointLight != null)
+        if (_pointLight != null && _pointLight.enabled)
         {
             _pointLight.intensity = 1.8f + pulse * 0.45f;
             _pointLight.range = 3.5f + pulse * 0.6f;
         }
 
         // プレイヤー接近判定
-        var p = AdventurePlayerController.Instance ?? Object.FindAnyObjectByType<AdventurePlayerController>();
+        var p = _cachedPlayer ?? (_cachedPlayer = AdventurePlayerController.Instance);
         if (p != null)
         {
             // オープニングボード表示中やプロローグ目覚め中は採取・プロンプトを停止
