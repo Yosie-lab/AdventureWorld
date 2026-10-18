@@ -158,22 +158,22 @@ public class AdventureDayNightDirector : MonoBehaviour
         }
         else if (progress < 0.75f)
         {
-            // 【夕暮れ】息をのむ赤寄りの鮮烈なオレンジ・茜色のマジックアワー（最初の画像の美しいトーンへ完全復元）
+            // 【夕暮れ】息をのむ赤寄りの鮮烈なオレンジ・茜色のマジックアワー（空に微量オレンジ＋砂浜をもっともっと白く）
             float t = (progress - 0.35f) / 0.40f;
-            targetSunColor = Color.Lerp(new Color(1.0f, 0.58f, 0.16f), new Color(1.0f, 0.26f, 0.03f), t); // 鮮烈な赤寄りのオレンジ（最初の画像の茜色）
-            targetAmbient = Color.Lerp(new Color(0.76f, 0.46f, 0.34f), new Color(0.74f, 0.36f, 0.20f), t); // 最初の画像の温かい茜色の環境反射
-            targetFog = Color.Lerp(new Color(0.98f, 0.50f, 0.22f), new Color(0.96f, 0.38f, 0.14f), t); // 燃えるような赤橙色の夕焼けフォグ
-            targetIntensity = Mathf.Lerp(1.42f, 1.38f, t); // 最初の画像そのままの高輝度な輝き
+            targetSunColor = Color.Lerp(new Color(1.0f, 0.96f, 0.90f), new Color(1.0f, 0.94f, 0.88f), t); // 砂浜を純白に照らす温白色太陽光
+            targetAmbient = Color.Lerp(new Color(0.84f, 0.78f, 0.74f), new Color(0.82f, 0.76f, 0.72f), t); // 影の黒ずみ・赤かぶりを解消し白砂を引き立てる明るい環境光
+            targetFog = Color.Lerp(new Color(0.98f, 0.56f, 0.28f), new Color(0.98f, 0.54f, 0.24f), t); // 空と水平線に微量のオレンジ成分をプラス
+            targetIntensity = Mathf.Lerp(1.42f, 1.40f, t); // 白砂が澄み渡って輝く高輝度光量
             targetSunAngles = Vector3.Lerp(new Vector3(42f, 225f, 0f), new Vector3(35.2f, 237.5f, 0f), t); // スカイボックスの太陽と一致
         }
         else
         {
             // 【黄昏〜満天の星空】深い藍色・星明かりと夜光虫
             float t = (progress - 0.75f) / 0.25f;
-            targetSunColor = Color.Lerp(new Color(1.0f, 0.26f, 0.03f), new Color(0.32f, 0.50f, 0.85f), t); // 赤橙の残光から月光へ
-            targetAmbient = Color.Lerp(new Color(0.74f, 0.36f, 0.20f), new Color(0.12f, 0.16f, 0.30f), t);
-            targetFog = Color.Lerp(new Color(0.96f, 0.38f, 0.14f), new Color(0.08f, 0.12f, 0.24f), t);
-            targetIntensity = Mathf.Lerp(1.38f, 0.40f, t);
+            targetSunColor = Color.Lerp(new Color(1.0f, 0.94f, 0.88f), new Color(0.32f, 0.50f, 0.85f), t); // 夕暮れから月光へ
+            targetAmbient = Color.Lerp(new Color(0.82f, 0.76f, 0.72f), new Color(0.12f, 0.16f, 0.30f), t);
+            targetFog = Color.Lerp(new Color(0.98f, 0.54f, 0.24f), new Color(0.08f, 0.12f, 0.24f), t);
+            targetIntensity = Mathf.Lerp(1.40f, 0.40f, t);
             targetSunAngles = Vector3.Lerp(new Vector3(35.2f, 237.5f, 0f), new Vector3(-25f, 45f, 0f), t); // 太陽は沈み、反対側から月光
         }
 
@@ -192,7 +192,7 @@ public class AdventureDayNightDirector : MonoBehaviour
         RenderSettings.fogColor = Color.Lerp(RenderSettings.fogColor, targetFog, dt);
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, Mathf.Lerp(0.0016f, 0.0022f, SunsetFactor), dt);
+        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, Mathf.Lerp(0.0016f, 0.0020f, SunsetFactor), dt);
 
         // スカイボックスの夕暮れ赤橙ブレンド（茶褐色の地面反射・大気厚みを鮮明化）
         if (RenderSettings.skybox != null)
@@ -207,21 +207,27 @@ public class AdventureDayNightDirector : MonoBehaviour
                 float targetAtmosphere = Mathf.Lerp(1.0f, 1.28f, SunsetFactor);
                 RenderSettings.skybox.SetFloat("_AtmosphereThickness", Mathf.Lerp(RenderSettings.skybox.GetFloat("_AtmosphereThickness"), targetAtmosphere, dt));
             }
+            if (RenderSettings.skybox.HasProperty("_Tint"))
+            {
+                Color targetTint = Color.Lerp(Color.white, new Color(1.0f, 0.92f, 0.84f), SunsetFactor);
+                RenderSettings.skybox.SetColor("_Tint", Color.Lerp(RenderSettings.skybox.GetColor("_Tint"), targetTint, dt));
+            }
             if (RenderSettings.skybox.HasProperty("_Exposure"))
             {
-                float targetExp = Mathf.Lerp(1.0f, 1.0f, SunsetFactor);
+                float targetExp = Mathf.Lerp(1.0f, 1.05f, SunsetFactor);
                 RenderSettings.skybox.SetFloat("_Exposure", Mathf.Lerp(RenderSettings.skybox.GetFloat("_Exposure"), targetExp, dt));
             }
             if (RenderSettings.skybox.HasProperty("_SunColor"))
             {
-                RenderSettings.skybox.SetColor("_SunColor", Color.Lerp(RenderSettings.skybox.GetColor("_SunColor"), targetSunColor, dt));
+                Color sunVisCol = new Color(1.0f, 0.26f, 0.03f);
+                RenderSettings.skybox.SetColor("_SunColor", Color.Lerp(RenderSettings.skybox.GetColor("_SunColor"), sunVisCol, dt));
             }
         }
 
         // 夕暮れの太陽キラキラ度・Bloom・海面反射の連動
         UpdateBloomGlitter(SunsetFactor, dt);
         UpdateOceanSunGlitter(SunsetFactor, dt);
-        UpdateSunsetSunSparkleVisual(targetSunColor, SunsetFactor);
+        UpdateSunsetSunSparkleVisual(new Color(1.0f, 0.26f, 0.03f), SunsetFactor);
     }
 
     /// <summary>エディタ非再生時でも夕暮れキラキラ太陽とライティングを即座に反映するプレビューヘルパー</summary>
@@ -230,29 +236,32 @@ public class AdventureDayNightDirector : MonoBehaviour
         FindMainSun();
         if (_mainSunLight == null) return;
 
-        Color sunCol = new Color(1.0f, 0.26f, 0.03f);
-        _mainSunLight.color = sunCol;
-        _mainSunLight.intensity = 1.38f;
+        Color sunLightCol = new Color(1.0f, 0.94f, 0.88f);
+        _mainSunLight.color = sunLightCol;
+        _mainSunLight.intensity = 1.40f;
         _mainSunLight.transform.rotation = Quaternion.LookRotation(-SkyboxSunDir, Vector3.up);
 
-        Color amb = new Color(0.74f, 0.36f, 0.20f);
+        Color amb = new Color(0.82f, 0.76f, 0.72f);
         RenderSettings.ambientLight = amb;
         RenderSettings.ambientSkyColor = amb;
         RenderSettings.ambientEquatorColor = amb;
         RenderSettings.ambientGroundColor = amb;
 
-        RenderSettings.fogColor = new Color(0.96f, 0.38f, 0.14f);
-        RenderSettings.fogDensity = 0.0022f;
+        RenderSettings.fogColor = new Color(0.98f, 0.54f, 0.24f);
+        RenderSettings.fogDensity = 0.0020f;
 
-        if (RenderSettings.skybox != null && RenderSettings.skybox.HasProperty("_Exposure"))
+        if (RenderSettings.skybox != null)
         {
-            RenderSettings.skybox.SetFloat("_Exposure", 1.0f);
+            if (RenderSettings.skybox.HasProperty("_Tint"))
+                RenderSettings.skybox.SetColor("_Tint", new Color(1.0f, 0.92f, 0.84f));
+            if (RenderSettings.skybox.HasProperty("_Exposure"))
+                RenderSettings.skybox.SetFloat("_Exposure", 1.05f);
         }
 
         SunsetFactor = 1.0f;
         UpdateBloomGlitter(1.0f, 1.0f);
         UpdateOceanSunGlitter(1.0f, 1.0f);
-        UpdateSunsetSunSparkleVisual(sunCol, 1.0f);
+        UpdateSunsetSunSparkleVisual(new Color(1.0f, 0.26f, 0.03f), 1.0f);
     }
 
     float CalculateCurrentProgress()
