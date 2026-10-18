@@ -13,18 +13,19 @@ created: 2026-09-11
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
 - **コンパイルエラー**: 0件
 - **夕暮れの太陽光・大気・フォグ色を「赤寄りの鮮明なオレンジ（茜色）」に刷新（2026-10-18 追記・確定）**:
-  1. **最初の画像の美しいトーン・光量への完全復元（`AdventureDayNightDirector.cs`）**:
-     - 太陽光カラー（`targetSunColor`）を、最初の鮮烈な赤寄り茜色オレンジ `new Color(1.0f, 0.26f, 0.03f)`、強度（`targetIntensity`）を当時のままの高輝度 `1.38f` に完全復元。
-     - 環境光（`ambientLight`）を `Color(0.74f, 0.36f, 0.20f)`、フォグ（`fogColor`）を `Color(0.96f, 0.38f, 0.14f)`（濃度 0.0022f）に復元し、最初の画像で好評だった温かく澄んだ茜色の夕暮れ大気を再現。
+  1. **夕暮れの空への微量オレンジ成分プラスと白砂ビーチの実現（`AdventureDayNightDirector.cs` / `SandLayer.terrainlayer`）**:
+     - 太陽光カラー（`targetSunColor`）を、白砂を純白に照らす温白色 `new Color(1.0f, 0.94f, 0.88f)`（強度 1.40f）に設定し、砂浜の赤かぶり・黒ずみを完全解消。
+     - `SandLayer` のリマップを `diffuseRemapMin = (0.25, 0.25, 0.25, 0)`, `diffuseRemapMax = (2.0, 2.0, 2.0, 1)`、およびアルベドテクスチャ（`Sand_Albedo_RustAndFloat.png`）を白砂トーンに最適化し、「もっともっと白い砂浜」を実現。
+     - 夕暮れの空には、スカイボックス `_Tint`（`Color(1.0f, 0.92f, 0.84f)`）とフォグ（`Color(0.98f, 0.54f, 0.24f)`）により、青紫のベースにほんの少しだけわずかに微量の温かいオレンジ成分を上品にプラス。
   2. **太陽の光芒（7〜12方向のトゲトゲ光条）の削ぎ落としとソフト円形ハロー化（`AdventureDayNightDirector.cs`）**:
      - 以前の三角関数による12条放射光条・クロス光芒を完全撤廃。
      - 太陽コア（36m）の周囲をふんわりと包み込む自然で柔らかな丸いハロー（円形ソフトグロー、72m）に刷新し、回転も停止して穏やかで落ち着いた沈みゆく夕陽を表現。
   3. **プロシージャル・スカイボックスとの連動（`AdventureDayNightDirector.cs`）**:
-     - `RenderSettings.skybox` の `_Exposure` を 1.0f（標準露出）、`_GroundColor` を温かい夕陽の反射色へ、`_AtmosphereThickness` を 1.28f に連動させ、水平線周りの大気散乱も鮮烈な赤橙色に広がるよう調整。
+     - `RenderSettings.skybox` の `_Exposure` を 1.05f、`_GroundColor` を温かい夕陽の反射色へ、`_AtmosphereThickness` を 1.28f に連動させ、水平線周りの大気散乱も鮮烈な赤橙色に広がるよう調整。
   4. **波打ち際の夕陽照り返し（`AdventureBeachVisualEnhancer.cs`）**:
      - 波の色（`sunsetWaveColor`）を赤寄りの温かいオレンジに連動。
   5. **シーン保存と永続化（`RustAndFloat.unity` / `Skybox.mat`）**:
-     - Play Mode停止状態でシーンおよびスカイボックスマテリアルを正常に保存完了（コミット `ead85d0`）。コンパイルエラー0件。
+     - Play Mode停止状態でシーンおよびスカイボックスマテリアルを正常に保存完了（コミット `d5e311c`）。コンパイルエラー0件。
 - **新・案A：メガジャンプ頂点「無重力ハングタイム＆絶景パノラマ JUICE」完成（2026-10-18 追記）**:
   1. **無重力ハングタイム浮遊（`AdventurePlayerController.cs`）**:
      - メガ・スチームウィンドや上昇サーマルで一気に打ち上がった後、上昇速度がゼロに近づく最高到達点（`_hop <= 3.5f`）にて 0.38 秒間の無重力ハングタイムステート（`_apexHangTimer`）を発動。
