@@ -158,12 +158,12 @@ public class AdventureDayNightDirector : MonoBehaviour
         }
         else if (progress < 0.75f)
         {
-            // 【夕暮れ】息をのむ赤寄りの鮮烈なオレンジ・茜色のマジックアワー（少し暗めで情緒的な深み）
+            // 【夕暮れ】息をのむ赤寄りの鮮烈なオレンジ・茜色のマジックアワー（少し暗めより明るめ寄りの絶妙なバランス）
             float t = (progress - 0.35f) / 0.40f;
             targetSunColor = Color.Lerp(new Color(1.0f, 0.58f, 0.16f), new Color(1.0f, 0.24f, 0.02f), t); // 鮮烈な赤寄りのオレンジ（茜色・深紅のサンセット夕陽）
-            targetAmbient = Color.Lerp(new Color(0.58f, 0.35f, 0.24f), new Color(0.48f, 0.18f, 0.09f), t); // 眩しさを抑えた落ち着いた茜色の環境反射
-            targetFog = Color.Lerp(new Color(0.84f, 0.40f, 0.18f), new Color(0.76f, 0.20f, 0.06f), t); // 落ち着いた深い赤橙色の夕焼けフォグ
-            targetIntensity = Mathf.Lerp(1.12f, 0.95f, t); // 少し暗めで夕陽と光芒が最も美しく映える光量
+            targetAmbient = Color.Lerp(new Color(0.64f, 0.40f, 0.28f), new Color(0.58f, 0.26f, 0.16f), t); // 明るさを適度に残した温かい茜色の環境光
+            targetFog = Color.Lerp(new Color(0.88f, 0.46f, 0.24f), new Color(0.82f, 0.28f, 0.12f), t); // 澄んだ赤橙色の夕焼けフォグ
+            targetIntensity = Mathf.Lerp(1.28f, 1.20f, t); // 少し暗めより明るめ寄りで、景観の視認性と夕陽の輝きを両立
             targetSunAngles = Vector3.Lerp(new Vector3(42f, 225f, 0f), new Vector3(35.2f, 237.5f, 0f), t); // スカイボックスの太陽と一致
         }
         else
@@ -171,9 +171,9 @@ public class AdventureDayNightDirector : MonoBehaviour
             // 【黄昏〜満天の星空】深い藍色・星明かりと夜光虫
             float t = (progress - 0.75f) / 0.25f;
             targetSunColor = Color.Lerp(new Color(1.0f, 0.24f, 0.02f), new Color(0.32f, 0.50f, 0.85f), t); // 赤橙の残光から月光へ
-            targetAmbient = Color.Lerp(new Color(0.48f, 0.18f, 0.09f), new Color(0.12f, 0.16f, 0.30f), t);
-            targetFog = Color.Lerp(new Color(0.76f, 0.20f, 0.06f), new Color(0.08f, 0.12f, 0.24f), t);
-            targetIntensity = Mathf.Lerp(0.95f, 0.40f, t);
+            targetAmbient = Color.Lerp(new Color(0.58f, 0.26f, 0.16f), new Color(0.12f, 0.16f, 0.30f), t);
+            targetFog = Color.Lerp(new Color(0.82f, 0.28f, 0.12f), new Color(0.08f, 0.12f, 0.24f), t);
+            targetIntensity = Mathf.Lerp(1.20f, 0.40f, t);
             targetSunAngles = Vector3.Lerp(new Vector3(35.2f, 237.5f, 0f), new Vector3(-25f, 45f, 0f), t); // 太陽は沈み、反対側から月光
         }
 
@@ -188,7 +188,7 @@ public class AdventureDayNightDirector : MonoBehaviour
         RenderSettings.fogColor = Color.Lerp(RenderSettings.fogColor, targetFog, dt);
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, Mathf.Lerp(0.0016f, 0.0028f, SunsetFactor), dt);
+        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, Mathf.Lerp(0.0016f, 0.0024f, SunsetFactor), dt);
 
         // スカイボックスの夕暮れ赤橙ブレンド（茶褐色の地面反射・大気厚みを鮮明化）
         if (RenderSettings.skybox != null)
@@ -223,12 +223,12 @@ public class AdventureDayNightDirector : MonoBehaviour
 
         Color sunCol = new Color(1.0f, 0.24f, 0.02f);
         _mainSunLight.color = sunCol;
-        _mainSunLight.intensity = 1.05f;
+        _mainSunLight.intensity = 1.22f;
         _mainSunLight.transform.rotation = Quaternion.LookRotation(-SkyboxSunDir, Vector3.up);
 
-        RenderSettings.ambientLight = new Color(0.52f, 0.24f, 0.14f);
-        RenderSettings.fogColor = new Color(0.80f, 0.26f, 0.10f);
-        RenderSettings.fogDensity = 0.0022f;
+        RenderSettings.ambientLight = new Color(0.58f, 0.28f, 0.18f);
+        RenderSettings.fogColor = new Color(0.84f, 0.32f, 0.14f);
+        RenderSettings.fogDensity = 0.0020f;
 
         SunsetFactor = 1.0f;
         UpdateBloomGlitter(1.0f, 1.0f);
@@ -436,7 +436,7 @@ public class AdventureDayNightDirector : MonoBehaviour
             _sunCoreTex.Apply();
         }
 
-        // 2. スターバースト放射状コロナテクスチャ生成（12条のシャープな光芒・黒フェード加算）
+        // 2. ソフト円形ハローテクスチャ生成（放射光条・トゲを削った自然で柔らかな円形ソフトグロー）
         if (_sunCoronaTex == null)
         {
             const int res = 256;
@@ -450,16 +450,9 @@ public class AdventureDayNightDirector : MonoBehaviour
                 {
                     Vector2 diff = new Vector2(x, y) - center;
                     float d = diff.magnitude / maxR;
-                    float angle = Mathf.Atan2(diff.y, diff.x);
-                    
-                    float cross = Mathf.Pow(Mathf.Abs(Mathf.Cos(angle * 2f)), 32f) * 2.5f;
-                    float subCross = Mathf.Pow(Mathf.Abs(Mathf.Sin(angle * 2f)), 24f) * 1.5f;
-                    float fineRays = Mathf.Pow(Mathf.Abs(Mathf.Cos(angle * 6f)), 10f) * 0.8f;
                     float halo = Mathf.Clamp01(1f - d);
-                    halo = Mathf.Pow(halo, 1.4f);
-                    
-                    float a = (cross + subCross + fineRays + halo * 0.6f) * Mathf.Clamp01(1f - d * d);
-                    a = Mathf.Clamp01(a);
+                    halo = Mathf.SmoothStep(0f, 1f, halo);
+                    float a = Mathf.Pow(halo, 1.8f);
                     _sunCoronaTex.SetPixel(x, y, new Color(a, a, a, a));
                 }
             }
@@ -479,11 +472,11 @@ public class AdventureDayNightDirector : MonoBehaviour
         _sunCoreMat.mainTexture = _sunCoreTex;
         coreGo.GetComponent<MeshRenderer>().material = _sunCoreMat;
 
-        // 太陽キラキラ放射状コロナ Quad
+        // 太陽ソフトハロー Quad（放射状光条をなくした丸い光輪）
         var coronaGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
         coronaGo.name = "SunCorona";
         coronaGo.transform.SetParent(_sunsetSunRoot.transform, false);
-        coronaGo.transform.localScale = Vector3.one * 125f;
+        coronaGo.transform.localScale = Vector3.one * 72f;
         Destroy(coronaGo.GetComponent<Collider>());
         _sunCoronaT = coronaGo.transform;
 
@@ -515,21 +508,20 @@ public class AdventureDayNightDirector : MonoBehaviour
         _sunsetSunRoot.transform.position = sunWorldPos;
         _sunsetSunRoot.transform.rotation = Quaternion.LookRotation(-SkyboxSunDir, Vector3.up);
 
-        // キラキラ明滅シマーリングパルス（2.8Hzの繊細なきらめき）
-        float shimmer = 0.86f + 0.14f * Mathf.Sin(Time.time * 2.8f) + 0.06f * Mathf.Cos(Time.time * 5.6f);
-        float coronaRot = Time.time * 1.8f;
+        // キラキラ明滅シマーリングパルス（穏やかなきらめき）
+        float shimmer = 0.90f + 0.10f * Mathf.Sin(Time.time * 2.4f) + 0.04f * Mathf.Cos(Time.time * 4.8f);
 
         // コア：鮮烈な赤寄りオレンジ（茜色）
         Color coreCol = new Color(1.0f, 0.24f, 0.02f, 1.0f) * (sunset * shimmer);
         if (_sunCoreMat.HasProperty("_TintColor")) _sunCoreMat.SetColor("_TintColor", coreCol);
         else _sunCoreMat.color = coreCol;
-        _sunCoreT.localScale = Vector3.one * (36f * (0.96f + 0.06f * Mathf.Sin(Time.time * 2.1f)));
+        _sunCoreT.localScale = Vector3.one * (36f * (0.97f + 0.04f * Mathf.Sin(Time.time * 2.1f)));
 
-        // コロナ：外側に広がる茜色・黄金のキラキラ光輪
-        Color coronaCol = new Color(1.0f, 0.42f, 0.08f, 0.95f) * (sunset * shimmer);
+        // ハロー：周囲を柔らかく包む丸い茜色の光輪（放射条なし）
+        Color coronaCol = new Color(1.0f, 0.38f, 0.06f, 0.85f) * (sunset * shimmer);
         if (_sunCoronaMat.HasProperty("_TintColor")) _sunCoronaMat.SetColor("_TintColor", coronaCol);
         else _sunCoronaMat.color = coronaCol;
-        _sunCoronaT.localScale = Vector3.one * (125f * shimmer);
-        _sunCoronaT.localRotation = Quaternion.Euler(0f, 0f, coronaRot);
+        _sunCoronaT.localScale = Vector3.one * (72f * (0.97f + 0.03f * Mathf.Sin(Time.time * 2.8f)));
+        _sunCoronaT.localRotation = Quaternion.identity;
     }
 }
