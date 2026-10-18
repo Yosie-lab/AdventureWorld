@@ -442,60 +442,106 @@ public partial class AdventureSanctuaryTowerManager
     }
 
     float _lastSkySeagullTime = -99f;
+    Coroutine _relaunchSkySeagullCo;
+    GameObject _relaunchSkySeagullGo;
 
     /// <summary>ゲームクリア後、「大空へダイブ」で上空へ上昇した瞬間にウミネコたちが歓声をあげて鳴き交わす演出</summary>
-    public void PlayRelaunchSkySeagulls()
+    public void PlayRelaunchSkySeagulls(bool force = false)
     {
-        if (Time.unscaledTime < _lastSkySeagullTime + 12f) return;
+        if (!force && Time.unscaledTime < _lastSkySeagullTime + 10f) return;
         _lastSkySeagullTime = Time.unscaledTime;
-        StartCoroutine(RelaunchSkySeagullRoutine());
+
+        if (_relaunchSkySeagullCo != null)
+        {
+            StopCoroutine(_relaunchSkySeagullCo);
+            _relaunchSkySeagullCo = null;
+        }
+        _relaunchSkySeagullCo = StartCoroutine(RelaunchSkySeagullRoutine());
     }
 
     IEnumerator RelaunchSkySeagullRoutine()
     {
         var clip1 = LoadSeagullClip(false);
         var clipMany = LoadSeagullClip(true);
-        if (clip1 == null && clipMany == null) yield break;
 
-        var go = new GameObject("RelaunchSkySeagullAudio");
-        go.transform.SetParent(transform, false);
-        var src = go.AddComponent<AudioSource>();
-        src.spatialBlend = 0.05f; // 2Dステレオ（頭上・大空全体に澄んで響く）
+        // フォールバック：もしキャッシュから取れなかった場合は AdventureSoaringSeagullsManager から取得
+        if (clip1 == null || clipMany == null)
+        {
+            var seagullMgr = Object.FindAnyObjectByType<AdventureSoaringSeagullsManager>();
+            if (seagullMgr != null)
+            {
+                if (clip1 == null) clip1 = seagullMgr.seagullCrySolo;
+                if (clipMany == null) clipMany = seagullMgr.seagullCryFlock;
+            }
+        }
+
+        if (clip1 == null && clipMany == null)
+        {
+            Debug.LogWarning("[RustAndFloat] 大空ダイブ：ウミネコ音声クリップのロードに失敗しました。");
+            yield break;
+        }
+
+        if (_relaunchSkySeagullGo != null)
+        {
+            Destroy(_relaunchSkySeagullGo);
+            _relaunchSkySeagullGo = null;
+        }
+
+        // GameObject名に "seagull" を含めないことで SilenceAllWorldSeagulls による誤ミュートを確実に防止
+        _relaunchSkySeagullGo = new GameObject("SkyTriumphCryAudio");
+        _relaunchSkySeagullGo.transform.SetParent(transform, false);
+
+        var src = _relaunchSkySeagullGo.AddComponent<AudioSource>();
+        src.spatialBlend = 0f; // ★完全な2Dステレオ：BGMや大空のパノラマ全体にクリアに響き渡る
+        src.bypassListenerEffects = true;
+        src.ignoreListenerPause = true;
+        src.priority = 0; // 最高優先度
         src.playOnAwake = false;
 
         float seVol = PlayerPrefs.GetFloat("Adventure_SeVolume", 1f);
+        if (seVol < 0.2f) seVol = 1.0f; // 最低限の可聴音量を担保
 
-        // 1. 大空へ打ち上がり、視界が一気に開けた瞬間（約0.35秒後）にすぐ近くのウミネコが高く鳴く
-        yield return new WaitForSeconds(0.35f);
+        Debug.Log($"[RustAndFloat] ✦ 大空へダイブ：ウミネコの歓声を再生開始！ (SE_Volume={seVol:F2})");
+
+        // 1. 大空へ飛び出した瞬間（約0.06秒後）：近接の澄んだ1羽が「ミャーオ！」と高らかに啼く
+        yield return new WaitForSecondsRealtime(0.06f);
         if (clip1 != null && src != null)
         {
-            src.pitch = Random.Range(1.02f, 1.10f); // 晴れやかで澄んだピッチ
-            src.PlayOneShot(clip1, 0.42f * seVol);
+            src.pitch = Random.Range(1.04f, 1.12f);
+            src.PlayOneShot(clip1, 0.95f * seVol);
         }
 
-        // 2. 風に乗って滑空に入った頃（約1.5秒後）、遠くの群れが鳴き交わす
-        yield return new WaitForSeconds(1.5f);
-        if (clipMany != null && src != null)
+        // 2. 風に乗って水平滑空へ突入した瞬間（約1.1秒後）：空いっぱいの群れが「クァー！ミャーオ！」と歓声を反響
+        yield return new WaitForSecondsRealtime(1.1f);
+        if (src != null)
         {
-            src.pitch = Random.Range(0.96f, 1.04f);
-            src.PlayOneShot(clipMany, 0.38f * seVol);
-        }
-        else if (clip1 != null && src != null)
-        {
-            src.pitch = Random.Range(0.94f, 1.02f);
-            src.PlayOneShot(clip1, 0.36f * seVol);
+            if (clipMany != null)
+            {
+                src.pitch = Random.Range(0.98f, 1.05f);
+                src.PlayOneShot(clipMany, 0.92f * seVol);
+            }
+            else if (clip1 != null)
+            {
+                src.pitch = Random.Range(0.96f, 1.03f);
+                src.PlayOneShot(clip1, 0.88f * seVol);
+            }
         }
 
-        // 3. 広大な島を見下ろしながら優雅に滑空する余韻（約3.5秒後）にもう1羽
-        yield return new WaitForSeconds(3.5f);
+        // 3. 広大な島を見下ろしながら優雅に滑空する余韻（約2.8秒後）：大空の彼方からもうひと啼き
+        yield return new WaitForSecondsRealtime(2.8f);
         if (clip1 != null && src != null)
         {
-            src.pitch = Random.Range(0.98f, 1.06f);
-            src.PlayOneShot(clip1, 0.35f * seVol);
+            src.pitch = Random.Range(1.00f, 1.08f);
+            src.PlayOneShot(clip1, 0.82f * seVol);
         }
 
-        yield return new WaitForSeconds(5.0f);
-        if (go != null) Destroy(go);
+        yield return new WaitForSecondsRealtime(5.0f);
+        if (_relaunchSkySeagullGo != null)
+        {
+            Destroy(_relaunchSkySeagullGo);
+            _relaunchSkySeagullGo = null;
+        }
+        _relaunchSkySeagullCo = null;
     }
     #endregion
 }

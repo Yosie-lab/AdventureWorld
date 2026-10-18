@@ -673,13 +673,13 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
                 return;
             }
 
-            // クリア後にタワー中心の光の柱（SkybreakHyperUpdraft）から再び大空へ打ち上がった時にもウミネコたちの鳴き声を再生
-            if (player.transform.position.y > 95f && player.IsGliding)
+            // クリア後に自由探索中、タワー中心の光の柱（SkybreakHyperUpdraft）から再び大空へ打ち上がった時にもウミネコたちの鳴き声を再生
+            if (!_showGameClearModal && !_endingSequenceActive && !_epilogueTriggered && player.transform.position.y > 95f && player.IsGliding)
             {
                 float distXZ = Vector2.Distance(new Vector2(player.transform.position.x, player.transform.position.z), new Vector2(512f, 512f));
                 if (distXZ < 50f)
                 {
-                    PlayRelaunchSkySeagulls();
+                    PlayRelaunchSkySeagulls(force: false);
                 }
             }
         }
