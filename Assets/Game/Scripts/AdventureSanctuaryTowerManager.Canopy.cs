@@ -292,19 +292,25 @@ public partial class AdventureSanctuaryTowerManager
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
             : 3.5f;
 
-        // 第1幕：専用ロック時刻まで手動・自動・残留フラグすべて無効（PresentCanopyBeat 再入でもリセットされない）
+        // 第1幕：最小表示0.6秒経過後は、手動送り（クリック・Space）または規定秒数（autoSec=4.5s）で進める
         if (_canopyBeatIndex == 0)
         {
-            if (!_canopyBeat0TimerArmed || Time.unscaledTime < _canopyBeat0LockUntil)
+            float minShow0 = 0.60f;
+            if (openFor < minShow0)
             {
                 _scriptBoardAdvance = false;
                 return;
             }
-            _scriptBoardAdvance = true;
+
+            if (!_scriptRequireInputRelease)
+                PollScriptBoardAdvance();
+
+            if (openFor >= autoSec || (_canopyBeat0TimerArmed && Time.unscaledTime >= _canopyBeat0LockUntil))
+                _scriptBoardAdvance = true;
         }
         else
         {
-            float minShow = 0.45f;
+            float minShow = 0.35f;
             if (openFor < minShow)
             {
                 _scriptBoardAdvance = false;
@@ -341,13 +347,6 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         if (!_scriptBoardAdvance) return;
-
-        if (_canopyBeatIndex == 0
-            && (!_canopyBeat0TimerArmed || Time.unscaledTime < _canopyBeat0LockUntil))
-        {
-            _scriptBoardAdvance = false;
-            return;
-        }
 
         _scriptBoardAdvance = false;
         _scriptHoldTimer = 0f;

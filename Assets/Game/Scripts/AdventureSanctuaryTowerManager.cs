@@ -155,7 +155,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     }
     static readonly CanopyBeat[] CanopyBeats =
     {
-        new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 7.5f),
+        new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 4.5f),
         new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
         new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Float！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
         new CanopyBeat("", "✦ Float", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f), autoSec: 4.2f),
@@ -946,8 +946,22 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     bool CheckLeverInputTriggered()
     {
-        // E / Enter / マウス（左右クリック）/ Gamepad West（AdventureInputReader統合）
-        return AdventureInputReader.InteractDown || AdventureInputReader.EnterDown || AdventureInputReader.MouseRightDown;
+        // E / Enter / マウス（左クリック・右クリック）/ Space / Gamepad West（AdventureInputReader統合）
+        if (AdventureInputReader.InteractDown || AdventureInputReader.EnterDown || AdventureInputReader.MouseRightDown)
+            return true;
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
+            return true;
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null && (kb.eKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame))
+            return true;
+        try
+        {
+            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space))
+                return true;
+        }
+        catch { }
+        return false;
     }
 
     /// <summary>レバーから天蓋開放へ。forceRestart=true のときだけ再演（F9）。通常操作中の再入は台本を最初に戻さない。</summary>
@@ -1389,7 +1403,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
         var cam = AdventureCameraFollow.InstanceOrFind();
         if (cam != null)
-            cam.Shake(0.35f, 1.5f);
+            cam.Shake(0.52f, 1.6f);
 
         // 地上シーン中は上昇気流コライダーを作動させず、ダイブ入力（FinishCanopyScriptBeats）で起動する
         if (_hyperUpdraftGo != null)
@@ -1413,7 +1427,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         float elapsed = 0f;
-        float duration = 0.85f;
+        float duration = 0.42f; // 素早くガコンと倒れて即座に崩壊へ繋ぐ
         Quaternion startRot = _leverHandle != null ? _leverHandle.localRotation : Quaternion.identity;
         Quaternion endRot = Quaternion.Euler(52f, 0f, 0f); // 深く倒して「引いた」感をはっきり
 
@@ -1421,8 +1435,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
-            // 序盤ゆっくり→終盤で重く倒れる
-            float ease = t * t * (3f - 2f * t);
+            // 初速が速く手応えのあるCubic Outイージング
+            float ease = 1f - Mathf.Pow(1f - t, 3f);
             if (_leverHandle != null)
                 _leverHandle.localRotation = Quaternion.Slerp(startRot, endRot, ease);
             foreach (var h in _allLeverHandles)
@@ -1430,7 +1444,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
                 if (h != null) h.localRotation = Quaternion.Slerp(startRot, endRot, ease);
             }
             if (_leverLight != null)
-                _leverLight.intensity = Mathf.Lerp(11.5f, 18f, ease);
+                _leverLight.intensity = Mathf.Lerp(12f, 22f, ease);
             yield return null;
         }
     }
