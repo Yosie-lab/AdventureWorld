@@ -503,36 +503,36 @@ public partial class AdventureSanctuaryTowerManager
 
         Debug.Log($"[RustAndFloat] ✦ 大空へダイブ：ウミネコの歓声を再生開始！ (SE_Volume={seVol:F2})");
 
-        // 1. 大空へ飛び出した瞬間（約0.06秒後）：近接の澄んだ1羽が「ミャーオ！」と高らかに啼く
+        // 1. 大空へ飛び出した瞬間（約0.06秒後）：近接の澄んだ1羽が「ミャーオ！」と控えめに啼く
         yield return new WaitForSecondsRealtime(0.06f);
         if (clip1 != null && src != null)
         {
             src.pitch = Random.Range(1.04f, 1.12f);
-            src.PlayOneShot(clip1, 0.95f * seVol);
+            src.PlayOneShot(clip1, 0.38f * seVol);
         }
 
-        // 2. 風に乗って水平滑空へ突入した瞬間（約1.1秒後）：空いっぱいの群れが「クァー！ミャーオ！」と歓声を反響
+        // 2. 風に乗って水平滑空へ突入した瞬間（約1.1秒後）：空の群れが「クァー！ミャーオ！」と穏やかに反響
         yield return new WaitForSecondsRealtime(1.1f);
         if (src != null)
         {
             if (clipMany != null)
             {
                 src.pitch = Random.Range(0.98f, 1.05f);
-                src.PlayOneShot(clipMany, 0.92f * seVol);
+                src.PlayOneShot(clipMany, 0.32f * seVol);
             }
             else if (clip1 != null)
             {
                 src.pitch = Random.Range(0.96f, 1.03f);
-                src.PlayOneShot(clip1, 0.88f * seVol);
+                src.PlayOneShot(clip1, 0.30f * seVol);
             }
         }
 
-        // 3. 広大な島を見下ろしながら優雅に滑空する余韻（約2.8秒後）：大空の彼方からもうひと啼き
+        // 3. 広大な島を見下ろしながら優雅に滑空する余韻（約2.8秒後）：遠空からもうひと啼き
         yield return new WaitForSecondsRealtime(2.8f);
         if (clip1 != null && src != null)
         {
             src.pitch = Random.Range(1.00f, 1.08f);
-            src.PlayOneShot(clip1, 0.82f * seVol);
+            src.PlayOneShot(clip1, 0.28f * seVol);
         }
 
         yield return new WaitForSecondsRealtime(5.0f);
