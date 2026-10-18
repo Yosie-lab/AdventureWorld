@@ -208,25 +208,25 @@ public class AdventureDayNightDirector : MonoBehaviour
         }
         else if (progress < 0.65f)
         {
-            // 【夕暮れ・息をのむ茜色マジックアワー】(0.45 〜 0.65) 承認された完成版シネマティック夕暮れ
+            // 【夕暮れ・息をのむ茜色マジックアワー】(0.45 〜 0.65) 黄色オレンジを削り上品な茜色に微調整
             float t = Mathf.SmoothStep(0f, 1f, (progress - 0.45f) / 0.20f);
-            targetSunColor = Color.Lerp(new Color(1.0f, 0.85f, 0.55f), new Color(1.0f, 0.30f, 0.05f), t); // 鮮烈な赤橙
-            targetAmbient = Color.Lerp(new Color(0.72f, 0.60f, 0.50f), new Color(0.74f, 0.36f, 0.20f), t); // 情緒的な深み
-            targetFog = Color.Lerp(new Color(0.85f, 0.65f, 0.45f), new Color(0.96f, 0.34f, 0.12f), t); // 茜色フォグ
-            targetIntensity = Mathf.Lerp(1.35f, 1.38f, t);
+            targetSunColor = Color.Lerp(new Color(1.0f, 0.75f, 0.50f), new Color(0.98f, 0.22f, 0.04f), t); // 黄色オレンジを抑えた上品な茜色の夕陽
+            targetAmbient = Color.Lerp(new Color(0.68f, 0.55f, 0.48f), new Color(0.66f, 0.34f, 0.25f), t); // 地面・影の黄色かぶりを解消
+            targetFog = Color.Lerp(new Color(0.80f, 0.58f, 0.48f), new Color(0.92f, 0.30f, 0.14f), t); // 水平線のオレンジを上品に調整
+            targetIntensity = Mathf.Lerp(1.35f, 1.36f, t);
             targetSunAngles = Vector3.Lerp(new Vector3(45f, 195f, 0f), new Vector3(35.2f, 237.5f, 0f), t); // スカイボックス太陽と一致
-            targetFogDensity = Mathf.Lerp(0.0014f, 0.0020f, t);
+            targetFogDensity = Mathf.Lerp(0.0014f, 0.0019f, t);
         }
         else if (progress < 0.78f)
         {
             // 【黄昏・薄暮の静寂】(0.65 〜 0.78) 西の海に夕陽が沈み、地平線の残光と天頂の深い藍色
             float t = Mathf.SmoothStep(0f, 1f, (progress - 0.65f) / 0.13f);
-            targetSunColor = Color.Lerp(new Color(1.0f, 0.30f, 0.05f), new Color(0.65f, 0.25f, 0.22f), t);
-            targetAmbient = Color.Lerp(new Color(0.74f, 0.36f, 0.20f), new Color(0.28f, 0.22f, 0.38f), t);
-            targetFog = Color.Lerp(new Color(0.96f, 0.34f, 0.12f), new Color(0.38f, 0.20f, 0.32f), t);
-            targetIntensity = Mathf.Lerp(1.38f, 0.65f, t);
+            targetSunColor = Color.Lerp(new Color(0.98f, 0.22f, 0.04f), new Color(0.65f, 0.25f, 0.22f), t);
+            targetAmbient = Color.Lerp(new Color(0.66f, 0.34f, 0.25f), new Color(0.28f, 0.22f, 0.38f), t);
+            targetFog = Color.Lerp(new Color(0.92f, 0.30f, 0.14f), new Color(0.38f, 0.20f, 0.32f), t);
+            targetIntensity = Mathf.Lerp(1.36f, 0.65f, t);
             targetSunAngles = Vector3.Lerp(new Vector3(35.2f, 237.5f, 0f), new Vector3(8f, 255f, 0f), t);
-            targetFogDensity = Mathf.Lerp(0.0020f, 0.0022f, t);
+            targetFogDensity = Mathf.Lerp(0.0019f, 0.0022f, t);
         }
         else
         {
@@ -358,22 +358,22 @@ public class AdventureDayNightDirector : MonoBehaviour
         else if (progress < 0.65f)
         {
             float t = Mathf.SmoothStep(0f, 1f, (progress - 0.45f) / 0.20f);
-            sunCol = Color.Lerp(new Color(1.0f, 0.85f, 0.55f), new Color(1.0f, 0.30f, 0.05f), t);
-            amb = Color.Lerp(new Color(0.72f, 0.60f, 0.50f), new Color(0.74f, 0.36f, 0.20f), t);
-            fog = Color.Lerp(new Color(0.85f, 0.65f, 0.45f), new Color(0.96f, 0.34f, 0.12f), t);
-            intensity = Mathf.Lerp(1.35f, 1.38f, t);
+            sunCol = Color.Lerp(new Color(1.0f, 0.75f, 0.50f), new Color(0.98f, 0.22f, 0.04f), t);
+            amb = Color.Lerp(new Color(0.68f, 0.55f, 0.48f), new Color(0.66f, 0.34f, 0.25f), t);
+            fog = Color.Lerp(new Color(0.80f, 0.58f, 0.48f), new Color(0.92f, 0.30f, 0.14f), t);
+            intensity = Mathf.Lerp(1.35f, 1.36f, t);
             angles = Vector3.Lerp(new Vector3(45f, 195f, 0f), new Vector3(35.2f, 237.5f, 0f), t);
-            fogDensity = Mathf.Lerp(0.0014f, 0.0020f, t);
+            fogDensity = Mathf.Lerp(0.0014f, 0.0019f, t);
         }
         else if (progress < 0.78f)
         {
             float t = Mathf.SmoothStep(0f, 1f, (progress - 0.65f) / 0.13f);
-            sunCol = Color.Lerp(new Color(1.0f, 0.30f, 0.05f), new Color(0.65f, 0.25f, 0.22f), t);
-            amb = Color.Lerp(new Color(0.74f, 0.36f, 0.20f), new Color(0.28f, 0.22f, 0.38f), t);
-            fog = Color.Lerp(new Color(0.96f, 0.34f, 0.12f), new Color(0.38f, 0.20f, 0.32f), t);
-            intensity = Mathf.Lerp(1.38f, 0.65f, t);
+            sunCol = Color.Lerp(new Color(0.98f, 0.22f, 0.04f), new Color(0.65f, 0.25f, 0.22f), t);
+            amb = Color.Lerp(new Color(0.66f, 0.34f, 0.25f), new Color(0.28f, 0.22f, 0.38f), t);
+            fog = Color.Lerp(new Color(0.92f, 0.30f, 0.14f), new Color(0.38f, 0.20f, 0.32f), t);
+            intensity = Mathf.Lerp(1.36f, 0.65f, t);
             angles = Vector3.Lerp(new Vector3(35.2f, 237.5f, 0f), new Vector3(8f, 255f, 0f), t);
-            fogDensity = Mathf.Lerp(0.0020f, 0.0022f, t);
+            fogDensity = Mathf.Lerp(0.0019f, 0.0022f, t);
         }
         else
         {
