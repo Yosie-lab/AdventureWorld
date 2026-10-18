@@ -158,22 +158,22 @@ public class AdventureDayNightDirector : MonoBehaviour
         }
         else if (progress < 0.75f)
         {
-            // 【夕暮れ】息をのむ茜色・黄金のマジックアワー
+            // 【夕暮れ】息をのむ赤寄りの鮮烈なオレンジ・茜色のマジックアワー
             float t = (progress - 0.35f) / 0.40f;
-            targetSunColor = Color.Lerp(new Color(1f, 0.85f, 0.55f), new Color(1f, 0.45f, 0.20f), t); // 鮮やかな茜色・夕陽
-            targetAmbient = Color.Lerp(new Color(0.65f, 0.55f, 0.65f), new Color(0.48f, 0.32f, 0.50f), t);
-            targetFog = Color.Lerp(new Color(0.88f, 0.62f, 0.50f), new Color(0.78f, 0.38f, 0.42f), t);
-            targetIntensity = Mathf.Lerp(1.15f, 0.85f, t);
+            targetSunColor = Color.Lerp(new Color(1f, 0.72f, 0.30f), new Color(1.0f, 0.36f, 0.08f), t); // 茶色味を排除した赤寄りの鮮明なオレンジ夕陽
+            targetAmbient = Color.Lerp(new Color(0.72f, 0.52f, 0.46f), new Color(0.68f, 0.36f, 0.24f), t); // 濁った紫茶色を排除し、温かい茜色の環境反射
+            targetFog = Color.Lerp(new Color(0.96f, 0.62f, 0.36f), new Color(0.92f, 0.38f, 0.16f), t); // 燃えるような赤橙色の夕焼けフォグ
+            targetIntensity = Mathf.Lerp(1.30f, 1.10f, t); // 暗く沈まず生き生きとした夕暮れ光量を維持
             targetSunAngles = Vector3.Lerp(new Vector3(32f, -15f, 0f), new Vector3(8f, 15f, 0f), t); // 太陽が地平線近くへ沈む
         }
         else
         {
             // 【黄昏〜満天の星空】深い藍色・星明かりと夜光虫
             float t = (progress - 0.75f) / 0.25f;
-            targetSunColor = Color.Lerp(new Color(1f, 0.42f, 0.25f), new Color(0.32f, 0.50f, 0.85f), t); // 月光・星明かりの青白い光
-            targetAmbient = Color.Lerp(new Color(0.40f, 0.30f, 0.48f), new Color(0.12f, 0.16f, 0.30f), t);
-            targetFog = Color.Lerp(new Color(0.58f, 0.32f, 0.45f), new Color(0.08f, 0.12f, 0.24f), t);
-            targetIntensity = Mathf.Lerp(0.85f, 0.45f, t);
+            targetSunColor = Color.Lerp(new Color(1.0f, 0.36f, 0.08f), new Color(0.32f, 0.50f, 0.85f), t); // 赤橙の残光から月光へ
+            targetAmbient = Color.Lerp(new Color(0.55f, 0.28f, 0.22f), new Color(0.12f, 0.16f, 0.30f), t);
+            targetFog = Color.Lerp(new Color(0.75f, 0.28f, 0.20f), new Color(0.08f, 0.12f, 0.24f), t);
+            targetIntensity = Mathf.Lerp(1.10f, 0.45f, t);
             targetSunAngles = Vector3.Lerp(new Vector3(8f, 15f, 0f), new Vector3(-25f, 45f, 0f), t); // 太陽は沈み、反対側から月光
         }
 
@@ -189,6 +189,25 @@ public class AdventureDayNightDirector : MonoBehaviour
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
         RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, Mathf.Lerp(0.0016f, 0.0028f, SunsetFactor), dt);
+
+        // スカイボックスの夕暮れ赤橙ブレンド（茶褐色の地面反射・大気厚みを鮮明化）
+        if (RenderSettings.skybox != null)
+        {
+            if (RenderSettings.skybox.HasProperty("_GroundColor"))
+            {
+                Color targetSkyGround = Color.Lerp(new Color(0.37f, 0.35f, 0.34f), new Color(0.55f, 0.24f, 0.14f), SunsetFactor);
+                RenderSettings.skybox.SetColor("_GroundColor", Color.Lerp(RenderSettings.skybox.GetColor("_GroundColor"), targetSkyGround, dt));
+            }
+            if (RenderSettings.skybox.HasProperty("_AtmosphereThickness"))
+            {
+                float targetAtmosphere = Mathf.Lerp(1.0f, 1.28f, SunsetFactor);
+                RenderSettings.skybox.SetFloat("_AtmosphereThickness", Mathf.Lerp(RenderSettings.skybox.GetFloat("_AtmosphereThickness"), targetAtmosphere, dt));
+            }
+            if (RenderSettings.skybox.HasProperty("_SunColor"))
+            {
+                RenderSettings.skybox.SetColor("_SunColor", Color.Lerp(RenderSettings.skybox.GetColor("_SunColor"), targetSunColor, dt));
+            }
+        }
 
         UpdateAtmosphericSunMotes(targetSunColor, targetIntensity);
     }

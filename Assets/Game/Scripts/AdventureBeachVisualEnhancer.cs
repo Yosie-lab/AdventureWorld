@@ -405,7 +405,7 @@ public class AdventureBeachVisualEnhancer : MonoBehaviour
 
             // 昼は純白、夕暮れは茜色、夜は神秘的な「夜光虫（ネオンシアンの幻想発光）」！
             Color dayWaveColor = new Color(1f, 1f, 1f);
-            Color sunsetWaveColor = new Color(1.0f, 0.82f, 0.70f);
+            Color sunsetWaveColor = new Color(1.0f, 0.72f, 0.52f);
             Color bioluminescentColor = new Color(0.18f, 0.95f, 1.0f) * 1.6f; // 夜光虫の青白いネオン発光
 
             Color curWaveColor = Color.Lerp(dayWaveColor, sunsetWaveColor, sunset);
