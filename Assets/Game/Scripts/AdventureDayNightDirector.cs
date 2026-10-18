@@ -27,7 +27,7 @@ public class AdventureDayNightDirector : MonoBehaviour
         }
 
         var go = new GameObject("AdventureDayNightDirector");
-        DontDestroyOnLoad(go);
+        if (Application.isPlaying) DontDestroyOnLoad(go);
         Instance = go.AddComponent<AdventureDayNightDirector>();
     }
 
@@ -158,23 +158,23 @@ public class AdventureDayNightDirector : MonoBehaviour
         }
         else if (progress < 0.75f)
         {
-            // 【夕暮れ】息をのむ赤寄りの鮮烈なオレンジ・茜色のマジックアワー
+            // 【夕暮れ】息をのむ赤寄りの鮮烈なオレンジ・茜色のマジックアワー（少し暗めで情緒的な深み）
             float t = (progress - 0.35f) / 0.40f;
-            targetSunColor = Color.Lerp(new Color(1.0f, 0.60f, 0.16f), new Color(1.0f, 0.24f, 0.02f), t); // 鮮烈な赤寄りのオレンジ（茜色・深紅のサンセット夕陽）
-            targetAmbient = Color.Lerp(new Color(0.76f, 0.46f, 0.34f), new Color(0.72f, 0.26f, 0.12f), t); // 温かい茜色の環境反射
-            targetFog = Color.Lerp(new Color(0.98f, 0.50f, 0.22f), new Color(0.96f, 0.26f, 0.06f), t); // 燃えるような赤橙色の夕焼けフォグ
-            targetIntensity = Mathf.Lerp(1.42f, 1.30f, t); // キラキラした輝き度を引き立てる高輝度光量を維持
-            targetSunAngles = Vector3.Lerp(new Vector3(32f, -15f, 0f), new Vector3(8.5f, 48f, 0f), t); // 海側の地平線へ夕陽が美しく沈む
+            targetSunColor = Color.Lerp(new Color(1.0f, 0.58f, 0.16f), new Color(1.0f, 0.24f, 0.02f), t); // 鮮烈な赤寄りのオレンジ（茜色・深紅のサンセット夕陽）
+            targetAmbient = Color.Lerp(new Color(0.58f, 0.35f, 0.24f), new Color(0.48f, 0.18f, 0.09f), t); // 眩しさを抑えた落ち着いた茜色の環境反射
+            targetFog = Color.Lerp(new Color(0.84f, 0.40f, 0.18f), new Color(0.76f, 0.20f, 0.06f), t); // 落ち着いた深い赤橙色の夕焼けフォグ
+            targetIntensity = Mathf.Lerp(1.12f, 0.95f, t); // 少し暗めで夕陽と光芒が最も美しく映える光量
+            targetSunAngles = Vector3.Lerp(new Vector3(42f, 225f, 0f), new Vector3(35.2f, 237.5f, 0f), t); // スカイボックスの太陽と一致
         }
         else
         {
             // 【黄昏〜満天の星空】深い藍色・星明かりと夜光虫
             float t = (progress - 0.75f) / 0.25f;
             targetSunColor = Color.Lerp(new Color(1.0f, 0.24f, 0.02f), new Color(0.32f, 0.50f, 0.85f), t); // 赤橙の残光から月光へ
-            targetAmbient = Color.Lerp(new Color(0.55f, 0.28f, 0.22f), new Color(0.12f, 0.16f, 0.30f), t);
-            targetFog = Color.Lerp(new Color(0.75f, 0.28f, 0.20f), new Color(0.08f, 0.12f, 0.24f), t);
-            targetIntensity = Mathf.Lerp(1.10f, 0.45f, t);
-            targetSunAngles = Vector3.Lerp(new Vector3(8.5f, 48f, 0f), new Vector3(-25f, 45f, 0f), t); // 太陽は沈み、反対側から月光
+            targetAmbient = Color.Lerp(new Color(0.48f, 0.18f, 0.09f), new Color(0.12f, 0.16f, 0.30f), t);
+            targetFog = Color.Lerp(new Color(0.76f, 0.20f, 0.06f), new Color(0.08f, 0.12f, 0.24f), t);
+            targetIntensity = Mathf.Lerp(0.95f, 0.40f, t);
+            targetSunAngles = Vector3.Lerp(new Vector3(35.2f, 237.5f, 0f), new Vector3(-25f, 45f, 0f), t); // 太陽は沈み、反対側から月光
         }
 
         // スムーズな徐変（フレームごとの穏やかなブレンド）
@@ -213,6 +213,27 @@ public class AdventureDayNightDirector : MonoBehaviour
         UpdateBloomGlitter(SunsetFactor, dt);
         UpdateOceanSunGlitter(SunsetFactor, dt);
         UpdateSunsetSunSparkleVisual(targetSunColor, SunsetFactor);
+    }
+
+    /// <summary>エディタ非再生時でも夕暮れキラキラ太陽とライティングを即座に反映するプレビューヘルパー</summary>
+    public void ForceUpdateSunsetPreview()
+    {
+        FindMainSun();
+        if (_mainSunLight == null) return;
+
+        Color sunCol = new Color(1.0f, 0.24f, 0.02f);
+        _mainSunLight.color = sunCol;
+        _mainSunLight.intensity = 1.05f;
+        _mainSunLight.transform.rotation = Quaternion.LookRotation(-SkyboxSunDir, Vector3.up);
+
+        RenderSettings.ambientLight = new Color(0.52f, 0.24f, 0.14f);
+        RenderSettings.fogColor = new Color(0.80f, 0.26f, 0.10f);
+        RenderSettings.fogDensity = 0.0022f;
+
+        SunsetFactor = 1.0f;
+        UpdateBloomGlitter(1.0f, 1.0f);
+        UpdateOceanSunGlitter(1.0f, 1.0f);
+        UpdateSunsetSunSparkleVisual(sunCol, 1.0f);
     }
 
     float CalculateCurrentProgress()
