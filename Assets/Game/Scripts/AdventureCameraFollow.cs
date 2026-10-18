@@ -110,19 +110,19 @@ public class AdventureCameraFollow : MonoBehaviour
     {
         get
         {
-            float val = PlayerPrefs.GetFloat("Adventure_MouseSensitivity", 0.28f);
-            // 過去の鈍い0.12fや異常値が保存されていたら軽快な0.28fへ自動更新
-            if (val < 0.18f || val > 1.20f)
+            float val = PlayerPrefs.GetFloat("Adventure_MouseSensitivity", 0.45f);
+            // 過去の鈍い0.28f以下や異常値が保存されていたら軽快な0.45fへ自動更新
+            if (val < 0.35f || val > 1.50f)
             {
-                val = 0.28f;
-                PlayerPrefs.SetFloat("Adventure_MouseSensitivity", 0.28f);
+                val = 0.45f;
+                PlayerPrefs.SetFloat("Adventure_MouseSensitivity", 0.45f);
                 PlayerPrefs.Save();
             }
             return val;
         }
         set
         {
-            float clamped = Mathf.Clamp(value, 0.10f, 1.20f);
+            float clamped = Mathf.Clamp(value, 0.10f, 1.50f);
             PlayerPrefs.SetFloat("Adventure_MouseSensitivity", clamped);
             PlayerPrefs.Save();
             if (_instance != null) _instance.sensitivity = clamped;
@@ -396,8 +396,8 @@ public class AdventureCameraFollow : MonoBehaviour
             catch { }
         }
 
-        // 1フレームあたりのマウス入力変化量を安全に制限（急激な跳ね上がり・天井張り付きを物理的に防止）
-        float maxStep = 18f;
+        // 1フレームあたりのマウス入力変化量を安全に制限（素早いフリックも完全許容しつつ、不正な巨大テレポートのみ防止）
+        float maxStep = 80f;
         float deltaYaw = Mathf.Clamp(mouseX * sensitivity, -maxStep, maxStep);
         float deltaPitch = Mathf.Clamp(mouseY * sensitivity, -maxStep, maxStep);
 
@@ -457,7 +457,7 @@ public class AdventureCameraFollow : MonoBehaviour
         _cinematicBlend = Mathf.MoveTowards(_cinematicBlend, blendTarget, CinematicBlendSpeed * Time.unscaledDeltaTime);
         float cine = _cinematicBlend;
 
-        float followIdle = cine > 0.2f || isAutoGlide ? 0.35f : 1.2f;
+        float followIdle = cine > 0.2f || isAutoGlide ? 0.35f : 2.2f;
         float followRate = cine > 0.2f || isAutoGlide ? 55f : 36f;
         bool walkingGround = !isGliding && !isAutoGlide && cine < 0.05f && (playerGrounded || playerMoving);
 
@@ -489,7 +489,7 @@ public class AdventureCameraFollow : MonoBehaviour
             _targetPitch = Mathf.Clamp(_targetPitch, -6f, 22f);
 
         // 手動操作時（マウス操作直後や歩行中）は SmoothDamp による遅延を完全排除し、ダイレクト即時反映
-        bool isManualAiming = (Time.time - _lastMouseInputTime < 0.25f);
+        bool isManualAiming = (Time.time - _lastMouseInputTime < 0.60f);
         if (walkingGround || isManualAiming || cine < 0.05f)
         {
             _yaw = _targetYaw;

@@ -931,8 +931,8 @@ public class AdventurePauseMenu : MonoBehaviour
         // SE スライダー
         CreateSettingSlider(_tabAudioPanel.transform, "SE 音量", -95f, 0f, 1f, out _seSlider, out _seValueText, OnSeSliderChanged);
 
-        // マウス視点感度 スライダー
-        CreateSettingSlider(_tabAudioPanel.transform, "マウス視点感度", -175f, 0.05f, 0.60f, out _sensSlider, out _sensValueText, OnSensitivitySliderChanged);
+        // マウス視点感度 スライダー（標準0.45、好みに応じて0.10〜1.20まで自在に調整可能）
+        CreateSettingSlider(_tabAudioPanel.transform, "マウス視点感度", -175f, 0.10f, 1.20f, out _sensSlider, out _sensValueText, OnSensitivitySliderChanged);
 
         // ガイドヒント
         var hint = MakeLabel(_tabAudioPanel.transform, "AudioHint", new Vector2(12f, -265f), new Vector2(800f, 30f),

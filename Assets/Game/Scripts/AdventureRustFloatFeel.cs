@@ -46,7 +46,7 @@ public static class AdventureRustFloatFeel
     public const float CameraDistance = 8.5f;
     public const float CameraDistanceMin = 7.8f;
     public const float WalkMinDistance = 7.2f;
-    public const float Sensitivity = 0.28f; // キビキビと軽快に追従する適正感度
+    public const float Sensitivity = 0.45f; // 手元の操作にキビキビと直感的に追従する適正感度
     public const float PositionSmoothTime = 0.01f;
     public const float LookSmoothTime = 0.003f; // 遅延のないキビキビした視点レスポンス
     public const float WalkFov = 68f;
