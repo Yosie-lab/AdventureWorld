@@ -194,28 +194,26 @@ public class AdventureDayNightDirector : MonoBehaviour
         RenderSettings.fogMode = FogMode.ExponentialSquared;
         RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, Mathf.Lerp(0.0016f, 0.0022f, SunsetFactor), dt);
 
-        // スカイボックスの夕暮れ赤橙ブレンド（茶褐色の地面反射・大気厚みを鮮明化）
+        // スカイボックスの夕暮れブレンド（大気厚みを濁らせず澄んだ発色を維持）
         if (RenderSettings.skybox != null)
         {
             if (RenderSettings.skybox.HasProperty("_GroundColor"))
             {
-                Color targetSkyGround = Color.Lerp(new Color(0.37f, 0.35f, 0.34f), new Color(0.55f, 0.24f, 0.14f), SunsetFactor);
-                RenderSettings.skybox.SetColor("_GroundColor", Color.Lerp(RenderSettings.skybox.GetColor("_GroundColor"), targetSkyGround, dt));
+                Color origGround = new Color(0.369f, 0.349f, 0.341f);
+                RenderSettings.skybox.SetColor("_GroundColor", origGround);
             }
             if (RenderSettings.skybox.HasProperty("_AtmosphereThickness"))
             {
-                float targetAtmosphere = Mathf.Lerp(1.0f, 1.28f, SunsetFactor);
-                RenderSettings.skybox.SetFloat("_AtmosphereThickness", Mathf.Lerp(RenderSettings.skybox.GetFloat("_AtmosphereThickness"), targetAtmosphere, dt));
+                RenderSettings.skybox.SetFloat("_AtmosphereThickness", 1.0f);
             }
             if (RenderSettings.skybox.HasProperty("_Tint"))
             {
-                Color targetTint = Color.Lerp(Color.white, new Color(1.0f, 0.95f, 0.90f), SunsetFactor);
-                RenderSettings.skybox.SetColor("_Tint", Color.Lerp(RenderSettings.skybox.GetColor("_Tint"), targetTint, dt));
+                Color origTint = new Color(0.60377f, 0.60377f, 0.60377f, 0.447f);
+                RenderSettings.skybox.SetColor("_Tint", origTint);
             }
             if (RenderSettings.skybox.HasProperty("_Exposure"))
             {
-                float targetExp = Mathf.Lerp(1.0f, 1.0f, SunsetFactor);
-                RenderSettings.skybox.SetFloat("_Exposure", Mathf.Lerp(RenderSettings.skybox.GetFloat("_Exposure"), targetExp, dt));
+                RenderSettings.skybox.SetFloat("_Exposure", 1.0f);
             }
             if (RenderSettings.skybox.HasProperty("_SunColor"))
             {
@@ -241,23 +239,23 @@ public class AdventureDayNightDirector : MonoBehaviour
         _mainSunLight.intensity = 1.38f;
         _mainSunLight.transform.rotation = Quaternion.LookRotation(-SkyboxSunDir, Vector3.up);
 
-        Color amb = new Color(0.72f, 0.35f, 0.20f);
+        Color amb = new Color(0.74f, 0.36f, 0.20f);
         RenderSettings.ambientLight = amb;
         RenderSettings.ambientSkyColor = amb;
         RenderSettings.ambientEquatorColor = amb;
         RenderSettings.ambientGroundColor = amb;
 
-        RenderSettings.fogColor = new Color(0.98f, 0.40f, 0.16f);
-        RenderSettings.fogDensity = 0.0022f;
+        RenderSettings.fogColor = new Color(0.96f, 0.34f, 0.12f);
+        RenderSettings.fogDensity = 0.0020f;
 
         if (RenderSettings.skybox != null)
         {
             if (RenderSettings.skybox.HasProperty("_GroundColor"))
-                RenderSettings.skybox.SetColor("_GroundColor", new Color(0.55f, 0.24f, 0.14f));
+                RenderSettings.skybox.SetColor("_GroundColor", new Color(0.369f, 0.349f, 0.341f));
             if (RenderSettings.skybox.HasProperty("_AtmosphereThickness"))
-                RenderSettings.skybox.SetFloat("_AtmosphereThickness", 1.28f);
+                RenderSettings.skybox.SetFloat("_AtmosphereThickness", 1.0f);
             if (RenderSettings.skybox.HasProperty("_Tint"))
-                RenderSettings.skybox.SetColor("_Tint", new Color(1.0f, 0.95f, 0.90f));
+                RenderSettings.skybox.SetColor("_Tint", new Color(0.60377f, 0.60377f, 0.60377f, 0.447f));
             if (RenderSettings.skybox.HasProperty("_Exposure"))
                 RenderSettings.skybox.SetFloat("_Exposure", 1.0f);
         }
