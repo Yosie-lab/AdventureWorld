@@ -160,21 +160,21 @@ public class AdventureDayNightDirector : MonoBehaviour
         {
             // 【夕暮れ】息をのむ赤寄りの鮮烈なオレンジ・茜色のマジックアワー
             float t = (progress - 0.35f) / 0.40f;
-            targetSunColor = Color.Lerp(new Color(1f, 0.72f, 0.30f), new Color(1.0f, 0.36f, 0.08f), t); // 茶色味を排除した赤寄りの鮮明なオレンジ夕陽
-            targetAmbient = Color.Lerp(new Color(0.72f, 0.52f, 0.46f), new Color(0.68f, 0.36f, 0.24f), t); // 濁った紫茶色を排除し、温かい茜色の環境反射
-            targetFog = Color.Lerp(new Color(0.96f, 0.62f, 0.36f), new Color(0.92f, 0.38f, 0.16f), t); // 燃えるような赤橙色の夕焼けフォグ
-            targetIntensity = Mathf.Lerp(1.30f, 1.10f, t); // 暗く沈まず生き生きとした夕暮れ光量を維持
-            targetSunAngles = Vector3.Lerp(new Vector3(32f, -15f, 0f), new Vector3(8f, 15f, 0f), t); // 太陽が地平線近くへ沈む
+            targetSunColor = Color.Lerp(new Color(1.0f, 0.60f, 0.16f), new Color(1.0f, 0.24f, 0.02f), t); // 鮮烈な赤寄りのオレンジ（茜色・深紅のサンセット夕陽）
+            targetAmbient = Color.Lerp(new Color(0.76f, 0.46f, 0.34f), new Color(0.72f, 0.26f, 0.12f), t); // 温かい茜色の環境反射
+            targetFog = Color.Lerp(new Color(0.98f, 0.50f, 0.22f), new Color(0.96f, 0.26f, 0.06f), t); // 燃えるような赤橙色の夕焼けフォグ
+            targetIntensity = Mathf.Lerp(1.42f, 1.30f, t); // キラキラした輝き度を引き立てる高輝度光量を維持
+            targetSunAngles = Vector3.Lerp(new Vector3(32f, -15f, 0f), new Vector3(8.5f, 48f, 0f), t); // 海側の地平線へ夕陽が美しく沈む
         }
         else
         {
             // 【黄昏〜満天の星空】深い藍色・星明かりと夜光虫
             float t = (progress - 0.75f) / 0.25f;
-            targetSunColor = Color.Lerp(new Color(1.0f, 0.36f, 0.08f), new Color(0.32f, 0.50f, 0.85f), t); // 赤橙の残光から月光へ
+            targetSunColor = Color.Lerp(new Color(1.0f, 0.24f, 0.02f), new Color(0.32f, 0.50f, 0.85f), t); // 赤橙の残光から月光へ
             targetAmbient = Color.Lerp(new Color(0.55f, 0.28f, 0.22f), new Color(0.12f, 0.16f, 0.30f), t);
             targetFog = Color.Lerp(new Color(0.75f, 0.28f, 0.20f), new Color(0.08f, 0.12f, 0.24f), t);
             targetIntensity = Mathf.Lerp(1.10f, 0.45f, t);
-            targetSunAngles = Vector3.Lerp(new Vector3(8f, 15f, 0f), new Vector3(-25f, 45f, 0f), t); // 太陽は沈み、反対側から月光
+            targetSunAngles = Vector3.Lerp(new Vector3(8.5f, 48f, 0f), new Vector3(-25f, 45f, 0f), t); // 太陽は沈み、反対側から月光
         }
 
         // スムーズな徐変（フレームごとの穏やかなブレンド）
@@ -209,7 +209,10 @@ public class AdventureDayNightDirector : MonoBehaviour
             }
         }
 
-        UpdateAtmosphericSunMotes(targetSunColor, targetIntensity);
+        // 夕暮れの太陽キラキラ度・Bloom・海面反射の連動
+        UpdateBloomGlitter(SunsetFactor, dt);
+        UpdateOceanSunGlitter(SunsetFactor, dt);
+        UpdateSunsetSunSparkleVisual(targetSunColor, SunsetFactor);
     }
 
     float CalculateCurrentProgress()
@@ -310,13 +313,202 @@ public class AdventureDayNightDirector : MonoBehaviour
         _sunMotesPs = null;
     }
 
-    void UpdateAtmosphericSunMotes(Color sunColor, float intensity)
+    // ── 夕暮れの太陽キラキラ度・Bloom・海面反射の演出 ──
+    UnityEngine.Rendering.Universal.Bloom _bloomComp;
+    bool _searchedBloom;
+
+    void UpdateBloomGlitter(float sunset, float dt)
     {
-        // カメラ前を横切る茶色いゴミ・不定形の船のかけらのような浮遊バグを根絶するため無効化
-        if (_sunMotesPs != null)
+        if (!_searchedBloom || _bloomComp == null)
         {
-            Destroy(_sunMotesPs.gameObject);
-            _sunMotesPs = null;
+            _searchedBloom = true;
+            var vol = GameObject.Find("PostProcessing")?.GetComponent<UnityEngine.Rendering.Volume>();
+            if (vol != null && vol.profile != null)
+            {
+                vol.profile.TryGet(out _bloomComp);
+            }
         }
+        if (_bloomComp != null)
+        {
+            float targetIntensity = Mathf.Lerp(0.55f, 1.45f, sunset);
+            float targetThreshold = Mathf.Lerp(0.88f, 0.78f, sunset);
+            Color targetTint = Color.Lerp(Color.white, new Color(1.0f, 0.68f, 0.40f), sunset);
+
+            _bloomComp.intensity.Override(Mathf.Lerp(_bloomComp.intensity.value, targetIntensity, dt * 2.0f));
+            _bloomComp.threshold.Override(Mathf.Lerp(_bloomComp.threshold.value, targetThreshold, dt * 2.0f));
+            _bloomComp.tint.Override(Color.Lerp(_bloomComp.tint.value, targetTint, dt * 2.0f));
+        }
+    }
+
+    Material _oceanMat;
+    bool _searchedOcean;
+
+    void UpdateOceanSunGlitter(float sunset, float dt)
+    {
+        if (!_searchedOcean || _oceanMat == null)
+        {
+            _searchedOcean = true;
+            var oceanPlane = GameObject.Find("OceanPlane");
+            if (oceanPlane != null)
+            {
+                var mr = oceanPlane.GetComponent<MeshRenderer>();
+                if (mr != null) _oceanMat = mr.sharedMaterial;
+            }
+        }
+        if (_oceanMat != null)
+        {
+            Color targetGlitterCol = Color.Lerp(new Color(1.0f, 0.98f, 0.88f), new Color(1.0f, 0.46f, 0.12f), sunset);
+            float targetGlitterInt = Mathf.Lerp(5.2f, 11.0f, sunset);
+
+            if (_oceanMat.HasProperty("_SunGlitterColor"))
+            {
+                Color curCol = _oceanMat.GetColor("_SunGlitterColor");
+                _oceanMat.SetColor("_SunGlitterColor", Color.Lerp(curCol, targetGlitterCol, dt * 2.0f));
+            }
+            if (_oceanMat.HasProperty("_SunGlitterIntensity"))
+            {
+                float curInt = _oceanMat.GetFloat("_SunGlitterIntensity");
+                _oceanMat.SetFloat("_SunGlitterIntensity", Mathf.Lerp(curInt, targetGlitterInt, dt * 2.0f));
+            }
+        }
+    }
+
+    GameObject _sunsetSunRoot;
+    Transform _sunCoreT;
+    Transform _sunCoronaT;
+    Material _sunCoreMat;
+    Material _sunCoronaMat;
+    Texture2D _sunCoreTex;
+    Texture2D _sunCoronaTex;
+
+    static readonly Vector3 SkyboxSunDir = new Vector3(0.690f, 0.575f, 0.440f).normalized;
+
+    void EnsureSunsetSunVisual()
+    {
+        if (_sunsetSunRoot != null) return;
+        _sunsetSunRoot = new GameObject("SunsetSparkleSun_Visual");
+        _sunsetSunRoot.transform.SetParent(transform, false);
+
+        var shader = Shader.Find("Mobile/Particles/Additive")
+                     ?? Shader.Find("Legacy Shaders/Particles/Additive")
+                     ?? Shader.Find("Universal Render Pipeline/Particles/Unlit");
+
+        // 1. 円形コアテクスチャ生成（黒フェード加算）
+        if (_sunCoreTex == null)
+        {
+            const int res = 128;
+            _sunCoreTex = new Texture2D(res, res, TextureFormat.RGBA32, false);
+            _sunCoreTex.wrapMode = TextureWrapMode.Clamp;
+            Vector2 center = new Vector2((res - 1) * 0.5f, (res - 1) * 0.5f);
+            float maxR = (res - 1) * 0.5f;
+            for (int y = 0; y < res; y++)
+            {
+                for (int x = 0; x < res; x++)
+                {
+                    float d = Vector2.Distance(new Vector2(x, y), center) / maxR;
+                    float a = Mathf.Clamp01(1f - d);
+                    a = Mathf.SmoothStep(0f, 1f, a);
+                    a = Mathf.Pow(a, 1.6f);
+                    _sunCoreTex.SetPixel(x, y, new Color(a, a, a, a));
+                }
+            }
+            _sunCoreTex.Apply();
+        }
+
+        // 2. スターバースト放射状コロナテクスチャ生成（12条のシャープな光芒・黒フェード加算）
+        if (_sunCoronaTex == null)
+        {
+            const int res = 256;
+            _sunCoronaTex = new Texture2D(res, res, TextureFormat.RGBA32, false);
+            _sunCoronaTex.wrapMode = TextureWrapMode.Clamp;
+            Vector2 center = new Vector2((res - 1) * 0.5f, (res - 1) * 0.5f);
+            float maxR = (res - 1) * 0.5f;
+            for (int y = 0; y < res; y++)
+            {
+                for (int x = 0; x < res; x++)
+                {
+                    Vector2 diff = new Vector2(x, y) - center;
+                    float d = diff.magnitude / maxR;
+                    float angle = Mathf.Atan2(diff.y, diff.x);
+                    
+                    float cross = Mathf.Pow(Mathf.Abs(Mathf.Cos(angle * 2f)), 32f) * 2.5f;
+                    float subCross = Mathf.Pow(Mathf.Abs(Mathf.Sin(angle * 2f)), 24f) * 1.5f;
+                    float fineRays = Mathf.Pow(Mathf.Abs(Mathf.Cos(angle * 6f)), 10f) * 0.8f;
+                    float halo = Mathf.Clamp01(1f - d);
+                    halo = Mathf.Pow(halo, 1.4f);
+                    
+                    float a = (cross + subCross + fineRays + halo * 0.6f) * Mathf.Clamp01(1f - d * d);
+                    a = Mathf.Clamp01(a);
+                    _sunCoronaTex.SetPixel(x, y, new Color(a, a, a, a));
+                }
+            }
+            _sunCoronaTex.Apply();
+        }
+
+        // 太陽コア Quad
+        var coreGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        coreGo.name = "SunCore";
+        coreGo.transform.SetParent(_sunsetSunRoot.transform, false);
+        coreGo.transform.localScale = Vector3.one * 36f;
+        Destroy(coreGo.GetComponent<Collider>());
+        _sunCoreT = coreGo.transform;
+
+        _sunCoreMat = new Material(shader);
+        _sunCoreMat.name = "SunCore_Mat";
+        _sunCoreMat.mainTexture = _sunCoreTex;
+        coreGo.GetComponent<MeshRenderer>().material = _sunCoreMat;
+
+        // 太陽キラキラ放射状コロナ Quad
+        var coronaGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        coronaGo.name = "SunCorona";
+        coronaGo.transform.SetParent(_sunsetSunRoot.transform, false);
+        coronaGo.transform.localScale = Vector3.one * 125f;
+        Destroy(coronaGo.GetComponent<Collider>());
+        _sunCoronaT = coronaGo.transform;
+
+        _sunCoronaMat = new Material(shader);
+        _sunCoronaMat.name = "SunCorona_Mat";
+        _sunCoronaMat.mainTexture = _sunCoronaTex;
+        coronaGo.GetComponent<MeshRenderer>().material = _sunCoronaMat;
+    }
+
+    void UpdateSunsetSunSparkleVisual(Color sunColor, float sunset)
+    {
+        if (sunset < 0.02f)
+        {
+            if (_sunsetSunRoot != null && _sunsetSunRoot.activeSelf)
+                _sunsetSunRoot.SetActive(false);
+            return;
+        }
+
+        EnsureSunsetSunVisual();
+        if (_sunsetSunRoot == null) return;
+        if (!_sunsetSunRoot.activeSelf) _sunsetSunRoot.SetActive(true);
+
+        var cam = Camera.main;
+        if (cam == null) cam = FindAnyObjectByType<Camera>();
+        if (cam == null) return;
+
+        // 太陽の位置：スカイボックスの太陽方位へ遠方（380m）にカメラ追従で配置
+        Vector3 sunWorldPos = cam.transform.position + SkyboxSunDir * 380f;
+        _sunsetSunRoot.transform.position = sunWorldPos;
+        _sunsetSunRoot.transform.rotation = Quaternion.LookRotation(-SkyboxSunDir, Vector3.up);
+
+        // キラキラ明滅シマーリングパルス（2.8Hzの繊細なきらめき）
+        float shimmer = 0.86f + 0.14f * Mathf.Sin(Time.time * 2.8f) + 0.06f * Mathf.Cos(Time.time * 5.6f);
+        float coronaRot = Time.time * 1.8f;
+
+        // コア：鮮烈な赤寄りオレンジ（茜色）
+        Color coreCol = new Color(1.0f, 0.24f, 0.02f, 1.0f) * (sunset * shimmer);
+        if (_sunCoreMat.HasProperty("_TintColor")) _sunCoreMat.SetColor("_TintColor", coreCol);
+        else _sunCoreMat.color = coreCol;
+        _sunCoreT.localScale = Vector3.one * (36f * (0.96f + 0.06f * Mathf.Sin(Time.time * 2.1f)));
+
+        // コロナ：外側に広がる茜色・黄金のキラキラ光輪
+        Color coronaCol = new Color(1.0f, 0.42f, 0.08f, 0.95f) * (sunset * shimmer);
+        if (_sunCoronaMat.HasProperty("_TintColor")) _sunCoronaMat.SetColor("_TintColor", coronaCol);
+        else _sunCoronaMat.color = coronaCol;
+        _sunCoronaT.localScale = Vector3.one * (125f * shimmer);
+        _sunCoronaT.localRotation = Quaternion.Euler(0f, 0f, coronaRot);
     }
 }

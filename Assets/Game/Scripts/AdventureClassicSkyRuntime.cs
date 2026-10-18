@@ -31,8 +31,8 @@ public class AdventureClassicSkyRuntime : MonoBehaviour
     public const  float           PostExposure       = 0.28f; // 全体の露出を底上げして明るく爽やかな画面に
     public const  float           Contrast           = 2f;
     public const  float           Saturation         = 14f; // 色鮮やかな草花と海の美しさを引き出す
-    public const  float           BloomIntensity     = 0.28f;
-    public const  float           BloomThreshold     = 1.18f;
+    public const  float           BloomIntensity     = 0.55f;
+    public const  float           BloomThreshold     = 0.88f;
     // ─────────────────────────────────────────────────────────────
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
