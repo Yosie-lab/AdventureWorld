@@ -33,6 +33,10 @@ public class AdventureNikoFootsteps : MonoBehaviour
     Vector3 _lastPos;
     bool _wasGrounded = true;
 
+    // 案B：浅瀬・水遊び後の濡れ余韻＆水滴滴りタイマー
+    float _wetTimer = 0f;
+    float _dripTimer = 0f;
+
     [Header("Volume & Tuning")]
     [Range(0f, 1f)] public float volume = 0.22f;
 
@@ -123,6 +127,23 @@ public class AdventureNikoFootsteps : MonoBehaviour
         {
             _stepTimer = 0.22f;
         }
+
+        // 案B：水辺判定と濡れ余韻・水滴滴り（Dripping Water Drops）
+        bool inWaterNow = CheckIsInWater(curPos);
+        if (inWaterNow)
+        {
+            _wetTimer = 3.6f;
+        }
+        else if (_wetTimer > 0f)
+        {
+            _wetTimer -= Time.deltaTime;
+            _dripTimer -= Time.deltaTime;
+            if (_dripTimer <= 0f)
+            {
+                _dripTimer = Random.Range(0.20f, 0.32f);
+                SpawnDrippingWaterDrops(curPos);
+            }
+        }
     }
 
     /// <summary>Nikoが波打ち際や池・湖の水中に足を踏み入れているかを正確に判定</summary>
@@ -169,6 +190,7 @@ public class AdventureNikoFootsteps : MonoBehaviour
             // 水辺・波打ち際：ピチャッ、チャプッという涼やかな水しぶき足音
             clip = isLeft ? _waterStepL : _waterStepR;
             SpawnFootstepSplashFx(footPos, isLeft, bigSplash: false);
+            SpawnWaterRippleFx(footPos, bigSplash: false);
         }
         else if (onSand)
         {
@@ -212,6 +234,7 @@ public class AdventureNikoFootsteps : MonoBehaviour
             _audioSource.PlayOneShot(_waterLanding, volume * 1.55f * seVol);
         }
         SpawnFootstepSplashFx(transform.position, isLeft: true, bigSplash: true);
+        SpawnWaterRippleFx(transform.position, bigSplash: true);
     }
 
     /// <summary>小ジャンプ・踏み切り時の軽快なポップホップ音</summary>
@@ -435,6 +458,194 @@ public class AdventureNikoFootsteps : MonoBehaviour
         sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, curve);
 
         Destroy(fxGo, 0.8f);
+    }
+
+    static Texture2D _rippleRingTex;
+    static Material _rippleMat;
+    static Material _dripMat;
+
+    public static Texture2D GetRippleRingTexture()
+    {
+        if (_rippleRingTex != null) return _rippleRingTex;
+        int res = 64;
+        _rippleRingTex = new Texture2D(res, res, TextureFormat.RGBA32, false)
+        {
+            name = "WaterRippleRingTex",
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear
+        };
+        Vector2 center = new Vector2(0.5f, 0.5f);
+        Color[] cols = new Color[res * res];
+        float radius = 0.40f;
+        float halfThickness = 0.10f;
+
+        for (int y = 0; y < res; y++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                Vector2 uv = new Vector2((x + 0.5f) / res, (y + 0.5f) / res);
+                float dist = Vector2.Distance(uv, center);
+                float diff = Mathf.Abs(dist - radius);
+                float alpha = Mathf.Clamp01(1f - (diff / halfThickness));
+                alpha = Mathf.SmoothStep(0f, 1f, alpha);
+                cols[y * res + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+        _rippleRingTex.SetPixels(cols);
+        _rippleRingTex.Apply();
+        return _rippleRingTex;
+    }
+
+    static Material GetRippleMaterial()
+    {
+        if (_rippleMat == null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                         ?? Shader.Find("Universal Render Pipeline/Unlit")
+                         ?? Shader.Find("Mobile/Particles/Additive")
+                         ?? Shader.Find("Particles/Standard Unlit");
+            _rippleMat = new Material(shader) { name = "FootstepRipple_Mat" };
+            var tex = GetRippleRingTexture();
+            _rippleMat.SetTexture("_BaseMap", tex);
+            _rippleMat.mainTexture = tex;
+            _rippleMat.SetFloat("_Surface", 1f); // Transparent
+            _rippleMat.SetFloat("_Blend", 1f); // Additive
+            _rippleMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            _rippleMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            _rippleMat.SetInt("_ZWrite", 0);
+            _rippleMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            _rippleMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            _rippleMat.SetColor("_BaseColor", new Color(0.85f, 0.95f, 1f, 0.75f));
+            _rippleMat.color = new Color(0.85f, 0.95f, 1f, 0.75f);
+        }
+        return _rippleMat;
+    }
+
+    static Material GetDripMaterial()
+    {
+        if (_dripMat == null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                         ?? Shader.Find("Universal Render Pipeline/Unlit")
+                         ?? Shader.Find("Mobile/Particles/Additive")
+                         ?? Shader.Find("Particles/Standard Unlit");
+            _dripMat = new Material(shader) { name = "WaterDrip_Mat" };
+            var tex = AdventureRustDrone.GetSoftSmokeTexture();
+            _dripMat.SetTexture("_BaseMap", tex);
+            _dripMat.mainTexture = tex;
+            _dripMat.SetFloat("_Surface", 1f);
+            _dripMat.SetFloat("_Blend", 1f);
+            _dripMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            _dripMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            _dripMat.SetInt("_ZWrite", 0);
+            _dripMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            _dripMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            _dripMat.SetColor("_BaseColor", new Color(0.80f, 0.94f, 1f, 0.85f));
+            _dripMat.color = new Color(0.80f, 0.94f, 1f, 0.85f);
+        }
+        return _dripMat;
+    }
+
+    /// <summary>
+    /// 案B：浅瀬・波打ち際歩行時の水面波紋リングエフェクト（Expanding Ripple）
+    /// 水面にペタッと広がる円環波紋を生成
+    /// </summary>
+    void SpawnWaterRippleFx(Vector3 pos, bool bigSplash)
+    {
+        var fxGo = new GameObject("WaterRippleFx");
+        float waterSurfaceY = (pos.y <= 6.0f) ? 5.52f : (pos.y + 0.02f);
+        fxGo.transform.position = new Vector3(pos.x, waterSurfaceY, pos.z);
+
+        var ps = fxGo.AddComponent<ParticleSystem>();
+        var psr = fxGo.GetComponent<ParticleSystemRenderer>();
+        if (psr != null)
+        {
+            psr.sharedMaterial = GetRippleMaterial();
+            psr.renderMode = ParticleSystemRenderMode.HorizontalBillboard;
+            psr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            psr.receiveShadows = false;
+        }
+
+        var main = ps.main;
+        main.startLifetime = bigSplash ? 0.85f : 0.55f;
+        main.startSpeed = 0f;
+        main.startSize = bigSplash ? 0.35f : 0.18f;
+        main.startColor = new Color(0.85f, 0.96f, 1f, bigSplash ? 0.80f : 0.55f);
+        main.gravityModifier = 0f;
+        main.loop = false;
+        main.stopAction = ParticleSystemStopAction.Destroy;
+
+        var emission = ps.emission;
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 1) });
+
+        var shape = ps.shape;
+        shape.enabled = false;
+
+        var colOverLifetime = ps.colorOverLifetime;
+        colOverLifetime.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(new Color(0.7f, 0.92f, 1f), 1f) },
+            new[] { new GradientAlphaKey(bigSplash ? 0.85f : 0.6f, 0f), new GradientAlphaKey(0f, 1f) }
+        );
+        colOverLifetime.color = grad;
+
+        var sizeOverLifetime = ps.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        var curve = new AnimationCurve();
+        curve.AddKey(0f, 0.2f);
+        curve.AddKey(0.4f, 1.8f);
+        curve.AddKey(1f, bigSplash ? 4.5f : 2.8f);
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, curve);
+
+        Destroy(fxGo, bigSplash ? 1.0f : 0.7f);
+    }
+
+    /// <summary>
+    /// 案B：水辺から上がった後の「水滴滴りエフェクト」（Dripping Water Drops）
+    /// Nikoの体からポタポタと地面へ透明な水滴が落ちる
+    /// </summary>
+    void SpawnDrippingWaterDrops(Vector3 bodyPos)
+    {
+        var fxGo = new GameObject("WaterDripFx");
+        Vector3 dripOrigin = bodyPos + Vector3.up * 0.25f + (Random.insideUnitSphere * 0.08f);
+        fxGo.transform.position = dripOrigin;
+
+        var ps = fxGo.AddComponent<ParticleSystem>();
+        var psr = fxGo.GetComponent<ParticleSystemRenderer>();
+        if (psr != null)
+        {
+            psr.sharedMaterial = GetDripMaterial();
+            psr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            psr.receiveShadows = false;
+        }
+
+        var main = ps.main;
+        main.startLifetime = 0.35f;
+        main.startSpeed = Random.Range(0.2f, 0.5f);
+        main.startSize = Random.Range(0.04f, 0.065f);
+        main.startColor = new Color(0.85f, 0.96f, 1.0f, 0.80f);
+        main.gravityModifier = 2.0f; // 地面へポタッと落ちる
+        main.loop = false;
+        main.stopAction = ParticleSystemStopAction.Destroy;
+
+        var emission = ps.emission;
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 1) });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 0.04f;
+
+        var colOverLifetime = ps.colorOverLifetime;
+        colOverLifetime.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(new Color(0.7f, 0.95f, 1f), 1f) },
+            new[] { new GradientAlphaKey(0.85f, 0f), new GradientAlphaKey(0f, 1f) }
+        );
+        colOverLifetime.color = grad;
+
+        Destroy(fxGo, 0.5f);
     }
 
     /// <summary>フォールバック用の愛らしいポップトコトコ音波形合成</summary>
