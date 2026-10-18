@@ -433,6 +433,9 @@ public partial class AdventureSanctuaryTowerManager
         {
             drone.SpeakCustom("いっくよー！大空へダイブ！！", 5.0f);
         }
+
+        // 大空へ上昇した瞬間のウミネコたちの鳴き声を再生！
+        PlayRelaunchSkySeagulls();
         _epilogueTriggered = false;
         _filmIndex = -1;
         _filmPhase = 0;

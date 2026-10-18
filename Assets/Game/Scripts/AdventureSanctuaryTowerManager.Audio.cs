@@ -440,6 +440,63 @@ public partial class AdventureSanctuaryTowerManager
             _epilogueSeagullGo = null;
         }
     }
+
+    float _lastSkySeagullTime = -99f;
+
+    /// <summary>ゲームクリア後、「大空へダイブ」で上空へ上昇した瞬間にウミネコたちが歓声をあげて鳴き交わす演出</summary>
+    public void PlayRelaunchSkySeagulls()
+    {
+        if (Time.unscaledTime < _lastSkySeagullTime + 12f) return;
+        _lastSkySeagullTime = Time.unscaledTime;
+        StartCoroutine(RelaunchSkySeagullRoutine());
+    }
+
+    IEnumerator RelaunchSkySeagullRoutine()
+    {
+        var clip1 = LoadSeagullClip(false);
+        var clipMany = LoadSeagullClip(true);
+        if (clip1 == null && clipMany == null) yield break;
+
+        var go = new GameObject("RelaunchSkySeagullAudio");
+        go.transform.SetParent(transform, false);
+        var src = go.AddComponent<AudioSource>();
+        src.spatialBlend = 0.05f; // 2Dステレオ（頭上・大空全体に澄んで響く）
+        src.playOnAwake = false;
+
+        float seVol = PlayerPrefs.GetFloat("Adventure_SeVolume", 1f);
+
+        // 1. 大空へ打ち上がり、視界が一気に開けた瞬間（約0.35秒後）にすぐ近くのウミネコが高く鳴く
+        yield return new WaitForSeconds(0.35f);
+        if (clip1 != null && src != null)
+        {
+            src.pitch = Random.Range(1.02f, 1.10f); // 晴れやかで澄んだピッチ
+            src.PlayOneShot(clip1, 0.42f * seVol);
+        }
+
+        // 2. 風に乗って滑空に入った頃（約1.5秒後）、遠くの群れが鳴き交わす
+        yield return new WaitForSeconds(1.5f);
+        if (clipMany != null && src != null)
+        {
+            src.pitch = Random.Range(0.96f, 1.04f);
+            src.PlayOneShot(clipMany, 0.38f * seVol);
+        }
+        else if (clip1 != null && src != null)
+        {
+            src.pitch = Random.Range(0.94f, 1.02f);
+            src.PlayOneShot(clip1, 0.36f * seVol);
+        }
+
+        // 3. 広大な島を見下ろしながら優雅に滑空する余韻（約3.5秒後）にもう1羽
+        yield return new WaitForSeconds(3.5f);
+        if (clip1 != null && src != null)
+        {
+            src.pitch = Random.Range(0.98f, 1.06f);
+            src.PlayOneShot(clip1, 0.35f * seVol);
+        }
+
+        yield return new WaitForSeconds(5.0f);
+        if (go != null) Destroy(go);
+    }
     #endregion
 }
 
