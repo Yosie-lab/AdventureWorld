@@ -12,7 +12,7 @@ created: 2026-09-11
 ### 概要・現在の状態
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
 - **コンパイルエラー**: 0件
-- **夕暮れの太陽光・大気・フォグ色を「赤寄りの鮮明なオレンジ（茜色）」に刷新（2026-10-18 追記）**:
+- **夕暮れの太陽光・大気・フォグ色を「赤寄りの鮮明なオレンジ（茜色）」に刷新（2026-10-18 追記・確定）**:
   1. **最初の画像の美しいトーン・光量への完全復元（`AdventureDayNightDirector.cs`）**:
      - 太陽光カラー（`targetSunColor`）を、最初の鮮烈な赤寄り茜色オレンジ `new Color(1.0f, 0.26f, 0.03f)`、強度（`targetIntensity`）を当時のままの高輝度 `1.38f` に完全復元。
      - 環境光（`ambientLight`）を `Color(0.74f, 0.36f, 0.20f)`、フォグ（`fogColor`）を `Color(0.96f, 0.38f, 0.14f)`（濃度 0.0022f）に復元し、最初の画像で好評だった温かく澄んだ茜色の夕暮れ大気を再現。
@@ -23,6 +23,8 @@ created: 2026-09-11
      - `RenderSettings.skybox` の `_Exposure` を 1.0f（標準露出）、`_GroundColor` を温かい夕陽の反射色へ、`_AtmosphereThickness` を 1.28f に連動させ、水平線周りの大気散乱も鮮烈な赤橙色に広がるよう調整。
   4. **波打ち際の夕陽照り返し（`AdventureBeachVisualEnhancer.cs`）**:
      - 波の色（`sunsetWaveColor`）を赤寄りの温かいオレンジに連動。
+  5. **シーン保存と永続化（`RustAndFloat.unity` / `Skybox.mat`）**:
+     - Play Mode停止状態でシーンおよびスカイボックスマテリアルを正常に保存完了（コミット `ead85d0`）。コンパイルエラー0件。
 - **新・案A：メガジャンプ頂点「無重力ハングタイム＆絶景パノラマ JUICE」完成（2026-10-18 追記）**:
   1. **無重力ハングタイム浮遊（`AdventurePlayerController.cs`）**:
      - メガ・スチームウィンドや上昇サーマルで一気に打ち上がった後、上昇速度がゼロに近づく最高到達点（`_hop <= 3.5f`）にて 0.38 秒間の無重力ハングタイムステート（`_apexHangTimer`）を発動。
