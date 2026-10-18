@@ -134,10 +134,13 @@ public class AdventureBeachSeagull : MonoBehaviour
         var rightWingMesh = CreateBirdWingMesh(true);
         var leftWingMesh = CreateBirdWingMesh(false);
 
+        // 翼・尾羽も白い美しい羽毛（whiteFeatherMat）で統一し、夕暮れ光で茶色い木片に見えるのを100%防止
+        var pureWingMat = whiteFeatherMat ?? wingMat;
+
         if (_rightWing != null)
         {
             var rend = _rightWing.GetComponent<Renderer>();
-            if (rend != null) wingMat = rend.sharedMaterial;
+            if (rend != null && pureWingMat != null) rend.sharedMaterial = pureWingMat;
             var mf = _rightWing.GetComponent<MeshFilter>();
             if (mf != null) mf.sharedMesh = rightWingMesh;
             _rightWing.localPosition = new Vector3(0.10f, 0.16f, 0.02f);
@@ -148,7 +151,7 @@ public class AdventureBeachSeagull : MonoBehaviour
         if (_leftWing != null)
         {
             var rend = _leftWing.GetComponent<Renderer>();
-            if (rend != null && wingMat == null) wingMat = rend.sharedMaterial;
+            if (rend != null && pureWingMat != null) rend.sharedMaterial = pureWingMat;
             var mf = _leftWing.GetComponent<MeshFilter>();
             if (mf != null) mf.sharedMesh = leftWingMesh;
             _leftWing.localPosition = new Vector3(-0.10f, 0.16f, 0.02f);
@@ -168,8 +171,13 @@ public class AdventureBeachSeagull : MonoBehaviour
             var mf = tailGo.AddComponent<MeshFilter>();
             mf.sharedMesh = CreateTailFanMesh();
             var mr = tailGo.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = wingMat ?? whiteFeatherMat;
+            mr.sharedMaterial = pureWingMat;
             _tail = tailGo.transform;
+        }
+        else
+        {
+            var mr = _tail.GetComponent<MeshRenderer>();
+            if (mr != null && pureWingMat != null) mr.sharedMaterial = pureWingMat;
         }
 
         // オレンジ色の小さな脚（Legs）を追加して砂浜の上にしっかり立たせる
@@ -348,19 +356,28 @@ public class AdventureBeachSeagull : MonoBehaviour
     #region Grounded Behaviors (Lively Idle Animation)
     void UpdateGrounded()
     {
-        // プレイヤー接近判定（5.8m以内で即座に飛び立つ）
+        // プレイヤー接近判定（海や空へ飛び立つと遠景で茶色い船の破片に見えるため、砂浜の上をトコトコ小走りで回避）
         if (_player != null)
         {
             float dist = Vector3.Distance(transform.position, _player.position);
             if (dist < TakeoffDistance)
             {
-                TakeOff();
-                return;
+                if (_currentAction != IdleAction.Waddling)
+                {
+                    _currentAction = IdleAction.Waddling;
+                    _actionTimer = Random.Range(1.8f, 3.2f);
+                    _actionSubTimer = 0f;
+                    Vector3 away = (transform.position - _player.position).normalized;
+                    away.y = 0f;
+                    if (away.sqrMagnitude > 0.001f)
+                    {
+                        transform.rotation = Quaternion.LookRotation(away);
+                    }
+                }
             }
-
-            // 接近警戒（5.8m〜8.5m）：プレイヤーの方向をキョロリと見て警戒
-            if (dist < 8.5f)
+            else if (dist < 8.5f)
             {
+                // 接近警戒（5.8m〜8.5m）：プレイヤーの方向をキョロリと見て警戒
                 Vector3 toPlayer = (_player.position - transform.position).normalized;
                 float angleToPlayer = Vector3.SignedAngle(transform.forward, toPlayer, Vector3.up);
                 _headTargetYaw = Mathf.Clamp(angleToPlayer, -55f, 55f);

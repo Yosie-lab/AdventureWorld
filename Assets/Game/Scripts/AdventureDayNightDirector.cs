@@ -297,78 +297,26 @@ public class AdventureDayNightDirector : MonoBehaviour
         RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, 0.0012f, dt);
     }
 
-    // 案C：映画的大気光粒子（Atmospheric Sun Motes）
+    // 映画的大気光粒子（Atmospheric Sun Motes）：カメラ前の茶色い不定形モヤ・破片に見えるため完全無効化
     ParticleSystem _sunMotesPs;
 
     void EnsureAtmosphericSunMotes()
     {
-        if (_sunMotesPs != null) return;
-        var go = new GameObject("AtmosphericSunMotes");
-        DontDestroyOnLoad(go);
-        _sunMotesPs = go.AddComponent<ParticleSystem>();
-        _sunMotesPs.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-
-        var psr = go.GetComponent<ParticleSystemRenderer>();
-        if (psr != null)
+        var existing = GameObject.Find("AtmosphericSunMotes");
+        if (existing != null)
         {
-            psr.sharedMaterial = AdventureRustDrone.GetSoftSmokeMaterial();
-            psr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            psr.receiveShadows = false;
+            Destroy(existing);
         }
-
-        var main = _sunMotesPs.main;
-        main.loop = true;
-        main.playOnAwake = true;
-        main.startLifetime = 3.2f;
-        main.startSpeed = 0.22f;
-        main.startSize = 0.09f;
-        main.startColor = new Color(1f, 0.95f, 0.85f, 0.40f);
-        main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = 80;
-
-        var emission = _sunMotesPs.emission;
-        emission.rateOverTime = 14f;
-
-        var shape = _sunMotesPs.shape;
-        shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 14f;
-
-        var vel = _sunMotesPs.velocityOverLifetime;
-        vel.enabled = true;
-        vel.space = ParticleSystemSimulationSpace.World;
-        vel.x = new ParticleSystem.MinMaxCurve(0.04f, 0.20f);
-        vel.y = new ParticleSystem.MinMaxCurve(-0.04f, 0.10f);
-        vel.z = new ParticleSystem.MinMaxCurve(0.02f, 0.16f);
-
-        var col = _sunMotesPs.colorOverLifetime;
-        col.enabled = true;
-        var grad = new Gradient();
-        grad.SetKeys(
-            new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
-            new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.45f, 0.35f), new GradientAlphaKey(0f, 1f) }
-        );
-        col.color = grad;
-
-        _sunMotesPs.Play();
+        _sunMotesPs = null;
     }
 
     void UpdateAtmosphericSunMotes(Color sunColor, float intensity)
     {
-        if (_sunMotesPs == null)
+        // カメラ前を横切る茶色いゴミ・不定形の船のかけらのような浮遊バグを根絶するため無効化
+        if (_sunMotesPs != null)
         {
-            EnsureAtmosphericSunMotes();
-            if (_sunMotesPs == null) return;
+            Destroy(_sunMotesPs.gameObject);
+            _sunMotesPs = null;
         }
-
-        var cam = Camera.main;
-        if (cam != null)
-        {
-            _sunMotesPs.transform.position = cam.transform.position + cam.transform.forward * 4.0f;
-        }
-
-        var main = _sunMotesPs.main;
-        Color moteCol = sunColor;
-        moteCol.a = Mathf.Clamp(intensity * 0.35f, 0.12f, 0.50f);
-        main.startColor = moteCol;
     }
 }

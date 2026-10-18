@@ -123,6 +123,9 @@ created: 2026-09-11
   - **台座東側の崖下突き抜け・頭挟まりの完全解消**:
     1. 誤テレポート根絶: `GetTerraceSurfaceY` と `RescuePlayerIfBuriedInTerrace` の高度閾値を上面直近（62.80m以上）に厳格化し、崖下にいるプレイヤーが誤って上面へ吸い上げられる現象を解消。
     2. ソリッド基壇・外壁ブロック配備: 台座の東側〜南東側の巨大崖下空洞に、天面63.00mから地形深部まで届く大理石基壇メッシュ（`PodiumCliffFoundation_Mesh.asset`）および厚み2.5mのソリッド城壁コライダー（30基）を配備。さらに台座本体コライダーを `convex = true` に設定し、下や側面からの頭突っ込みやすり抜けを物理的に100%遮断。
+    3. **東海岸沖・海上空の茶色い破片バグの完全解消（2026-10-18 追記）**:
+       - `PodiumCliffFoundation_Mesh.asset` の頂点がワールド座標系（中心 X:522, Y:47, Z:501）基準でベイクされており、親オブジェクト `SanctuaryZero_Tower`（位置: 512, 62, 512）の子として配置されたことで座標が二重加算（ワールド座標 X:1034, Y:109, Z:1013）され、東の海の上空に巨大な崖外壁が突き出ていたのが「Floatの頭の右横に見える茶色の破片／鉤爪」の真因であることを100%特定。
+       - メッシュ頂点から親タワー座標（512, 62, 512）を減算し、ローカル原点基準（中心 X:10.12, Y:-14.71, Z:-10.12）に正規化して保存。タワー足元の崖下へ正しく格納され、東海岸・空・海の視界から完全消滅（バグピクセル 0 を画像検証済み）。
   - **ウミネコの流線型化**: `AdventureSoaringSeagullsManager` にて直方体（Cube）だった胴体を、7断面12角形ロフトの滑らかな有機的紡錘形メッシュ（`CreateBirdBodyMesh`）に刷新。クチバシの分割数も10角形に引き上げ。
   - **カエルの本格造形化＆跳躍アニメーション**: `AdventureParadiseCreatures.cs` の `FrogHop` を改修し、シーン内の全36匹のカエルに対して「洋ナシ型ボディ＋白腹、平たい頭部、飛び出し目、ちょこんと揃えた前脚、くの字に折りたたまれた力強い後脚、ペコペコ脈打つ喉袋呼吸、跳躍キック＆屈伸」を実装し、エディタ上でシーンへ永続適用。
 - **風脈ギミック検証メモ（2026-10-17 追記）**:
@@ -1422,6 +1425,17 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
     - **機能概要**:
       - エピローグシネマ完了時、およびゲームクリアボード（`GameClearModal`）が表示された瞬間に、プロシージャル合成された壮大で感動的な祝祭のクリスタルベル・チャイム（`GameClearTriumphChime`）を自動再生。
       - Cメジャー7th〜9thの上行アルペジオ（大空への羽ばたきを象徴する8音）＋オクターブ倍音＋ステレオ空間ディレイ＋広大な天空リバーブにより、冒険を完走した達成感と余韻を情緒豊かに演出。
+
+40. **空・海上の茶色い不定形破片・浮遊物バグの完全根絶（2026-10-18追加）**:
+    - [AdventureDayNightDirector.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureDayNightDirector.cs)
+    - [AdventureBeachSeagull.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBeachSeagull.cs)
+    - [RustAndFloat.unity](file:///Users/user/Unity%20project/RustAndFloat/Assets/RustAndFloat/Scenes/RustAndFloat.unity)
+    - **機能概要**:
+      - **1. カメラ前大気光粒子（AtmosphericSunMotes）の完全撤去**:
+        - 夕暮れ時に太陽光カラー（赤橙・茶褐色）となり、カメラ前方4mをゆっくり横切るアルファブレンド煙テクスチャ粒子（`AtmosphericSunMotes`）を完全停止・撤去。背景の澄んだ青空や海に対して「茶色い不定形のモヤやゴミ・破片」に見えていたバグ要因を100%根絶。
+      - **2. 砂浜カモメ（BeachSeagull）の海・空への不要な飛び立ち・旋回の廃止**:
+        - プレイヤー接近時に海・空へ急上昇して旋回していた挙動を廃止。プレイヤー接近時は砂浜の上をチョコチョコ小走り（`Waddling`）で逃げる愛らしい地上回避アニメーションに改修。
+        - 翼および尾羽マテリアルを鳥らしい純白の羽毛マテリアル（`whiteFeatherMat`）へ統一し、夕暮れ時の環境光で暗灰色が茶褐色（木の破片）に見える現象を完全に解消。
 
 ## 次の推奨タスク
 
