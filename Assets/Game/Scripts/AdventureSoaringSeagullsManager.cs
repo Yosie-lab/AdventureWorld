@@ -200,14 +200,22 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
 
     static List<AudioSource> _cachedWorldSeagullSources;
     static float _lastWorldSeagullScanTime = -10f;
+    static bool _lastSilencedState = false;
+    static bool _silencedStateInitialized = false;
 
     /// <summary>
     /// シーン内のすべてのウミネコ・カモメ音源（SeagullSound_*、BeachSeagulls配下、BeachWavesManager等）を
-    /// 完全にミュート・停止させる強制安全網
+    /// 完全にミュート・停止させる強制安全網。状態が変化した時のみ走査・切り替えを行う。
     /// </summary>
-    public static void SilenceAllWorldSeagulls(bool silence)
+    public static void SilenceAllWorldSeagulls(bool silence, bool force = false)
     {
-        if (Time.unscaledTime - _lastWorldSeagullScanTime > 2.5f || _cachedWorldSeagullSources == null)
+        if (!force && _silencedStateInitialized && _lastSilencedState == silence)
+            return;
+
+        _silencedStateInitialized = true;
+        _lastSilencedState = silence;
+
+        if (_cachedWorldSeagullSources == null || _cachedWorldSeagullSources.Count == 0 || (Time.unscaledTime - _lastWorldSeagullScanTime > 30f))
         {
             _lastWorldSeagullScanTime = Time.unscaledTime;
             if (_cachedWorldSeagullSources == null)
@@ -274,7 +282,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             }
         }
 
-        // 2. 音声の沈黙安全網（飛行禁止中は全ウミネコ音声を完全ミュート）
+        // 2. 音声の沈黙安全網（状態変化時のみ実行）
         SilenceAllWorldSeagulls(!allowed);
 
         if (!allowed)

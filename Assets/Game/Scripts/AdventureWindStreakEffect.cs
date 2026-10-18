@@ -8,8 +8,6 @@ using UnityEngine;
 public class AdventureWindStreakEffect : MonoBehaviour
 {
     private ParticleSystem _streakPs;
-    private ParticleSystem.EmissionModule _emission;
-    private ParticleSystem.VelocityOverLifetimeModule _velocityModule;
     private AdventurePlayerController _player;
     private Camera _cam;
 
@@ -40,6 +38,8 @@ public class AdventureWindStreakEffect : MonoBehaviour
 
     void Update()
     {
+        if (_streakPs == null) return;
+
         if (_player == null)
         {
             _player = AdventurePlayerController.Resolve();
@@ -54,29 +54,32 @@ public class AdventureWindStreakEffect : MonoBehaviour
             || (AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.IsCanopyToEpilogueSequence)
             || AdventureStoryFlow.KeepsAirborne(_player);
 
+        var emission = _streakPs.emission;
+
         // 速度が乗っている時（intensity > 0.18f）かつシネマティック中以外のみウィンドストリークを放出
         if (!isTowerAscendOrClimax && intensity > 0.18f && !_player.IsGrounded)
         {
             float targetRate = Mathf.Lerp(12f, 75f, (intensity - 0.18f) / 0.82f);
             if (isAscending) targetRate *= 1.35f; // メガジャンプ急上昇時はさらに増量
 
-            _emission.rateOverTime = targetRate;
+            emission.rateOverTime = targetRate;
 
+            var vel = _streakPs.velocityOverLifetime;
             // 急上昇中は下方向へ激しく流し、水平滑空中は手前方向（カメラ後方）へ流す
             if (isAscending)
             {
-                _velocityModule.y = new ParticleSystem.MinMaxCurve(-38.0f * intensity, -22.0f * intensity);
-                _velocityModule.z = new ParticleSystem.MinMaxCurve(-12.0f, -4.0f);
+                vel.y = new ParticleSystem.MinMaxCurve(-38.0f * intensity, -22.0f * intensity);
+                vel.z = new ParticleSystem.MinMaxCurve(-12.0f, -4.0f);
             }
             else
             {
-                _velocityModule.y = new ParticleSystem.MinMaxCurve(-6.0f, 2.0f);
-                _velocityModule.z = new ParticleSystem.MinMaxCurve(-35.0f * intensity, -18.0f * intensity);
+                vel.y = new ParticleSystem.MinMaxCurve(-6.0f, 2.0f);
+                vel.z = new ParticleSystem.MinMaxCurve(-35.0f * intensity, -18.0f * intensity);
             }
         }
         else
         {
-            _emission.rateOverTime = 0f;
+            emission.rateOverTime = 0f;
         }
     }
 
@@ -97,8 +100,8 @@ public class AdventureWindStreakEffect : MonoBehaviour
         main.simulationSpace = ParticleSystemSimulationSpace.Local;
         main.playOnAwake = true;
 
-        _emission = _streakPs.emission;
-        _emission.rateOverTime = 0f;
+        var emission = _streakPs.emission;
+        emission.rateOverTime = 0f;
 
         // 画面の四隅・周辺ドーナツ状から発生
         var shape = _streakPs.shape;
@@ -127,9 +130,9 @@ public class AdventureWindStreakEffect : MonoBehaviour
         }
 
         // Velocity Over Lifetime
-        _velocityModule = _streakPs.velocityOverLifetime;
-        _velocityModule.enabled = true;
-        _velocityModule.space = ParticleSystemSimulationSpace.Local;
+        var vel = _streakPs.velocityOverLifetime;
+        vel.enabled = true;
+        vel.space = ParticleSystemSimulationSpace.Local;
 
         // Size over Lifetime（フェードアウト）
         var sol = _streakPs.sizeOverLifetime;

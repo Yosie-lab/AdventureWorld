@@ -22,6 +22,11 @@ created: 2026-09-11
   - **ゲームクリア後・大空ダイブ時のウミネコ歓声演出（2026-10-18 追記）**:
     - ゲームクリアモーダルで【Space 大空へダイブ】（`RelaunchIntoSky`）を押下した瞬間（強制再生フラグ `force: true`）、およびクリア後にタワー中心の光の柱（`SkybreakHyperUpdraft`）から再び大空（高度95m以上）へ打ち上がった瞬間に、青空を舞うウミネコたちの鳴き声が広がるシーケンス演出（`PlayRelaunchSkySeagulls`）を実装。
     - 打ち上げ直後（0.06s：近接の澄んだ単羽 0.38音量）→ 滑空突入（1.1s：空の群れ 0.32音量）→ 大空パノラマ（2.8s：余韻の単羽 0.28音量）の3段階シーケンス。BGMや風と美しく溶け合う控えめで心地よい音量バランスに調整。10秒の再発抑制クールダウン付き。
+  - **ランタイム負荷・GC Allocリファクタリング（2026-10-18 追記）**:
+    1. **毎フレームNullReferenceException根絶（`AdventureWindStreakEffect.cs`）**: UnityのParticleSystemモジュールstruct（EmissionModule, VelocityOverLifetimeModule）をフィールド変数に保持したことで発生していた毎フレームの例外スロー（`Do not create your own module instances`）を特定し、プロパティ経由のローカルアクセスに全面リファクタリング。コンソール負荷とGC Allocを完全根絶。
+    2. **毎フレームScene.name文字列生成（GC Alloc）ゼロ化（`AdventureSceneContext.cs`）**: カメラやプレイヤー速度判定で毎フレーム呼ばれていた `SceneManager.GetActiveScene().name` 文字列生成を、シーンロード時のみ更新されるboolフラグキャッシュに刷新。
+    3. **ウミネコ音源走査の不要ループ抑止（`AdventureSoaringSeagullsManager.cs`）**: `SilenceAllWorldSeagulls` を状態変化時のみ実行するよう最適化し、2.5秒ごとの全シーン音源検索（`FindObjectsByType`）と毎フレームのループ処理を大幅カット。
+    4. **SE音量読み込みキャッシュ（`AdventureWindSoundEffect.cs`）**: 毎フレームの `PlayerPrefs.GetFloat` を0.5秒インターバルキャッシュに変更。
   - **70m級メガジャンプ・スチームウィンド＆空中リング**: 全7箇所のスチームウィンドのうち3基（`Vent_HyperJump_WestCliff`, `Vent_HyperJump_SouthRidge`, `Vent_HyperJump_Valley`）を最大高度130m〜140m（地上から70m〜85m一気突き抜け）の超高高度メガジャンプに大強化。空中リングも高空へ再配置し、大空を潜り抜ける3連ダイナミックコースを構築。
   - **マテリアル欠損（ピンク四角）解消**: 西崖下などのスチームウィンドで発生していたパーティクルのピンク四角を、新規専用マテリアル `UpdraftWind_Mat.mat`（URP Particles Unlit）を割り当てることで完全解消。
   - **山岳渓流の一体型リボンメッシュ化**: `EasternMountainTorrent` の不自然な24枚の水平Plane階段を完全撤去し、高低差14.5mの斜面に沿う48セグメントの一体型UVアニメーションリボンメッシュ（`EasternMountainTorrent_Mesh.asset`）に全面刷新。水面の段差を根絶。

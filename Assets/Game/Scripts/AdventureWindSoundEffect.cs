@@ -36,6 +36,9 @@ public class AdventureWindSoundEffect : MonoBehaviour
             _player = AdventurePlayerController.Resolve();
     }
 
+    private float _cachedSeVol = 1f;
+    private float _lastSeVolCheckTime = -10f;
+
     void Update()
     {
         if (_player == null)
@@ -44,7 +47,12 @@ public class AdventureWindSoundEffect : MonoBehaviour
             if (_player == null) return;
         }
 
-        float seVol = PlayerPrefs.GetFloat("Adventure_SeVolume", 1f);
+        if (Time.unscaledTime - _lastSeVolCheckTime > 0.5f)
+        {
+            _lastSeVolCheckTime = Time.unscaledTime;
+            _cachedSeVol = PlayerPrefs.GetFloat("Adventure_SeVolume", 1f);
+        }
+        float seVol = _cachedSeVol;
         float intensity = _player.SpeedIntensity;
         bool isGrounded = _player.IsGrounded;
         bool isAscending = _player.IsUpdraftAscending;
