@@ -203,7 +203,7 @@ public class AdventureCameraFollow : MonoBehaviour
         else if (distance < 7.5f)
             distance = 7.8f;
 
-        if (target != null)
+        if (target != null && AdventureRustFloatOpening.IsGameStarted)
             SnapBehindTarget();
         else
             _currentDistance = distance;
@@ -252,13 +252,15 @@ public class AdventureCameraFollow : MonoBehaviour
         if (player != null)
         {
             target = player.transform;
-            SnapBehindTarget();
+            if (AdventureRustFloatOpening.IsGameStarted)
+                SnapBehindTarget();
         }
     }
 
     void Update()
     {
         _lookUpdatedThisFrame = false;
+        if (!AdventureRustFloatOpening.IsGameStarted) return;
         EnsureTarget();
         if (target == null) return;
         UpdateLookInputOnly();
@@ -267,6 +269,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
+        if (!AdventureRustFloatOpening.IsGameStarted) return;
         EnsureTarget();
         if (target == null) return;
 
