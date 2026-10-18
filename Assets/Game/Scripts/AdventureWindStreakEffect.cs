@@ -49,8 +49,13 @@ public class AdventureWindStreakEffect : MonoBehaviour
         float intensity = _player.SpeedIntensity;
         bool isAscending = _player.IsUpdraftAscending;
 
-        // 速度が乗っている時（intensity > 0.18f）のみウィンドストリークを放出
-        if (intensity > 0.18f && !_player.IsGrounded)
+        // タワー崩壊後の光の柱上昇やシネマティック中は速度線も停止
+        bool isTowerAscendOrClimax = _player.IsSkybreakPillarAscending
+            || (AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.IsCanopyToEpilogueSequence)
+            || AdventureStoryFlow.KeepsAirborne(_player);
+
+        // 速度が乗っている時（intensity > 0.18f）かつシネマティック中以外のみウィンドストリークを放出
+        if (!isTowerAscendOrClimax && intensity > 0.18f && !_player.IsGrounded)
         {
             float targetRate = Mathf.Lerp(12f, 75f, (intensity - 0.18f) / 0.82f);
             if (isAscending) targetRate *= 1.35f; // メガジャンプ急上昇時はさらに増量
