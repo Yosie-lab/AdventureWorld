@@ -169,7 +169,9 @@ public partial class AdventurePlayerController : MonoBehaviour
             float vFactor = Mathf.Clamp01(vertSpeed / 38f);
             float hFactor = Mathf.Clamp01(horizSpeed / 20f);
             float boostFactor = _glideBoostTimer > 0f ? 0.35f : 0f;
-            return Mathf.Clamp01(Mathf.Max(vFactor, hFactor) + boostFactor);
+            var skim = AdventureWaterSkimmingJuice.Instance;
+            float skimFactor = (skim != null && skim.IsSkimming) ? (skim.SkimIntensity * 0.45f) : 0f;
+            return Mathf.Clamp01(Mathf.Max(vFactor, hFactor) + boostFactor + skimFactor);
         }
     }
     #endregion
@@ -1080,6 +1082,25 @@ public partial class AdventurePlayerController : MonoBehaviour
         }
 
         _hop = Mathf.MoveTowards(_hop, _glideFallCurrent, GlidePitchRateDive * dt);
+
+        // 案1：水面スキミング＆白波航跡ブースト（海面・湖面の表面張力反発＆加速）
+        var skim = AdventureWaterSkimmingJuice.Instance;
+        if (skim != null && skim.IsSkimming && skim.SkimIntensity > 0.05f)
+        {
+            // 水面クッション反発により、水没を防ぎ水面スレスレ（水面上0.2m〜1.5m）を滑空維持
+            _hop = Mathf.Max(_hop, -0.12f);
+
+            // 水面滑走による爽快な加速ブースト（最大17.5m/s）
+            float boostSpeed = Mathf.Lerp(12.5f, 17.5f, skim.SkimIntensity);
+            if (_airMomentum.sqrMagnitude > 0.04f)
+            {
+                float currentSpd = _airMomentum.magnitude;
+                float boostedSpd = Mathf.MoveTowards(currentSpd, Mathf.Max(currentSpd, boostSpeed), 26f * dt);
+                _airMomentum = _airMomentum.normalized * boostedSpd;
+                _glideSpeedCurrent = boostedSpd;
+            }
+        }
+
         return _airMomentum;
     }
 
