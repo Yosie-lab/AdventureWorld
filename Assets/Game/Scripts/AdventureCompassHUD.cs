@@ -20,6 +20,8 @@ public class AdventureCompassHUD : MonoBehaviour
     Text _scrapMarkerText;
     RectTransform _boxMarkerRt;
     Text _boxMarkerText;
+    RectTransform _towerMarkerRt;
+    Text _towerMarkerText;
 
     const float PixelsPerDegree = 2.05f; // 1度あたりのピクセル幅（表示視野角 約±88度）
     const float RibbonHalfWidth = 180f;
@@ -33,12 +35,32 @@ public class AdventureCompassHUD : MonoBehaviour
     float _scrapBearingVel;
     float _boxBearing;
     float _boxBearingVel;
+    float _towerBearing;
+    float _towerBearingVel;
     bool _yawInitialized;
     bool _scrapBearingInit;
     bool _boxBearingInit;
+    bool _towerBearingInit;
     int _scrapHint;
     int _boxHint;
     int _shownDeg = int.MinValue;
+
+    // Float（相棒ドローン）の道案内Pingシステム
+    Vector3 _guidePingPos;
+    string _guidePingName = "";
+    Color _guidePingColor = Color.yellow;
+    float _guidePingTimer = 0f;
+    bool _hasGuidePing = false;
+
+    /// <summary>相棒FloatがQキーで案内した目標をコンパス上で一定時間パルス強調表示する</summary>
+    public void TriggerGuidePing(Vector3 worldPos, string name, Color color, float duration = 8.5f)
+    {
+        _guidePingPos = worldPos;
+        _guidePingName = name;
+        _guidePingColor = color;
+        _guidePingTimer = duration;
+        _hasGuidePing = true;
+    }
 
     struct CompassElement
     {
@@ -273,7 +295,23 @@ public class AdventureCompassHUD : MonoBehaviour
         var bmOutline = bmGo.AddComponent<Outline>();
         bmOutline.effectColor = new Color(0f, 0f, 0f, 0.98f);
         bmOutline.effectDistance = new Vector2(1.2f, -1.2f);
-        bmGo.SetActive(false);
+        // 2-C. コンパスリボン上に常時表示される「中央・白亜聖域タワーマーカー（🏛️）」
+        var tmGo = new GameObject("CompassSanctuaryTowerMarker", typeof(RectTransform));
+        tmGo.transform.SetParent(_ribbonContainer, false);
+        _towerMarkerRt = tmGo.GetComponent<RectTransform>();
+        _towerMarkerRt.sizeDelta = new Vector2(36f, 26f);
+        _towerMarkerText = tmGo.AddComponent<Text>();
+        _towerMarkerText.font = font;
+        _towerMarkerText.fontSize = 14;
+        _towerMarkerText.fontStyle = FontStyle.Bold;
+        _towerMarkerText.alignment = TextAnchor.MiddleCenter;
+        _towerMarkerText.text = "🏛️";
+        _towerMarkerText.color = new Color(0.40f, 0.95f, 1.0f, 0.95f); // 聖なるシアン発光
+        _towerMarkerText.raycastTarget = false;
+        var tmOutline = tmGo.AddComponent<Outline>();
+        tmOutline.effectColor = new Color(0f, 0f, 0f, 0.98f);
+        tmOutline.effectDistance = new Vector2(1.2f, -1.2f);
+        tmGo.SetActive(false);
 
         // 3. 中央インジケーター（▼ マーカー）
         var needleGo = new GameObject("CompassNeedle", typeof(RectTransform));
@@ -601,10 +639,71 @@ public class AdventureCompassHUD : MonoBehaviour
                 _boxBearingInit = false;
             }
 
+            // ── 白亜聖域タワー（島中央 512, 512）の常時マーカー更新 ──
+            if (!isGuidingToTower) // タワーがメインターゲットの時はメインマーカーに任せる
+            {
+                Vector3 towerCenter = new Vector3(512f, 63.2f, 512f);
+                Vector3 toTowerCenter = towerCenter - playerPos;
+                toTowerCenter.y = 0f;
+                if (toTowerCenter.sqrMagnitude > 25f)
+                {
+                    float towerYaw = YawFromForward(toTowerCenter);
+                    float tAngle = Mathf.DeltaAngle(yaw, towerYaw);
+                    if (!_towerBearingInit)
+                    {
+                        _towerBearing = tAngle;
+                        _towerBearingVel = 0f;
+                        _towerBearingInit = true;
+                    }
+                    else
+                    {
+                        _towerBearing = Mathf.SmoothDampAngle(
+                            _towerBearing, tAngle, ref _towerBearingVel, BearingSmoothTime, Mathf.Infinity, dt);
+                    }
+
+                    if (_towerMarkerRt != null)
+                    {
+                        _towerMarkerRt.gameObject.SetActive(true);
+                        PlaceEdgeMarker(
+                            _towerMarkerRt, _towerMarkerText, _towerBearing,
+                            new Color(0.40f, 0.95f, 1.0f, 0.90f),
+                            "🏛️", "🏛️", "🏛️▶", "◀🏛️");
+                    }
+                }
+                else
+                {
+                    if (_towerMarkerRt != null) _towerMarkerRt.gameObject.SetActive(false);
+                    _towerBearingInit = false;
+                }
+            }
+            else
+            {
+                if (_towerMarkerRt != null) _towerMarkerRt.gameObject.SetActive(false);
+            }
+
+            // ── Float（相棒ドローン）の道案内Pingタイマー更新 ──
+            if (_hasGuidePing)
+            {
+                _guidePingTimer -= dt;
+                if (_guidePingTimer <= 0f)
+                {
+                    _hasGuidePing = false;
+                }
+            }
+
             // ── ナビゲーションテキストの総合案内 ──
             if (_scrapNavText != null)
             {
-                if (isGuidingToTower)
+                if (_hasGuidePing)
+                {
+                    // FloatがQキーで案内中の目標を最優先表示
+                    float pingDist = Vector3.Distance(playerPos, _guidePingPos);
+                    Vector3 toPing = _guidePingPos - playerPos; toPing.y = 0f;
+                    string pCard = GetCardinal(YawFromForward(toPing));
+                    _scrapNavText.text = $"✦ Floatの道案内 ➔ {_guidePingName} 約{Mathf.RoundToInt(pingDist)}m（{pCard}方角） [Qキーで再案内]";
+                    _scrapNavText.color = _guidePingColor;
+                }
+                else if (isGuidingToTower)
                 {
                     Vector3 toTower = targetPos - playerPos;
                     toTower.y = 0f;
@@ -681,7 +780,7 @@ public class AdventureCompassHUD : MonoBehaviour
                     }
                     else
                     {
-                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m（{targetCardinal}方角） [{arrow}]";
+                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m（{targetCardinal}方角） [{arrow}]  [Qキー 道案内]";
                     }
                     _scrapNavText.color = targetColor;
                 }
@@ -693,7 +792,7 @@ public class AdventureCompassHUD : MonoBehaviour
                 else if (hasBoxTarget && boxDist > 3.5f)
                 {
                     // パーツ全回収済み、またはボックス優先表示
-                    _scrapNavText.text = $"📦 {nearestBox.boxTitle} 約{Mathf.RoundToInt(boxDist)}m（{boxCardinal}方角） [{boxArrow}]";
+                    _scrapNavText.text = $"📦 {nearestBox.boxTitle} 約{Mathf.RoundToInt(boxDist)}m（{boxCardinal}方角） [{boxArrow}]  [Qキー 道案内]";
                     _scrapNavText.color = new Color(0.35f, 1.0f, 0.65f, 1.0f);
                 }
                 else if (hasBoxTarget && boxDist <= 3.5f)
@@ -703,7 +802,7 @@ public class AdventureCompassHUD : MonoBehaviour
                 }
                 else
                 {
-                    _scrapNavText.text = "✦ 全ての漂着パーツ＆ボックス回収完了！";
+                    _scrapNavText.text = "✦ 全ての漂着パーツ＆ボックス回収完了！  [Qキー 絶景案内]";
                     _scrapNavText.color = new Color(0.35f, 1.0f, 0.85f, 0.95f);
                 }
             }

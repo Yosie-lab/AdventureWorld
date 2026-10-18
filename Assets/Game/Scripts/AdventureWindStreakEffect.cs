@@ -65,7 +65,8 @@ public class AdventureWindStreakEffect : MonoBehaviour
             emission.rateOverTime = targetRate;
 
             var vel = _streakPs.velocityOverLifetime;
-            // 急上昇中は下方向へ激しく流し、水平滑空中は手前方向（カメラ後方）へ流す
+            // 急上昇中は下方向へ激しく流し、水平滑空中は手前方向（カメラ後方）へ流す（全軸をTwoConstantsモードで統一）
+            vel.x = new ParticleSystem.MinMaxCurve(-0.8f, 0.8f);
             if (isAscending)
             {
                 vel.y = new ParticleSystem.MinMaxCurve(-38.0f * intensity, -22.0f * intensity);
@@ -133,6 +134,9 @@ public class AdventureWindStreakEffect : MonoBehaviour
         var vel = _streakPs.velocityOverLifetime;
         vel.enabled = true;
         vel.space = ParticleSystemSimulationSpace.Local;
+        vel.x = new ParticleSystem.MinMaxCurve(-0.8f, 0.8f);
+        vel.y = new ParticleSystem.MinMaxCurve(-6.0f, 2.0f);
+        vel.z = new ParticleSystem.MinMaxCurve(-25.0f, -10.0f);
 
         // Size over Lifetime（フェードアウト）
         var sol = _streakPs.sizeOverLifetime;

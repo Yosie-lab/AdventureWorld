@@ -1068,11 +1068,13 @@ public class AdventurePauseMenu : MonoBehaviour
         rightCol.text =
             "<b>[ インタラクト ＆ システム ]</b>\n\n" +
             "<b>[E] / [左クリック]</b>  調べる / 注油 / 撫でる\n" +
+            "<b>[Q] / [中クリック]</b>  <b>相棒Floatに道案内を頼む（最寄り目標へ先行フライト）</b>\n" +
+            "<b>[F]</b>  遠隔パーツ回収 / 視線偵察指示\n" +
             "<b>[B]</b>  Rustの着せ替え工房を開く\n" +
             "<b>[Tab]</b>  クエスト目標 ⇄ ミニマルHUD切替\n" +
             "<b>[F5] / [Cmd+S]</b>  クイックセーブ\n" +
             "<b>[ESC]</b>  ポーズ ＆ 設定メニュー開閉\n\n" +
-            "✦ コンパスHUDが最寄りのパーツ・漂着ボックスを常時案内します。";
+            "✦ コンパスHUDと相棒Floatが最寄りの風脈・パーツ・タワーを常時案内します。";
     }
 
     void CreateSettingSlider(Transform parent, string label, float topOffset, float minVal, float maxVal, out Slider slider, out Text valueText, UnityEngine.Events.UnityAction<float> onValueChanged)

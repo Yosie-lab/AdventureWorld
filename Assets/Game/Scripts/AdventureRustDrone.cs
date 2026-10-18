@@ -95,13 +95,18 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
     }
 
-    // 連携アクション（Fキー指示・遠隔回収・偵察・宙返り・撫でスキンシップ・焚き火チル）
-    public enum RustState { Follow, Fetching, Returning, Scouting, Celebrating, Petting, CampfireChill }
+    // 連携アクション（Qキー道案内・Fキー指示・遠隔回収・偵察・宙返り・撫でスキンシップ・焚き火チル）
+    public enum RustState { Follow, Fetching, Returning, Scouting, Celebrating, Petting, CampfireChill, Guiding }
     public RustState CurrentState { get; private set; } = RustState.Follow;
     AdventureScrapItem _targetScrap;
     Vector3 _scoutTargetPos;
     float _stateTimer = 0f;
     AdventureScrapItem _aimedScrap;
+
+    // Qキー道案内（Floatのガイドシグナル＆先行フライト）
+    Vector3 _guideLeadPos;
+    float _guideTimer = 0f;
+    TrailRenderer _guideTrail;
 
     Vector3 _campfireSeatPos;
     Vector3 _campfireLookDir;
@@ -525,6 +530,19 @@ public partial class AdventureRustDrone : MonoBehaviour
             if (_stateTimer <= 0f)
                 CurrentState = RustState.Follow;
         }
+        else if (CurrentState == RustState.Guiding)
+        {
+            goal = _guideLeadPos;
+            float bounce = Mathf.Sin(Time.time * 6f) * 0.12f;
+            goal.y += bounce;
+            _guideTimer -= Time.deltaTime;
+            float distToLead = Vector3.Distance(transform.position, goal);
+            if (_guideTimer <= 0f || distToLead < 1.8f)
+            {
+                CurrentState = RustState.Follow;
+                if (_guideTrail != null) _guideTrail.enabled = false;
+            }
+        }
         else if (CurrentState == RustState.Petting)
         {
             if (_climaxFalling)
@@ -581,13 +599,15 @@ public partial class AdventureRustDrone : MonoBehaviour
 
         _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-2.2f * Time.deltaTime));
         float smoothTime = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning || CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill) ? 0.28f : (wellOiled ? 0.38f : 0.52f);
-        if (_climaxHealing)
+        if (CurrentState == RustState.Guiding)
+            smoothTime = 0.20f;
+        else if (_climaxHealing)
             smoothTime = 0.14f;
         else if (IsClimaxOverdrive)
             smoothTime = 0.12f;
         else if (IsClimaxCrisis || _skybreakNestle || _prologueDistress)
             smoothTime = 0.16f;
-        float maxSpeed = _climaxHealing ? 18f : (IsClimaxOverdrive ? 24f : 8.5f);
+        float maxSpeed = (CurrentState == RustState.Guiding) ? 17.5f : (_climaxHealing ? 18f : (IsClimaxOverdrive ? 24f : 8.5f));
         transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, maxSpeed);
 
         // 画面見切れ防止ガード（オフスクリーン時のみソフト補正）
@@ -684,6 +704,13 @@ public partial class AdventureRustDrone : MonoBehaviour
             {
                 // 胸元ですり寄る甘えチルト
                 look *= Quaternion.Euler(-10f + Mathf.Sin(Time.time * 4f) * 4f, 0f, 16f);
+            }
+            else if (CurrentState == RustState.Guiding)
+            {
+                Vector3 moveDir = _velocity.sqrMagnitude > 0.05f ? _velocity.normalized : (_guideLeadPos - transform.position).normalized;
+                moveDir.y = 0f;
+                if (moveDir.sqrMagnitude > 0.01f)
+                    look = Quaternion.LookRotation(moveDir) * Quaternion.Euler(14f, 0f, 0f); // 目標に向かって前傾フライト
             }
             else if (hitching)
                 look *= Quaternion.Euler(0f, Mathf.Sin(Time.time * 18f) * 8f, 0f);
@@ -855,9 +882,19 @@ public partial class AdventureRustDrone : MonoBehaviour
             _aimedScrap = aimed;
         }
 
+        // Qキー または マウス中クリックで「道案内シグナル（Floatのガイド先行フライト＆コンパスPing）」
+        bool qPressed = false;
+        var kb = AdventureInputReader.Keyboard;
+        if (kb != null) qPressed = kb.qKey.wasPressedThisFrame;
+        try { if (Input.GetKeyDown(KeyCode.Q) || Input.GetMouseButtonDown(2)) qPressed = true; } catch { }
+
+        if (qPressed && (CurrentState == RustState.Follow || CurrentState == RustState.Guiding))
+        {
+            TriggerGuideSignal();
+        }
+
         // Fキー（AdventureInputReader 経由で新旧InputSystem統合）
         bool fPressed = false;
-        var kb = AdventureInputReader.Keyboard;
         if (kb != null) fPressed = kb.fKey.wasPressedThisFrame;
         try { if (Input.GetKeyDown(KeyCode.F)) fPressed = true; } catch { }
 
@@ -892,6 +929,161 @@ public partial class AdventureRustDrone : MonoBehaviour
                     }
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// 【案1】相棒Floatの道案内シグナル（Qキー／中クリック）
+    /// 進行状況に応じた最優先の目標（未起動風脈 > 未回収パーツ > 聖域タワー）へ光の軌跡を引きながら先行飛行し、コンパスHUDと完全連携する
+    /// </summary>
+    public void TriggerGuideSignal()
+    {
+        if (IsClimaxCrisis || _skybreakNestle || _prologueDistress || CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill)
+            return;
+
+        EnsureGuideTrail();
+
+        var player = _lookAt != null ? _lookAt : (AdventurePlayerController.Instance != null ? AdventurePlayerController.Instance.transform : null);
+        if (player == null) return;
+        Vector3 playerPos = player.position;
+
+        Vector3 targetPos = Vector3.zero;
+        string targetName = "";
+        string dialogue = "";
+        Color targetColor = Color.yellow;
+        bool foundTarget = false;
+
+        var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
+        bool isTowerReady = scrapMgr != null && scrapMgr.IsLeverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken;
+
+        if (isTowerReady)
+        {
+            targetPos = new Vector3(512f, 63.2f, 501.5f);
+            targetName = "白亜タワー（巨大レバー）";
+            dialogue = "ピピッ！パーツが20個揃ったよ！中央の白亜タワーへ行こう！";
+            targetColor = new Color(0.25f, 0.95f, 1.0f, 1f);
+            foundTarget = true;
+        }
+        else
+        {
+            // 1. 未起動の古代風脈クリスタルを優先探索
+            var vents = FindObjectsByType<AdventureAncientWindVent>(FindObjectsInactive.Exclude);
+            AdventureAncientWindVent nearestUnactivatedVent = null;
+            float nearestVentDist = float.MaxValue;
+            for (int i = 0; i < vents.Length; i++)
+            {
+                if (vents[i] != null && !vents[i].IsActivated)
+                {
+                    float d = Vector3.Distance(playerPos, vents[i].transform.position);
+                    if (d < nearestVentDist)
+                    {
+                        nearestVentDist = d;
+                        nearestUnactivatedVent = vents[i];
+                    }
+                }
+            }
+
+            // 2. 最寄りの未回収パーツ（スクラップ / 漂着木箱）を探索
+            float scrapDist = float.MaxValue;
+            AdventureScrapItem nearestScrap = scrapMgr != null ? scrapMgr.GetNearestScrapItem(playerPos, out scrapDist) : null;
+            var nearestBox = AdventureBeachDriftBox.GetNearestUnopenedBox(playerPos, out float boxDist);
+
+            if (nearestUnactivatedVent != null && nearestVentDist < 120f)
+            {
+                targetPos = nearestUnactivatedVent.transform.position;
+                targetName = "古代の風脈クリスタル";
+                dialogue = "ピピッ！あっちに古代の風脈があるよ！送電チャージしに行こう！";
+                targetColor = new Color(0.35f, 1.0f, 0.75f, 1f);
+                foundTarget = true;
+            }
+            else if (nearestScrap != null && scrapDist <= boxDist)
+            {
+                targetPos = nearestScrap.transform.position;
+                targetName = nearestScrap.itemName;
+                dialogue = $"ピピッ！あっちからパーツ（{nearestScrap.itemName}）の反応をキャッチしたよ！案内するね！";
+                targetColor = nearestScrap.itemColor;
+                foundTarget = true;
+            }
+            else if (nearestBox != null)
+            {
+                targetPos = nearestBox.transform.position;
+                targetName = nearestBox.boxTitle;
+                dialogue = "ピピッ！あっちの砂浜に漂着ボックスがあるよ！行ってみよう！";
+                targetColor = new Color(0.35f, 1.0f, 0.65f, 1f);
+                foundTarget = true;
+            }
+            else
+            {
+                // 全回収済み、またはクリア後：白亜タワーまたは大空光柱
+                targetPos = new Vector3(512f, 63.2f, 512f);
+                targetName = AdventureSanctuaryTowerManager.IsGameCleared ? "大空ダイブ光柱" : "白亜の聖域タワー";
+                dialogue = AdventureSanctuaryTowerManager.IsGameCleared 
+                    ? "ピピッ！あの大空の光の柱からダイブしよう！" 
+                    : "ピピッ！島の中心の白亜タワーがあっちだよ！";
+                targetColor = new Color(0.35f, 0.95f, 1.0f, 1f);
+                foundTarget = true;
+            }
+        }
+
+        if (foundTarget)
+        {
+            Vector3 toTarget = (targetPos - playerPos);
+            toTarget.y = 0f;
+            Vector3 leadDir = toTarget.sqrMagnitude > 1f ? toTarget.normalized : player.forward;
+            float leadDist = Mathf.Clamp(toTarget.magnitude * 0.35f, 12f, 24f);
+            _guideLeadPos = playerPos + leadDir * leadDist + Vector3.up * 2.5f;
+            _guideTimer = 3.2f;
+            CurrentState = RustState.Guiding;
+
+            if (_guideTrail != null)
+            {
+                _guideTrail.Clear();
+                _guideTrail.enabled = true;
+            }
+            SpeakCustom(dialogue, 4.2f);
+
+            if (_audio != null)
+            {
+                if (_happyBeepClip != null)
+                {
+                    _audio.pitch = 1.35f;
+                    _audio.PlayOneShot(_happyBeepClip, 0.85f);
+                }
+                if (_pipiChimeClip != null)
+                {
+                    _audio.PlayOneShot(_pipiChimeClip, 0.70f);
+                }
+            }
+
+            // コンパスHUDへもPing送信して即座にハイライト連動！
+            AdventureCompassHUD.Instance?.TriggerGuidePing(targetPos, targetName, targetColor, 8.5f);
+        }
+    }
+
+    void EnsureGuideTrail()
+    {
+        if (_guideTrail == null)
+        {
+            _guideTrail = gameObject.GetComponent<TrailRenderer>();
+            if (_guideTrail == null) _guideTrail = gameObject.AddComponent<TrailRenderer>();
+            _guideTrail.time = 0.9f;
+            _guideTrail.startWidth = 0.28f;
+            _guideTrail.endWidth = 0.02f;
+            _guideTrail.minVertexDistance = 0.15f;
+            var s = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
+            if (s != null)
+            {
+                var mat = new Material(s);
+                mat.color = new Color(0.40f, 0.95f, 1.0f, 0.90f);
+                _guideTrail.material = mat;
+            }
+            Gradient g = new Gradient();
+            g.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(new Color(0.35f, 0.95f, 1.0f), 0f), new GradientColorKey(new Color(1.0f, 0.88f, 0.35f), 1f) },
+                new GradientAlphaKey[] { new GradientAlphaKey(0.85f, 0f), new GradientAlphaKey(0f, 1f) }
+            );
+            _guideTrail.colorGradient = g;
+            _guideTrail.enabled = false;
         }
     }
 
