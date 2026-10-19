@@ -684,13 +684,13 @@ public class AdventureScrapManager : MonoBehaviour
                 var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
                 if (hud != null)
                 {
-                    hud.ShowUpgradeBanner($"✦ 総合10ポイント達成！砂浜の焚き火＆工房解放！ ✦\n💡 砂浜の焚き火で暖まったり、【Bキー】でRust着せ替え工房を開いてみよう！");
+                    hud.ShowUpgradeBanner(AdventureLocalizationManager.Get("banner_10pt_unlocked"));
                 }
 
                 var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
                 if (drone != null)
                 {
-                    drone.SpeakCustom("ピピッ！探索ポイントが10pt貯まったよ！\n砂浜の焚き火に火を点けられるようになったよ！【Bキー】で工房を開いて新しいアクセサリーを作るのもおすすめだよ、Float！", 7.0f);
+                    drone.SpeakCustom(AdventureLocalizationManager.Get("ピピッ！探索ポイントが10pt貯まったよ！\n砂浜の焚き火に火を点けられるようになったよ！【Bキー】で工房を開いて新しいアクセサリーを作るのもおすすめだよ、Float！"), 7.0f);
                 }
                 return true;
             }
@@ -719,13 +719,13 @@ public class AdventureScrapManager : MonoBehaviour
                 var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
                 if (hud != null)
                 {
-                    hud.ShowUpgradeBanner($"✦ 総合20ポイント達成！中央タワーのレバーロック解除！ ✦\n💡 中央タワーへ向かい、レバーを引いて天蓋を開放しよう！");
+                    hud.ShowUpgradeBanner(AdventureLocalizationManager.Get("banner_20pt_unlocked"));
                 }
 
                 var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
                 if (drone != null)
                 {
-                    drone.SpeakCustom("20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Float！！", 8.0f);
+                    drone.SpeakCustom(AdventureLocalizationManager.Get("20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Float！！"), 8.0f);
                     drone.TriggerTowerLeadGuidance();
                 }
                 return true;
@@ -746,12 +746,12 @@ public class AdventureScrapManager : MonoBehaviour
                 var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
                 if (drone != null)
                 {
-                    drone.SpeakCustom("ピピッ！探索ポイントが10pt貯まってるよ！\n砂浜の焚き火に火を点けられるよ！【Bキー】で工房を開いて新しいアクセサリーを作るのもおすすめだよ、Float！", 7.0f);
+                    drone.SpeakCustom(AdventureLocalizationManager.Get("ピピッ！探索ポイントが10pt貯まってるよ！\n砂浜の焚き火に火を点けられるよ！【Bキー】で工房を開いて新しいアクセサリーを作るのもおすすめだよ、Float！"), 7.0f);
                 }
                 var hud = AdventureScrapHUD.Instance ?? Object.FindAnyObjectByType<AdventureScrapHUD>();
                 if (hud != null)
                 {
-                    hud.ShowUpgradeBanner($"✦ 探索ポイント10pt到達済み！砂浜の焚き火＆工房利用可能！ ✦\n💡 砂浜の焚き火で暖まったり、【Bキー】でRust着せ替え工房を開いてみよう！");
+                    hud.ShowUpgradeBanner(AdventureLocalizationManager.Get("banner_10pt_unlocked"));
                 }
             }
         }
@@ -768,7 +768,7 @@ public class AdventureScrapManager : MonoBehaviour
         var hud = AdventureScrapHUD.Instance ?? FindAnyObjectByType<AdventureScrapHUD>();
         if (hud != null)
         {
-            hud.ShowUpgradeBanner($"✨ ピアノの古代遺物を回収！ (+3 pt) ✨\n✦ 探索ポイント: {TotalProgressPoints} / {RequiredPointsForCanopy} pt");
+            hud.ShowUpgradeBanner(AdventureLocalizationManager.GetFormat("banner_piano_relic", TotalProgressPoints, RequiredPointsForCanopy));
         }
 
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();

@@ -798,8 +798,32 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
     }
 
+    bool _isLeverPromptShowing = false;
+    bool _lastLeverPromptReady = false;
+
+    void OnEnable()
+    {
+        AdventureLocalizationManager.OnLanguageChanged += OnLanguageChangedForLeverPrompt;
+    }
+
+    void OnDisable()
+    {
+        AdventureLocalizationManager.OnLanguageChanged -= OnLanguageChangedForLeverPrompt;
+    }
+
+    void OnLanguageChangedForLeverPrompt()
+    {
+        if (_isLeverPromptShowing)
+        {
+            SetLeverPromptUI(true, _lastLeverPromptReady);
+        }
+    }
+
     void SetLeverPromptUI(bool show, bool ready)
     {
+        _isLeverPromptShowing = show;
+        _lastLeverPromptReady = ready;
+
         if (!show)
         {
             if (_leverUiRoot != null)
@@ -812,10 +836,13 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _leverUiRoot.SetActive(true);
         if (_leverUiLabel != null)
         {
+            Font f = ResolveUiFont();
+            if (f != null && _leverUiLabel.font != f) _leverUiLabel.font = f;
+
             int pts = AdventureScrapManager.Instance != null ? AdventureScrapManager.Instance.TotalProgressPoints : 0;
             _leverUiLabel.text = ready
-                ? "【ここを押す / E / クリック】巨大真鍮レバーを引く"
-                : $"レバーはロック中（20ポイントが必要 / 現在: {pts} pt）";
+                ? AdventureLocalizationManager.Get("lever_prompt_pull")
+                : AdventureLocalizationManager.GetFormat("lever_prompt_locked", pts);
             _leverUiLabel.color = ready
                 ? new Color(0.35f, 0.98f, 0.88f, 1f)
                 : new Color(1f, 0.85f, 0.4f, 1f);
@@ -1103,8 +1130,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             hud.RefreshQuestDisplay();
             string bannerMsg = warpToLever
-                ? "✦ 20ポイント達成！タワー白亜テラス（レバー前）へワープ ✦\n💡 【Eキー】で巨大レバーを引いて天蓋を開放しよう！"
-                : "✦ 20ポイント達成！中央タワーのレバーロック解除！ ✦\n💡 相棒Rustとコンパスに従って中央タワーへ向かおう！";
+                ? AdventureLocalizationManager.Get("tower_unlocked_banner_warp")
+                : AdventureLocalizationManager.Get("tower_unlocked_banner_explore");
             hud.ShowUpgradeBanner(bannerMsg);
         }
     }

@@ -1223,8 +1223,8 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (isTowerReady)
         {
             targetPos = new Vector3(512f, 63.2f, 501.5f);
-            targetName = "白亜タワー（巨大レバー）";
-            dialogue = "ピピッ！パーツが20個揃ったよ！中央の白亜タワーへ行こう！";
+            targetName = AdventureLocalizationManager.Get("target_name_tower_lever");
+            dialogue = AdventureLocalizationManager.Get("ピピッ！パーツが20個揃ったよ！中央の白亜タワーへ行こう！");
             targetColor = new Color(0.25f, 0.95f, 1.0f, 1f);
             foundTarget = true;
         }

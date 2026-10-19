@@ -649,13 +649,13 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
                 var hud = AdventureScrapHUD.Instance;
                 if (hud != null)
                 {
-                    hud.ShowUpgradeBanner("✦ 上昇気流ファン起動！ ✦\n💡 送風ファンに乗って、崖上の黄金テラスへ跳ぼう！");
+                    hud.ShowUpgradeBanner(AdventureLocalizationManager.Get("banner_fan_activated"));
                 }
 
                 var drone = AdventureRustDrone.Instance;
                 if (drone != null)
                 {
-                    drone.SpeakCustom("ピピッ！ファンが回ったよ！\n送風孔に乗ると、崖の上の隠しテラス（黄金の光柱）へ運んでくれるよ、Float！", 6.5f);
+                    drone.SpeakCustom(AdventureLocalizationManager.Get("ピピッ！ファンが回ったよ！\n送風孔に乗ると、崖の上の隠しテラス（黄金の光柱）へ運んでくれるよ、Float！"), 6.5f);
                 }
             }
         );
@@ -717,13 +717,13 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
         var hud = AdventureScrapHUD.Instance;
         if (hud != null)
         {
-            hud.ShowUpgradeBanner("✨ 古代の浮遊遺物を発見！ (+2 pt) ✨\n✦ 崖上の隠された宝箱を解放しました！");
+            hud.ShowUpgradeBanner(AdventureLocalizationManager.Get("banner_crystal_relic"));
         }
 
         var drone = AdventureRustDrone.Instance;
         if (drone != null)
         {
-            drone.TriggerCelebration("わぁぁ！崖の上にこんなお宝があったんだね！ボクたちの力で登れたよ、Float！", 4.0f);
+            drone.TriggerCelebration(AdventureLocalizationManager.Get("わぁぁ！崖の上にこんなお宝があったんだね！ボクたちの力で登れたよ、Float！"), 4.0f);
         }
     }
 

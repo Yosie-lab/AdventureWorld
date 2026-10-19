@@ -803,7 +803,7 @@ public class AdventureCompassHUD : MonoBehaviour
                     float pingDist = Vector3.Distance(playerPos, _guidePingPos);
                     Vector3 toPing = _guidePingPos - playerPos; toPing.y = 0f;
                     string pCard = GetCardinal(YawFromForward(toPing));
-                    _scrapNavText.text = $"✦ Floatの道案内 ➔ {_guidePingName} 約{Mathf.RoundToInt(pingDist)}m（{pCard}方角） [Qキーで再案内]";
+                    _scrapNavText.text = FormatNavPing(_guidePingName, Mathf.RoundToInt(pingDist), pCard);
                     _scrapNavText.color = _guidePingColor;
                 }
                 else if (_cachedTargetMode == TargetMode.Tower)
@@ -813,14 +813,14 @@ public class AdventureCompassHUD : MonoBehaviour
                     float towerDist = toTower.magnitude;
                     if (towerDist <= 3.5f)
                     {
-                        _scrapNavText.text = "✦ 中央タワー白亜テラス 【Eキーで巨大レバーを引く！】";
+                        _scrapNavText.text = FormatNavTowerNear();
                         _scrapNavText.color = new Color(1.0f, 0.90f, 0.35f, 1.0f);
                     }
                     else
                     {
                         float towerYaw = YawFromForward(toTower);
                         string towerCard = GetCardinal(towerYaw);
-                        _scrapNavText.text = $"✦ 白亜タワー（巨大レバー） 約{Mathf.RoundToInt(towerDist)}m（{towerCard}方角） 【天蓋開放へ】";
+                        _scrapNavText.text = FormatNavTowerFar(Mathf.RoundToInt(towerDist), towerCard);
                         _scrapNavText.color = new Color(0.25f, 0.95f, 1.0f, 1.0f);
                     }
                 }
@@ -861,12 +861,12 @@ public class AdventureCompassHUD : MonoBehaviour
 
                     if (cryDist <= 4.5f)
                     {
-                        _scrapNavText.text = "⚡ 古代クリスタル 【FキーでRustに送電を指示！】";
+                        _scrapNavText.text = FormatNavCrystalNear();
                         _scrapNavText.color = new Color(1.0f, 0.90f, 0.35f, 1.0f);
                     }
                     else
                     {
-                        _scrapNavText.text = $"⚡ 古代クリスタル 約{Mathf.RoundToInt(cryDist)}m（{cryCard}方角） [{cryArrow}] 【Fキー送電ギミック】";
+                        _scrapNavText.text = FormatNavCrystalFar(Mathf.RoundToInt(cryDist), cryCard, cryArrow);
                         _scrapNavText.color = new Color(0.25f, 0.95f, 1.0f, 1.0f);
                     }
                 }
@@ -882,12 +882,12 @@ public class AdventureCompassHUD : MonoBehaviour
 
                     if (terDist <= 3.5f)
                     {
-                        _scrapNavText.text = "🎁 崖上の古代テラス 【Eキーで古代の浮遊遺物を開封！】";
+                        _scrapNavText.text = FormatNavTerraceNear();
                         _scrapNavText.color = new Color(1.0f, 0.90f, 0.35f, 1.0f);
                     }
                     else
                     {
-                        _scrapNavText.text = $"🎁 崖上の隠しテラス（黄金光柱） 約{Mathf.RoundToInt(terDist)}m（{terCard}方角） [{terArrow}] 【送風ファンで上昇！】";
+                        _scrapNavText.text = FormatNavTerraceFar(Mathf.RoundToInt(terDist), terCard, terArrow);
                         _scrapNavText.color = new Color(1.0f, 0.85f, 0.35f, 1.0f);
                     }
                 }
@@ -956,6 +956,9 @@ public class AdventureCompassHUD : MonoBehaviour
 
     static string FormatNavNear(string name, string actionKey)
     {
+        string locName = AdventureLocalizationManager.Get(name);
+        if (!string.IsNullOrEmpty(locName)) name = locName;
+
         return AdventureLocalizationManager.CurrentLanguage switch
         {
             AdventureLocalizationManager.GameLanguage.English => $"✦ {name} [Press {actionKey} to Collect!]",
@@ -967,12 +970,95 @@ public class AdventureCompassHUD : MonoBehaviour
 
     static string FormatNavFar(string name, int dist, string cardinal, string arrow, string extraKey = "Q")
     {
+        string locName = AdventureLocalizationManager.Get(name);
+        if (!string.IsNullOrEmpty(locName)) name = locName;
+
         return AdventureLocalizationManager.CurrentLanguage switch
         {
             AdventureLocalizationManager.GameLanguage.English => $"✦ {name} ~{dist}m ({cardinal}) [{arrow}]  [{extraKey} Guide]",
             AdventureLocalizationManager.GameLanguage.SimplifiedChinese => $"✦ {name} 约{dist}米（{cardinal}方向） [{arrow}]  [按{extraKey}引路]",
             AdventureLocalizationManager.GameLanguage.Spanish => $"✦ {name} ~{dist}m ({cardinal}) [{arrow}]  [{extraKey} Guiar]",
             _ => $"✦ {name} 約{dist}m（{cardinal}方角） [{arrow}]  [{extraKey}キー 道案内]"
+        };
+    }
+
+    static string FormatNavPing(string name, int dist, string cardinal)
+    {
+        string locName = AdventureLocalizationManager.Get(name);
+        if (!string.IsNullOrEmpty(locName)) name = locName;
+
+        return AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => $"✦ Float's Guide ➔ {name} ~{dist}m ({cardinal}) [Q to Guide]",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => $"✦ Float的引路 ➔ {name} 约{dist}米（{cardinal}方向） [按Q键重新引路]",
+            AdventureLocalizationManager.GameLanguage.Spanish => $"✦ Guía de Float ➔ {name} ~{dist}m ({cardinal}) [Q para guiar]",
+            _ => $"✦ Floatの道案内 ➔ {name} 約{dist}m（{cardinal}方角） [Qキーで再案内]"
+        };
+    }
+
+    static string FormatNavTowerNear()
+    {
+        return AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => "✦ Central Tower Terrace [Press E to Pull Lever!]",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => "✦ 中央高塔白垩露台 【按E键扳动机关手柄！】",
+            AdventureLocalizationManager.GameLanguage.Spanish => "✦ Terraza de la torre central [¡Pulsa E para tirar de la palanca!]",
+            _ => "✦ 中央タワー白亜テラス 【Eキーで巨大レバーを引く！】"
+        };
+    }
+
+    static string FormatNavTowerFar(int dist, string cardinal)
+    {
+        return AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => $"✦ White Tower (Giant Lever) ~{dist}m ({cardinal}) [Open Canopy]",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => $"✦ 白垩高塔（巨型机关） 约{dist}米（{cardinal}方向） 【开启天盖】",
+            AdventureLocalizationManager.GameLanguage.Spanish => $"✦ Torre Blanca (Palanca gigante) ~{dist}m ({cardinal}) [Abrir cúpula]",
+            _ => $"✦ 白亜タワー（巨大レバー） 約{dist}m（{cardinal}方角） 【天蓋開放へ】"
+        };
+    }
+
+    static string FormatNavCrystalNear()
+    {
+        return AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => "⚡ Ancient Crystal [Press F to Instruct Rust!]",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => "⚡ 古代风脉水晶 【按F键指引Rust充能传导！】",
+            AdventureLocalizationManager.GameLanguage.Spanish => "⚡ Cristal antiguo [¡Pulsa F para ordenar a Rust!]",
+            _ => "⚡ 古代クリスタル 【FキーでRustに送電を指示！】"
+        };
+    }
+
+    static string FormatNavCrystalFar(int dist, string cardinal, string arrow)
+    {
+        return AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => $"⚡ Ancient Crystal ~{dist}m ({cardinal}) [{arrow}] [F Power Gimmick]",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => $"⚡ 古代风脉水晶 约{dist}米（{cardinal}方向） [{arrow}] 【F键充能传导】",
+            AdventureLocalizationManager.GameLanguage.Spanish => $"⚡ Cristal antiguo ~{dist}m ({cardinal}) [{arrow}] [Mecanismo de F]",
+            _ => $"⚡ 古代クリスタル 約{dist}m（{cardinal}方角） [{arrow}] 【Fキー送電ギミック】"
+        };
+    }
+
+    static string FormatNavTerraceNear()
+    {
+        return AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => "🎁 Ancient Cliff Terrace [Press E to Open Relic!]",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => "🎁 悬崖上的古代露台 【按E键开启浮游遗物！】",
+            AdventureLocalizationManager.GameLanguage.Spanish => "🎁 Terraza del acantilado [¡Pulsa E para abrir reliquia!]",
+            _ => "🎁 崖上の古代テラス 【Eキーで古代の浮遊遺物を開封！】"
+        };
+    }
+
+    static string FormatNavTerraceFar(int dist, string cardinal, string arrow)
+    {
+        return AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => $"🎁 Hidden Cliff Terrace (Golden Beam) ~{dist}m ({cardinal}) [{arrow}] [Ride Updraft Fan!]",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => $"🎁 悬崖隐藏露台（黄金光柱） 约{dist}米（{cardinal}方向） [{arrow}] 【乘风扇升空！】",
+            AdventureLocalizationManager.GameLanguage.Spanish => $"🎁 Terraza secreta (Haz dorado) ~{dist}m ({cardinal}) [{arrow}] [¡Sube en ventilador!]",
+            _ => $"🎁 崖上の隠しテラス（黄金光柱） 約{dist}m（{cardinal}方角） [{arrow}] 【送風ファンで上昇！】"
         };
     }
 

@@ -2122,6 +2122,101 @@ public static class AdventureLocalizationManager
 
         // 共通話者タグ
         { "✦ 相棒 Rust", new[] { "✦ 相棒 Rust", "✦ Companion Rust", "✦ 伙伴 Rust", "✦ Compañero Rust" } },
-        { "✦ Float", new[] { "✦ Float", "✦ Float", "✦ Float", "✦ Float" } }
+        { "✦ Float", new[] { "✦ Float", "✦ Float", "✦ Float", "✦ Float" } },
+
+        // ==========================================
+        // 巨大真鍮レバー・タワー操作指示＆バナー（Tower Lever Prompts & Banners）
+        // ==========================================
+        { "lever_prompt_pull", new[] {
+            "【ここを押す / E / クリック】巨大真鍮レバーを引く",
+            "[Click Here / E / Click] Pull Giant Brass Lever",
+            "【按此处 / E / 鼠标点击】扳动巨型黄铜机关手柄",
+            "[Pulsa aquí / E / Clic] Tirar de la palanca gigante de latón"
+        } },
+        { "lever_prompt_locked", new[] {
+            "レバーはロック中（20ポイントが必要 / 現在: {0} pt）",
+            "Lever is Locked (Requires 20 Points / Current: {0} pt)",
+            "机关手柄处于锁定中（需要20探索点 / 当前: {0} pt）",
+            "Palanca bloqueada (Requiere 20 puntos / Actual: {0} pt)"
+        } },
+        { "tower_unlocked_banner_warp", new[] {
+            "✦ 20ポイント達成！タワー白亜テラス（レバー前）へワープ ✦\n💡 【Eキー】で巨大レバーを引いて天蓋を開放しよう！",
+            "✦ 20 Points Reached! Warped to White Tower Terrace (At Lever) ✦\n💡 [E Key] Pull giant lever to open the sky canopy!",
+            "✦ 达成20探索点！已传送到白垩露台机关前 ✦\n💡 【E键】扳动巨型机关开启天盖！",
+            "✦ ¡20 puntos conseguidos! Teletransportado a la terraza (Frente a la palanca) ✦\n💡 ¡Pulsa [E] para tirar de la palanca y abrir la cúpula!"
+        } },
+        { "tower_unlocked_banner_explore", new[] {
+            "✦ 20ポイント達成！中央タワーのレバーロック解除！ ✦\n💡 相棒Rustとコンパスに従って中央タワーへ向かおう！",
+            "✦ 20 Points Reached! Central Tower Lever Unlocked! ✦\n💡 Follow Rust and the compass toward Central Tower!",
+            "✦ 达成20探索点！中央高塔机关锁已解除！ ✦\n💡 跟随伙伴Rust与指南针前往中央高塔！",
+            "✦ ¡20 puntos conseguidos! ¡Palanca de la torre desbloqueada! ✦\n💡 ¡Sigue a Rust y la brújula hacia la torre central!"
+        } },
+        { "banner_10pt_unlocked", new[] {
+            "✦ 総合10ポイント達成！砂浜の焚き火＆工房解放！ ✦\n💡 砂浜の焚き火で暖まったり、【Bキー】でRust着せ替え工房を開いてみよう！",
+            "✦ 10 Total Points! Beach Campfire & Workshop Unlocked! ✦\n💡 Warm up at the beach campfire or press [B] to open Rust's Workshop!",
+            "✦ 达成10探索点！沙滩营火与外观工坊已解锁！ ✦\n💡 在沙滩营火旁取暖，或按【B键】打开Rust外观工坊吧！",
+            "✦ ¡10 puntos conseguidos! ¡Hoguera de la playa y taller desbloqueados! ✦\n💡 ¡Caliéntate junto a la hoguera o pulsa [B] para abrir el taller de Rust!"
+        } },
+        { "banner_20pt_unlocked", new[] {
+            "✦ 総合20ポイント達成！中央タワーのレバーロック解除！ ✦\n💡 中央タワーへ向かい、レバーを引いて天蓋を開放しよう！",
+            "✦ 20 Total Points! Central Tower Lever Unlocked! ✦\n💡 Head to Central Tower and pull the lever to open the sky canopy!",
+            "✦ 达成20探索点！中央高塔机关锁已解除！ ✦\n💡 前往中央高塔，扳动巨型机关开启天盖！",
+            "✦ ¡20 puntos conseguidos! ¡Palanca de la torre desbloqueada! ✦\n💡 ¡Ve a la torre central y tira de la palanca para abrir la cúpula!"
+        } },
+        { "banner_piano_relic", new[] {
+            "✨ ピアノの古代遺物を回収！ (+3 pt) ✨\n✦ 探索ポイント: {0} / {1} pt",
+            "✨ Ancient Piano Relic Recovered! (+3 pt) ✨\n✦ Explored Points: {0} / {1} pt",
+            "✨ 已回收钢琴古代遗物！ (+3 pt) ✨\n✦ 探索点数: {0} / {1} pt",
+            "✨ ¡Reliquia antigua de piano recuperada! (+3 pt) ✨\n✦ Puntos de exploración: {0} / {1} pt"
+        } },
+        { "banner_fan_activated", new[] {
+            "✦ 上昇気流ファン起動！ ✦\n💡 送風ファンに乗って、崖上の黄金テラスへ跳ぼう！",
+            "✦ Updraft Fan Activated! ✦\n💡 Ride the airflow fan and leap up to the Golden Terrace!",
+            "✦ 上升气流风扇已启动！ ✦\n💡 乘上气流风扇，跃向悬崖上的黄金露台！",
+            "✦ ¡Ventilador de corriente ascendente activado! ✦\n💡 ¡Sube a la corriente de aire y salta a la terraza dorada!"
+        } },
+        { "banner_crystal_relic", new[] {
+            "✨ 古代の浮遊遺物を発見！ (+2 pt) ✨\n✦ 崖上の隠された宝箱を解放しました！",
+            "✨ Ancient Floating Relic Discovered! (+2 pt) ✨\n✦ Unlocked the secret treasure chest above the cliff!",
+            "✨ 发现了古代悬浮遗物！ (+2 pt) ✨\n✦ 解开了悬崖上方隐藏的珍宝箱！",
+            "✨ ¡Reliquia flotante antigua descubierta! (+2 pt) ✨\n✦ ¡Cofre del tesoro secreto sobre el acantilado desbloqueado!"
+        } },
+        { "target_name_tower_lever", new[] {
+            "白亜タワー（巨大レバー）",
+            "White Tower (Giant Lever)",
+            "白垩高塔（巨型机关）",
+            "Torre Blanca (Palanca gigante)"
+        } },
+
+        { "20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Float！！", new[] {
+            "20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Float！！",
+            "20 points achieved! The central tower's lever is unlocked! Let's head to the tower, I'll guide you, Float!!",
+            "达成20探索点啦！中央高塔的机关锁已解除！我们去高塔吧，我来给你引路，Float！！",
+            "¡20 puntos conseguidos! ¡Se ha desbloqueado la palanca de la torre central! ¡Vamos a la torre, te guiaré, Float!!"
+        } },
+        { "ピピッ！探索ポイントが10pt貯まったよ！\n砂浜の焚き火に火を点けられるようになったよ！【Bキー】で工房を開いて新しいアクセサリーを作るのもおすすめだよ、Float！", new[] {
+            "ピピッ！探索ポイントが10pt貯まったよ！\n砂浜の焚き火に火を点けられるようになったよ！【Bキー】で工房を開いて新しいアクセサリーを作るのもおすすめだよ、Float！",
+            "Beep! 10 points gathered!\nYou can now light the beach campfire! Press [B] to open the workshop and craft new accessories, Float!",
+            "哔哔！已积攒了10点探索点！\n现在可以点燃沙滩营火了！也推荐按【B键】打开工坊制作新饰品哦，Float！",
+            "¡Bip! ¡Tenemos 10 puntos de exploración!\n¡Ya puedes encender la hoguera de la playa! ¡También te recomiendo pulsar [B] para abrir el taller y crear nuevos accesorios, Float!"
+        } },
+        { "ピピッ！探索ポイントが10pt貯まってるよ！\n砂浜の焚き火に火を点けられるよ！【Bキー】で工房を開いて新しいアクセサリーを作るのもおすすめだよ、Float！", new[] {
+            "ピピッ！探索ポイントが10pt貯まってるよ！\n砂浜の焚き火に火を点けられるよ！【Bキー】で工房を開いて新しいアクセサリーを作るのもおすすめだよ、Float！",
+            "Beep! You have 10 points!\nYou can light the beach campfire! Press [B] to open the workshop and craft new accessories, Float!",
+            "哔哔！已积攒了10点探索点！\n可以点燃沙滩营火啦！也推荐按【B键】打开工坊制作新饰品哦，Float！",
+            "¡Bip! ¡Tienes 10 puntos de exploración!\n¡Puedes encender la hoguera de la playa! ¡También te recomiendo pulsar [B] para abrir el taller y crear nuevos accesorios, Float!"
+        } },
+        { "ピピッ！パーツが20個揃ったよ！中央の白亜タワーへ行こう！", new[] {
+            "ピピッ！パーツが20個揃ったよ！中央の白亜タワーへ行こう！",
+            "Beep! All 20 points collected! Let's head to the Central White Tower!",
+            "哔哔！零件已经集齐20点啦！我们去中央白垩高塔吧！",
+            "¡Bip! ¡Tenemos 20 puntos reunidos! ¡Vamos a la Torre Blanca central!"
+        } },
+        { "ピピッ！ファンが回ったよ！\n送風孔に乗ると、崖の上の隠しテラス（黄金の光柱）へ運んでくれるよ、Float！", new[] {
+            "ピピッ！ファンが回ったよ！\n送風孔に乗ると、崖の上の隠しテラス（黄金の光柱）へ運んでくれるよ、Float！",
+            "Beep! The fan is spinning!\nRide the vent airflow and it will carry us up to the secret cliff terrace, Float!",
+            "哔哔！风扇转动起来了！\n乘上送风孔的气流，就能把我们送上悬崖顶端的隐藏露台（黄金光柱）啦，Float！",
+            "¡Bip! ¡El ventilador está girando!\n¡Sube al conducto de aire y nos elevará hasta la terraza secreta del acantilado, Float!"
+        } }
     };
 }
