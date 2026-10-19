@@ -34,7 +34,11 @@ created: 2026-09-11
      - スタート台ワープボタン、リング通過HUD、即時リトライHUD、リザルトボード（新記録・タイム・評価ランク・通過リング）、クリア時のRustセリフ（Sランク/Aランク/汎用）を完全多言語化。
   4. **砂浜ナラティブ・漂着物・焚き火（`AdventureBeachFlotsam.cs` / `AdventureBeachCampfire.cs` / `AdventureBeachSeashellItem.cs` 等）**:
      - 漂着艇・キャンプ跡・漂着物調査HUD、焚き火の点火・着席プロンプト・立ち上がりセリフ・Rustの心温まるチル呟き6種、貝殻拾得プロンプト・トースト・全5種の固有リアクションセリフの完全多言語化。
-  5. **全OnGUIカスタムパネルへのOSフォント動的解決チェーン（CJK Multi-Font Chain）適用**:
+  5. **巨大真鍮レバー操作プロンプト＆コンパス誘導HUDの完全多言語化（`AdventureSanctuaryTowerManager.cs` / `AdventureCompassHUD.cs`）**:
+     - 巨大真鍮レバーの引き指示プロンプト（`【ここを押す / E / クリック】巨大真鍮レバーを引く`）およびロック中表示を4ヶ国語辞書化し、言語切替イベント（`OnLanguageChanged`）による即時リフレッシュとOSフォント動的適用を実装。
+     - コンパスHUDの白亜タワーレバー誘導（近接時・遠距離時）、古代クリスタル送電案内、崖上テラス宝箱案内、Floatの道案内ピンテキストをすべて4ヶ国語に完全連動。
+     - 探索ポイント達成（10pt/20pt）バナー通知、ピアノ古代遺物回収バナー、上昇気流ファン起動バナーを多言語化。
+  6. **全OnGUIカスタムパネルへのOSフォント動的解決チェーン（CJK Multi-Font Chain）適用**:
      - macOS/Windows/LinuxのOS標準フォント（PingFang SC, Hiragino Sans GB, Heiti SC, Hiragino Sans, Microsoft YaHei, YuGothic 等）を自動解決し、簡体字中国語やスペイン語の文字化け・豆腐（□）を完全根絶。
 - **真の100点満点達成（＋8点ロードマップ完遂・2026-10-19 追記）**:
   1. **【+2点】大空の可視化気流「ウィンド・ストリームライン（風の道筋）」（`AdventureWindStreamlinesDirector.cs`）**:
