@@ -484,7 +484,7 @@ public class AdventurePauseMenu : MonoBehaviour
     void OnPrevLanguageClicked()
     {
         if (Time.frameCount == _lastLangClickFrame) return;
-        if (Time.unscaledTime - _lastLangClickTime < 0.06f) return;
+        if (Time.unscaledTime - _lastLangClickTime < 0.20f) return;
         _lastLangClickFrame = Time.frameCount;
         _lastLangClickTime = Time.unscaledTime;
 
@@ -496,7 +496,7 @@ public class AdventurePauseMenu : MonoBehaviour
     void OnNextLanguageClicked()
     {
         if (Time.frameCount == _lastLangClickFrame) return;
-        if (Time.unscaledTime - _lastLangClickTime < 0.06f) return;
+        if (Time.unscaledTime - _lastLangClickTime < 0.20f) return;
         _lastLangClickFrame = Time.frameCount;
         _lastLangClickTime = Time.unscaledTime;
 
