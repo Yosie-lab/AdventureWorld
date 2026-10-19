@@ -477,7 +477,7 @@ public class DragonflyFlight : MonoBehaviour
     private static Transform _camTransform;
     private float _cullTimer;
     private bool _isCulled;
-    private const float CullDistanceSqr = 42f * 42f; // 42m以遠で羽ばたき・AIスリープ
+    private const float CullDistanceSqr = 110f * 110f; // 110m以遠で羽ばたき・AIスリープ（滑空時でも遠くの水辺のトンボを美しく視認）
 
     void Awake()
     {

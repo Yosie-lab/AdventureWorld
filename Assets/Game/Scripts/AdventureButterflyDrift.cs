@@ -25,25 +25,25 @@ public class AdventureButterflyDrift : MonoBehaviour
     private float _checkTimer;
     private bool _colorApplied;
 
-    // 55m以上でカリング（遠景で完全に見えなくなる距離までアクティブ維持）
-    private const float CULL_DISTANCE_SQR = 55f * 55f;
+    // 125m以上でカリング（滑空時でも遠景の花畑に舞う蝶々が美しく視認できる適正距離）
+    private const float CULL_DISTANCE_SQR = 125f * 125f;
     private static Transform _cameraTransform;
 
     // 鮮やかで美しい極彩色カラーパレット（BaseColor, EmissionColor）
     private static readonly (Color baseCol, Color emitCol)[] VividPalettes = new[]
     {
         // 1. モルフォ・サファイアブルー（澄み渡る空と青い海に映える鮮やかな青）
-        (new Color(0.18f, 0.78f, 1.0f, 1f), new Color(0.10f, 0.50f, 0.95f, 1f) * 0.45f),
+        (new Color(0.18f, 0.82f, 1.0f, 1f), new Color(0.15f, 0.65f, 1.0f, 1f) * 0.70f),
         // 2. 陽だまりトパーズイエロー（菜の花・ひまわりのように明るい黄金色）
-        (new Color(1.0f, 0.92f, 0.15f, 1f), new Color(0.95f, 0.80f, 0.10f, 1f) * 0.45f),
+        (new Color(1.0f, 0.94f, 0.20f, 1f), new Color(1.0f, 0.88f, 0.15f, 1f) * 0.70f),
         // 3. ルビー・ローズピンク（南国のハイビスカス・野バラのような鮮やかな紅）
-        (new Color(1.0f, 0.28f, 0.68f, 1f), new Color(0.90f, 0.15f, 0.50f, 1f) * 0.45f),
+        (new Color(1.0f, 0.32f, 0.72f, 1f), new Color(1.0f, 0.20f, 0.60f, 1f) * 0.70f),
         // 4. エメラルド・ラグーングリーン（爽やかで透き通る翡翠色）
-        (new Color(0.20f, 1.0f, 0.72f, 1f), new Color(0.10f, 0.90f, 0.55f, 1f) * 0.45f),
+        (new Color(0.25f, 1.0f, 0.75f, 1f), new Color(0.15f, 0.95f, 0.60f, 1f) * 0.70f),
         // 5. サンセット・タンジェリンオレンジ（南国の夕焼けのように温かく鮮やかな橙）
-        (new Color(1.0f, 0.58f, 0.10f, 1f), new Color(0.95f, 0.42f, 0.05f, 1f) * 0.45f),
+        (new Color(1.0f, 0.62f, 0.12f, 1f), new Color(1.0f, 0.48f, 0.08f, 1f) * 0.70f),
         // 6. アメジスト・ラベンダーパープル（高貴で幻想的な紫）
-        (new Color(0.85f, 0.38f, 1.0f, 1f), new Color(0.70f, 0.20f, 0.95f, 1f) * 0.45f),
+        (new Color(0.88f, 0.42f, 1.0f, 1f), new Color(0.78f, 0.25f, 1.0f, 1f) * 0.70f),
     };
 
     private void Awake()

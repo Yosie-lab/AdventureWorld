@@ -97,18 +97,19 @@ public class AdventureBreezePetals : MonoBehaviour
 
         // 海抜チェック（海面スレスレや沖合では控えめに）
         bool isOverIsland = playerPos.y > 6.0f && playerPos.x > 140f && playerPos.x < 580f && playerPos.z > 140f && playerPos.z < 620f;
-        float baseEmission = isOverIsland ? 4.5f : 0.5f;
+        // 基本はごくたまにふわりと舞う程度（0.4枚/秒）、花畑の上でも最大3枚/秒程度の上品な量に制限
+        float baseEmission = isOverIsland ? 0.45f : 0.08f;
 
         if (_petalParticleSystem != null)
         {
             var em = _petalParticleSystem.emission;
-            em.rateOverTime = baseEmission + flowerProximity * 14f;
+            em.rateOverTime = baseEmission + flowerProximity * 2.8f;
         }
 
         if (_pollenParticleSystem != null)
         {
             var em = _pollenParticleSystem.emission;
-            em.rateOverTime = (baseEmission * 0.75f) + flowerProximity * 10f;
+            em.rateOverTime = (baseEmission * 0.6f) + flowerProximity * 2.0f;
         }
     }
 
@@ -139,10 +140,28 @@ public class AdventureBreezePetals : MonoBehaviour
         main.startSize = new ParticleSystem.MinMaxCurve(0.18f, 0.32f);
         main.startRotation = new ParticleSystem.MinMaxCurve(0f, 360f * Mathf.Deg2Rad);
         main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = 80;
+        main.maxParticles = 22; // 画面全体で最大22枚に制限し、視界を塞がず上品に舞う
+
+        // 多彩な花びらカラー（ピンク・白・黄色）のランダムサンプリング
+        var colorGrad = new Gradient();
+        colorGrad.SetKeys(
+            new GradientColorKey[]
+            {
+                new GradientColorKey(new Color(1f, 0.62f, 0.76f), 0.00f),    // 1. 可憐な桜色・ローズピンク
+                new GradientColorKey(new Color(0.98f, 0.99f, 1.00f), 0.35f),  // 2. 清らかなシルキーホワイト（白）
+                new GradientColorKey(new Color(1.00f, 0.91f, 0.26f), 0.70f),  // 3. 陽だまりの菜の花イエロー（黄）
+                new GradientColorKey(new Color(1.00f, 0.80f, 0.50f), 1.00f),  // 4. 温かなアプリコットクリーム
+            },
+            new GradientAlphaKey[]
+            {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 1f)
+            }
+        );
+        main.startColor = new ParticleSystem.MinMaxGradient(colorGrad);
 
         var emission = ps.emission;
-        emission.rateOverTime = 8f;
+        emission.rateOverTime = 1.2f;
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Box;
@@ -162,13 +181,13 @@ public class AdventureBreezePetals : MonoBehaviour
         rot.enabled = true;
         rot.z = new ParticleSystem.MinMaxCurve(-1.8f, 1.8f);
 
-        // フェードイン・アウト
+        // フェードイン・アウト（RGBは白のままでstartColorのピンク・白・黄色を100%発色）
         var col = ps.colorOverLifetime;
         col.enabled = true;
         var grad = new Gradient();
         grad.SetKeys(
-            new GradientColorKey[] { new GradientColorKey(new Color(1f, 0.72f, 0.82f), 0f), new GradientColorKey(new Color(1f, 0.85f, 0.90f), 1f) },
-            new GradientAlphaKey[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.85f, 0.25f), new GradientAlphaKey(0f, 1f) }
+            new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.90f, 0.22f), new GradientAlphaKey(0f, 1f) }
         );
         col.color = grad;
 
@@ -190,10 +209,10 @@ public class AdventureBreezePetals : MonoBehaviour
         main.startSpeed = new ParticleSystem.MinMaxCurve(0.4f, 1.4f);
         main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.16f);
         main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = 60;
+        main.maxParticles = 16;
 
         var emission = ps.emission;
-        emission.rateOverTime = 6f;
+        emission.rateOverTime = 1.0f;
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
@@ -220,11 +239,10 @@ public class AdventureBreezePetals : MonoBehaviour
     {
         int size = 64;
 
-        // 1. 花びらテクスチャ（桜色の滑らかなオーバル花弁）
+        // 1. 花びらテクスチャ（純白アルファマスクの滑らかなオーバル花弁）
         _petalTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
         _petalTexture.filterMode = FilterMode.Bilinear;
-        Color transparent = new Color(0, 0, 0, 0);
-        Color petalCol = new Color(1f, 0.75f, 0.85f, 1f);
+        Color transparent = new Color(1f, 1f, 1f, 0f);
 
         for (int y = 0; y < size; y++)
         {
@@ -240,7 +258,7 @@ public class AdventureBreezePetals : MonoBehaviour
                 if (dist <= 1.0f)
                 {
                     float alpha = Mathf.Clamp01((1.0f - dist) * 4.5f);
-                    _petalTexture.SetPixel(x, y, new Color(petalCol.r, petalCol.g, petalCol.b, alpha));
+                    _petalTexture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
                 }
                 else
                 {

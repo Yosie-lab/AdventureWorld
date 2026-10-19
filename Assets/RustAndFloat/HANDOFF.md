@@ -1495,6 +1495,23 @@ Unity メニュー: **Adventure → Open RustAndFloat Scene (new island)**
       - エピローグシネマ完了時、およびゲームクリアボード（`GameClearModal`）が表示された瞬間に、プロシージャル合成された壮大で感動的な祝祭のクリスタルベル・チャイム（`GameClearTriumphChime`）を自動再生。
       - Cメジャー7th〜9thの上行アルペジオ（大空への羽ばたきを象徴する8音）＋オクターブ倍音＋ステレオ空間ディレイ＋広大な天空リバーブにより、冒険を完走した達成感と余韻を情緒豊かに演出。
 
+40. **大空・海面の3連鎖スカイリング＆スキミングリング新設（2026-10-19追加）**:
+    - [AdventureFlightManager.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureFlightManager.cs)
+    - **機能概要**:
+      - **空中3連鎖スカイリング（`Course_SkyHighTrio`）**: 東部原生林上空（高度102m）から白亜タワー東テラス（高度82m）へ向けて大空を降下する3連リング。滑空の標準降下角（約11度）に合わせて配置され、吸い込まれるように連続コンボが爽快に決まる。
+      - **海面3連鎖スキミングリング（`Course_OceanSkimmingTrio`）**: パラダイスビーチ沖合の海面スレスレ（高度7.2m、海面わずか1.7m上）に3連リングを配置。水面スキミング判定（白波スプレー・水流Whoosh音・加速ブースト）と完全連動し、海面を滑走しながら連続潜行する。
+
+41. **蝶々とトンボの島全域エコシステム拡充＆花びらエフェクト調律（2026-10-19追加）**:
+    - [AdventureIslandInsectsDirector.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureIslandInsectsDirector.cs)
+    - [AdventureButterflyDrift.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureButterflyDrift.cs)
+    - [AdventureParadiseCreatures.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureParadiseCreatures.cs)
+    - [AdventureRustFloatFeel.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureRustFloatFeel.cs)
+    - [AdventureBreezePetals.cs](file:///Users/user/Unity%20project/RustAndFloat/Assets/Game/Scripts/AdventureBreezePetals.cs)
+    - **機能概要**:
+      - **昆虫エコシステム（`AdventureIslandInsectsDirector`）**: 島中の主要な花畑（7箇所・35匹）と水辺（6箇所・24匹）に、色鮮やかな蝶（モルフォブルー、トパーズイエロー、ローズピンク等）とトンボ（茜色赤とんぼ、碧色シオカラトンボ）が生き生きと生息するエコシステムを新設。
+      - **描画カリング距離の適正化**: 蝶（55m ➔ 125m）、トンボ（42m ➔ 110m）に拡大し、滑空時でも大空や遠景から美しく視認可能に。
+      - **風に舞う花びらエフェクトの調律（`AdventureBreezePetals`）**: ピンクだけでなく純白・黄色の花弁が風に乗って舞う多彩なカラーパレット（MinMaxGradient）を導入。さらに発生頻度と最大粒子数を従来の約1/4〜1/5に絞り込み、視界を塞がず時折ひらひらと舞う上品な情景に仕上げた。
+
 ## 次の推奨タスク
 
 1. **相棒Rustのドローン視点フォトモード（思い出アルバム撮影機能）**:
