@@ -36,25 +36,55 @@ public partial class AdventureSanctuaryTowerManager
         }
         else if (!string.IsNullOrEmpty(speaker))
         {
+            string locSpeaker = AdventureLocalizationManager.Get(speaker);
+            if (!string.IsNullOrEmpty(locSpeaker)) speaker = locSpeaker;
+
+            string locBody = AdventureLocalizationManager.Get(body);
+            if (!string.IsNullOrEmpty(locBody)) body = locBody;
+
+            string quoteL = AdventureLocalizationManager.CurrentLanguage switch
+            {
+                AdventureLocalizationManager.GameLanguage.English => "\"",
+                AdventureLocalizationManager.GameLanguage.Spanish => "«",
+                _ => "「"
+            };
+            string quoteR = AdventureLocalizationManager.CurrentLanguage switch
+            {
+                AdventureLocalizationManager.GameLanguage.English => "\"",
+                AdventureLocalizationManager.GameLanguage.Spanish => "»",
+                _ => "」"
+            };
             string hex = ColorUtility.ToHtmlStringRGBA(accent);
-            mainText = $"<color=#{hex}><b>{speaker}</b></color> 「{body}」";
+            mainText = $"<color=#{hex}><b>{speaker}</b></color> {quoteL}{body}{quoteR}";
         }
         else if (!string.IsNullOrEmpty(title))
         {
+            string locTitle = AdventureLocalizationManager.Get(title);
+            if (!string.IsNullOrEmpty(locTitle)) title = locTitle;
+
+            string locBody = AdventureLocalizationManager.Get(body);
+            if (!string.IsNullOrEmpty(locBody)) body = locBody;
+
             string hex = ColorUtility.ToHtmlStringRGBA(accent);
             mainText = $"<color=#{hex}><b>✦ {title} ✦</b></color>\n{body}";
         }
         else
         {
+            string locBody = AdventureLocalizationManager.Get(body);
+            if (!string.IsNullOrEmpty(locBody)) body = locBody;
+
             string hex = ColorUtility.ToHtmlStringRGBA(accent);
             mainText = $"<color=#{hex}>{body}</color>";
         }
 
         if (!string.IsNullOrEmpty(hint))
         {
+            string locHint = AdventureLocalizationManager.Get(hint);
+            if (!string.IsNullOrEmpty(locHint)) hint = locHint;
             mainText += $"\n<size=19><color=#FFE073><b>{hint}</b></color></size>";
         }
 
+        PrepareFontForText(font, mainText, 28);
         _filmSubtitleUi.text = mainText;
         _filmSubtitleUi.color = Color.white;
         _filmSubtitleUi.transform.localScale = Vector3.one;
@@ -346,7 +376,11 @@ public partial class AdventureSanctuaryTowerManager
                     _scriptHoldTimer += Time.unscaledDeltaTime;
                     if (_filmSubtitleUi != null)
                     {
-                        _filmSubtitleUi.text = "<size=34><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>";
+                        Font f = ResolveEpilogueFont();
+                        if (f != null && _filmSubtitleUi.font != f) _filmSubtitleUi.font = f;
+                        string divingText = AdventureLocalizationManager.Get("canopy_diving_prompt");
+                        _filmSubtitleUi.text = divingText;
+                        PrepareFontForText(f, divingText, 34, FontStyle.Bold);
                     }
                     if (_scriptHoldTimer >= 0.35f)
                         _scriptBoardAdvance = true;
@@ -356,7 +390,11 @@ public partial class AdventureSanctuaryTowerManager
                     _scriptHoldTimer = 0f;
                     if (_filmSubtitleUi != null)
                     {
-                        _filmSubtitleUi.text = "<size=34><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 光の柱へダイブ！</size>";
+                        Font f = ResolveEpilogueFont();
+                        if (f != null && _filmSubtitleUi.font != f) _filmSubtitleUi.font = f;
+                        string diveText = AdventureLocalizationManager.Get("canopy_dive_prompt");
+                        _filmSubtitleUi.text = diveText;
+                        PrepareFontForText(f, diveText, 34, FontStyle.Bold);
                     }
                 }
             }

@@ -714,6 +714,12 @@ public static class AdventureLocalizationManager
             "<size=34><color=#FFD700><b>【 按住Space / 长按点击 】</b></color> 跃入光之柱！</size>",
             "<size=34><color=#FFD700><b>[ Mantener Espacio / Clic ]</b></color> ¡Zambullirse al Pilar!</size>"
         } },
+        { "canopy_diving_prompt", new[] {
+            "<size=34><color=#FFE073><b>【 光の柱へダイブ中……！ 】</b></color></size>",
+            "<size=34><color=#FFE073><b>[ Diving into Light Pillar...! ]</b></color></size>",
+            "<size=34><color=#FFE073><b>【 正在跃入光之柱……！ 】</b></color></size>",
+            "<size=34><color=#FFE073><b>[ ¡Zambulléndose en el pilar de luz...! ]</b></color></size>"
+        } },
 
         // ==========================================
         // クライマックス台本ビート（全5ビート）
@@ -2217,6 +2223,55 @@ public static class AdventureLocalizationManager
             "Beep! The fan is spinning!\nRide the vent airflow and it will carry us up to the secret cliff terrace, Float!",
             "哔哔！风扇转动起来了！\n乘上送风孔的气流，就能把我们送上悬崖顶端的隐藏露台（黄金光柱）啦，Float！",
             "¡Bip! ¡El ventilador está girando!\n¡Sube al conducto de aire y nos elevará hasta la terraza secreta del acantilado, Float!"
+        } },
+
+        { "canopy_dive_hint", new[] {
+            "【Space / クリック】空の裂け目へダイブ",
+            "[Space / Click] Dive into Sky Rift",
+            "【Space / 点击】向天空裂缝飞跃",
+            "[Espacio / Clic] Zambullirse a la grieta del cielo"
+        } },
+        { "target_name_skydive_pillar", new[] {
+            "大空ダイブ光柱",
+            "Sky Dive Light Pillar",
+            "高空跳伞光柱",
+            "Pilar de salto al cielo"
+        } },
+        { "target_name_sanctuary_tower", new[] {
+            "白亜の聖域タワー",
+            "White Sanctuary Tower",
+            "白垩圣域高塔",
+            "Torre del Santuario Blanco"
+        } },
+        { "ピピッ！あの大空の光の柱からダイブしよう！", new[] {
+            "ピピッ！あの大空の光の柱からダイブしよう！",
+            "Beep! Let's dive from that great pillar of light into the sky!",
+            "哔哔！从那道天空光柱飞跃而下吧！",
+            "¡Bip! ¡Zambullámonos desde ese gran pilar de luz hacia el cielo!"
+        } },
+        { "ピピッ！島の中心の白亜タワーがあっちだよ！", new[] {
+            "ピピッ！島の中心の白亜タワーがあっちだよ！",
+            "Beep! The White Tower at the center of the island is that way!",
+            "哔哔！岛屿中央的白垩高塔就在那个方向哦！",
+            "¡Bip! ¡La Torre Blanca del centro de la isla está por allí!"
+        } },
+        { "field_lesson_prompt_need", new[] {
+            "【E】次に必要なことを聞く",
+            "[E] Ask what to do next",
+            "【E】询问接下来的目标",
+            "[E] Preguntar qué hacer ahora"
+        } },
+        { "field_lesson_prompt_tide", new[] {
+            "【E】潮目の標に触れる",
+            "[E] Touch Tide Marker",
+            "【E】触碰潮目之标",
+            "[E] Tocar el poste de la marea"
+        } },
+        { "field_lesson_prompt_canopy", new[] {
+            "【E】木漏れ日の標に触れる",
+            "[E] Touch Sunbeam Marker",
+            "【E】触碰林隙之标",
+            "[E] Tocar el poste del bosque"
         } }
     };
 }

@@ -1282,10 +1282,12 @@ public partial class AdventureRustDrone : MonoBehaviour
             {
                 // 全回収済み、またはクリア後：白亜タワーまたは大空光柱
                 targetPos = new Vector3(512f, 63.2f, 512f);
-                targetName = AdventureSanctuaryTowerManager.IsGameCleared ? "大空ダイブ光柱" : "白亜の聖域タワー";
+                targetName = AdventureSanctuaryTowerManager.IsGameCleared 
+                    ? AdventureLocalizationManager.Get("target_name_skydive_pillar") 
+                    : AdventureLocalizationManager.Get("target_name_sanctuary_tower");
                 dialogue = AdventureSanctuaryTowerManager.IsGameCleared 
-                    ? "ピピッ！あの大空の光の柱からダイブしよう！" 
-                    : "ピピッ！島の中心の白亜タワーがあっちだよ！";
+                    ? AdventureLocalizationManager.Get("ピピッ！あの大空の光の柱からダイブしよう！") 
+                    : AdventureLocalizationManager.Get("ピピッ！島の中心の白亜タワーがあっちだよ！");
                 targetColor = new Color(0.35f, 0.95f, 1.0f, 1f);
                 foundTarget = true;
             }

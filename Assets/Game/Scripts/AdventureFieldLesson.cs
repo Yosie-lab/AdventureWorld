@@ -214,14 +214,26 @@ public class AdventureFieldLesson : MonoBehaviour
         return kind == Kind.BeachTide ? HasTideStep : HasCanopyRead;
     }
 
+    void OnEnable()
+    {
+        AdventureLocalizationManager.OnLanguageChanged += RefreshLearnedLook;
+    }
+
+    void OnDisable()
+    {
+        AdventureLocalizationManager.OnLanguageChanged -= RefreshLearnedLook;
+    }
+
     void RefreshLearnedLook()
     {
         _promptKnown = OwnsSkill();
         if (_prompt != null)
         {
             _prompt.text = _promptKnown
-                ? "【E】次に必要なことを聞く"
-                : (kind == Kind.BeachTide ? "【E】潮目の標に触れる" : "【E】木漏れ日の標に触れる");
+                ? AdventureLocalizationManager.Get("field_lesson_prompt_need")
+                : (kind == Kind.BeachTide 
+                    ? AdventureLocalizationManager.Get("field_lesson_prompt_tide") 
+                    : AdventureLocalizationManager.Get("field_lesson_prompt_canopy"));
         }
     }
 

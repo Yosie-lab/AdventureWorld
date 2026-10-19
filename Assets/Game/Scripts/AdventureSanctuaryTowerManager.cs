@@ -1734,7 +1734,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         if (_scriptHintUi != null)
         {
             string hint = _scriptBoardIsDive
-                ? "【Space / クリック】空の裂け目へダイブ"
+                ? AdventureLocalizationManager.Get("canopy_dive_hint")
                 : "";
             Font f = ResolveUiFont();
             _scriptHintUi.font = f;
