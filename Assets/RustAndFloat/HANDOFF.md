@@ -11,6 +11,19 @@ created: 2026-09-11
 
 ### 概要・現在の状態
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
+- **商用販売化（Steam / Steam Deck / 各プラットフォーム対応）4大必須要件の完遂（2026-10-19 追記）**:
+  1. **商用向け実績（Achievements）システム＆ゴールドトーストUI（`AdventureAchievementManager.cs`）**:
+     - 全10種の実績（`first_glide`, `find_scrap`, `meet_capybara`, `thermal_ride`, `wind_highway`, `scrap_10`, `tower_lever_unlock`, `sky_opened`, `ledge_climb`, `scrap_all`）を新設。
+     - プレミアムなガラスモーフィズム＋ゴールド・シアン発色トースト通知UIとFmaj7プロシージャル祝祭チャイム音。
+     - Steamworks（`SteamUserStats.SetAchievement`）への1行連動インターフェース対応。
+  2. **完全コントローラー・ゲームパッド対応（`AdventureInputReader.cs` / `AdventurePauseMenu.cs`）**:
+     - コントローラーの Start / Menu ボタンでの即座ポーズ開閉。
+     - LB / RB によるポーズ内タブスムーズ切替、Bボタン（East）によるメニュー戻る／閉じる操作に対応。Steam Deck / Xbox / PS コントローラーでマウス不要の完全完結。
+  3. **統合クレジット＆正規EULAライセンス表記（`AdventurePauseMenu.cs`）**:
+     - 4タブ構成（オーディオ・操作、画面・画質、操作ガイド、クレジット・表記）。
+     - Unity Asset Store EULA規約に準拠したサードパーティ素材（Idyllic Fantasy Nature, Quirky Series, PolyOne等）の正規表記および謝辞。
+  4. **オーディオ＆画面設定の完全PlayerPrefs永続化**:
+     - BGM/SE音量、カメラ感度、フルスクリーン/解像度/品質設定のシームレスなセーブ＆ロード。
 - **真の100点満点達成（＋8点ロードマップ完遂・2026-10-19 追記）**:
   1. **【+2点】大空の可視化気流「ウィンド・ストリームライン（風の道筋）」（`AdventureWindStreamlinesDirector.cs`）**:
      - 島の上空に風の流れを視覚的に描く3本の幹線気流ライン（西海岸・中央渓谷・東部高空）をプロシージャル配置。

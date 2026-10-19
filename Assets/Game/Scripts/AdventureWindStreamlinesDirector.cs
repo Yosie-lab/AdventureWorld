@@ -237,6 +237,7 @@ public class AdventureWindStreamlinesDirector : MonoBehaviour
                     {
                         // 順風気流ブースト：気流方向へ穏やかに吸着推進
                         player.ApplyRingMagnetPull(forwardDir * (4.2f * Time.deltaTime));
+                        AdventureAchievementManager.Unlock("wind_highway");
 
                         // 相棒Rustのリアルタイム歓声
                         if (Time.time > _lastStreamVoiceTime + 22f && AdventureRustDrone.Instance != null)

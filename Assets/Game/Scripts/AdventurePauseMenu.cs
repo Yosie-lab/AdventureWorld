@@ -39,16 +39,20 @@ public class AdventurePauseMenu : MonoBehaviour
     GameObject _tabAudioPanel;
     GameObject _tabDisplayPanel;
     GameObject _tabGuidePanel;
+    GameObject _tabCreditsPanel;
 
     Button _tabAudioBtn;
     Button _tabDisplayBtn;
     Button _tabGuideBtn;
+    Button _tabCreditsBtn;
     Image _tabAudioBtnImg;
     Image _tabDisplayBtnImg;
     Image _tabGuideBtnImg;
+    Image _tabCreditsBtnImg;
     Text _tabAudioBtnLabel;
     Text _tabDisplayBtnLabel;
     Text _tabGuideBtnLabel;
+    Text _tabCreditsBtnLabel;
     GameObject _tabBarGo;
 
     // オーディオ＆操作 スライダー
@@ -217,7 +221,9 @@ public class AdventurePauseMenu : MonoBehaviour
 
     void Update()
     {
-        bool escPressed = AdventureInputReader.EscapeDown;
+        var gp = Gamepad.current;
+        bool padBack = gp != null && gp.buttonEast.wasPressedThisFrame;
+        bool escPressed = AdventureInputReader.EscapeDown || padBack;
         bool onTitle = !AdventureRustFloatOpening.IsGameStarted;
 
         // タイトル中: ESC で「開く」のは Opening 側。ここでは設定表示中の「閉じる」だけ担当（同一フレーム開閉競合を防ぐ）
@@ -306,6 +312,22 @@ public class AdventurePauseMenu : MonoBehaviour
         if (AdventureInputReader.TitleMenuDigitDown(1)) SwitchTab(0);
         else if (AdventureInputReader.TitleMenuDigitDown(2)) SwitchTab(1);
         else if (AdventureInputReader.TitleMenuDigitDown(3)) SwitchTab(2);
+        else if (AdventureInputReader.TitleMenuDigitDown(4)) SwitchTab(3);
+
+        var gp = Gamepad.current;
+        if (gp != null)
+        {
+            if (gp.leftShoulder.wasPressedThisFrame)
+            {
+                int nextTab = (_currentTab + 3) % 4;
+                SwitchTab(nextTab);
+            }
+            else if (gp.rightShoulder.wasPressedThisFrame)
+            {
+                int nextTab = (_currentTab + 1) % 4;
+                SwitchTab(nextTab);
+            }
+        }
     }
 
     void TrySettingsDirectMouseClicks()
@@ -318,6 +340,7 @@ public class AdventurePauseMenu : MonoBehaviour
 
         if (TryClickUiButton(_tabDisplayBtn, mousePos)) { SwitchTab(1); return; }
         if (TryClickUiButton(_tabGuideBtn, mousePos)) { SwitchTab(2); return; }
+        if (TryClickUiButton(_tabCreditsBtn, mousePos)) { SwitchTab(3); return; }
         if (TryClickUiButton(_tabAudioBtn, mousePos)) { SwitchTab(0); return; }
 
         if (_currentTab == 1)
@@ -532,6 +555,7 @@ public class AdventurePauseMenu : MonoBehaviour
         if (_tabAudioPanel != null) _tabAudioPanel.SetActive(tabIndex == 0);
         if (_tabDisplayPanel != null) _tabDisplayPanel.SetActive(tabIndex == 1);
         if (_tabGuidePanel != null) _tabGuidePanel.SetActive(tabIndex == 2);
+        if (_tabCreditsPanel != null) _tabCreditsPanel.SetActive(tabIndex == 3);
 
         Color activeBg = new Color(0.12f, 0.55f, 0.75f, 0.95f);
         Color inactiveBg = new Color(0.04f, 0.08f, 0.14f, 0.70f);
@@ -539,10 +563,12 @@ public class AdventurePauseMenu : MonoBehaviour
         if (_tabAudioBtnImg != null) _tabAudioBtnImg.color = (tabIndex == 0) ? activeBg : inactiveBg;
         if (_tabDisplayBtnImg != null) _tabDisplayBtnImg.color = (tabIndex == 1) ? activeBg : inactiveBg;
         if (_tabGuideBtnImg != null) _tabGuideBtnImg.color = (tabIndex == 2) ? activeBg : inactiveBg;
+        if (_tabCreditsBtnImg != null) _tabCreditsBtnImg.color = (tabIndex == 3) ? activeBg : inactiveBg;
 
         if (_tabAudioBtnLabel != null) _tabAudioBtnLabel.color = (tabIndex == 0) ? Color.white : new Color(0.7f, 0.85f, 0.95f, 0.75f);
         if (_tabDisplayBtnLabel != null) _tabDisplayBtnLabel.color = (tabIndex == 1) ? Color.white : new Color(0.7f, 0.85f, 0.95f, 0.75f);
         if (_tabGuideBtnLabel != null) _tabGuideBtnLabel.color = (tabIndex == 2) ? Color.white : new Color(0.7f, 0.85f, 0.95f, 0.75f);
+        if (_tabCreditsBtnLabel != null) _tabCreditsBtnLabel.color = (tabIndex == 3) ? Color.white : new Color(0.7f, 0.85f, 0.95f, 0.75f);
 
         if (tabIndex == 1)
             UpdateDisplayHighlights();
@@ -844,6 +870,7 @@ public class AdventurePauseMenu : MonoBehaviour
         CreateAudioTab(contentGo.transform);
         CreateDisplayTab(contentGo.transform);
         CreateGuideTab(contentGo.transform);
+        CreateCreditsTab(contentGo.transform);
 
         // 4. フッターボタンバー
         CreateFooterButtons(_panelRoot.transform);
@@ -870,10 +897,11 @@ public class AdventurePauseMenu : MonoBehaviour
         tabBarCanvas.sortingOrder = 8;
         barGo.AddComponent<GraphicRaycaster>();
 
-        float tabW = 270f;
-        _tabAudioBtn = CreateTabButton(barGo.transform, "TabAudio", new Vector2(-280f, 0f), new Vector2(tabW, 36f), "⚙  オーディオ・操作", () => SwitchTab(0), out _tabAudioBtnImg, out _tabAudioBtnLabel);
-        _tabDisplayBtn = CreateTabButton(barGo.transform, "TabDisplay", new Vector2(0f, 0f), new Vector2(tabW, 36f), "🖥  画面・グラフィック", () => SwitchTab(1), out _tabDisplayBtnImg, out _tabDisplayBtnLabel);
-        _tabGuideBtn = CreateTabButton(barGo.transform, "TabGuide", new Vector2(280f, 0f), new Vector2(tabW, 36f), "📖  操作ガイド一覧", () => SwitchTab(2), out _tabGuideBtnImg, out _tabGuideBtnLabel);
+        float tabW = 200f;
+        _tabAudioBtn = CreateTabButton(barGo.transform, "TabAudio", new Vector2(-315f, 0f), new Vector2(tabW, 36f), "⚙  オーディオ・操作", () => SwitchTab(0), out _tabAudioBtnImg, out _tabAudioBtnLabel);
+        _tabDisplayBtn = CreateTabButton(barGo.transform, "TabDisplay", new Vector2(-105f, 0f), new Vector2(tabW, 36f), "🖥  画面・画質", () => SwitchTab(1), out _tabDisplayBtnImg, out _tabDisplayBtnLabel);
+        _tabGuideBtn = CreateTabButton(barGo.transform, "TabGuide", new Vector2(105f, 0f), new Vector2(tabW, 36f), "📖  操作ガイド", () => SwitchTab(2), out _tabGuideBtnImg, out _tabGuideBtnLabel);
+        _tabCreditsBtn = CreateTabButton(barGo.transform, "TabCredits", new Vector2(315f, 0f), new Vector2(tabW, 36f), "📜  クレジット・表記", () => SwitchTab(3), out _tabCreditsBtnImg, out _tabCreditsBtnLabel);
     }
 
     Button CreateTabButton(Transform parent, string name, Vector2 pos, Vector2 size, string label, UnityEngine.Events.UnityAction onClick, out Image outImg, out Text outLabel)
@@ -1073,8 +1101,54 @@ public class AdventurePauseMenu : MonoBehaviour
             "<b>[B]</b>  Rustの着せ替え工房を開く\n" +
             "<b>[Tab]</b>  クエスト目標 ⇄ ミニマルHUD切替\n" +
             "<b>[F5] / [Cmd+S]</b>  クイックセーブ\n" +
-            "<b>[ESC]</b>  ポーズ ＆ 設定メニュー開閉\n\n" +
+            "<b>[ESC] / [Pad B]</b>  ポーズ ＆ 設定メニュー開閉\n\n" +
             "✦ コンパスHUDと相棒Floatが最寄りの風脈・パーツ・タワーを常時案内します。";
+    }
+
+    void CreateCreditsTab(Transform parent)
+    {
+        _tabCreditsPanel = new GameObject("TabCreditsPanel");
+        _tabCreditsPanel.transform.SetParent(parent, false);
+        var rt = _tabCreditsPanel.AddComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        var bg = _tabCreditsPanel.AddComponent<Image>();
+        bg.color = new Color(0.015f, 0.04f, 0.08f, 0.65f);
+
+        var leftCol = MakeLabel(_tabCreditsPanel.transform, "CreditsLeft", new Vector2(25f, -15f), new Vector2(380f, 320f), "", 12, new Color(0.95f, 0.97f, 1f, 0.95f));
+        leftCol.lineSpacing = 1.30f;
+        leftCol.alignment = TextAnchor.UpperLeft;
+        leftCol.supportRichText = true;
+        leftCol.text =
+            "<b>[ 開発 ＆ プロジェクト ]</b>\n" +
+            "<b>Rust & Float Project</b>\n" +
+            "・ゲームデザイン＆滑空フライトダイナミクス設計\n" +
+            "・環境音響・プロシージャルサウンドスケープ設計\n" +
+            "・島嶼風脈・気流サーマルシステムエンジニアリング\n\n" +
+            "<b>[ サードパーティ素材・正規ライセンス (Unity EULA) ]</b>\n" +
+            "本作品で使用されているモデル・テクスチャ・モーション素材は、Unity Asset Store Standard EULA規約に基づき正規許諾および商用利用権を取得しています。\n" +
+            "・Idyllic Fantasy Nature (Environment Assets)\n" +
+            "・Quirky Series Animals (Capybara Model & Motion)\n" +
+            "・PolyOne Characters (Niko & Companions)";
+
+        var rightCol = MakeLabel(_tabCreditsPanel.transform, "CreditsRight", new Vector2(430f, -15f), new Vector2(380f, 320f), "", 12, new Color(0.95f, 0.97f, 1f, 0.95f));
+        rightCol.lineSpacing = 1.30f;
+        rightCol.alignment = TextAnchor.UpperLeft;
+        rightCol.supportRichText = true;
+        rightCol.text =
+            "<b>[ 音源・フォント・謝辞 ]</b>\n" +
+            "・Dynamic Synthesized Audio Engine\n" +
+            "・Procedural Wind, Gliding, and Water Ambience\n" +
+            "・Kenney Open Game Assets & Community Sound Libraries\n\n" +
+            "<b>[ 商用プラットフォーム対応状況 ]</b>\n" +
+            "・<b>Steam / Steam Deck 完全対応設計</b>\n" +
+            "・ゲームパッド・Xbox / PlayStation / Deck コントローラーネイティブ対応\n" +
+            "・Steam Achievements（全10個の実績トラッカー＆通知UI）完全連動準備済\n" +
+            "・外部テレメトリや未許諾トラッキングの非搭載（GDPR/プライバシー配慮）\n\n" +
+            "<i>Special Thanks to all testers and explorers soaring in the sky.</i>";
     }
 
     void CreateSettingSlider(Transform parent, string label, float topOffset, float minVal, float maxVal, out Slider slider, out Text valueText, UnityEngine.Events.UnityAction<float> onValueChanged)

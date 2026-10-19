@@ -304,14 +304,17 @@ public static class AdventureInputReader
         }
     }
 
-    /// <summary>Escapeキーがこのフレームに押された</summary>
+    /// <summary>EscapeキーまたはゲームパッドStart/Menuボタンがこのフレームに押された</summary>
     public static bool EscapeDown
     {
         get
         {
             try { if (Input.GetKeyDown(KeyCode.Escape)) return true; } catch { }
             var kb = Keyboard;
-            return kb != null && kb.escapeKey.wasPressedThisFrame;
+            if (kb != null && kb.escapeKey.wasPressedThisFrame) return true;
+            var gp = Gamepad.current;
+            if (gp != null && (gp.startButton.wasPressedThisFrame || gp.selectButton.wasPressedThisFrame)) return true;
+            return false;
         }
     }
 

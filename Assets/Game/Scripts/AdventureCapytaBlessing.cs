@@ -346,6 +346,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
 
         bool already = player.hasCapytaSuperJump;
         player.hasCapytaSuperJump = true;
+        AdventureAchievementManager.Unlock("meet_capybara");
         player.jumpMultiplier = SuperJumpMultiplier;
         PlayerPrefs.SetInt(PrefKey, 1);
         PlayerPrefs.Save();

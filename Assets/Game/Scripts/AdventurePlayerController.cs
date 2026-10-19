@@ -816,6 +816,7 @@ public partial class AdventurePlayerController : MonoBehaviour
             if (!_wasGliding && _gliding)
             {
                 HasEverGlided = true;
+                AdventureAchievementManager.Unlock("first_glide");
                 GetDrone()?.OnGlideStarted();
             }
             AdventureRustFloatOpening.Instance?.SetGlideGuideActive(_gliding);
@@ -1614,6 +1615,7 @@ public partial class AdventurePlayerController : MonoBehaviour
 
                         if (_footsteps == null) _footsteps = GetComponent<AdventureNikoFootsteps>();
                         _footsteps?.PlayJumpSound();
+                        AdventureAchievementManager.Unlock("ledge_climb");
                     }
                 }
             }

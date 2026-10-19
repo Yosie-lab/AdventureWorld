@@ -186,6 +186,7 @@ public class AdventureIslandThermalDirector : MonoBehaviour
             float xz = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(p.position.x, p.position.z));
             if (xz <= p.radius && pPos.y >= p.position.y && pPos.y <= p.position.y + p.height)
             {
+                AdventureAchievementManager.Unlock("thermal_ride");
                 if (Time.time > _lastThermalNoticeTime + 28f && AdventureRustDrone.Instance != null)
                 {
                     _lastThermalNoticeTime = Time.time;

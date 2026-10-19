@@ -34,7 +34,10 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             PlayerPrefs.SetInt(PrefKeyCanopyBroken, value ? 1 : 0);
             PlayerPrefs.Save();
             if (value)
+            {
                 _ignoreSavedCanopyState = false;
+                AdventureAchievementManager.Unlock("sky_opened");
+            }
         }
     }
 

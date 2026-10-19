@@ -629,6 +629,11 @@ public class AdventureScrapManager : MonoBehaviour
             drone.OnNikoFoundScrap(CollectedCount);
         }
 
+        // 実績解除判定
+        AdventureAchievementManager.Unlock("find_scrap");
+        if (CollectedCount >= 10) AdventureAchievementManager.Unlock("scrap_10");
+        if (CollectedCount >= TotalScrapCount) AdventureAchievementManager.Unlock("scrap_all");
+
         // 段階的なアップグレード判定
         CheckUpgrades();
 
