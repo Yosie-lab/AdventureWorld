@@ -12,6 +12,17 @@ created: 2026-09-11
 ### 概要・現在の状態
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
 - **コンパイルエラー**: 0件
+- **案1：水面スキミング＆白波航跡ブースト JUICEシステム統合・最適化（2026-10-19 追記）**:
+  1. **水面反発クッション＆滑走ブースト（`AdventurePlayerController.cs`）**:
+     - 滑空中に海面（5.5m）またはカルデラ湖（18.15m）のスレスレ（0.15m〜2.4m）に接近した際、自然な揚力（Ground Effect）が働き水没を防止。
+     - 水面滑走による爽快な加速ブースト（通常7m/sから最大18.5m/s）を付与。
+     - 水面スキミング強度に応じて `SpeedIntensity` を高め、速度線（`AdventureWindStreakEffect`）およびダイナミックFOV（`AdventureCameraFollow`）と完全連動。
+  2. **白波スプレー＆波紋リング・水流サウンド（`AdventureWaterSkimmingJuice.cs`）**:
+     - プレイヤーの左右後方から斜め外側へ勢いよく広がる2条の白波スプレーパーティクルを射出。
+     - 水面波紋リングの連続生成はパーティクルプールからの `Emit` 方式を採用し、GameObject生成/破棄に伴うGC Allocを完全ゼロ化。
+     - プロシージャル合成された2Dステレオ水流疾走音（Water Whoosh）が速度・高度に応じてリアルタイムにピッチ・音量変化。
+     - 1.2秒以上の水面滑走維持で相棒Floatが「わっ、水面スレスレ！すごいスピード！！」と喜び宙返りアクションを発火。
+     - 地形（Terrain）との正確な高さ比較により、陸地（砂浜・草地）上空での誤発火を完全に抑止。
 - **空中・海上に浮遊していた灰色のバグオブジェクト完全削除（2026-10-19 追記）**:
   1. **原因の特定**:
      - `AdventureSanctuaryTowerManager.Structure.cs` で台座（512, 62, 512）の崖下隙間埋め用に生成されていた `PodiumCliffFoundation_Mesh.asset` は、メッシュ頂点自体がワールド座標（約522, 47, 501）を持っていた。
