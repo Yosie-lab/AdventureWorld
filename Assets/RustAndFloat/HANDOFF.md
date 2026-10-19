@@ -24,18 +24,18 @@ created: 2026-09-11
      - Unity Asset Store EULA規約に準拠したサードパーティ素材（Idyllic Fantasy Nature, Quirky Series, PolyOne等）の正規表記および謝辞。
   4. **オーディオ＆画面設定の完全PlayerPrefs永続化**:
      - BGM/SE音量、カメラ感度、フルスクリーン/解像度/品質設定のシームレスなセーブ＆ロード。
-  5. **4ヶ国語（日本語 / 英語 / 簡体字中国語 / スペイン語）完全ローカライズ（`AdventureLocalizationManager.cs`）**:
-     - タイトル画面、世界観ストーリー、ポーズ・環境設定、実績通知トースト、HUD、相棒Rustの台詞まで全編を4ヶ国語辞書化。
-     - 設定メニューに「🌐 表示言語」セレクターを新設し、ワンクリックで全UIテキストがシームレスにリアルタイム更新。OS言語の自動判定＆PlayerPrefs永続化を実装。
-     - コンパスHUD（`AdventureCompassHUD.cs`）のリボン方位（N/E/S/W/北/東/南/西等）、距離・方角ナビゲーション、相棒Rustのセリフ字幕（`AdventureRustSpeechUI.cs`）の話者名・引用符を4言語へ完全連動。
-     - **ゲーム内全画面・全セリフ・全シネマキャプションの4ヶ国語化完遂（2026-10-19 追記）**:
-       * **ゲームクリアボード（`AdventureSanctuaryTowerManager.ClearUI.cs`）**: タイトル、パーツ回収数・獲得能力一覧、3つのアクションボタン（大空へダイブ、はじめから、閉じる）の完全多言語化。
-       * **シネマエピローグ映画字幕全9行（`AdventureSanctuaryTowerManager.Epilogue.cs`）**: 3幕構成の映画テロップを動的辞書引き＋CJKマルチフォントチェーン対応。
-       * **天蓋開放台本ビート全7枚＆ダイブ指示（`AdventureSanctuaryTowerManager.Canopy.cs`）**: タイトル、話者、セリフ、長押しダイブプロンプトの多言語化。
-       * **クライマックス台本ビート全5枚＆注油UI（`AdventureSanctuaryTowerManager.Climax.cs`）**: 凍結危機台本、注油ゲージタイトル、プロンプト、長押しボタンの完全多言語化。
-       * **Rust／Float 自律セリフボード（`AdventureRustDrone.cs` / `AdventureRustSpeechUI.cs`）**: 起動挨拶、タワー接近・案内、パーツ・木箱・貝殻探知、ソナー方位、パーツ回収（1〜12個目）の情緒セリフ、滑空・気流セリフの全多言語化。
-       * **砂浜ナラティブ・メモリチップ全5箇所＆メッセージボトル全3箇所（`AdventureBeachNarrativeManager.cs`）**: モーダルタイトル、サブタイトル、本文、Rustコメント、閉じるボタンの完全多言語化。
-       * **CJKマルチフォントチェーン導入**: macOS/Windows/Linuxの標準フォント（PingFang SC, Hiragino Sans GB, Heiti SC, Hiragino Sans, YuGothic, Microsoft YaHei 等）を配列で一括指定し、簡体字中国語の文字欠落（Tofu/空白）を完全根絶。
+- **全UI・全ボード・全セリフ・全プロンプトの完全4ヶ国語（日英中西）多言語化の完遂（2026-10-19 追記）**:
+  1. **カピタ（Capyta）完全多言語化（`AdventureCapytaBlessing.cs`）**:
+     - 機嫌4種（満足・ご機嫌・普通・眠たげ）の動的バッジ表示とふれあいプロンプト。
+     - カピタのセリフ、Rustの相槌、貝殻物々交換の全会話を言語ごとの引用符（英語 `" "`、スペイン語 `« »`、中日 `「 」`）とレイアウトで完全多言語化。
+  2. **Rust着せ替え工房・コスメティクス全5種（`AdventureRustWorkshopUI.cs` / `AdventureRustCosmetics.cs`）**:
+     - タイトル、素材ポーチ見出し・ガイド、全5種の装飾品名・説明文・装備時Rustリアクション、不足時メッセージ、操作ボタンの完全多言語化。言語切替時のリアルタイム即時リフレッシュ対応。
+  3. **スカイダイブ・タイムアタック（`AdventureGlidingTimeAttackManager.cs`）**:
+     - スタート台ワープボタン、リング通過HUD、即時リトライHUD、リザルトボード（新記録・タイム・評価ランク・通過リング）、クリア時のRustセリフ（Sランク/Aランク/汎用）を完全多言語化。
+  4. **砂浜ナラティブ・漂着物・焚き火（`AdventureBeachFlotsam.cs` / `AdventureBeachCampfire.cs` / `AdventureBeachSeashellItem.cs` 等）**:
+     - 漂着艇・キャンプ跡・漂着物調査HUD、焚き火の点火・着席プロンプト・立ち上がりセリフ・Rustの心温まるチル呟き6種、貝殻拾得プロンプト・トースト・全5種の固有リアクションセリフの完全多言語化。
+  5. **全OnGUIカスタムパネルへのOSフォント動的解決チェーン（CJK Multi-Font Chain）適用**:
+     - macOS/Windows/LinuxのOS標準フォント（PingFang SC, Hiragino Sans GB, Heiti SC, Hiragino Sans, Microsoft YaHei, YuGothic 等）を自動解決し、簡体字中国語やスペイン語の文字化け・豆腐（□）を完全根絶。
 - **真の100点満点達成（＋8点ロードマップ完遂・2026-10-19 追記）**:
   1. **【+2点】大空の可視化気流「ウィンド・ストリームライン（風の道筋）」（`AdventureWindStreamlinesDirector.cs`）**:
      - 島の上空に風の流れを視覚的に描く3本の幹線気流ライン（西海岸・中央渓谷・東部高空）をプロシージャル配置。
