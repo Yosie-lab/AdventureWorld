@@ -540,12 +540,61 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         return pos;
     }
 
+    Font _cachedFont;
+    Font ResolveModalFont()
+    {
+        if (_cachedFont != null) return _cachedFont;
+        string[] candidates =
+        {
+            "PingFang SC",
+            "Hiragino Sans GB",
+            "Heiti SC",
+            "HiraginoSans-W3",
+            "Hiragino Kaku Gothic ProN",
+            "YuGothic",
+            "Apple SD Gothic Neo",
+            "Microsoft YaHei",
+            "Arial Unicode MS",
+            "Helvetica Neue",
+            "Arial"
+        };
+        try
+        {
+            _cachedFont = Font.CreateDynamicFontFromOSFont(candidates, 24);
+            if (_cachedFont != null) return _cachedFont;
+        }
+        catch { }
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            try
+            {
+                var f = Font.CreateDynamicFontFromOSFont(candidates[i], 24);
+                if (f != null) { _cachedFont = f; return f; }
+            }
+            catch { }
+        }
+        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+    }
+
     /// <summary>ナラティブモーダルを開く</summary>
     public void OpenNarrativeModal(string id, string title, string subTitle, string body, string rustComment)
     {
         // 漂着サバイバルケースボードが開いている時はナラティブモーダルを開かない（画面重なり完全防止）
         if (AdventureBeachDriftBox.IsModalOpen)
             return;
+
+        string keyBase = "narrative_" + id;
+        string locTitle = AdventureLocalizationManager.Get(keyBase + "_title");
+        if (!string.IsNullOrEmpty(locTitle) && locTitle != keyBase + "_title") title = locTitle;
+
+        string locSub = AdventureLocalizationManager.Get(keyBase + "_sub");
+        if (!string.IsNullOrEmpty(locSub) && locSub != keyBase + "_sub") subTitle = locSub;
+
+        string locBody = AdventureLocalizationManager.Get(keyBase + "_body");
+        if (!string.IsNullOrEmpty(locBody) && locBody != keyBase + "_body") body = locBody;
+
+        string locRust = AdventureLocalizationManager.Get(keyBase + "_rust");
+        if (!string.IsNullOrEmpty(locRust) && locRust != keyBase + "_rust") rustComment = locRust;
 
         _modalTitle = title;
         _modalSubTitle = subTitle;
@@ -624,8 +673,11 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         GUI.DrawTexture(new Rect(bx, by, 3.5f, bh), Texture2D.whiteTexture);
         GUI.DrawTexture(new Rect(bx + bw - 3.5f, by, 3.5f, bh), Texture2D.whiteTexture);
 
+        Font modalFont = ResolveModalFont();
+
         // 1. タイトル
         var titleStyle = new GUIStyle(GUI.skin.label);
+        if (modalFont != null) titleStyle.font = modalFont;
         titleStyle.fontSize = 32;
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.alignment = TextAnchor.MiddleCenter;
@@ -633,6 +685,7 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
 
         // 2. サブタイトル（年代・出所）
         var subStyle = new GUIStyle(GUI.skin.label);
+        if (modalFont != null) subStyle.font = modalFont;
         subStyle.fontSize = 18;
         subStyle.fontStyle = FontStyle.Normal;
         subStyle.alignment = TextAnchor.MiddleCenter;
@@ -640,6 +693,7 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
 
         // 3. 本文
         var bodyStyle = new GUIStyle(GUI.skin.label);
+        if (modalFont != null) bodyStyle.font = modalFont;
         bodyStyle.fontSize = 22;
         bodyStyle.fontStyle = FontStyle.Normal;
         bodyStyle.wordWrap = true;
@@ -659,6 +713,7 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         GUI.DrawTexture(new Rect(btnX, btnY + btnH - 2.5f, btnW, 2.5f), Texture2D.whiteTexture);
 
         var btnStyle = new GUIStyle(GUI.skin.button);
+        if (modalFont != null) btnStyle.font = modalFont;
         btnStyle.fontSize = 22;
         btnStyle.fontStyle = FontStyle.Bold;
         btnStyle.alignment = TextAnchor.MiddleCenter;
@@ -668,10 +723,13 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         bool clicked = GUI.Button(new Rect(btnX, btnY, btnW, btnH), GUIContent.none, btnStyle);
 
         var btnLbl = new GUIStyle(GUI.skin.label);
+        if (modalFont != null) btnLbl.font = modalFont;
         btnLbl.fontSize = 22;
         btnLbl.fontStyle = FontStyle.Bold;
         btnLbl.alignment = TextAnchor.MiddleCenter;
-        DrawShadowed(new Rect(btnX, btnY, btnW, btnH), "【E / Space / クリック】閉じる", btnLbl, new Color(1.0f, 0.95f, 0.8f), 1.5f);
+        string closeText = AdventureLocalizationManager.Get("narrative_btn_close");
+        if (string.IsNullOrEmpty(closeText) || closeText == "narrative_btn_close") closeText = "【E / Space / クリック】閉じる";
+        DrawShadowed(new Rect(btnX, btnY, btnW, btnH), closeText, btnLbl, new Color(1.0f, 0.95f, 0.8f), 1.5f);
 
         if (Time.unscaledTime < _ignoreCloseUntil)
         {

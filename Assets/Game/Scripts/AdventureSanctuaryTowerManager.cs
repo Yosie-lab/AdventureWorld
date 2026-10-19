@@ -1771,6 +1771,9 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     {
         string[] candidates =
         {
+            "PingFang SC",
+            "Hiragino Sans GB",
+            "Heiti SC",
             "HiraginoSans-W3",
             "HiraginoSans-W6",
             "Hiragino Kaku Gothic ProN",
@@ -1779,9 +1782,19 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             "Yu Gothic",
             "YuGothic-Medium",
             "Apple SD Gothic Neo",
+            "Microsoft YaHei",
+            "SimHei",
             "Arial Unicode MS",
-            "Helvetica Neue"
+            "Helvetica Neue",
+            "Arial"
         };
+
+        try
+        {
+            Font multiFont = Font.CreateDynamicFontFromOSFont(candidates, size);
+            if (multiFont != null) return multiFont;
+        }
+        catch { }
 
         for (int i = 0; i < candidates.Length; i++)
         {
@@ -1789,7 +1802,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             {
                 Font font = Font.CreateDynamicFontFromOSFont(candidates[i], size);
                 if (font == null) continue;
-                font.RequestCharactersInTexture("あA", size, FontStyle.Normal);
+                font.RequestCharactersInTexture("あA你", size, FontStyle.Normal);
                 CharacterInfo info;
                 if (font.GetCharacterInfo('あ', out info, size, FontStyle.Normal) ||
                     font.GetCharacterInfo('A', out info, size, FontStyle.Normal))

@@ -29,7 +29,10 @@ public partial class AdventureSanctuaryTowerManager
         string mainText = "";
         if (isPrompt)
         {
-            mainText = "<size=34><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 光の柱へダイブ！</size>";
+            string divePrompt = AdventureLocalizationManager.Get("canopy_dive_prompt");
+            if (string.IsNullOrEmpty(divePrompt) || divePrompt == "canopy_dive_prompt")
+                divePrompt = "<size=34><color=#FFD700><b>【 Space / クリック長押し 】</b></color> 光の柱へダイブ！</size>";
+            mainText = divePrompt;
         }
         else if (!string.IsNullOrEmpty(speaker))
         {
@@ -125,15 +128,36 @@ public partial class AdventureSanctuaryTowerManager
         Debug.Log("[RustAndFloat] 天蓋スクリーンスクリプト（シネマ字幕）を Update 駆動で開始（全" + CanopyBeats.Length + "枚）");
     }
 
+    void GetLocalizedCanopyBeat(int index, out string title, out string speaker, out string body)
+    {
+        var beat = CanopyBeats[index];
+        title = beat.Title;
+        speaker = beat.Speaker;
+        body = beat.Body;
+
+        string tKey = $"canopy_{index}_title";
+        string locTitle = AdventureLocalizationManager.Get(tKey);
+        if (!string.IsNullOrEmpty(locTitle) && locTitle != tKey) title = locTitle;
+
+        string sKey = $"canopy_{index}_speaker";
+        string locSpeaker = AdventureLocalizationManager.Get(sKey);
+        if (!string.IsNullOrEmpty(locSpeaker) && locSpeaker != sKey) speaker = locSpeaker;
+
+        string bKey = $"canopy_{index}_body";
+        string locBody = AdventureLocalizationManager.Get(bKey);
+        if (!string.IsNullOrEmpty(locBody) && locBody != bKey) body = locBody;
+    }
+
     void PresentCanopyBeat(int index)
     {
         if (index < 0 || index >= CanopyBeats.Length) return;
         var beat = CanopyBeats[index];
+        GetLocalizedCanopyBeat(index, out string title, out string speaker, out string body);
 
         SuppressAllSpeechAndBanners();
-        _scriptBoardTitle = beat.Title ?? "";
-        _scriptBoardSpeaker = beat.Speaker ?? "";
-        _scriptBoardBody = beat.Body ?? "";
+        _scriptBoardTitle = title ?? "";
+        _scriptBoardSpeaker = speaker ?? "";
+        _scriptBoardBody = body ?? "";
         _scriptBoardAccent = beat.Accent;
         _scriptBoardIsDive = beat.IsDive;
         _scriptBoardAdvance = false;
@@ -155,7 +179,7 @@ public partial class AdventureSanctuaryTowerManager
         if (_scriptUiRoot != null)
             _scriptUiRoot.SetActive(false);
 
-        SetScreenScriptSubtitle(beat.Title, beat.Speaker, beat.Body, beat.Accent, beat.IsDive);
+        SetScreenScriptSubtitle(title, speaker, body, beat.Accent, beat.IsDive);
 
         // 「空が……割れるよ」で天空裂開シーン
         if (index == 2 && !_skyTearPlayed)
@@ -234,7 +258,8 @@ public partial class AdventureSanctuaryTowerManager
         if (_canopyBeatIndex != 0)
             return;
         var beat = CanopyBeats[0];
-        SetScreenScriptSubtitle(beat.Title, beat.Speaker, beat.Body, beat.Accent, beat.IsDive);
+        GetLocalizedCanopyBeat(0, out string title, out string speaker, out string body);
+        SetScreenScriptSubtitle(title, speaker, body, beat.Accent, beat.IsDive);
     }
 
     IEnumerator SkybreakAftershockLoopRoutine()

@@ -28,6 +28,14 @@ created: 2026-09-11
      - タイトル画面、世界観ストーリー、ポーズ・環境設定、実績通知トースト、HUD、相棒Rustの台詞まで全編を4ヶ国語辞書化。
      - 設定メニューに「🌐 表示言語」セレクターを新設し、ワンクリックで全UIテキストがシームレスにリアルタイム更新。OS言語の自動判定＆PlayerPrefs永続化を実装。
      - コンパスHUD（`AdventureCompassHUD.cs`）のリボン方位（N/E/S/W/北/東/南/西等）、距離・方角ナビゲーション、相棒Rustのセリフ字幕（`AdventureRustSpeechUI.cs`）の話者名・引用符を4言語へ完全連動。
+     - **ゲーム内全画面・全セリフ・全シネマキャプションの4ヶ国語化完遂（2026-10-19 追記）**:
+       * **ゲームクリアボード（`AdventureSanctuaryTowerManager.ClearUI.cs`）**: タイトル、パーツ回収数・獲得能力一覧、3つのアクションボタン（大空へダイブ、はじめから、閉じる）の完全多言語化。
+       * **シネマエピローグ映画字幕全9行（`AdventureSanctuaryTowerManager.Epilogue.cs`）**: 3幕構成の映画テロップを動的辞書引き＋CJKマルチフォントチェーン対応。
+       * **天蓋開放台本ビート全7枚＆ダイブ指示（`AdventureSanctuaryTowerManager.Canopy.cs`）**: タイトル、話者、セリフ、長押しダイブプロンプトの多言語化。
+       * **クライマックス台本ビート全5枚＆注油UI（`AdventureSanctuaryTowerManager.Climax.cs`）**: 凍結危機台本、注油ゲージタイトル、プロンプト、長押しボタンの完全多言語化。
+       * **Rust／Float 自律セリフボード（`AdventureRustDrone.cs` / `AdventureRustSpeechUI.cs`）**: 起動挨拶、タワー接近・案内、パーツ・木箱・貝殻探知、ソナー方位、パーツ回収（1〜12個目）の情緒セリフ、滑空・気流セリフの全多言語化。
+       * **砂浜ナラティブ・メモリチップ全5箇所＆メッセージボトル全3箇所（`AdventureBeachNarrativeManager.cs`）**: モーダルタイトル、サブタイトル、本文、Rustコメント、閉じるボタンの完全多言語化。
+       * **CJKマルチフォントチェーン導入**: macOS/Windows/Linuxの標準フォント（PingFang SC, Hiragino Sans GB, Heiti SC, Hiragino Sans, YuGothic, Microsoft YaHei 等）を配列で一括指定し、簡体字中国語の文字欠落（Tofu/空白）を完全根絶。
 - **真の100点満点達成（＋8点ロードマップ完遂・2026-10-19 追記）**:
   1. **【+2点】大空の可視化気流「ウィンド・ストリームライン（風の道筋）」（`AdventureWindStreamlinesDirector.cs`）**:
      - 島の上空に風の流れを視覚的に描く3本の幹線気流ライン（西海岸・中央渓谷・東部高空）をプロシージャル配置。

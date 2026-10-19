@@ -69,14 +69,36 @@ public partial class AdventureSanctuaryTowerManager
         Debug.Log("[RustAndFloat] クライマックス（スクリーンスクリプト）を Update 駆動で開始");
     }
 
+    void GetLocalizedClimaxBeat(int index, out string title, out string speaker, out string body)
+    {
+        var beat = ClimaxBeats[index];
+        title = beat.Title;
+        speaker = beat.Speaker;
+        body = beat.Body;
+
+        string tKey = $"climax_{index}_title";
+        string locTitle = AdventureLocalizationManager.Get(tKey);
+        if (!string.IsNullOrEmpty(locTitle) && locTitle != tKey) title = locTitle;
+
+        string sKey = $"climax_{index}_speaker";
+        string locSpeaker = AdventureLocalizationManager.Get(sKey);
+        if (!string.IsNullOrEmpty(locSpeaker) && locSpeaker != sKey) speaker = locSpeaker;
+
+        string bKey = $"climax_{index}_body";
+        string locBody = AdventureLocalizationManager.Get(bKey);
+        if (!string.IsNullOrEmpty(locBody) && locBody != bKey) body = locBody;
+    }
+
     void PresentClimaxBeat(int index)
     {
         if (index < 0 || index >= ClimaxBeats.Length) return;
         var beat = ClimaxBeats[index];
+        GetLocalizedClimaxBeat(index, out string title, out string speaker, out string body);
+
         SuppressAllSpeechAndBanners();
-        _scriptBoardTitle = beat.Title ?? "";
-        _scriptBoardSpeaker = beat.Speaker ?? "";
-        _scriptBoardBody = beat.Body ?? "";
+        _scriptBoardTitle = title ?? "";
+        _scriptBoardSpeaker = speaker ?? "";
+        _scriptBoardBody = body ?? "";
         _scriptBoardAccent = beat.Accent;
         _scriptBoardIsDive = false;
         _scriptBoardAdvance = false;
@@ -94,7 +116,7 @@ public partial class AdventureSanctuaryTowerManager
             _scriptUiRoot.SetActive(false);
 
         // 映画的な没入感を優先するため、字幕下部の操作ガイドは完全非表示
-        SetScreenScriptSubtitle(beat.Title, beat.Speaker, beat.Body, beat.Accent, false, null);
+        SetScreenScriptSubtitle(title, speaker, body, beat.Accent, false, null);
 
         // 台本1（警告）：そばで震え始める
         // 台本2（気流が冷たい）：力なく落ちていく
@@ -488,6 +510,27 @@ public partial class AdventureSanctuaryTowerManager
     {
         if (_oilUiRoot == null) return;
         _oilUiRoot.SetActive(IsClimaxOilPromptActive);
+
+        Font font = ResolveEpilogueFont();
+        if (_oilTitleUi != null)
+        {
+            if (font != null) _oilTitleUi.font = font;
+            string title = AdventureLocalizationManager.Get("climax_oil_title");
+            if (!string.IsNullOrEmpty(title) && title != "climax_oil_title") _oilTitleUi.text = title;
+        }
+        if (_oilPromptUi != null)
+        {
+            if (font != null) _oilPromptUi.font = font;
+            string prompt = AdventureLocalizationManager.Get("climax_oil_prompt");
+            if (!string.IsNullOrEmpty(prompt) && prompt != "climax_oil_prompt") _oilPromptUi.text = prompt;
+        }
+        if (_oilHoldLabelUi != null)
+        {
+            if (font != null) _oilHoldLabelUi.font = font;
+            string hold = AdventureLocalizationManager.Get("climax_oil_hold");
+            if (!string.IsNullOrEmpty(hold) && hold != "climax_oil_hold") _oilHoldLabelUi.text = hold;
+        }
+
         if (_oilGaugeFill != null)
         {
             float ratio = Mathf.Clamp01(_oilHoldTimer / OilHoldRequired);

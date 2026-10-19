@@ -1401,7 +1401,7 @@ public class AdventurePauseMenu : MonoBehaviour
             _creditsLeftText.text = $"<b>{AdventureLocalizationManager.Get("credits_project_title")}</b>\n{AdventureLocalizationManager.Get("credits_project_body")}\n\n<b>{AdventureLocalizationManager.Get("credits_license_title")}</b>\n{AdventureLocalizationManager.Get("credits_license_body")}";
 
         if (_creditsRightText != null)
-            _creditsRightText.text = $"<b>[ 音源・フォント・謝辞 ]</b>\n・Dynamic Synthesized Audio Engine\n・Procedural Wind, Gliding, and Water Ambience\n・Kenney Open Game Assets & Community Sound Libraries\n\n<b>{AdventureLocalizationManager.Get("credits_platform_title")}</b>\n{AdventureLocalizationManager.Get("credits_platform_body")}\n\n<i>Special Thanks to all testers and explorers soaring in the sky.</i>";
+            _creditsRightText.text = $"<b>{AdventureLocalizationManager.Get("credits_thanks_header")}</b>\n{AdventureLocalizationManager.Get("credits_thanks_body")}\n\n<b>{AdventureLocalizationManager.Get("credits_platform_title")}</b>\n{AdventureLocalizationManager.Get("credits_platform_body")}\n\n<i>Special Thanks to all testers and explorers soaring in the sky.</i>";
 
         if (_guideLeftText != null)
             _guideLeftText.text = AdventureLocalizationManager.Get("guide_basic_body");

@@ -282,7 +282,7 @@ public partial class AdventureRustDrone : MonoBehaviour
     /// <summary>ゲーム開始／再開時のあたたかい挨拶</summary>
     public void PlayStartupGreeting()
     {
-        SetSpeech("ピピッ…！起動したよ、Float。一緒に行こう！", 4.5f);
+        SetSpeech(AdventureLocalizationManager.Get("rust_boot"), 4.5f);
         _nextIdleTalk = Time.unscaledTime + 30f;
         _lastIdleLine = "";
     }
@@ -1392,7 +1392,7 @@ public partial class AdventureRustDrone : MonoBehaviour
                 if (!_nearTowerNotified)
                 {
                     _nearTowerNotified = true;
-                    SetSpeech("タワーに着いたよ！白亜のテラスに黄金のレバーがある！引いてみて、Float！！", 5.0f);
+                    SetSpeech(AdventureLocalizationManager.Get("rust_near_tower"), 5.0f);
                     if (_audio != null && _happyBeepClip != null)
                     {
                         _audio.pitch = 1.45f;
@@ -1406,7 +1406,7 @@ public partial class AdventureRustDrone : MonoBehaviour
                 if (Time.time >= _nextTowerNotice)
                 {
                     _nextTowerNotice = Time.time + 14f;
-                    SetSpeech("こっちだよ！中央タワーはこの方向だ！レバーを引きに行こう！", 4.0f);
+                    SetSpeech(AdventureLocalizationManager.Get("rust_guide_tower"), 4.0f);
                     if (_audio != null && _happyBeepClip != null)
                     {
                         _audio.pitch = 1.35f;
@@ -1444,7 +1444,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             if (_prevGuidedTreasureType != GuidedTreasureType.Scrap || Time.time >= _nextGuideNotice)
             {
                 _nextGuideNotice = Time.time + 12f;
-                SetSpeech($"ピピピッ！あそこにパーツ（{nearestScrap.itemName}）の反応があるよ！", 3.8f);
+                SetSpeech(AdventureLocalizationManager.GetFormat("rust_found_scrap", nearestScrap.itemName), 3.8f);
                 PlayRadarSonarSound();
             }
 
@@ -1469,7 +1469,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             if (_prevGuidedTreasureType != GuidedTreasureType.DriftBox || Time.time >= _nextGuideNotice)
             {
                 _nextGuideNotice = Time.time + 12f;
-                SetSpeech("見て見て！あっちに漂着した木箱が落ちてるよ！", 3.8f);
+                SetSpeech(AdventureLocalizationManager.Get("rust_found_box"), 3.8f);
                 PlayRadarSonarSound();
             }
 
@@ -1499,7 +1499,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             {
                 _nextGuideNotice = Time.time + 12f;
                 string shellName = string.IsNullOrEmpty(nearestShell.itemName) ? "貝殻" : nearestShell.itemName;
-                SetSpeech($"ピピッ！あっちに綺麗な『{shellName}』があるよ！", 3.8f);
+                SetSpeech(AdventureLocalizationManager.GetFormat("rust_found_shell", shellName), 3.8f);
                 PlayRadarSonarSound();
             }
 
@@ -1523,11 +1523,29 @@ public partial class AdventureRustDrone : MonoBehaviour
                 Vector3 diff = nearestScrap.transform.position - nikoPos;
                 string dirName;
                 if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
-                    dirName = diff.x > 0 ? "東（右奥）" : "西（海側）";
+                {
+                    bool isEast = diff.x > 0;
+                    dirName = AdventureLocalizationManager.CurrentLanguage switch
+                    {
+                        AdventureLocalizationManager.GameLanguage.English => isEast ? "East (Far Right)" : "West (Ocean side)",
+                        AdventureLocalizationManager.GameLanguage.SimplifiedChinese => isEast ? "东边（右侧深处）" : "西边（海滩侧）",
+                        AdventureLocalizationManager.GameLanguage.Spanish => isEast ? "Este (fondo a la derecha)" : "Oeste (hacia el mar)",
+                        _ => isEast ? "東（右奥）" : "西（海側）"
+                    };
+                }
                 else
-                    dirName = diff.z > 0 ? "北（奥の高台）" : "南（浜辺側）";
+                {
+                    bool isNorth = diff.z > 0;
+                    dirName = AdventureLocalizationManager.CurrentLanguage switch
+                    {
+                        AdventureLocalizationManager.GameLanguage.English => isNorth ? "North (High Ground)" : "South (Beach side)",
+                        AdventureLocalizationManager.GameLanguage.SimplifiedChinese => isNorth ? "北边（高台深处）" : "南边（沙滩侧）",
+                        AdventureLocalizationManager.GameLanguage.Spanish => isNorth ? "Norte (hacia las colinas)" : "Sur (hacia la orilla)",
+                        _ => isNorth ? "北（奥の高台）" : "南（浜辺側）"
+                    };
+                }
 
-                SetSpeech($"ピピッ！{dirName}の方角（約{scrapDist:F0}m）から、古代パーツ（{nearestScrap.itemName}）の共鳴を感じるよ！", 4.5f);
+                SetSpeech(AdventureLocalizationManager.GetFormat("rust_sonar_ping", dirName, scrapDist, nearestScrap.itemName), 4.5f);
                 PlayRadarSonarSound();
             }
         }
@@ -2381,50 +2399,10 @@ public partial class AdventureRustDrone : MonoBehaviour
         int scrapOilBonus = RollScrapOilBonus(count);
         oilCount = Mathf.Max(0, oilCount) + scrapOilBonus;
 
-        string scrapSpeech = "";
-        switch (count)
-        {
-            case 1:
-                scrapSpeech = "ピピピッ！綺麗なギアだ…！指先の手応え、嬉しいね";
-                break;
-            case 2:
-                scrapSpeech = "ピロッ……また繋がったよ。胸の奥が、すこし暖かい";
-                break;
-            case 3:
-                scrapSpeech = "ピキーン！歯車がカチリと噛み合ったよ…！僕ら、自分の足で走れる……！";
-                break;
-            case 4:
-                scrapSpeech = "ピピッ！また見つけたよ！寄り道の先で、Floatと一緒に宝物を拾えたね";
-                break;
-            case 5:
-                scrapSpeech = "煤けてるけど大丈夫。優しく拭いてあげたら、青く澄んだ光が戻ってきたよ…！";
-                break;
-            case 6:
-                scrapSpeech = "ピロロ…！温かい光が胸に灯ったよ……心臓の鼓動みたいだ。空中でSpaceを押してみて！";
-                break;
-            case 7:
-                scrapSpeech = "歯車のひとつひとつに、昔の人の手の温もりが残っているみたいだね。";
-                break;
-            case 8:
-                scrapSpeech = "ピロッ…！冷たい海風が心地いいね。僕たちの翼が少しずつ呼吸を取り戻してるよ。";
-                break;
-            case 9:
-                scrapSpeech = "ピピ…！古いメモリから子供たちの声が聞こえたよ。無駄な時間の中にこそ愛があったんだね！";
-                break;
-            case 10:
-                scrapSpeech = "森の木漏れ日、海の青さ…寄り道して迷った道こそが、本当の景色だったんだね。";
-                break;
-            case 11:
-                scrapSpeech = "あとひとつで全てが繋がるよ…！あの白亜のタワーの頂が、僕たちを呼んでいる！";
-                break;
-            case 12:
-                scrapSpeech = "ピキーッ！風の重さを取り戻したよ！冷たい向かい風は前へ進む証拠だ…行こう、中央タワーへ！";
-                break;
-            default:
-                scrapSpeech = "ピピッ！ギアの波長が合ってきたよ！";
-                break;
-        }
-        SetSpeech($"{scrapSpeech}（潤滑油 +{scrapOilBonus}／所持: {oilCount}）", 5.2f);
+        string scrapKey = (count >= 1 && count <= 12) ? $"rust_scrap_{count}" : "rust_scrap_default";
+        string scrapSpeech = AdventureLocalizationManager.Get(scrapKey);
+        string oilSuffix = AdventureLocalizationManager.GetFormat("rust_oil_bonus_suffix", scrapOilBonus, oilCount);
+        SetSpeech($"{scrapSpeech} {oilSuffix}", 5.2f);
 
         // キーストーン節目（3, 6, 9, 12個）の特別アクション演出
         if (count == 3 || count == 6 || count == 9 || count == 12)
@@ -2517,9 +2495,9 @@ public partial class AdventureRustDrone : MonoBehaviour
     {
         _velocity += Vector3.up * 1.5f;
         string[] glideStartLines = {
-            "わぁ…！風が気持ちいいね、Float",
-            "ふわりと浮いたよ…！",
-            "風を掴んだね…！いいね"
+            AdventureLocalizationManager.Get("rust_glide_1"),
+            AdventureLocalizationManager.Get("rust_glide_2"),
+            AdventureLocalizationManager.Get("rust_glide_3")
         };
         SetSpeech(glideStartLines[Random.Range(0, glideStartLines.Length)], 4.0f);
     }
@@ -2542,23 +2520,17 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (oilBonus > 0)
             oilCount = Mathf.Max(0, oilCount) + oilBonus;
 
-        string comboTag = comboForSpeech >= 2 ? $"（コンボ×{comboForSpeech}）" : "";
-        string[] windLines = oilBonus > 0
-            ? new[]
-            {
-                $"わぁ…！風が気持ちいいね、Float！油 +{oilBonus}{comboTag}（所持: {oilCount}）",
-                $"ふわりと浮いたよ…！リングの光が油になったよ +{oilBonus}{comboTag}",
-                $"風に乗って……ピピッ！潤滑油 +{oilBonus}{comboTag}／所持: {oilCount}",
-                $"島を見下ろすと綺麗……油も増えたよ +{oilBonus}{comboTag}、えへへ"
-            }
-            : new[]
-            {
-                "わぁ…！風が気持ちいいね、Float",
-                "ふわりと浮いたよ…！",
-                "風に乗って、どこまでも行けそう",
-                "島を見下ろすと、すごく綺麗だね"
-            };
-        SetSpeech(windLines[Random.Range(0, windLines.Length)], 4.0f);
+        string[] windLines = {
+            AdventureLocalizationManager.Get("rust_wind_1"),
+            AdventureLocalizationManager.Get("rust_wind_2"),
+            AdventureLocalizationManager.Get("rust_wind_3")
+        };
+        string line = windLines[Random.Range(0, windLines.Length)];
+        if (oilBonus > 0)
+        {
+            line += " " + AdventureLocalizationManager.GetFormat("rust_oil_bonus_suffix", oilBonus, oilCount);
+        }
+        SetSpeech(line, 4.0f);
         if (oilBonus > 0 && _happyBeepClip != null && _audio != null)
             _audio.PlayOneShot(_happyBeepClip, 0.4f);
     }

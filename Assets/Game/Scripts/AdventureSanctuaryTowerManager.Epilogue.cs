@@ -133,6 +133,12 @@ public partial class AdventureSanctuaryTowerManager
         Debug.Log($"[RustAndFloat] シネマエピローグ開始（Update） lines={EpilogueFilmLines.Length} subtitle={(_filmSubtitleUi != null)}");
     }
 
+    string GetFilmText(int index, string fallback)
+    {
+        string localized = AdventureLocalizationManager.Get($"film_line_{index}");
+        return (string.IsNullOrEmpty(localized) || localized == $"film_line_{index}") ? fallback : localized;
+    }
+
     void PrepareFilmLine(int index, bool allowActGap)
     {
         if (index < 0 || index >= EpilogueFilmLines.Length)
@@ -171,7 +177,7 @@ public partial class AdventureSanctuaryTowerManager
 
         _filmLastAct = line.Act;
         _epilogueAct = Mathf.Max(1, line.Act);
-        PresentFilmLineContent(line.Text, line.Color);
+        PresentFilmLineContent(GetFilmText(index, line.Text), line.Color);
         _filmPhase = FilmPhaseFadeIn;
         _filmPhaseAt = Time.unscaledTime;
     }
@@ -192,6 +198,7 @@ public partial class AdventureSanctuaryTowerManager
             Debug.LogError("[RustAndFloat] FilmSubtitle UI 生成失敗");
             return;
         }
+        _filmSubtitleUi.font = ResolveEpilogueFont();
         _filmSubtitleUi.text = text ?? "";
         _filmSubtitleUi.color = new Color(color.r, color.g, color.b, 0f);
         _filmSubtitleUi.transform.localScale = new Vector3(0.985f, 0.985f, 1f);
@@ -224,7 +231,7 @@ public partial class AdventureSanctuaryTowerManager
             {
                 var line = EpilogueFilmLines[_filmIndex];
                 _filmLastAct = line.Act;
-                PresentFilmLineContent(line.Text, line.Color);
+                PresentFilmLineContent(GetFilmText(_filmIndex, line.Text), line.Color);
                 _filmPhase = FilmPhaseFadeIn;
                 _filmPhaseAt = Time.unscaledTime;
             }

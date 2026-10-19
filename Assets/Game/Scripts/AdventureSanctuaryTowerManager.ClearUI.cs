@@ -236,33 +236,54 @@ public partial class AdventureSanctuaryTowerManager
         panelImg.color = new Color(0.02f, 0.05f, 0.10f, 0.96f);
         panelImg.raycastTarget = false;
 
-        var title = MakeScriptText(panelGo.transform, "Title", new Vector2(0f, -28f), new Vector2(0.5f, 1f), new Vector2(900f, 48f), 34, TextAnchor.MiddleCenter, font);
-        title.color = new Color(1f, 0.88f, 0.4f, 1f);
-        title.fontStyle = FontStyle.Bold;
-        title.text = "✦ 『Rust & Float』 GAME CLEAR ✦";
-        PrepareFontForText(font, title.text, 34, FontStyle.Bold);
+        _clearTitleText = MakeScriptText(panelGo.transform, "Title", new Vector2(0f, -28f), new Vector2(0.5f, 1f), new Vector2(900f, 48f), 34, TextAnchor.MiddleCenter, font);
+        _clearTitleText.color = new Color(1f, 0.88f, 0.4f, 1f);
+        _clearTitleText.fontStyle = FontStyle.Bold;
 
-        var body = MakeScriptText(panelGo.transform, "Body", new Vector2(0f, 20f), new Vector2(0.5f, 0.5f), new Vector2(880f, 280f), 24, TextAnchor.UpperCenter, font);
-        body.color = new Color(0.9f, 0.95f, 1f, 1f);
-        body.text =
-            "天蓋の檻を打ち破り、二人は蒼い風が吹く空へ羽ばたいた。\n\n" +
-            "✦ 漂着古代パーツ回収： 12 / 12\n" +
-            "✦ 相棒Rust： 二段ジャンプ・超滑空・探知ソナー\n\n" +
-            "「ありがとう、Float。僕たちの翼で、どこまでも行こう……！」\n\n" +
-            "【Space】大空へ　【N】はじめから　【E / Esc】閉じる";
-        PrepareFontForText(font, body.text, 24);
+        _clearBodyText = MakeScriptText(panelGo.transform, "Body", new Vector2(0f, 20f), new Vector2(0.5f, 0.5f), new Vector2(880f, 280f), 24, TextAnchor.UpperCenter, font);
+        _clearBodyText.color = new Color(0.9f, 0.95f, 1f, 1f);
 
         _clearDiveBtn = MakeClearModalButton(panelGo.transform, "DiveBtn", new Vector2(-300f, 36f), new Color(0.20f, 0.75f, 0.95f, 0.95f),
-            "【Space】大空へダイブ", font, RelaunchIntoSky);
+            AdventureLocalizationManager.Get("clear_btn_dive"), font, RelaunchIntoSky, out _clearDiveBtnText);
         _clearNewBtn = MakeClearModalButton(panelGo.transform, "NewBtn", new Vector2(0f, 36f), new Color(0.35f, 0.82f, 0.55f, 0.95f),
-            "【N】はじめから", font, StartNewGameFromClearModal);
+            AdventureLocalizationManager.Get("clear_btn_new"), font, StartNewGameFromClearModal, out _clearNewBtnText);
         _clearCloseBtn = MakeClearModalButton(panelGo.transform, "CloseBtn", new Vector2(300f, 36f), new Color(0.25f, 0.35f, 0.45f, 0.95f),
-            "【E】閉じる", font, CloseGameClearModalForFreeExplore);
+            AdventureLocalizationManager.Get("clear_btn_close"), font, CloseGameClearModalForFreeExplore, out _clearCloseBtnText);
 
+        RefreshClearModalLocalization();
         _clearUiRoot = canvasGo;
     }
 
-    RectTransform MakeClearModalButton(Transform parent, string name, Vector2 anchoredPos, Color color, string label, Font font, UnityEngine.Events.UnityAction onClick)
+    Text _clearTitleText;
+    Text _clearBodyText;
+    Text _clearDiveBtnText;
+    Text _clearNewBtnText;
+    Text _clearCloseBtnText;
+
+    void RefreshClearModalLocalization()
+    {
+        if (_clearTitleText != null)
+            _clearTitleText.text = AdventureLocalizationManager.Get("clear_title");
+
+        if (_clearBodyText != null)
+        {
+            var scrap = AdventureScrapManager.Instance;
+            int count = scrap != null ? scrap.CollectedCount : 12;
+            string rustAbilities = AdventureLocalizationManager.Get("clear_rust_abilities");
+            _clearBodyText.text = AdventureLocalizationManager.GetFormat("clear_body", count, 12, rustAbilities);
+        }
+
+        if (_clearDiveBtnText != null)
+            _clearDiveBtnText.text = AdventureLocalizationManager.Get("clear_btn_dive");
+
+        if (_clearNewBtnText != null)
+            _clearNewBtnText.text = AdventureLocalizationManager.Get("clear_btn_new");
+
+        if (_clearCloseBtnText != null)
+            _clearCloseBtnText.text = AdventureLocalizationManager.Get("clear_btn_close");
+    }
+
+    RectTransform MakeClearModalButton(Transform parent, string name, Vector2 anchoredPos, Color color, string label, Font font, UnityEngine.Events.UnityAction onClick, out Text outText)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
@@ -284,11 +305,11 @@ public partial class AdventureSanctuaryTowerManager
         btn.colors = colors;
         btn.navigation = new Navigation { mode = Navigation.Mode.None };
         btn.onClick.AddListener(onClick);
-        var text = MakeScriptText(go.transform, "Label", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(260f, 48f), 20, TextAnchor.MiddleCenter, font);
-        text.color = Color.white;
-        text.fontStyle = FontStyle.Bold;
-        text.text = label;
-        text.raycastTarget = false;
+        outText = MakeScriptText(go.transform, "Label", Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(260f, 48f), 20, TextAnchor.MiddleCenter, font);
+        outText.color = Color.white;
+        outText.fontStyle = FontStyle.Bold;
+        outText.text = label;
+        outText.raycastTarget = false;
         PrepareFontForText(font, label, 20, FontStyle.Bold);
         return rt;
     }

@@ -141,6 +141,10 @@ public class AdventureRustSpeechUI : MonoBehaviour
 
         if (show)
         {
+            Font f = ResolveFont();
+            if (_speaker != null && _speaker.font != f) _speaker.font = f;
+            if (_body != null && _body.font != f) _body.font = f;
+
             string rawSpeaker = drone.ActiveSpeechSpeaker ?? "✦ 相棒 Rust";
             string speakerName = rawSpeaker;
             if (rawSpeaker.Contains("Rust") || rawSpeaker.Contains("相棒"))
@@ -152,6 +156,10 @@ public class AdventureRustSpeechUI : MonoBehaviour
                     AdventureLocalizationManager.GameLanguage.Spanish => "✦ Compañero Rust",
                     _ => "✦ 相棒 Rust"
                 };
+            }
+            else if (rawSpeaker.Contains("Float") || rawSpeaker.Contains("Niko"))
+            {
+                speakerName = "✦ Float";
             }
 
             _speaker.text = speakerName;
@@ -171,7 +179,11 @@ public class AdventureRustSpeechUI : MonoBehaviour
                 _ => "」"
             };
 
-            _body.text = quoteL + (drone.ActiveSpeechText ?? "") + quoteR;
+            string speechText = drone.ActiveSpeechText ?? "";
+            string loc = AdventureLocalizationManager.Get(speechText);
+            if (!string.IsNullOrEmpty(loc) && loc != speechText) speechText = loc;
+
+            _body.text = quoteL + speechText + quoteR;
             _cg.alpha = 1f; // 即座に表示（フェード待ちで見えない事故を防ぐ）
         }
         else
@@ -184,20 +196,32 @@ public class AdventureRustSpeechUI : MonoBehaviour
         }
     }
 
+    static Font _cachedSpeechFont;
     static Font ResolveFont()
     {
+        if (_cachedSpeechFont != null) return _cachedSpeechFont;
         string[] fonts = {
+            "PingFang SC",
+            "Hiragino Sans GB",
+            "Heiti SC",
             "Hiragino Sans",
             "Hiragino Kaku Gothic ProN",
+            "Microsoft YaHei",
             "Arial Unicode MS",
             "YuGothic",
             "Apple SD Gothic Neo",
             "Arial"
         };
+        try
+        {
+            _cachedSpeechFont = Font.CreateDynamicFontFromOSFont(fonts, 22);
+            if (_cachedSpeechFont != null) return _cachedSpeechFont;
+        }
+        catch { }
         foreach (var name in fonts)
         {
             var f = Font.CreateDynamicFontFromOSFont(name, 22);
-            if (f != null) return f;
+            if (f != null) { _cachedSpeechFont = f; return f; }
         }
         return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
                ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
