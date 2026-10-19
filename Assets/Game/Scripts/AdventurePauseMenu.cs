@@ -1166,7 +1166,7 @@ public class AdventurePauseMenu : MonoBehaviour
         pbImg.color = new Color(0.15f, 0.35f, 0.55f, 0.95f);
         pbImg.raycastTarget = true;
         _prevLangBtn = prevBtnGo.AddComponent<Button>();
-        _prevLangBtn.onClick.AddListener(OnPrevLanguageClicked);
+        // ※ onClick.AddListener は登録しない（TrySettingsDirectMouseClicks との二重発火による偶数スキップを防止）
         var pbColors = _prevLangBtn.colors;
         pbColors.highlightedColor = new Color(0.25f, 0.55f, 0.85f, 1f);
         pbColors.pressedColor = new Color(0.10f, 0.20f, 0.35f, 1f);
@@ -1190,7 +1190,7 @@ public class AdventurePauseMenu : MonoBehaviour
         ltBg.color = new Color(0.04f, 0.09f, 0.16f, 0.85f);
         ltBg.raycastTarget = true;
         _langValueBtn = langTextGo.AddComponent<Button>();
-        _langValueBtn.onClick.AddListener(OnNextLanguageClicked);
+        // ※ onClick.AddListener は登録しない（TrySettingsDirectMouseClicks との二重発火防止）
         var ltColors = _langValueBtn.colors;
         ltColors.highlightedColor = new Color(0.08f, 0.16f, 0.28f, 0.95f);
         ltColors.pressedColor = new Color(0.02f, 0.05f, 0.10f, 1f);
@@ -1218,7 +1218,7 @@ public class AdventurePauseMenu : MonoBehaviour
         nbImg.color = new Color(0.15f, 0.35f, 0.55f, 0.95f);
         nbImg.raycastTarget = true;
         _nextLangBtn = nextBtnGo.AddComponent<Button>();
-        _nextLangBtn.onClick.AddListener(OnNextLanguageClicked);
+        // ※ onClick.AddListener は登録しない（TrySettingsDirectMouseClicks との二重発火防止）
         var nbColors = _nextLangBtn.colors;
         nbColors.highlightedColor = new Color(0.25f, 0.55f, 0.85f, 1f);
         nbColors.pressedColor = new Color(0.10f, 0.20f, 0.35f, 1f);
