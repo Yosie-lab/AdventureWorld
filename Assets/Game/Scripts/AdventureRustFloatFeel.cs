@@ -137,8 +137,11 @@ public static class AdventureRustFloatFeel
         if (_performanceOptimized) return;
         _performanceOptimized = true;
 
-        // 好奇心リアクションシステムの自動常駐
+        // 好奇心リアクション、滑空アクロバットJuice、花びら綿毛、島全体サーマル気流の自動常駐
         try { AdventureCompanionCuriosity.AutoInitialize(); } catch { }
+        try { AdventureGlideAcrobaticsJuice.AutoInitialize(); } catch { }
+        try { AdventureBreezePetals.AutoInitialize(); } catch { }
+        try { AdventureIslandThermalDirector.AutoInitialize(); } catch { }
 
         // 1. 静的環境レンダラーのライトプローブサンプリング計算（99msボトルネック）を一括除外
         try

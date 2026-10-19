@@ -804,13 +804,21 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
         else if (CurrentState == RustState.Follow)
         {
-            to = _lookAt.position + Vector3.up * 0.7f - transform.position;
-            if (_isGuidingToTower)
-                to = SanctuaryTowerCenter + Vector3.up * 2.0f - transform.position;
-            else if (_guidedTreasureType != GuidedTreasureType.None)
-                to = _guidedTreasurePos + Vector3.up * 0.25f - transform.position;
-            else if (_isPointingToScrap && _guidedScrap != null)
-                to = _guidedScrap.transform.position + Vector3.up * 0.3f - transform.position;
+            bool isGlidingNow = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.IsGliding;
+            if (isGlidingNow && _lookAt != null)
+            {
+                to = _lookAt.forward * 5f;
+            }
+            else
+            {
+                to = _lookAt.position + Vector3.up * 0.7f - transform.position;
+                if (_isGuidingToTower)
+                    to = SanctuaryTowerCenter + Vector3.up * 2.0f - transform.position;
+                else if (_guidedTreasureType != GuidedTreasureType.None)
+                    to = _guidedTreasurePos + Vector3.up * 0.25f - transform.position;
+                else if (_isPointingToScrap && _guidedScrap != null)
+                    to = _guidedScrap.transform.position + Vector3.up * 0.3f - transform.position;
+            }
         }
         else if (CurrentState == RustState.Returning)
         {
@@ -882,8 +890,19 @@ public partial class AdventureRustDrone : MonoBehaviour
                 look *= Quaternion.Euler(Mathf.Sin(Time.time * 10f) * 6f, 0f, Mathf.Cos(Time.time * 8f) * 4f);
             else if (CurrentState == RustState.Follow)
             {
-                // 自律感情・好奇心（水濡れプルプル・花見下ろし・うたた寝・首かしげ）の姿勢補正
-                look = ApplyCuriosityRotation(look);
+                bool isGlidingNow = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.IsGliding;
+                if (isGlidingNow && _lookAt != null)
+                {
+                    // Floatの旋回に合わせた滑らかなシンクロバンク（翼の傾き）
+                    float yawDelta = Vector3.SignedAngle(transform.forward, _lookAt.forward, Vector3.up);
+                    float bankRoll = Mathf.Clamp(yawDelta * 1.6f, -25f, 25f);
+                    look = Quaternion.LookRotation(_lookAt.forward, Vector3.up) * Quaternion.Euler(6f, 0f, -bankRoll);
+                }
+                else
+                {
+                    // 自律感情・好奇心（水濡れプルプル・花見下ろし・うたた寝・首かしげ）の姿勢補正
+                    look = ApplyCuriosityRotation(look);
+                }
             }
 
             float rotSpeed = IsClimaxCrisis ? 14f : (IsClimaxOverdrive ? 9f : 6.5f);
@@ -1578,6 +1597,16 @@ public partial class AdventureRustDrone : MonoBehaviour
             Vector3 curiousPos = GetCuriosityTargetPosition();
             if (curiousPos != Vector3.zero)
                 return curiousPos;
+        }
+
+        // 滑空中のシンクロ編隊飛行（Formation Flight）: Floatの右翼すぐ横に並走！
+        bool isGlidingNow = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.IsGliding;
+        if (isGlidingNow && _lookAt != null)
+        {
+            // 右1.35m、前0.35m、高さは翼と同じ高さ（Nikoの胸+0.1m）
+            Vector3 formationOffset = _lookAt.right * 1.35f + _lookAt.forward * 0.35f;
+            float glideBob = Mathf.Sin(Time.time * 3.0f) * 0.05f;
+            return niko + formationOffset + Vector3.up * (0.85f + glideBob);
         }
 
         // 通常追従の理想位置: Nikoの右肩の斜め後ろ（右1.25m、後方1.55m）
@@ -2553,12 +2582,15 @@ public partial class AdventureRustDrone : MonoBehaviour
 
     static readonly string[] IdleGlideLines =
     {
+        "Float、いい風が吹いてるよ！",
+        "どこまでも飛べるね、Float！",
+        "翼を並べて飛ぶの、大好きだよ……♪",
         "風に乗って、どこまでも行けそう",
         "島を見下ろすと、すごく綺麗だね",
         "わぁ…！風が気持ちいいね、Float",
         "この高度、ちょうどいいね",
         "ヒューッ……いいフライトだ",
-        "昔はこんな風、シミュレーションでしか知らなかった",
+        "一緒だと大空がもっと綺麗だね…♪",
         "自由な空……これが、これからずっと続くといいな",
     };
 

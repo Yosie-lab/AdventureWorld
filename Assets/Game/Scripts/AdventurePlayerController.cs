@@ -141,6 +141,8 @@ public partial class AdventurePlayerController : MonoBehaviour
 
     public bool InteractPressed { get; private set; }
     public bool IsGliding    => _gliding;
+    public Vector3 Velocity  => _cc != null ? _cc.velocity : Vector3.zero;
+    public CharacterController CharController => _cc;
     public bool HasEverGlided { get; private set; }
     public bool IsGrounded   => _grounded;
     public bool IsInAir      => !_grounded;
