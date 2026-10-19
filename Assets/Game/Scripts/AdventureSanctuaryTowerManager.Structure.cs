@@ -768,9 +768,12 @@ public partial class AdventureSanctuaryTowerManager
                 continue;
             }
 
-            // 2. タワー南側・南東・南西の台座アプローチ斜面（X∈[480, 544], Z∈[465, 510], Y∈[50, 64]）にある岩は
-            //    プレイヤーが下から登る際に挟まったり埋まったりしないよう通行可能（トリガー化／通過許可）にする
-            if (c.x >= 480f && c.x <= 544f && c.z >= 465f && c.z <= 510f && c.y >= 48f && c.y <= 64.5f)
+            // 2. タワー横の崖・台座外周全域（東側断崖・南東・南・南西・階段横、中心(512,512)から半径55m以内、Y∈[28, 65]）にある岩は
+            //    プレイヤーが崖下やテラス横で挟まったりスタックしないよう完全通行可能（トリガー化／通過許可）にする
+            float dxTower = c.x - 512f;
+            float dzTower = c.z - 512f;
+            float distTowerSq = dxTower * dxTower + dzTower * dzTower;
+            if (distTowerSq <= 55f * 55f && c.y >= 28f && c.y <= 65f)
             {
                 MakeColliderPassable(col);
             }
@@ -987,7 +990,7 @@ public partial class AdventureSanctuaryTowerManager
             wallRoot.transform.localRotation = Quaternion.identity;
 
             var terr = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
-            const float topY = 63.00f;
+            const float topY = 62.35f;
             const float radius = 34.2f;
             const float thickness = 2.5f;
 

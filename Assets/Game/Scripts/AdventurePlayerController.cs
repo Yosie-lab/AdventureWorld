@@ -88,6 +88,7 @@ public partial class AdventurePlayerController : MonoBehaviour
     bool    _wasMoveInput;
     float   _startupBoostTimer;
     int     _rockStuckFrames;
+    int     _cliffStuckFrames;
     float   _resetHoldTimer;
     #endregion
 
@@ -678,7 +679,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (shortJumpPressed)
         {
             float targetShortHeight = Mathf.Max(shortJumpHeight, 2.6f) * jumpMultiplier; // 約2.6mのしっかりした跳躍
-            if (_grounded || _airborneTime < 0.25f)
+            if (_grounded || _airborneTime < 0.25f || _rockStuckFrames > 0 || _cliffStuckFrames > 0 || TooSteep())
             {
                 _hop          = Mathf.Sqrt(targetShortHeight * -2f * gravity);
                 _grounded     = false;
@@ -746,6 +747,16 @@ public partial class AdventurePlayerController : MonoBehaviour
                 _hop = Mathf.Sqrt(effectiveJumpHeight * -1.8f * gravity);
             }
             _doubleJumpUsed = true;
+        }
+        else if (_rockStuckFrames > 0 || _cliffStuckFrames > 0 || TooSteep())
+        {
+            // 崖・急斜面・岩の挟まりスタック時は二段ジャンプ使用済みでも確実に緊急脱出跳躍を発動
+            LaunchBoostJump(
+                hop:       15.5f,
+                boostDur:  2.8f,
+                escapeDir: transform.forward,
+                escapeSpd: 8.0f, fwdSpd: 4.5f, totalSpd: 9.8f,
+                voice:     "崖の上昇気流をつかまえたよ！一気に上へ登ろう、Float！", voiceDur: 4.0f);
         }
     }
 
@@ -1257,8 +1268,38 @@ public partial class AdventurePlayerController : MonoBehaviour
         else
         {
             _rockStuckFrames = 0;
-            motion.y = _hop * Time.deltaTime;
-            _cc.Move(motion);
+            bool airMoving = horizontal.sqrMagnitude > 0.01f;
+
+            // 崖・空中・急斜面スタック検知＆脱出アシスト（Cliff/Airborne Unstuck Engine）:
+            // 前進入力があるのに崖や壁、急斜面、岩の隙間に挟まって前進も落下もできない場合
+            Vector3 airMove = motion;
+            if (airMoving && _cliffStuckFrames > 2)
+            {
+                // 下向き落下加速度の無限押し付け（スタック固定）を緩和
+                if (_hop < -1.2f) _hop = -1.2f;
+
+                // 斜め上リフト＋入力方向への脱出微小ブースト
+                float lift = 0.14f * Mathf.Min(_cliffStuckFrames * 0.6f, 3.2f);
+                airMove.y = Mathf.Max(airMove.y, lift * Time.deltaTime * 60f);
+                airMove += horizontal.normalized * (0.06f * Mathf.Min(_cliffStuckFrames * 0.4f, 2.0f));
+            }
+            else
+            {
+                airMove.y = _hop * Time.deltaTime;
+            }
+
+            _cc.Move(airMove);
+
+            // 移動実績の測定（スタック判定）
+            Vector3 actualMove = transform.position - prevPos;
+            if (airMoving && actualMove.sqrMagnitude < 0.00008f)
+            {
+                _cliffStuckFrames = Mathf.Min(_cliffStuckFrames + 1, 15);
+            }
+            else
+            {
+                _cliffStuckFrames = 0;
+            }
         }
     }
 
@@ -1952,10 +1993,39 @@ public partial class AdventurePlayerController : MonoBehaviour
         requiredHop    = 0f;
         escapeDirection = transform.forward;
 
-        if (_land == null) return false;
-
         Vector3 myPos  = transform.position;
         float   curY   = myPos.y;
+
+        // 1. タワー横の崖（Sanctuary Tower 白亜テラス崖下）の特別保証：
+        // タワー中心 (512, 512) 付近で、現在地がテラス上面（約62.5m）より下（Y < 62m）にある場合
+        float dTower = Vector2.Distance(new Vector2(myPos.x, myPos.z), new Vector2(512f, 512f));
+        if (dTower <= 52f && curY < 62.2f)
+        {
+            float towerTopY = 62.5f;
+            float diff = towerTopY - curY;
+            if (diff > 1.0f)
+            {
+                float targetClear = Mathf.Clamp(diff + 5.5f, 13.0f, 32.0f);
+                requiredHop = Mathf.Sqrt(targetClear * -2f * gravity);
+                Vector3 toTower = (new Vector3(512f, 0f, 512f) - new Vector3(myPos.x, 0f, myPos.z)).normalized;
+                escapeDirection = Vector3.Dot(transform.forward, toTower) > -0.2f
+                    ? (transform.forward * 0.6f + toTower * 0.4f).normalized
+                    : transform.forward;
+                return true;
+            }
+        }
+
+        // 2. スタック検知時の緊急崖脱出：
+        if (_rockStuckFrames > 0 || _cliffStuckFrames > 0)
+        {
+            float targetClear = 14.5f;
+            requiredHop = Mathf.Sqrt(targetClear * -2f * gravity);
+            escapeDirection = transform.forward;
+            return true;
+        }
+
+        if (_land == null) return false;
+
         float   maxH   = curY;
         Vector3 highDir = transform.forward;
         int     higherCount = 0;
@@ -2003,8 +2073,8 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (higherCount < 3 && !facingCliff && heightDiff < 2.8f) return false;
 
         // 崖の頂上を余裕で飛び越える跳躍初速を物理計算
-        float targetClear = Mathf.Clamp(Mathf.Max(heightDiff, 5.5f) + 5.5f, 10.0f, 32.0f);
-        requiredHop = Mathf.Sqrt(targetClear * -2f * gravity);
+        float targetClearClimb = Mathf.Clamp(Mathf.Max(heightDiff, 5.5f) + 5.5f, 10.0f, 32.0f);
+        requiredHop = Mathf.Sqrt(targetClearClimb * -2f * gravity);
 
         if (facingCliff || Vector3.Dot(transform.forward, highDir) > 0.1f)
             escapeDirection = transform.forward;
