@@ -32,7 +32,12 @@ public class AdventurePauseMenu : MonoBehaviour
     Text _headerSubTitleText;
     GameObject _restartBtnGo;
     GameObject _returnTitleBtnGo;
+    Text _restartBtnText;
+    Text _returnTitleBtnText;
     Text _resumeBtnText;
+    Text _langValueText;
+    Text _creditsLeftText;
+    Text _creditsRightText;
 
     // タブ UI
     int _currentTab = 0;
@@ -178,11 +183,22 @@ public class AdventurePauseMenu : MonoBehaviour
         CreateUI();
     }
 
+    void OnEnable()
+    {
+        AdventureLocalizationManager.OnLanguageChanged += ApplyLocalization;
+    }
+
+    void OnDisable()
+    {
+        AdventureLocalizationManager.OnLanguageChanged -= ApplyLocalization;
+    }
+
     void Start()
     {
         _font = ResolveFont();
         SetupAudio();
         LoadCurrentSettings();
+        ApplyLocalization();
         SetMenuVisible(false, instant: true);
     }
 
@@ -446,20 +462,16 @@ public class AdventurePauseMenu : MonoBehaviour
 
             if (_openedFromTitle)
             {
-                if (_headerTitleText != null) _headerTitleText.text = "✦ SETTINGS ✦";
-                if (_headerSubTitleText != null) _headerSubTitleText.text = "音量・操作感度・画面表示の設定";
                 if (_restartBtnGo != null) _restartBtnGo.SetActive(false);
                 if (_returnTitleBtnGo != null) _returnTitleBtnGo.SetActive(false);
-                if (_resumeBtnText != null) _resumeBtnText.text = "閉じる [ESC]";
             }
             else
             {
-                if (_headerTitleText != null) _headerTitleText.text = "✦ PAUSE & SETTINGS ✦";
-                if (_headerSubTitleText != null) _headerSubTitleText.text = "ゲーム設定・画面表示・操作ガイド・タイトル移動";
                 if (_restartBtnGo != null) _restartBtnGo.SetActive(true);
                 if (_returnTitleBtnGo != null) _returnTitleBtnGo.SetActive(true);
-                if (_resumeBtnText != null) _resumeBtnText.text = "▶ ゲームに戻る [ESC]";
             }
+
+            ApplyLocalization();
 
             if (_canvas != null)
             {
@@ -948,19 +960,104 @@ public class AdventurePauseMenu : MonoBehaviour
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
 
+        // 言語セレクター
+        CreateLanguageSelectorRow(_tabAudioPanel.transform, -10f);
+
         // BGM スライダー
-        CreateSettingSlider(_tabAudioPanel.transform, "BGM 音量", -15f, 0f, 1f, out _bgmSlider, out _bgmValueText, OnBgmSliderChanged);
+        CreateSettingSlider(_tabAudioPanel.transform, "BGM 音量", -78f, 0f, 1f, out _bgmSlider, out _bgmValueText, OnBgmSliderChanged);
 
         // SE スライダー
-        CreateSettingSlider(_tabAudioPanel.transform, "SE 音量", -95f, 0f, 1f, out _seSlider, out _seValueText, OnSeSliderChanged);
+        CreateSettingSlider(_tabAudioPanel.transform, "SE 音量", -146f, 0f, 1f, out _seSlider, out _seValueText, OnSeSliderChanged);
 
         // マウス視点感度 スライダー
-        CreateSettingSlider(_tabAudioPanel.transform, "マウス視点感度", -175f, 0.05f, 0.60f, out _sensSlider, out _sensValueText, OnSensitivitySliderChanged);
+        CreateSettingSlider(_tabAudioPanel.transform, "カメラ操作感度", -214f, 0.05f, 0.60f, out _sensSlider, out _sensValueText, OnSensitivitySliderChanged);
 
         // ガイドヒント
-        var hint = MakeLabel(_tabAudioPanel.transform, "AudioHint", new Vector2(12f, -265f), new Vector2(800f, 30f),
-            "✦ スライダーを動かすとリアルタイムに音量と感度が反映されます。SE音量はテストチャイムで確認できます。", 12, new Color(0.6f, 0.8f, 0.95f, 0.8f));
+        var hint = MakeLabel(_tabAudioPanel.transform, "AudioHint", new Vector2(12f, -284f), new Vector2(800f, 30f),
+            "✦ スライダーや言語設定は自動保存されます。コントローラーでも快適に操作可能です。", 12, new Color(0.6f, 0.8f, 0.95f, 0.8f));
         hint.alignment = TextAnchor.MiddleLeft;
+    }
+
+    void CreateLanguageSelectorRow(Transform parent, float topOffset)
+    {
+        var rowGo = new GameObject("Language_Row");
+        rowGo.transform.SetParent(parent, false);
+        var rRt = rowGo.AddComponent<RectTransform>();
+        rRt.anchorMin = new Vector2(0f, 1f);
+        rRt.anchorMax = new Vector2(1f, 1f);
+        rRt.pivot = new Vector2(0f, 1f);
+        rRt.anchoredPosition = new Vector2(0f, topOffset);
+        rRt.sizeDelta = new Vector2(0f, 58f);
+
+        var rowBg = rowGo.AddComponent<Image>();
+        rowBg.color = new Color(0.015f, 0.04f, 0.08f, 0.65f);
+        rowBg.raycastTarget = false;
+
+        var outline = rowGo.AddComponent<Outline>();
+        outline.effectColor = new Color(0.15f, 0.35f, 0.55f, 0.35f);
+        outline.effectDistance = new Vector2(1f, -1f);
+
+        var lText = MakeLabel(rowGo.transform, "Label", new Vector2(16f, -18f), new Vector2(300f, 22f), "🌐  表示言語 (Language)", 14, new Color(0.92f, 0.96f, 1f, 1f));
+        lText.fontStyle = FontStyle.Bold;
+
+        // セレクター [ ◀ ] [ 言語名 ] [ ▶ ]
+        var selGo = new GameObject("SelectorContainer");
+        selGo.transform.SetParent(rowGo.transform, false);
+        var sRt = selGo.AddComponent<RectTransform>();
+        sRt.anchorMin = new Vector2(1f, 0.5f);
+        sRt.anchorMax = new Vector2(1f, 0.5f);
+        sRt.pivot = new Vector2(1f, 0.5f);
+        sRt.anchoredPosition = new Vector2(-16f, 0f);
+        sRt.sizeDelta = new Vector2(280f, 38f);
+
+        // 左ボタン
+        var prevBtnGo = new GameObject("PrevBtn");
+        prevBtnGo.transform.SetParent(selGo.transform, false);
+        var pbRt = prevBtnGo.AddComponent<RectTransform>();
+        pbRt.anchorMin = new Vector2(0f, 0.5f);
+        pbRt.anchorMax = new Vector2(0f, 0.5f);
+        pbRt.pivot = new Vector2(0f, 0.5f);
+        pbRt.anchoredPosition = new Vector2(0f, 0f);
+        pbRt.sizeDelta = new Vector2(36f, 34f);
+        var pbImg = prevBtnGo.AddComponent<Image>();
+        pbImg.color = new Color(0.12f, 0.28f, 0.42f, 0.9f);
+        var pbBtn = prevBtnGo.AddComponent<Button>();
+        pbBtn.onClick.AddListener(AdventureLocalizationManager.PrevLanguage);
+        var pbText = MakeLabel(prevBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "◀", 14, Color.white);
+        pbText.alignment = TextAnchor.MiddleCenter;
+
+        // 言語名表示ラベル
+        var langTextGo = new GameObject("LangText");
+        langTextGo.transform.SetParent(selGo.transform, false);
+        var ltRt = langTextGo.AddComponent<RectTransform>();
+        ltRt.anchorMin = new Vector2(0.5f, 0.5f);
+        ltRt.anchorMax = new Vector2(0.5f, 0.5f);
+        ltRt.pivot = new Vector2(0.5f, 0.5f);
+        ltRt.anchoredPosition = Vector2.zero;
+        ltRt.sizeDelta = new Vector2(180f, 34f);
+        _langValueText = langTextGo.AddComponent<Text>();
+        _langValueText.font = _font;
+        _langValueText.fontSize = 15;
+        _langValueText.fontStyle = FontStyle.Bold;
+        _langValueText.alignment = TextAnchor.MiddleCenter;
+        _langValueText.color = new Color(1f, 0.88f, 0.40f, 1f);
+        _langValueText.text = AdventureLocalizationManager.LanguageNames[(int)AdventureLocalizationManager.CurrentLanguage];
+
+        // 右ボタン
+        var nextBtnGo = new GameObject("NextBtn");
+        nextBtnGo.transform.SetParent(selGo.transform, false);
+        var nbRt = nextBtnGo.AddComponent<RectTransform>();
+        nbRt.anchorMin = new Vector2(1f, 0.5f);
+        nbRt.anchorMax = new Vector2(1f, 0.5f);
+        nbRt.pivot = new Vector2(1f, 0.5f);
+        nbRt.anchoredPosition = new Vector2(0f, 0f);
+        nbRt.sizeDelta = new Vector2(36f, 34f);
+        var nbImg = nextBtnGo.AddComponent<Image>();
+        nbImg.color = new Color(0.12f, 0.28f, 0.42f, 0.9f);
+        var nbBtn = nextBtnGo.AddComponent<Button>();
+        nbBtn.onClick.AddListener(AdventureLocalizationManager.NextLanguage);
+        var nbText = MakeLabel(nextBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "▶", 14, Color.white);
+        nbText.alignment = TextAnchor.MiddleCenter;
     }
 
     void CreateDisplayTab(Transform parent)
@@ -1113,37 +1210,46 @@ public class AdventurePauseMenu : MonoBehaviour
         var bg = _tabCreditsPanel.AddComponent<Image>();
         bg.color = new Color(0.015f, 0.04f, 0.08f, 0.65f);
 
-        var leftCol = MakeLabel(_tabCreditsPanel.transform, "CreditsLeft", new Vector2(25f, -15f), new Vector2(380f, 320f), "", 12, new Color(0.95f, 0.97f, 1f, 0.95f));
-        leftCol.lineSpacing = 1.30f;
-        leftCol.alignment = TextAnchor.UpperLeft;
-        leftCol.supportRichText = true;
-        leftCol.text =
-            "<b>[ 開発 ＆ プロジェクト ]</b>\n" +
-            "<b>Rust & Float Project</b>\n" +
-            "・ゲームデザイン＆滑空フライトダイナミクス設計\n" +
-            "・環境音響・プロシージャルサウンドスケープ設計\n" +
-            "・島嶼風脈・気流サーマルシステムエンジニアリング\n\n" +
-            "<b>[ サードパーティ素材・正規ライセンス (Unity EULA) ]</b>\n" +
-            "本作品で使用されているモデル・テクスチャ・モーション素材は、Unity Asset Store Standard EULA規約に基づき正規許諾および商用利用権を取得しています。\n" +
-            "・Idyllic Fantasy Nature (Environment Assets)\n" +
-            "・Quirky Series Animals (Capybara Model & Motion)\n" +
-            "・PolyOne Characters (Niko & Companions)";
+        _creditsLeftText = MakeLabel(_tabCreditsPanel.transform, "CreditsLeft", new Vector2(25f, -15f), new Vector2(380f, 320f), "", 12, new Color(0.95f, 0.97f, 1f, 0.95f));
+        _creditsLeftText.lineSpacing = 1.30f;
+        _creditsLeftText.alignment = TextAnchor.UpperLeft;
+        _creditsLeftText.supportRichText = true;
 
-        var rightCol = MakeLabel(_tabCreditsPanel.transform, "CreditsRight", new Vector2(430f, -15f), new Vector2(380f, 320f), "", 12, new Color(0.95f, 0.97f, 1f, 0.95f));
-        rightCol.lineSpacing = 1.30f;
-        rightCol.alignment = TextAnchor.UpperLeft;
-        rightCol.supportRichText = true;
-        rightCol.text =
-            "<b>[ 音源・フォント・謝辞 ]</b>\n" +
-            "・Dynamic Synthesized Audio Engine\n" +
-            "・Procedural Wind, Gliding, and Water Ambience\n" +
-            "・Kenney Open Game Assets & Community Sound Libraries\n\n" +
-            "<b>[ 商用プラットフォーム対応状況 ]</b>\n" +
-            "・<b>Steam / Steam Deck 完全対応設計</b>\n" +
-            "・ゲームパッド・Xbox / PlayStation / Deck コントローラーネイティブ対応\n" +
-            "・Steam Achievements（全10個の実績トラッカー＆通知UI）完全連動準備済\n" +
-            "・外部テレメトリや未許諾トラッキングの非搭載（GDPR/プライバシー配慮）\n\n" +
-            "<i>Special Thanks to all testers and explorers soaring in the sky.</i>";
+        _creditsRightText = MakeLabel(_tabCreditsPanel.transform, "CreditsRight", new Vector2(430f, -15f), new Vector2(380f, 320f), "", 12, new Color(0.95f, 0.97f, 1f, 0.95f));
+        _creditsRightText.lineSpacing = 1.30f;
+        _creditsRightText.alignment = TextAnchor.UpperLeft;
+        _creditsRightText.supportRichText = true;
+
+        ApplyLocalization();
+    }
+
+    void ApplyLocalization()
+    {
+        if (_headerTitleText != null)
+            _headerTitleText.text = _openedFromTitle ? AdventureLocalizationManager.Get("settings_header") : AdventureLocalizationManager.Get("pause_header");
+        if (_headerSubTitleText != null)
+            _headerSubTitleText.text = _openedFromTitle ? AdventureLocalizationManager.Get("settings_sub") : AdventureLocalizationManager.Get("pause_sub");
+
+        if (_tabAudioBtnLabel != null) _tabAudioBtnLabel.text = AdventureLocalizationManager.Get("tab_audio");
+        if (_tabDisplayBtnLabel != null) _tabDisplayBtnLabel.text = AdventureLocalizationManager.Get("tab_display");
+        if (_tabGuideBtnLabel != null) _tabGuideBtnLabel.text = AdventureLocalizationManager.Get("tab_guide");
+        if (_tabCreditsBtnLabel != null) _tabCreditsBtnLabel.text = AdventureLocalizationManager.Get("tab_credits");
+
+        if (_resumeBtnText != null)
+            _resumeBtnText.text = _openedFromTitle ? AdventureLocalizationManager.Get("pause_close") : AdventureLocalizationManager.Get("pause_resume");
+        if (_restartBtnText != null)
+            _restartBtnText.text = AdventureLocalizationManager.Get("pause_restart");
+        if (_returnTitleBtnText != null)
+            _returnTitleBtnText.text = AdventureLocalizationManager.Get("pause_title_return");
+
+        if (_langValueText != null)
+            _langValueText.text = AdventureLocalizationManager.LanguageNames[(int)AdventureLocalizationManager.CurrentLanguage];
+
+        if (_creditsLeftText != null)
+            _creditsLeftText.text = $"<b>{AdventureLocalizationManager.Get("credits_project_title")}</b>\n{AdventureLocalizationManager.Get("credits_project_body")}\n\n<b>{AdventureLocalizationManager.Get("credits_license_title")}</b>\n{AdventureLocalizationManager.Get("credits_license_body")}";
+
+        if (_creditsRightText != null)
+            _creditsRightText.text = $"<b>[ 音源・フォント・謝辞 ]</b>\n・Dynamic Synthesized Audio Engine\n・Procedural Wind, Gliding, and Water Ambience\n・Kenney Open Game Assets & Community Sound Libraries\n\n<b>{AdventureLocalizationManager.Get("credits_platform_title")}</b>\n{AdventureLocalizationManager.Get("credits_platform_body")}\n\n<i>Special Thanks to all testers and explorers soaring in the sky.</i>";
     }
 
     void CreateSettingSlider(Transform parent, string label, float topOffset, float minVal, float maxVal, out Slider slider, out Text valueText, UnityEngine.Events.UnityAction<float> onValueChanged)
@@ -1259,9 +1365,9 @@ public class AdventurePauseMenu : MonoBehaviour
         var restBtn = _restartBtnGo.AddComponent<Button>();
         restBtn.onClick.AddListener(OnRestartClicked);
 
-        var resttText = MakeLabel(_restartBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "🗑 最初からやり直す", 15, new Color(1f, 0.88f, 0.88f, 1f));
-        resttText.fontStyle = FontStyle.Bold;
-        resttText.alignment = TextAnchor.MiddleCenter;
+        _restartBtnText = MakeLabel(_restartBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "🗑 最初からやり直す", 15, new Color(1f, 0.88f, 0.88f, 1f));
+        _restartBtnText.fontStyle = FontStyle.Bold;
+        _restartBtnText.alignment = TextAnchor.MiddleCenter;
 
         // 2. 「タイトルへ戻る」（中央: 0.35〜0.64）
         _returnTitleBtnGo = new GameObject("ReturnTitleButton");
@@ -1277,9 +1383,9 @@ public class AdventurePauseMenu : MonoBehaviour
         var titleBtn = _returnTitleBtnGo.AddComponent<Button>();
         titleBtn.onClick.AddListener(OnReturnToTitleClicked);
 
-        var titleTextComp = MakeLabel(_returnTitleBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "✦ タイトルへ戻る", 15, new Color(0.90f, 0.96f, 1f, 1f));
-        titleTextComp.fontStyle = FontStyle.Bold;
-        titleTextComp.alignment = TextAnchor.MiddleCenter;
+        _returnTitleBtnText = MakeLabel(_returnTitleBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "✦ タイトルへ戻る", 15, new Color(0.90f, 0.96f, 1f, 1f));
+        _returnTitleBtnText.fontStyle = FontStyle.Bold;
+        _returnTitleBtnText.alignment = TextAnchor.MiddleCenter;
 
         // 3. 「ゲームに戻る」（右: 0.68〜0.98）
         var resumeGo = new GameObject("ResumeButton");

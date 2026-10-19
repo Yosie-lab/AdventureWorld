@@ -57,6 +57,15 @@ public class AdventureRustFloatOpening : MonoBehaviour
     Button _settingsBtn;
     Button _quitBtn;
 
+    Text _subTitleText;
+    Text _storyHeaderText;
+    Text _storyBodyText;
+    Text _menuHeaderText;
+    Text _newGameBtnLabel;
+    Text _settingsBtnLabel;
+    Text _quitBtnLabel;
+    Text _footLeftText;
+
     // 新規開始時の上書き確認モーダル
     GameObject _newGameConfirmModal;
     Button _confirmNewGameYesBtn;
@@ -140,7 +149,41 @@ public class AdventureRustFloatOpening : MonoBehaviour
         AdventurePauseMenu.ForceCloseTitleSettings();
         Time.timeScale = 1f;
         RestoreTitleUiInput();
+        ApplyLocalization();
         Debug.Log("[RustAndFloat] タイトル画面を表示しました");
+    }
+
+    void OnEnable()
+    {
+        AdventureLocalizationManager.OnLanguageChanged += ApplyLocalization;
+    }
+
+    void OnDisable()
+    {
+        AdventureLocalizationManager.OnLanguageChanged -= ApplyLocalization;
+    }
+
+    void ApplyLocalization()
+    {
+        if (_subTitleText != null) _subTitleText.text = AdventureLocalizationManager.Get("title_subtitle");
+        if (_storyHeaderText != null) _storyHeaderText.text = "📜 " + AdventureLocalizationManager.Get("title_story_head");
+        if (_storyBodyText != null) _storyBodyText.text = AdventureLocalizationManager.Get("title_story_body");
+        if (_menuHeaderText != null)
+        {
+            _menuHeaderText.text = AdventureLocalizationManager.CurrentLanguage switch
+            {
+                AdventureLocalizationManager.GameLanguage.English => "✦ Main Menu",
+                AdventureLocalizationManager.GameLanguage.SimplifiedChinese => "✦ 主菜单",
+                AdventureLocalizationManager.GameLanguage.Spanish => "✦ Menú Principal",
+                _ => "✦ メインメニュー"
+            };
+        }
+
+        if (_newGameBtnLabel != null) _newGameBtnLabel.text = "✦  " + AdventureLocalizationManager.Get("title_newgame");
+        if (_settingsBtnLabel != null) _settingsBtnLabel.text = "⚙  " + AdventureLocalizationManager.Get("title_settings");
+        if (_quitBtnLabel != null) _quitBtnLabel.text = "✖  " + AdventureLocalizationManager.Get("title_quit");
+
+        RefreshSaveDataStatus();
     }
 
     /// <summary>タイトル上の設定を開いている間、メニュー Canvas の入力・描画順を下げる</summary>
@@ -258,7 +301,15 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_continueBtnLabel != null)
         {
             _continueBtnLabel.color = hasSave ? Color.white : new Color(0.6f, 0.7f, 0.8f, 0.5f);
-            _continueBtnLabel.text = hasSave ? "▶  つづきから（Continue）" : "つづきから（記録なし）";
+            string contText = AdventureLocalizationManager.Get("title_continue");
+            string noSaveText = AdventureLocalizationManager.CurrentLanguage switch
+            {
+                AdventureLocalizationManager.GameLanguage.English => "Continue (No Save)",
+                AdventureLocalizationManager.GameLanguage.SimplifiedChinese => "继续游戏 (无存档)",
+                AdventureLocalizationManager.GameLanguage.Spanish => "Continuar (Sin partida)",
+                _ => "つづきから（記録なし）"
+            };
+            _continueBtnLabel.text = hasSave ? $"▶  {contText}" : noSaveText;
         }
 
         if (_continueSubText != null)
@@ -686,10 +737,10 @@ public class AdventureRustFloatOpening : MonoBehaviour
         titleText.text = TitleText;
 
         // サブタイトル
-        var subText = MakeText(_modalBoard.transform, "SubTitle", new Vector2(0f, -58f), new Vector2(0.5f, 1f), new Vector2(800f, 22f), 14, TextAnchor.MiddleCenter, font);
-        subText.color = new Color(0.50f, 0.90f, 1.0f, 0.95f);
-        subText.fontStyle = FontStyle.Bold;
-        subText.text = SubTitleText;
+        _subTitleText = MakeText(_modalBoard.transform, "SubTitle", new Vector2(0f, -58f), new Vector2(0.5f, 1f), new Vector2(800f, 22f), 14, TextAnchor.MiddleCenter, font);
+        _subTitleText.color = new Color(0.50f, 0.90f, 1.0f, 0.95f);
+        _subTitleText.fontStyle = FontStyle.Bold;
+        _subTitleText.text = SubTitleText;
 
         // 2カラムレイアウト（左: 世界観カード, 右: メニューボタン）
         var contentGo = new GameObject("ContentColumns");
@@ -734,19 +785,19 @@ public class AdventureRustFloatOpening : MonoBehaviour
         cOutline.effectColor = new Color(0.20f, 0.50f, 0.75f, 0.35f);
         cOutline.effectDistance = new Vector2(1f, -1f);
 
-        var header = MakeText(cardGo.transform, "StoryHeader", new Vector2(18f, -16f), new Vector2(0f, 1f), new Vector2(360f, 24f), 14, TextAnchor.UpperLeft, font);
-        header.fontStyle = FontStyle.Bold;
-        header.color = new Color(0.40f, 0.88f, 1.0f, 1f);
-        header.text = "📜 時代背景と物語";
+        _storyHeaderText = MakeText(cardGo.transform, "StoryHeader", new Vector2(18f, -16f), new Vector2(0f, 1f), new Vector2(360f, 24f), 14, TextAnchor.UpperLeft, font);
+        _storyHeaderText.fontStyle = FontStyle.Bold;
+        _storyHeaderText.color = new Color(0.40f, 0.88f, 1.0f, 1f);
+        _storyHeaderText.text = "📜 時代背景と物語";
 
-        var body = MakeText(cardGo.transform, "StoryBody", new Vector2(18f, -48f), new Vector2(0f, 1f), new Vector2(350f, 320f), 13, TextAnchor.UpperLeft, font);
-        body.fontStyle = FontStyle.Bold;
-        body.lineSpacing = 1.35f;
-        body.color = new Color(0.95f, 0.97f, 1.0f, 0.95f);
-        var bodyOutline = body.gameObject.AddComponent<Outline>();
+        _storyBodyText = MakeText(cardGo.transform, "StoryBody", new Vector2(18f, -48f), new Vector2(0f, 1f), new Vector2(350f, 320f), 13, TextAnchor.UpperLeft, font);
+        _storyBodyText.fontStyle = FontStyle.Bold;
+        _storyBodyText.lineSpacing = 1.35f;
+        _storyBodyText.color = new Color(0.95f, 0.97f, 1.0f, 0.95f);
+        var bodyOutline = _storyBodyText.gameObject.AddComponent<Outline>();
         bodyOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
         bodyOutline.effectDistance = new Vector2(1f, -1f);
-        body.text = StoryText;
+        _storyBodyText.text = StoryText;
     }
 
     void CreateRightMenuCard(Transform parent, Font font)
@@ -767,10 +818,10 @@ public class AdventureRustFloatOpening : MonoBehaviour
         cOutline.effectColor = new Color(0.20f, 0.50f, 0.75f, 0.35f);
         cOutline.effectDistance = new Vector2(1f, -1f);
 
-        var header = MakeText(cardGo.transform, "MenuHeader", new Vector2(18f, -16f), new Vector2(0f, 1f), new Vector2(360f, 24f), 14, TextAnchor.UpperLeft, font);
-        header.fontStyle = FontStyle.Bold;
-        header.color = new Color(0.40f, 0.88f, 1.0f, 1f);
-        header.text = "✦ メインメニュー";
+        _menuHeaderText = MakeText(cardGo.transform, "MenuHeader", new Vector2(18f, -16f), new Vector2(0f, 1f), new Vector2(360f, 24f), 14, TextAnchor.UpperLeft, font);
+        _menuHeaderText.fontStyle = FontStyle.Bold;
+        _menuHeaderText.color = new Color(0.40f, 0.88f, 1.0f, 1f);
+        _menuHeaderText.text = "✦ メインメニュー";
 
         float btnW = 340f;
         float startY = -52f;
@@ -778,7 +829,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         // 1. 【つづきから（Continue）】
         _continueBtn = CreateMenuButton(cardGo.transform, "ContinueBtn", new Vector2(0f, startY), new Vector2(btnW, 56f),
             new Color(0.12f, 0.58f, 0.72f, 0.96f), new Color(0.25f, 0.85f, 0.98f, 1f),
-            "▶  つづきから（Continue）", 16, OnContinueClicked, font, out _continueBtnImg, out _continueBtnLabel);
+            "▶  つづきから", 16, OnContinueClicked, font, out _continueBtnImg, out _continueBtnLabel);
 
         // つづきから サブ情報テキスト
         _continueSubText = MakeText(_continueBtn.transform, "ContinueSub", new Vector2(0f, 8f), new Vector2(0.5f, 0f), new Vector2(btnW - 20f, 18f), 11, TextAnchor.MiddleCenter, font);
@@ -794,17 +845,17 @@ public class AdventureRustFloatOpening : MonoBehaviour
         // 2. 【はじめから（New Game）】
         _newGameBtn = CreateMenuButton(cardGo.transform, "NewGameBtn", new Vector2(0f, startY - 72f), new Vector2(btnW, 48f),
             new Color(0.15f, 0.60f, 0.52f, 0.96f), new Color(0.25f, 0.85f, 0.75f, 1f),
-            "✦  はじめから（New Game）", 16, OnNewGameClicked, font, out _, out _);
+            "✦  はじめから", 16, OnNewGameClicked, font, out _, out _newGameBtnLabel);
 
         // 3. 【設定（Settings）】
         _settingsBtn = CreateMenuButton(cardGo.transform, "SettingsBtn", new Vector2(0f, startY - 138f), new Vector2(btnW, 46f),
             new Color(0.18f, 0.32f, 0.50f, 0.96f), new Color(0.30f, 0.52f, 0.75f, 1f),
-            "⚙  環境設定（Settings）", 15, OnSettingsClicked, font, out _, out _);
+            "⚙  環境設定", 15, OnSettingsClicked, font, out _, out _settingsBtnLabel);
 
         // 4. 【ゲーム終了（Quit）】
         _quitBtn = CreateMenuButton(cardGo.transform, "QuitBtn", new Vector2(0f, startY - 200f), new Vector2(btnW, 44f),
             new Color(0.38f, 0.16f, 0.18f, 0.95f), new Color(0.60f, 0.22f, 0.25f, 1f),
-            "✖  ゲーム終了（Quit）", 14, OnQuitClicked, font, out _, out _);
+            "✖  ゲーム終了", 14, OnQuitClicked, font, out _, out _quitBtnLabel);
     }
 
     Button CreateMenuButton(Transform parent, string name, Vector2 pos, Vector2 size, Color normalCol, Color highlightCol,

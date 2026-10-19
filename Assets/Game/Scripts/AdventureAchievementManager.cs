@@ -143,8 +143,21 @@ public class AdventureAchievementManager : MonoBehaviour
 
     private IEnumerator DisplayToastRoutine(Achievement ach)
     {
-        if (_toastTitleText != null) _toastTitleText.text = $"✦ 実績解除: {ach.title}";
-        if (_toastDescText != null) _toastDescText.text = ach.description;
+        string title = AdventureLocalizationManager.Get($"ach_{ach.id}_title");
+        string desc = AdventureLocalizationManager.Get($"ach_{ach.id}_desc");
+        if (title == $"ach_{ach.id}_title") title = ach.title;
+        if (desc == $"ach_{ach.id}_desc") desc = ach.description;
+
+        string prefix = AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => "Achievement Unlocked",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => "达成成就",
+            AdventureLocalizationManager.GameLanguage.Spanish => "Logro Desbloqueado",
+            _ => "実績解除"
+        };
+
+        if (_toastTitleText != null) _toastTitleText.text = $"✦ {prefix}: {title}";
+        if (_toastDescText != null) _toastDescText.text = desc;
         if (_toastIconText != null) _toastIconText.text = ach.iconGlyph;
 
         if (_audioSource != null && _achieveChimeClip != null)
