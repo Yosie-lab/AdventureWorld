@@ -593,6 +593,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         UpdateSpeech();
         TickClimaxOverdriveBooster();
         UpdateSmartCameraOcclusion();
+        UpdateRealtimeCompanionReactions();
 
         if (_lookAt == null)
             return;

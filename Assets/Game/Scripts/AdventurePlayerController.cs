@@ -143,6 +143,8 @@ public partial class AdventurePlayerController : MonoBehaviour
 
     public bool InteractPressed { get; private set; }
     public bool IsGliding    => _gliding;
+    public float VerticalSpeed => _cc != null ? _cc.velocity.y : _hop;
+    public float HorizontalSpeed => _cc != null ? new Vector2(_cc.velocity.x, _cc.velocity.z).magnitude : _airMomentum.magnitude;
     public Vector3 Velocity  => _cc != null ? _cc.velocity : Vector3.zero;
     public CharacterController CharController => _cc;
     public bool HasEverGlided { get; private set; }
@@ -347,6 +349,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         {
             PreventGroundBurial();
             UnstuckFromOverheadPlanks();
+            CheckAndApplyLedgeClimb();
         }
 
         FloatOnWater();
@@ -1555,6 +1558,62 @@ public partial class AdventurePlayerController : MonoBehaviour
                         if (_cc != null) _cc.enabled = true;
                         _hop = -0.85f;
                         _grounded = true;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>段差・テラス縁の「レッジグラブ＆クライム（崖縁フッパッよじ登りアシスト）」</summary>
+    void CheckAndApplyLedgeClimb()
+    {
+        if (_skybreakPillarLock || _autoGlide) return;
+
+        Vector3 p = transform.position;
+        Vector3 fwd = transform.forward;
+        if (_cc.velocity.sqrMagnitude > 0.05f)
+        {
+            Vector3 vFlat = _cc.velocity.SetY(0f);
+            if (vFlat.sqrMagnitude > 0.01f) fwd = vFlat.normalized;
+        }
+
+        // 胸の高さ（0.9m〜1.3m）の前方に壁や段差の縁が存在するか
+        float checkDist = 0.75f;
+        Vector3 chestPos = p + Vector3.up * 1.0f;
+        if (Physics.Raycast(chestPos, fwd, out RaycastHit wallHit, checkDist, ~0, QueryTriggerInteraction.Ignore))
+        {
+            if (wallHit.collider.isTrigger || wallHit.collider.CompareTag("Player") || wallHit.collider.name.Contains("Rust"))
+                return;
+
+            // 壁面がほぼ垂直（傾斜角が急、normal.y < 0.45f）であること
+            if (wallHit.normal.y > 0.45f) return;
+
+            // 頭上（高さ1.75m）の前方空間が開いているか確認（頭を打つ天井がないこと）
+            Vector3 headPos = p + Vector3.up * 1.75f;
+            if (Physics.Raycast(headPos, fwd, 0.75f, ~0, QueryTriggerInteraction.Ignore))
+                return;
+
+            // 壁の上面（縁の天面）の足場高さを下向きRaycastで精密探査
+            Vector3 ledgeProbe = wallHit.point + fwd * 0.28f + Vector3.up * 0.95f;
+            if (Physics.Raycast(ledgeProbe, Vector3.down, out RaycastHit topHit, 1.35f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (topHit.normal.y >= 0.55f) // 平坦〜緩やかな登れる上面
+                {
+                    float heightDiff = topHit.point.y - p.y;
+                    // 足元より高く、胸〜頭の高さ以内（0.22m〜1.25m）の段差であればレッジクライム発動
+                    if (heightDiff > 0.22f && heightDiff <= 1.25f)
+                    {
+                        float climbLift = Mathf.Clamp(heightDiff + 0.08f, 0.35f, 1.35f);
+                        Vector3 climbVector = new Vector3(fwd.x * 0.32f, climbLift, fwd.z * 0.32f);
+
+                        _cc.Move(climbVector);
+                        _hop = Mathf.Max(_hop, 1.2f);
+                        _grounded = true;
+                        _doubleJumpUsed = false;
+                        _airborneTime = 0f;
+
+                        if (_footsteps == null) _footsteps = GetComponent<AdventureNikoFootsteps>();
+                        _footsteps?.PlayJumpSound();
                     }
                 }
             }

@@ -115,20 +115,38 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
 
         _prevVerticalVel = verticalVel;
 
-        // 2. ダイブ風の唸り声（Wind Howl）音量調律
-        UpdateWindHowlAudio();
+        // 2. ダイブ＆最高速エアロ風の唸り声（Wind Howl & Aero Rumble）音量調律
+        UpdateWindHowlAudio(isGliding ? speed : 0f);
 
         // 3. 翼端トレイルの位置追従と発光
         UpdateVaporTrails(isGliding);
 
-        // 4. カメラGシェイクの減衰
-        if (_cameraShakeIntensity > 0.001f)
+        // 4. 最高速エアロ・ランブル（低音の空気震え＆翼端マイクロシェイク）
+        float aeroRumble = 0f;
+        if (isGliding)
+        {
+            float speedThreshold = 11.5f;
+            if (speed > speedThreshold)
+            {
+                aeroRumble = Mathf.Clamp01((speed - speedThreshold) / 6.5f) * 0.35f;
+            }
+            if (_isDiving)
+            {
+                aeroRumble = Mathf.Max(aeroRumble, _diveIntensity * 0.45f);
+            }
+        }
+
+        // カメラGシェイクとエアロランブルの合成
+        float totalShake = _cameraShakeIntensity + aeroRumble;
+        if (totalShake > 0.001f)
         {
             _cameraShakeIntensity = Mathf.MoveTowards(_cameraShakeIntensity, 0f, Time.deltaTime * 6.0f);
             if (Camera.main != null)
             {
-                float shakeOffset = Mathf.Sin(Time.time * 45f) * _cameraShakeIntensity * 0.08f;
-                Camera.main.transform.position += Camera.main.transform.up * shakeOffset;
+                // 高周波の微細な空気振動（38Hz）
+                float microShakeY = Mathf.Sin(Time.time * 38f) * totalShake * 0.045f;
+                float microShakeX = Mathf.Cos(Time.time * 29f) * totalShake * 0.025f;
+                Camera.main.transform.position += Camera.main.transform.up * microShakeY + Camera.main.transform.right * microShakeX;
             }
         }
     }
@@ -190,11 +208,14 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
         }
     }
 
-    private void UpdateWindHowlAudio()
+    private void UpdateWindHowlAudio(float speed)
     {
         if (_audioSource == null || _windHowlLoopClip == null) return;
 
-        if (_diveIntensity > 0.05f)
+        float speedIntensity = Mathf.Clamp01((speed - 11.5f) / 6.5f) * 0.45f;
+        float effectiveIntensity = Mathf.Max(_diveIntensity, speedIntensity);
+
+        if (effectiveIntensity > 0.04f)
         {
             if (!_audioSource.isPlaying)
             {
@@ -202,8 +223,8 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
                 _audioSource.loop = true;
                 _audioSource.Play();
             }
-            _audioSource.volume = Mathf.Lerp(0f, 0.75f, _diveIntensity);
-            _audioSource.pitch = Mathf.Lerp(0.85f, 1.35f, _diveIntensity);
+            _audioSource.volume = Mathf.Lerp(0f, 0.75f, effectiveIntensity);
+            _audioSource.pitch = Mathf.Lerp(0.85f, 1.35f, effectiveIntensity);
         }
         else
         {
