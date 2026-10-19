@@ -1000,20 +1000,29 @@ public class AdventureRustFloatOpening : MonoBehaviour
         string[] candidates =
         {
             "Hiragino Sans",
-            "Hiragino Kaku Gothic ProN",
+            "PingFang SC",
             "Hiragino Sans GB",
-            "YuGothic",
+            "Heiti SC",
+            "Hiragino Kaku Gothic ProN",
             "Apple SD Gothic Neo",
+            "YuGothic",
             "Noto Sans CJK JP",
+            "Microsoft YaHei",
             "Arial Unicode MS"
         };
+        try
+        {
+            Font multi = Font.CreateDynamicFontFromOSFont(candidates, 20);
+            if (multi != null) return multi;
+        }
+        catch { }
+
         foreach (string name in candidates)
         {
             try
             {
                 Font os = Font.CreateDynamicFontFromOSFont(name, 20);
-                if (os != null)
-                    return os;
+                if (os != null) return os;
             }
             catch { }
         }

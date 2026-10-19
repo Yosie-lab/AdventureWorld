@@ -416,9 +416,7 @@ public class AdventurePauseMenu : MonoBehaviour
         // 3. 各タブ内容
         if (_currentTab == 0)
         {
-            if (IsHit(_prevLangBtn, mousePos)) { OnPrevLanguageClicked(); return; }
-            if (IsHit(_nextLangBtn, mousePos)) { OnNextLanguageClicked(); return; }
-            if (IsHit(_langValueBtn, mousePos)) { OnNextLanguageClicked(); return; }
+            // uGUI Button.onClick で確実に処理されるため二重発火を防止
         }
         else if (_currentTab == 1)
         {
@@ -470,20 +468,26 @@ public class AdventurePauseMenu : MonoBehaviour
         return false;
     }
 
+    float _lastLangClickTime = -1f;
+
     void OnPrevLanguageClicked()
     {
+        if (Time.unscaledTime - _lastLangClickTime < 0.20f) return;
+        _lastLangClickTime = Time.unscaledTime;
+
         PlayClickSound();
         AdventureLocalizationManager.PrevLanguage();
-        if (_langValueText != null)
-            _langValueText.text = AdventureLocalizationManager.LanguageNames[(int)AdventureLocalizationManager.CurrentLanguage];
+        ApplyLocalization();
     }
 
     void OnNextLanguageClicked()
     {
+        if (Time.unscaledTime - _lastLangClickTime < 0.20f) return;
+        _lastLangClickTime = Time.unscaledTime;
+
         PlayClickSound();
         AdventureLocalizationManager.NextLanguage();
-        if (_langValueText != null)
-            _langValueText.text = AdventureLocalizationManager.LanguageNames[(int)AdventureLocalizationManager.CurrentLanguage];
+        ApplyLocalization();
     }
 
     void PlayClickSound()
@@ -1759,20 +1763,29 @@ public class AdventurePauseMenu : MonoBehaviour
         string[] candidates =
         {
             "Hiragino Sans",
-            "Hiragino Kaku Gothic ProN",
+            "PingFang SC",
             "Hiragino Sans GB",
-            "YuGothic",
+            "Heiti SC",
+            "Hiragino Kaku Gothic ProN",
             "Apple SD Gothic Neo",
+            "YuGothic",
             "Noto Sans CJK JP",
+            "Microsoft YaHei",
             "Arial Unicode MS"
         };
+        try
+        {
+            Font multi = Font.CreateDynamicFontFromOSFont(candidates, 20);
+            if (multi != null) return multi;
+        }
+        catch { }
+
         foreach (string name in candidates)
         {
             try
             {
                 Font os = Font.CreateDynamicFontFromOSFont(name, 20);
-                if (os != null)
-                    return os;
+                if (os != null) return os;
             }
             catch { }
         }
