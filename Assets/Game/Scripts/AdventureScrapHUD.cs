@@ -79,12 +79,20 @@ public class AdventureScrapHUD : MonoBehaviour
     {
         AdventureStoryFlow.OnPhaseChanged += OnStoryPhaseChanged;
         AdventureScrapManager.OnProgressChanged += OnScrapProgressUpdated;
+        AdventureLocalizationManager.OnLanguageChanged += OnLanguageChanged;
     }
 
     void OnDisable()
     {
         AdventureStoryFlow.OnPhaseChanged -= OnStoryPhaseChanged;
         AdventureScrapManager.OnProgressChanged -= OnScrapProgressUpdated;
+        AdventureLocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+    }
+
+    void OnLanguageChanged()
+    {
+        RefreshQuestDisplay();
+        RefreshOilDisplay(force: true);
     }
 
     void OnStoryPhaseChanged(AdventureStoryFlow.Phase prev, AdventureStoryFlow.Phase next)
@@ -375,14 +383,14 @@ public class AdventureScrapHUD : MonoBehaviour
         if (well)
         {
             int remSec = Mathf.CeilToInt(drone.wellOiledUntil - Time.time);
-            state = $"<color=#A8FFB0>快調({remSec}s)</color>";
+            state = $"<color=#A8FFB0>{string.Format(AdventureLocalizationManager.Get("hud_oil_well"), remSec)}</color>";
         }
         else
         {
-            state = "<color=#FFB070>【E / クリック】手当て</color>";
+            state = $"<color=#FFB070>{AdventureLocalizationManager.Get("hud_oil_cure_hint")}</color>";
         }
 
-        string formatted = $"潤滑油  <color=#FFE066><b>{oil}</b></color>  {state}";
+        string formatted = $"{AdventureLocalizationManager.Get("hud_oil_label")}  <color=#FFE066><b>{oil}</b></color>  {state}";
         if (!force && formatted == _lastFormattedOilText) return;
         _lastFormattedOilText = formatted;
         _oilText.text = formatted;
@@ -396,7 +404,7 @@ public class AdventureScrapHUD : MonoBehaviour
         {
             drone.InteractWithNiko();
             RefreshOilDisplay(force: true);
-            AdventureNotificationToast.Show("✦ Rustに油をさして手当てしました！", 2.2f);
+            AdventureNotificationToast.Show(AdventureLocalizationManager.Get("hud_oil_cured_toast"), 2.2f);
         }
     }
 
@@ -469,26 +477,26 @@ public class AdventureScrapHUD : MonoBehaviour
         int totalPts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
         bool leverUnlocked = scrapMgr != null && scrapMgr.IsLeverUnlocked;
 
-        // 1行目：現在のメイン目標
+        // 1行目：現在のメイン目標（多言語対応）
         string goalText;
         if (AdventureSanctuaryTowerManager.IsGameCleared)
-            goalText = "<color=#FFE066><b>✦ GAME CLEAR！</b></color> <color=#FFFFFF>箱庭からの脱獄達成！</color>";
+            goalText = AdventureLocalizationManager.Get("hud_goal_cleared");
         else if (AdventureSanctuaryTowerManager.IsCanopyBroken)
-            goalText = "<color=#FFD700><b>✦ 天蓋崩壊！</b></color> <color=#FFFFFF>光の柱から空の裂け目へダイブ！</color>";
+            goalText = AdventureLocalizationManager.Get("hud_goal_canopy");
         else if (leverUnlocked)
-            goalText = $"<color=#00E5FF><b>✦ レバーロック解除！</b></color> <color=#FFFFFF>中央タワーの黄金レバーへ</color> <color=#FFE066><b>({totalPts}/20 pt)</b></color>";
+            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_lever"), totalPts);
         else if (count < 3)
-            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>パーツ回収</b></color> <color=#00E5FF><b>({count}/3)</b></color> <color=#FFE066><b>(計 {totalPts}/20 pt)</b></color>";
+            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_3"), count, totalPts);
         else if (count < 6)
-            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>反重力コア</b></color> <color=#00E5FF><b>({count}/6)</b></color> <color=#FFD54F>▶ 2段ジャンプ</color> <color=#FFE066><b>({totalPts}/20 pt)</b></color>";
+            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_6"), count, totalPts);
         else if (count < 9)
-            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>探知ソナー</b></color> <color=#00E5FF><b>({count}/9)</b></color> <color=#FFD54F>▶ レーダー</color> <color=#FFE066><b>({totalPts}/20 pt)</b></color>";
+            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_9"), count, totalPts);
         else if (count < 12)
-            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>グライダー完成</b></color> <color=#00E5FF><b>({count}/12)</b></color> <color=#FFE066><b>({totalPts}/20 pt)</b></color>";
+            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_12"), count, totalPts);
         else
-            goalText = $"<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>ケースやピアノでポイント獲得</b></color> <color=#FFE066><b>({totalPts}/20 pt)</b></color>";
+            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_more"), totalPts);
 
-        // 2行目：最寄りパーツ探知（方角と距離）またはレバー誘導
+        // 2行目：最寄りパーツ探知（方角と距離）またはレバー誘導（多言語対応）
         string subInfo = "";
         var player = AdventurePlayerController.Instance;
         if (player != null && !leverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken)
@@ -499,11 +507,11 @@ public class AdventureScrapHUD : MonoBehaviour
             {
                 Vector3 diff = nearest.transform.position - player.transform.position;
                 var (cardinal, hint) = GetDirectionParts(diff);
-                subInfo = $"<color=#80D8FF><b>📍 最寄りパーツ:</b></color> <color=#FFEB3B><b>{cardinal}</b></color><color=#ECEFF1>（{hint}）</color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color>";
+                subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_nearest_scrap"), cardinal, hint, Mathf.RoundToInt(dist));
             }
             else
             {
-                subInfo = "<color=#B0BEC5>📍 漂着パーツ(1pt)・ケース(2pt)・ピアノ(3pt)を集めよう！</color>";
+                subInfo = AdventureLocalizationManager.Get("hud_sub_collect_hint");
             }
 
             AdventureRustCrystalPuzzle.Ensure();
@@ -513,13 +521,13 @@ public class AdventureScrapHUD : MonoBehaviour
                 Vector3 toCry = crystalPuzzle.crystalBasePos - player.transform.position;
                 var (cryCard, cryHint) = GetDirectionParts(toCry);
                 float cryDist = Vector3.Distance(player.transform.position, crystalPuzzle.crystalBasePos);
-                subInfo = $"<color=#00E5FF><b>⚡ 古代クリスタル: {cryCard}方角（{cryHint}） 約{Mathf.RoundToInt(cryDist)}m 【Fキー送電】</b></color>  |  " + subInfo;
+                subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_crystal"), cryCard, cryHint, Mathf.RoundToInt(cryDist)) + subInfo;
             }
 
             var campfire = AdventureBeachCampfire.Instance;
             if (totalPts >= 10 && campfire != null && !campfire.IsLit)
             {
-                subInfo += " <color=#FFD54F><b>【🔥砂浜の焚き火＆Bキー工房解放中！】</b></color>";
+                subInfo += AdventureLocalizationManager.Get("hud_sub_campfire_workshop");
             }
         }
         else if (leverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken)
@@ -527,7 +535,7 @@ public class AdventureScrapHUD : MonoBehaviour
             var tower = AdventureSanctuaryTowerManager.Instance;
             if (tower != null && tower.IsPlayerNearLever)
             {
-                subInfo = "<size=24><color=#FFE066><b>✨ 【Eキー】で巨大真鍮レバーを引く！</b></color></size> <color=#80D8FF>（天蓋開放開始）</color>";
+                subInfo = AdventureLocalizationManager.Get("hud_sub_pull_lever");
             }
             else if (player != null)
             {
@@ -535,11 +543,11 @@ public class AdventureScrapHUD : MonoBehaviour
                 Vector3 diff = towerCenter - player.transform.position;
                 var (cardinal, hint) = GetDirectionParts(diff);
                 float dist = Vector3.Distance(player.transform.position, towerCenter);
-                subInfo = $"<color=#80D8FF><b>📍 レバー解除済:</b></color> <color=#FFEB3B><b>中央タワー白亜テラス（{cardinal}）</b></color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color> <color=#80D8FF>【レバーを引いて天蓋開放】</color>";
+                subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_lever_tower"), cardinal, Mathf.RoundToInt(dist));
             }
             else
             {
-                subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFEB3B><b>中央タワー白亜テラスの巨大真鍮レバー</b></color>";
+                subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_lever_tower"), "-", 0);
             }
         }
         else if (count >= 12 && AdventureSanctuaryTowerManager.IsGameCleared)
@@ -550,18 +558,18 @@ public class AdventureScrapHUD : MonoBehaviour
                 float dist = Vector3.Distance(player.transform.position, towerCenter);
                 if (dist < 28f)
                 {
-                    subInfo = "<size=15><color=#FFE066><b>✨ 中央の光の柱へ！</b></color> <color=#80D8FF>（大空へ無限再跳躍できます）</color></size>";
+                    subInfo = AdventureLocalizationManager.Get("hud_sub_light_pillar_near");
                 }
                 else
                 {
                     Vector3 diff = towerCenter - player.transform.position;
                     var (cardinal, hint) = GetDirectionParts(diff);
-                    subInfo = $"<color=#80D8FF><b>📍 自由飛行探索中:</b></color> <color=#FFD700><b>タワー中心の光の柱（{cardinal} 約{Mathf.RoundToInt(dist)}m）で大空へ再ダイブ！</b></color>";
+                    subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_light_pillar_far"), cardinal, Mathf.RoundToInt(dist));
                 }
             }
             else
             {
-                subInfo = "<color=#80D8FF><b>📍 自由飛行探索中:</b></color> <color=#FFD700><b>タワー中心からいつでも大空へ再ダイブ！</b></color>";
+                subInfo = AdventureLocalizationManager.Get("hud_sub_light_pillar_near");
             }
         }
         else if (count >= 12)
@@ -572,18 +580,18 @@ public class AdventureScrapHUD : MonoBehaviour
                 float dist = Vector3.Distance(player.transform.position, towerCenter);
                 if (dist < 28f)
                 {
-                    subInfo = "<size=15><color=#FFE066><b>✨ 中央の光の柱へ飛び込め！</b></color> <color=#80D8FF>（大空へ自動射出されます）</color></size>";
+                    subInfo = AdventureLocalizationManager.Get("hud_sub_light_pillar_near");
                 }
                 else
                 {
                     Vector3 diff = towerCenter - player.transform.position;
                     var (cardinal, hint) = GetDirectionParts(diff);
-                    subInfo = $"<color=#80D8FF><b>📍 目標:</b></color> <color=#FFD700><b>タワー中心の光の柱（{cardinal}）</b></color> <color=#69F0AE><b>約{Mathf.RoundToInt(dist)}m</b></color> <color=#80D8FF>【光の柱に入ると大空へ打ち上がります】</color>";
+                    subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_light_pillar_target"), cardinal, Mathf.RoundToInt(dist));
                 }
             }
             else
             {
-                subInfo = "<color=#80D8FF><b>📍 目標地点:</b></color> <color=#FFD700><b>タワー中心の光の柱</b></color>";
+                subInfo = AdventureLocalizationManager.Get("hud_sub_light_pillar_near");
             }
         }
 
@@ -595,14 +603,14 @@ public class AdventureScrapHUD : MonoBehaviour
         float angle = Mathf.Atan2(diff.x, diff.z) * Mathf.Rad2Deg;
         if (angle < 0f) angle += 360f;
 
-        if (angle >= 337.5f || angle < 22.5f) return ("北", "奥の高台");
-        if (angle >= 22.5f && angle < 67.5f) return ("北東", "丘陵地帯");
-        if (angle >= 67.5f && angle < 112.5f) return ("東", "右奥の林");
-        if (angle >= 112.5f && angle < 157.5f) return ("南東", "崖側");
-        if (angle >= 157.5f && angle < 202.5f) return ("南", "手前の浜辺");
-        if (angle >= 202.5f && angle < 247.5f) return ("南西", "浅瀬");
-        if (angle >= 247.5f && angle < 292.5f) return ("西", "海・オアシス");
-        return ("北西", "断崖");
+        if (angle >= 337.5f || angle < 22.5f) return (AdventureLocalizationManager.Get("dir_n"), AdventureLocalizationManager.Get("hint_highground"));
+        if (angle >= 22.5f && angle < 67.5f) return (AdventureLocalizationManager.Get("dir_ne"), AdventureLocalizationManager.Get("hint_hills"));
+        if (angle >= 67.5f && angle < 112.5f) return (AdventureLocalizationManager.Get("dir_e"), AdventureLocalizationManager.Get("hint_woods"));
+        if (angle >= 112.5f && angle < 157.5f) return (AdventureLocalizationManager.Get("dir_se"), AdventureLocalizationManager.Get("hint_cliff"));
+        if (angle >= 157.5f && angle < 202.5f) return (AdventureLocalizationManager.Get("dir_s"), AdventureLocalizationManager.Get("hint_beach"));
+        if (angle >= 202.5f && angle < 247.5f) return (AdventureLocalizationManager.Get("dir_sw"), AdventureLocalizationManager.Get("hint_shallows"));
+        if (angle >= 247.5f && angle < 292.5f) return (AdventureLocalizationManager.Get("dir_w"), AdventureLocalizationManager.Get("hint_sea_oasis"));
+        return (AdventureLocalizationManager.Get("dir_nw"), AdventureLocalizationManager.Get("hint_precipice"));
     }
 
     static Font ResolveFont()

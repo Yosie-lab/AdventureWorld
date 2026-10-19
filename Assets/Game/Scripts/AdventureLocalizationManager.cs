@@ -183,6 +183,135 @@ public static class AdventureLocalizationManager
         { "hud_oil", new[] { "潤滑油: {0}", "Lubricant: {0}", "润滑油: {0}", "Lubricante: {0}" } },
         { "hud_interact_pet", new[] { "[E / クリック] 撫でる / 注油", "[E / Click] Pet / Oil", "[E / 点击] 抚摸 / 注油", "[E / Clic] Acariciar / Lubricar" } },
 
+        // --- 画面上部HUD（左上目標ボード ＆ 右上潤滑油ボード） ---
+        { "hud_oil_label", new[] { "潤滑油", "Oil", "润滑油", "Aceite" } },
+        { "hud_oil_well", new[] { "快調({0}s)", "Prime({0}s)", "快调({0}s)", "Óptimo({0}s)" } },
+        { "hud_oil_cure_hint", new[] { "【E / クリック】手当て", "[E / Click] Oil Up", "【E / 点击】护理", "[E / Clic] Curar" } },
+        { "hud_oil_cured_toast", new[] { "✦ Rustに油をさして手当てしました！", "✦ Rust lubricated and refreshed!", "✦ 已为Rust注入润滑油并保养！", "✦ ¡Rust ha sido lubricado y revitalizado!" } },
+
+        { "hud_goal_cleared", new[] {
+            "<color=#FFE066><b>✦ GAME CLEAR！</b></color> <color=#FFFFFF>箱庭からの脱獄達成！</color>",
+            "<color=#FFE066><b>✦ GAME CLEAR!</b></color> <color=#FFFFFF>Escaped the miniature garden!</color>",
+            "<color=#FFE066><b>✦ 游戏通关！</b></color> <color=#FFFFFF>成功逃离微缩庭园！</color>",
+            "<color=#FFE066><b>✦ ¡JUEGO COMPLETADO!</b></color> <color=#FFFFFF>¡Escape del jardín en miniatura!</color>"
+        } },
+        { "hud_goal_canopy", new[] {
+            "<color=#FFD700><b>✦ 天蓋崩壊！</b></color> <color=#FFFFFF>光の柱から空の裂け目へダイブ！</color>",
+            "<color=#FFD700><b>✦ Canopy Shattered!</b></color> <color=#FFFFFF>Dive into the sky rift from the light pillar!</color>",
+            "<color=#FFD700><b>✦ 天穹破裂！</b></color> <color=#FFFFFF>从光柱跃入天空裂缝！</color>",
+            "<color=#FFD700><b>✦ ¡Cúpula rota!</b></color> <color=#FFFFFF>¡Lánzate a la grieta del cielo desde el pilar de luz!</color>"
+        } },
+        { "hud_goal_lever", new[] {
+            "<color=#00E5FF><b>✦ レバーロック解除！</b></color> <color=#FFFFFF>中央タワーの黄金レバーへ</color> <color=#FFE066><b>({0}/20 pt)</b></color>",
+            "<color=#00E5FF><b>✦ Lever Unlocked!</b></color> <color=#FFFFFF>Head to golden lever at central tower</color> <color=#FFE066><b>({0}/20 pts)</b></color>",
+            "<color=#00E5FF><b>✦ 机关锁已解除！</b></color> <color=#FFFFFF>前往中央高塔的黄金拉杆</color> <color=#FFE066><b>({0}/20 分)</b></color>",
+            "<color=#00E5FF><b>✦ ¡Palanca desbloqueada!</b></color> <color=#FFFFFF>Ve a la palanca dorada en la torre central</color> <color=#FFE066><b>({0}/20 pts)</b></color>"
+        } },
+        { "hud_goal_scrap_3", new[] {
+            "<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>パーツ回収</b></color> <color=#00E5FF><b>({0}/3)</b></color> <color=#FFE066><b>(計 {1}/20 pt)</b></color>",
+            "<color=#FFD54F><b>✦ Goal:</b></color> <color=#FFFFFF><b>Scrap Parts</b></color> <color=#00E5FF><b>({0}/3)</b></color> <color=#FFE066><b>(Total {1}/20 pts)</b></color>",
+            "<color=#FFD54F><b>✦ 目标:</b></color> <color=#FFFFFF><b>零件回收</b></color> <color=#00E5FF><b>({0}/3)</b></color> <color=#FFE066><b>(总计 {1}/20 分)</b></color>",
+            "<color=#FFD54F><b>✦ Objetivo:</b></color> <color=#FFFFFF><b>Recuperar piezas</b></color> <color=#00E5FF><b>({0}/3)</b></color> <color=#FFE066><b>(Total {1}/20 pts)</b></color>"
+        } },
+        { "hud_goal_scrap_6", new[] {
+            "<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>反重力コア</b></color> <color=#00E5FF><b>({0}/6)</b></color> <color=#FFD54F>▶ 2段ジャンプ</color> <color=#FFE066><b>(計 {1}/20 pt)</b></color>",
+            "<color=#FFD54F><b>✦ Goal:</b></color> <color=#FFFFFF><b>Anti-Gravity Core</b></color> <color=#00E5FF><b>({0}/6)</b></color> <color=#FFD54F>▶ Double Jump</color> <color=#FFE066><b>(Total {1}/20 pts)</b></color>",
+            "<color=#FFD54F><b>✦ 目标:</b></color> <color=#FFFFFF><b>反重力核心</b></color> <color=#00E5FF><b>({0}/6)</b></color> <color=#FFD54F>▶ 二段跳跃</color> <color=#FFE066><b>(总计 {1}/20 分)</b></color>",
+            "<color=#FFD54F><b>✦ Objetivo:</b></color> <color=#FFFFFF><b>Núcleo antigravedad</b></color> <color=#00E5FF><b>({0}/6)</b></color> <color=#FFD54F>▶ Doble salto</color> <color=#FFE066><b>(Total {1}/20 pts)</b></color>"
+        } },
+        { "hud_goal_scrap_9", new[] {
+            "<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>探知ソナー</b></color> <color=#00E5FF><b>({0}/9)</b></color> <color=#FFD54F>▶ レーダー</color> <color=#FFE066><b>(計 {1}/20 pt)</b></color>",
+            "<color=#FFD54F><b>✦ Goal:</b></color> <color=#FFFFFF><b>Scout Sonar</b></color> <color=#00E5FF><b>({0}/9)</b></color> <color=#FFD54F>▶ Radar</color> <color=#FFE066><b>(Total {1}/20 pts)</b></color>",
+            "<color=#FFD54F><b>✦ 目标:</b></color> <color=#FFFFFF><b>探测声纳</b></color> <color=#00E5FF><b>({0}/9)</b></color> <color=#FFD54F>▶ 雷达</color> <color=#FFE066><b>(总计 {1}/20 分)</b></color>",
+            "<color=#FFD54F><b>✦ Objetivo:</b></color> <color=#FFFFFF><b>Sónar de rastreo</b></color> <color=#00E5FF><b>({0}/9)</b></color> <color=#FFD54F>▶ Radar</color> <color=#FFE066><b>(Total {1}/20 pts)</b></color>"
+        } },
+        { "hud_goal_scrap_12", new[] {
+            "<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>グライダー完成</b></color> <color=#00E5FF><b>({0}/12)</b></color> <color=#FFE066><b>(計 {1}/20 pt)</b></color>",
+            "<color=#FFD54F><b>✦ Goal:</b></color> <color=#FFFFFF><b>Glider Complete</b></color> <color=#00E5FF><b>({0}/12)</b></color> <color=#FFE066><b>(Total {1}/20 pts)</b></color>",
+            "<color=#FFD54F><b>✦ 目标:</b></color> <color=#FFFFFF><b>组装滑翔翼</b></color> <color=#00E5FF><b>({0}/12)</b></color> <color=#FFE066><b>(总计 {1}/20 分)</b></color>",
+            "<color=#FFD54F><b>✦ Objetivo:</b></color> <color=#FFFFFF><b>Planeador completo</b></color> <color=#00E5FF><b>({0}/12)</b></color> <color=#FFE066><b>(Total {1}/20 pts)</b></color>"
+        } },
+        { "hud_goal_scrap_more", new[] {
+            "<color=#FFD54F><b>✦ 目標:</b></color> <color=#FFFFFF><b>ケースやピアノでポイント獲得</b></color> <color=#FFE066><b>(計 {0}/20 pt)</b></color>",
+            "<color=#FFD54F><b>✦ Goal:</b></color> <color=#FFFFFF><b>Gain pts from crates & piano</b></color> <color=#FFE066><b>(Total {0}/20 pts)</b></color>",
+            "<color=#FFD54F><b>✦ 目标:</b></color> <color=#FFFFFF><b>通过宝箱与钢琴获取积分</b></color> <color=#FFE066><b>(总计 {0}/20 分)</b></color>",
+            "<color=#FFD54F><b>✦ Objetivo:</b></color> <color=#FFFFFF><b>Consigue pts con cajas y el piano</b></color> <color=#FFE066><b>(Total {0}/20 pts)</b></color>"
+        } },
+
+        { "hud_sub_nearest_scrap", new[] {
+            "<color=#80D8FF><b>📍 最寄りパーツ:</b></color> <color=#FFEB3B><b>{0}</b></color><color=#ECEFF1>（{1}）</color> <color=#69F0AE><b>約{2}m</b></color>",
+            "<color=#80D8FF><b>📍 Nearest Scrap:</b></color> <color=#FFEB3B><b>{0}</b></color><color=#ECEFF1> ({1})</color> <color=#69F0AE><b>~{2}m</b></color>",
+            "<color=#80D8FF><b>📍 最近零件:</b></color> <color=#FFEB3B><b>{0}</b></color><color=#ECEFF1>（{1}）</color> <color=#69F0AE><b>约{2}米</b></color>",
+            "<color=#80D8FF><b>📍 Pieza cercana:</b></color> <color=#FFEB3B><b>{0}</b></color><color=#ECEFF1> ({1})</color> <color=#69F0AE><b>~{2}m</b></color>"
+        } },
+        { "hud_sub_collect_hint", new[] {
+            "<color=#B0BEC5>📍 漂着パーツ(1pt)・ケース(2pt)・ピアノ(3pt)を集めよう！</color>",
+            "<color=#B0BEC5>📍 Collect drift scrap (1pt), crates (2pt), & piano (3pt)!</color>",
+            "<color=#B0BEC5>📍 收集漂着零件(1分)、宝箱(2分)、钢琴(3分)！</color>",
+            "<color=#B0BEC5>📍 ¡Consigue piezas (1pt), cajas (2pt) y el piano (3pt)!</color>"
+        } },
+        { "hud_sub_crystal", new[] {
+            "<color=#00E5FF><b>⚡ 古代クリスタル: {0}方角（{1}） 約{2}m 【Fキー送電】</b></color>  |  ",
+            "<color=#00E5FF><b>⚡ Ancient Crystal: {0} ({1}) ~{2}m [F: Transmit]</b></color>  |  ",
+            "<color=#00E5FF><b>⚡ 古代水晶: {0}方位（{1}） 约{2}米 【F键输电】</b></color>  |  ",
+            "<color=#00E5FF><b>⚡ Cristal antiguo: {0} ({1}) ~{2}m [F: Transmitir]</b></color>  |  "
+        } },
+        { "hud_sub_campfire_workshop", new[] {
+            " <color=#FFD54F><b>【🔥砂浜の焚き火＆Bキー工房解放中！】</b></color>",
+            " <color=#FFD54F><b>[🔥Beach Campfire & B-key Workshop Unlocked!]</b></color>",
+            " <color=#FFD54F><b>【🔥沙滩篝火＆B键工坊已解锁！】</b></color>",
+            " <color=#FFD54F><b>[🔥¡Hoguera y taller con tecla B disponibles!]</b></color>"
+        } },
+        { "hud_sub_pull_lever", new[] {
+            "<size=24><color=#FFE066><b>✨ 【Eキー】で巨大真鍮レバーを引く！</b></color></size> <color=#80D8FF>（天蓋開放開始）</color>",
+            "<size=24><color=#FFE066><b>✨ Pull golden lever with [E]!</b></color></size> <color=#80D8FF>(Open Canopy)</color>",
+            "<size=24><color=#FFE066><b>✨ 按【E键】拉动巨大的黄金手柄！</b></color></size> <color=#80D8FF>（开启天穹）</color>",
+            "<size=24><color=#FFE066><b>✨ ¡Tira de la palanca dorada con [E]!</b></color></size> <color=#80D8FF>(Abre la cúpula)</color>"
+        } },
+        { "hud_sub_lever_tower", new[] {
+            "<color=#80D8FF><b>📍 レバー解除済:</b></color> <color=#FFEB3B><b>中央タワー白亜テラス（{0}）</b></color> <color=#69F0AE><b>約{1}m</b></color> <color=#80D8FF>【レバーを引いて天蓋開放】</color>",
+            "<color=#80D8FF><b>📍 Lever Unlocked:</b></color> <color=#FFEB3B><b>Central Tower Terrace ({0})</b></color> <color=#69F0AE><b>~{1}m</b></color> <color=#80D8FF>[Pull lever to open canopy]</color>",
+            "<color=#80D8FF><b>📍 机关已解锁:</b></color> <color=#FFEB3B><b>中央高塔白垩露台（{0}）</b></color> <color=#69F0AE><b>约{1}米</b></color> <color=#80D8FF>【拉动手柄开启天顶】</color>",
+            "<color=#80D8FF><b>📍 Desbloqueado:</b></color> <color=#FFEB3B><b>Terraza central ({0})</b></color> <color=#69F0AE><b>~{1}m</b></color> <color=#80D8FF>[Tira de la palanca para abrir]</color>"
+        } },
+        { "hud_sub_light_pillar_near", new[] {
+            "<size=15><color=#FFE066><b>✨ 中央の光の柱へ！</b></color> <color=#80D8FF>（大空へ無限再跳躍できます）</color></size>",
+            "<size=15><color=#FFE066><b>✨ Head into the Central Light Pillar!</b></color> <color=#80D8FF>(Launch into sky freely)</color></size>",
+            "<size=15><color=#FFE066><b>✨ 前往中央光柱！</b></color> <color=#80D8FF>（可无限次飞向天空）</color></size>",
+            "<size=15><color=#FFE066><b>✨ ¡Ve al pilar de luz central!</b></color> <color=#80D8FF>(Vuela libremente al cielo)</color></size>"
+        } },
+        { "hud_sub_light_pillar_far", new[] {
+            "<color=#80D8FF><b>📍 自由飛行探索中:</b></color> <color=#FFD700><b>タワー中心の光の柱（{0} 約{1}m）で大空へ再ダイブ！</b></color>",
+            "<color=#80D8FF><b>📍 Free Flight:</b></color> <color=#FFD700><b>Tower Light Pillar ({0} ~{1}m) to dive into sky!</b></color>",
+            "<color=#80D8FF><b>📍 自由飞行探索中:</b></color> <color=#FFD700><b>进入高塔中心光柱（{0} 约{1}米）重返天际！</b></color>",
+            "<color=#80D8FF><b>📍 Vuelo libre:</b></color> <color=#FFD700><b>¡Pilar de luz de la torre ({0} ~{1}m) para volar!</b></color>"
+        } },
+        { "hud_sub_light_pillar_target", new[] {
+            "<color=#80D8FF><b>📍 目標:</b></color> <color=#FFD700><b>タワー中心の光の柱（{0}）</b></color> <color=#69F0AE><b>約{1}m</b></color> <color=#80D8FF>【光の柱に入ると大空へ打ち上がります】</color>",
+            "<color=#80D8FF><b>📍 Goal:</b></color> <color=#FFD700><b>Tower Light Pillar ({0})</b></color> <color=#69F0AE><b>~{1}m</b></color> <color=#80D8FF>[Enter to launch into the sky]</color>",
+            "<color=#80D8FF><b>📍 目标:</b></color> <color=#FFD700><b>高塔中心光柱（{0}）</b></color> <color=#69F0AE><b>约{1}米</b></color> <color=#80D8FF>【进入光柱将被发射至长空】</color>",
+            "<color=#80D8FF><b>📍 Objetivo:</b></color> <color=#FFD700><b>Pilar de luz central ({0})</b></color> <color=#69F0AE><b>~{1}m</b></color> <color=#80D8FF>[Entra para lanzarte al cielo]</color>"
+        } },
+
+        // --- 方角と地形ヒント ---
+        { "dir_n", new[] { "北", "North", "北", "Norte" } },
+        { "dir_ne", new[] { "北東", "Northeast", "东北", "Noreste" } },
+        { "dir_e", new[] { "東", "East", "东", "Este" } },
+        { "dir_se", new[] { "南東", "Southeast", "东南", "Sureste" } },
+        { "dir_s", new[] { "南", "South", "南", "Sur" } },
+        { "dir_sw", new[] { "南西", "Southwest", "西南", "Suroeste" } },
+        { "dir_w", new[] { "西", "West", "西", "Oeste" } },
+        { "dir_nw", new[] { "北西", "Northwest", "西北", "Noroeste" } },
+
+        { "hint_highground", new[] { "奥の高台", "High ground", "高台", "Terreno alto" } },
+        { "hint_hills", new[] { "丘陵地帯", "Hills", "丘陵", "Colinas" } },
+        { "hint_woods", new[] { "右奥の林", "Woods", "树林", "Bosque" } },
+        { "hint_cliff", new[] { "崖側", "Cliff", "悬崖", "Acantilado" } },
+        { "hint_beach", new[] { "手前の浜辺", "Beach", "海滩", "Playa" } },
+        { "hint_shallows", new[] { "浅瀬", "Shallows", "浅滩", "Bajíos" } },
+        { "hint_sea_oasis", new[] { "海・オアシス", "Sea / Oasis", "大海/绿洲", "Mar / Oasis" } },
+        { "hint_precipice", new[] { "断崖", "Precipice", "险壁", "Precipicio" } },
+
         // --- 相棒Rustの台詞 ---
         { "rust_wind_highway", new[] { "「風の道に乗ったよ！すごく速い、Float！」", "\"We caught the wind highway! So fast, Float!\"", "“乘上风之轨道了！好快啊，Float！”", "¡Entramos en la corriente de viento! ¡Qué rápido, Float!" } },
         { "rust_dive_cheer", new[] { "「わああぁぁっ、大空へダイブだー！！」", "\"Woooow, diving into the open sky!!\"", "“哇啊啊——！向着长空俯冲啦——！！”", "¡¡Wooooow, picado en picado hacia el cielo abierto!!" } },
