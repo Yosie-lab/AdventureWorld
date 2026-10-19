@@ -32,6 +32,9 @@ public class AdventurePauseMenu : MonoBehaviour
     Text _headerSubTitleText;
     GameObject _restartBtnGo;
     GameObject _returnTitleBtnGo;
+    Button _restartBtn;
+    Button _returnTitleBtn;
+    Button _resumeBtn;
     Text _restartBtnText;
     Text _returnTitleBtnText;
     Text _resumeBtnText;
@@ -39,6 +42,7 @@ public class AdventurePauseMenu : MonoBehaviour
     Button _prevLangBtn;
     Button _nextLangBtn;
     Button _langValueBtn;
+    GraphicRaycaster _graphicRaycaster;
     Text _creditsLeftText;
     Text _creditsRightText;
 
@@ -149,11 +153,7 @@ public class AdventurePauseMenu : MonoBehaviour
     {
         var es = UnityEngine.EventSystems.EventSystem.current;
         if (es == null)
-        {
-            var all = Object.FindObjectsByType<UnityEngine.EventSystems.EventSystem>(FindObjectsInactive.Include);
-            if (all.Length > 0)
-                es = all[0];
-        }
+            es = Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>();
 
         if (es == null)
         {
@@ -164,26 +164,23 @@ public class AdventurePauseMenu : MonoBehaviour
 
         if (!es.gameObject.activeInHierarchy)
             es.gameObject.SetActive(true);
+        es.enabled = true;
 
-        var legacy = es.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>();
         var uiModule = es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-
-        // Input System のみ構成では Standalone はマウスを拾えない → 常に InputSystemUIInputModule
-        if (legacy != null)
-            legacy.enabled = false;
         if (uiModule == null)
             uiModule = es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-        try { uiModule.AssignDefaultActions(); } catch { }
+
+        try
+        {
+            if (uiModule.actionsAsset == null)
+                uiModule.AssignDefaultActions();
+            if (uiModule.actionsAsset != null)
+                uiModule.actionsAsset.Enable();
+        }
+        catch { }
+
         uiModule.enabled = true;
         InputSystem.settings.updateMode = InputSettings.UpdateMode.ProcessEventsInDynamicUpdate;
-
-        // 複数 EventSystem があると UI クリックが死ぬ
-        var systems = Object.FindObjectsByType<UnityEngine.EventSystems.EventSystem>(FindObjectsInactive.Include);
-        for (int i = 0; i < systems.Length; i++)
-        {
-            if (systems[i] != null && systems[i] != es)
-                systems[i].gameObject.SetActive(false);
-        }
     }
 
     void Awake()
@@ -382,54 +379,97 @@ public class AdventurePauseMenu : MonoBehaviour
         var mouse = Mouse.current;
         Vector2 mousePos = mouse != null ? mouse.position.ReadValue() : (Vector2)Input.mousePosition;
 
-        if (TryClickUiButton(_tabDisplayBtn, mousePos)) { SwitchTab(1); return; }
-        if (TryClickUiButton(_tabGuideBtn, mousePos)) { SwitchTab(2); return; }
-        if (TryClickUiButton(_tabCreditsBtn, mousePos)) { SwitchTab(3); return; }
-        if (TryClickUiButton(_tabAudioBtn, mousePos)) { SwitchTab(0); return; }
+        // 1. タブ切り替え
+        if (IsHit(_tabDisplayBtn, mousePos)) { SwitchTab(1); return; }
+        if (IsHit(_tabGuideBtn, mousePos)) { SwitchTab(2); return; }
+        if (IsHit(_tabCreditsBtn, mousePos)) { SwitchTab(3); return; }
+        if (IsHit(_tabAudioBtn, mousePos)) { SwitchTab(0); return; }
 
+        // 2. フッターボタン
+        if (IsHit(_resumeBtn, mousePos)) { SetMenuVisible(false); return; }
+        if (!_openedFromTitle)
+        {
+            if (IsHit(_restartBtn, mousePos)) { OnRestartClicked(); return; }
+            if (IsHit(_returnTitleBtn, mousePos)) { OnReturnToTitleClicked(); return; }
+        }
+
+        // 3. 各タブ内容
         if (_currentTab == 0)
-            TryAudioTabDirectMouseClicks(mousePos);
+        {
+            if (IsHit(_prevLangBtn, mousePos)) { OnPrevLanguageClicked(); return; }
+            if (IsHit(_nextLangBtn, mousePos)) { OnNextLanguageClicked(); return; }
+            if (IsHit(_langValueBtn, mousePos)) { OnNextLanguageClicked(); return; }
+        }
         else if (_currentTab == 1)
-            TryDisplayTabDirectMouseClicks(mousePos);
+        {
+            if (IsHit(_fsBtn, mousePos)) { SetFullscreen(true); return; }
+            if (IsHit(_winBtn, mousePos)) { SetFullscreen(false); return; }
+            if (IsHit(_qFastBtn, mousePos)) { SetQuality(0); return; }
+            if (IsHit(_qHighBtn, mousePos)) { SetQuality(1); return; }
+            if (IsHit(_qUltraBtn, mousePos)) { SetQuality(2); return; }
+            if (IsHit(_vsyncOnBtn, mousePos)) { SetVSync(true); return; }
+            if (IsHit(_vsyncOffBtn, mousePos)) { SetVSync(false); return; }
+            if (IsHit(_res1080Btn, mousePos)) { SetResolution(1920, 1080); return; }
+            if (IsHit(_res900Btn, mousePos)) { SetResolution(1600, 900); return; }
+            if (IsHit(_res720Btn, mousePos)) { SetResolution(1280, 720); return; }
+        }
     }
 
-    void TryAudioTabDirectMouseClicks(Vector2 mousePos)
+    bool IsHit(Button btn, Vector2 mousePos)
     {
-        if (TryClickUiButton(_prevLangBtn, mousePos)) { OnPrevLanguageClicked(); return; }
-        if (TryClickUiButton(_nextLangBtn, mousePos)) { OnNextLanguageClicked(); return; }
-        if (TryClickUiButton(_langValueBtn, mousePos)) { OnNextLanguageClicked(); return; }
+        if (btn == null || !btn.gameObject.activeInHierarchy) return false;
+
+        // A. GraphicRaycaster による高精度レイキャスト（CanvasScaler や Retina 倍率を Unity が自動補正）
+        if (_graphicRaycaster != null)
+        {
+            var ped = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current)
+            {
+                position = mousePos
+            };
+            var results = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+            _graphicRaycaster.Raycast(ped, results);
+            for (int i = 0; i < results.Count; i++)
+            {
+                if (results[i].gameObject == btn.gameObject || results[i].gameObject.transform.IsChildOf(btn.transform))
+                    return true;
+            }
+        }
+
+        // B. RectTransformUtility（フォールバック ＆ Retina 倍率自動補正）
+        var rt = btn.GetComponent<RectTransform>();
+        if (rt != null)
+        {
+            if (RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos, null))
+                return true;
+            if (RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos * 2f, null))
+                return true;
+            if (RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos * 0.5f, null))
+                return true;
+        }
+
+        return false;
     }
 
     void OnPrevLanguageClicked()
     {
         PlayClickSound();
         AdventureLocalizationManager.PrevLanguage();
+        if (_langValueText != null)
+            _langValueText.text = AdventureLocalizationManager.LanguageNames[(int)AdventureLocalizationManager.CurrentLanguage];
     }
 
     void OnNextLanguageClicked()
     {
         PlayClickSound();
         AdventureLocalizationManager.NextLanguage();
+        if (_langValueText != null)
+            _langValueText.text = AdventureLocalizationManager.LanguageNames[(int)AdventureLocalizationManager.CurrentLanguage];
     }
 
     void PlayClickSound()
     {
         if (_audioSource != null && _testBeepClip != null)
             _audioSource.PlayOneShot(_testBeepClip, 0.45f);
-    }
-
-    void TryDisplayTabDirectMouseClicks(Vector2 mousePos)
-    {
-        if (TryClickUiButton(_fsBtn, mousePos)) { SetFullscreen(true); return; }
-        if (TryClickUiButton(_winBtn, mousePos)) { SetFullscreen(false); return; }
-        if (TryClickUiButton(_qFastBtn, mousePos)) { SetQuality(0); return; }
-        if (TryClickUiButton(_qHighBtn, mousePos)) { SetQuality(1); return; }
-        if (TryClickUiButton(_qUltraBtn, mousePos)) { SetQuality(2); return; }
-        if (TryClickUiButton(_vsyncOnBtn, mousePos)) { SetVSync(true); return; }
-        if (TryClickUiButton(_vsyncOffBtn, mousePos)) { SetVSync(false); return; }
-        if (TryClickUiButton(_res1080Btn, mousePos)) { SetResolution(1920, 1080); return; }
-        if (TryClickUiButton(_res900Btn, mousePos)) { SetResolution(1600, 900); return; }
-        if (TryClickUiButton(_res720Btn, mousePos)) { SetResolution(1280, 720); return; }
     }
 
     static bool TryClickUiButton(Button btn, Vector2 screenPos)
@@ -531,7 +571,7 @@ public class AdventurePauseMenu : MonoBehaviour
             if (_canvas != null)
             {
                 _canvas.enabled = true;
-                _canvas.sortingOrder = _openedFromTitle ? 960 : 110;
+                _canvas.sortingOrder = 5500; // いかなるHUDや暗幕よりも最前面に配置してクリック判定を完全独占
             }
 
             if (_titleSettingsBackdrop != null)
@@ -832,14 +872,14 @@ public class AdventurePauseMenu : MonoBehaviour
 
         _canvas = canvasGo.AddComponent<Canvas>();
         _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        _canvas.sortingOrder = 110;
+        _canvas.sortingOrder = 5500;
 
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1280f, 720f);
         scaler.matchWidthOrHeight = 0.5f;
 
-        canvasGo.AddComponent<GraphicRaycaster>();
+        _graphicRaycaster = canvasGo.AddComponent<GraphicRaycaster>();
 
         _font = ResolveFont();
 
@@ -852,7 +892,7 @@ public class AdventurePauseMenu : MonoBehaviour
         bdRt.offsetMax = Vector2.zero;
         var bdImg = _titleSettingsBackdrop.AddComponent<Image>();
         bdImg.color = new Color(0.01f, 0.03f, 0.06f, 0.72f);
-        bdImg.raycastTarget = true;
+        bdImg.raycastTarget = false; // 暗幕がクリック判定を吸い取らないよう透過
         _titleSettingsBackdrop.SetActive(false);
 
         // 1. パネル背景
@@ -1437,8 +1477,8 @@ public class AdventurePauseMenu : MonoBehaviour
 
         var restImg = _restartBtnGo.AddComponent<Image>();
         restImg.color = new Color(0.48f, 0.15f, 0.18f, 0.95f);
-        var restBtn = _restartBtnGo.AddComponent<Button>();
-        restBtn.onClick.AddListener(OnRestartClicked);
+        _restartBtn = _restartBtnGo.AddComponent<Button>();
+        _restartBtn.onClick.AddListener(OnRestartClicked);
 
         _restartBtnText = MakeLabel(_restartBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "🗑 最初からやり直す", 15, new Color(1f, 0.88f, 0.88f, 1f));
         _restartBtnText.fontStyle = FontStyle.Bold;
@@ -1455,8 +1495,8 @@ public class AdventurePauseMenu : MonoBehaviour
 
         var titleImg = _returnTitleBtnGo.AddComponent<Image>();
         titleImg.color = new Color(0.20f, 0.35f, 0.55f, 0.95f);
-        var titleBtn = _returnTitleBtnGo.AddComponent<Button>();
-        titleBtn.onClick.AddListener(OnReturnToTitleClicked);
+        _returnTitleBtn = _returnTitleBtnGo.AddComponent<Button>();
+        _returnTitleBtn.onClick.AddListener(OnReturnToTitleClicked);
 
         _returnTitleBtnText = MakeLabel(_returnTitleBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "✦ タイトルへ戻る", 15, new Color(0.90f, 0.96f, 1f, 1f));
         _returnTitleBtnText.fontStyle = FontStyle.Bold;
@@ -1473,8 +1513,8 @@ public class AdventurePauseMenu : MonoBehaviour
 
         var rImg = resumeGo.AddComponent<Image>();
         rImg.color = new Color(0.12f, 0.55f, 0.85f, 1f);
-        var rBtn = resumeGo.AddComponent<Button>();
-        rBtn.onClick.AddListener(() => SetMenuVisible(false));
+        _resumeBtn = resumeGo.AddComponent<Button>();
+        _resumeBtn.onClick.AddListener(() => SetMenuVisible(false));
 
         _resumeBtnText = MakeLabel(resumeGo.transform, "Text", Vector2.zero, Vector2.zero, "▶ ゲームに戻る [ESC]", 15, Color.white);
         _resumeBtnText.fontStyle = FontStyle.Bold;
