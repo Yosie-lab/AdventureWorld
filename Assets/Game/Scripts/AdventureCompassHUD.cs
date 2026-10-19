@@ -506,11 +506,21 @@ public class AdventureCompassHUD : MonoBehaviour
                 _cachedIsGuidingToCrystal = puzzle != null && !puzzle.IsActivated;
                 _cachedIsGuidingToTerrace = puzzle != null && puzzle.IsActivated && !puzzle.IsChestOpened;
 
+                var nearest = mgr.GetNearestScrapItem(playerPos, out float _);
+
                 if (_cachedIsGuidingToTower)
                 {
                     _cachedTargetPos = new Vector3(512f, 63.2f, 501.5f); // 南正面メイン巨大レバー
                     _cachedTargetName = "白亜タワー（巨大レバー）";
                     _cachedTargetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
+                    _cachedHasTarget = true;
+                }
+                else if (nearest != null)
+                {
+                    // 未回収パーツを最優先でコンパスHUDに表示
+                    _cachedTargetPos = nearest.transform.position;
+                    _cachedTargetName = nearest.itemName;
+                    _cachedTargetColor = nearest.itemColor;
                     _cachedHasTarget = true;
                 }
                 else if (_cachedIsGuidingToCrystal)
@@ -529,21 +539,10 @@ public class AdventureCompassHUD : MonoBehaviour
                 }
                 else
                 {
-                    var nearest = mgr.GetNearestScrapItem(playerPos, out float _);
-                    if (nearest != null)
-                    {
-                        _cachedTargetPos = nearest.transform.position;
-                        _cachedTargetName = nearest.itemName;
-                        _cachedTargetColor = nearest.itemColor;
-                        _cachedHasTarget = true;
-                    }
-                    else
-                    {
-                        _cachedTargetPos = Vector3.zero;
-                        _cachedTargetName = "";
-                        _cachedTargetColor = Color.white;
-                        _cachedHasTarget = false;
-                    }
+                    _cachedTargetPos = Vector3.zero;
+                    _cachedTargetName = "";
+                    _cachedTargetColor = Color.white;
+                    _cachedHasTarget = false;
                 }
             }
 

@@ -245,6 +245,21 @@ public static class AdventureInputReader
         }
     }
 
+    /// <summary>Qキー、マウス中クリック、ゲームパッドLBがこのフレームに押された（Rustへの道案内リクエスト）</summary>
+    public static bool GuideDown
+    {
+        get
+        {
+            try { if (Input.GetKeyDown(KeyCode.Q) || Input.GetMouseButtonDown(2)) return true; } catch { }
+            var kb = Keyboard;
+            if (kb != null && kb.qKey.wasPressedThisFrame) return true;
+            var mouse = Mouse.current;
+            if (mouse != null && mouse.middleButton.wasPressedThisFrame) return true;
+            var gp = Gamepad.current;
+            return gp != null && gp.leftShoulder.wasPressedThisFrame;
+        }
+    }
+
     /// <summary>Rキーがこのフレームに押された（リセット）</summary>
     public static bool ResetDown
     {
@@ -253,6 +268,17 @@ public static class AdventureInputReader
             try { if (Input.GetKeyDown(KeyCode.R)) return true; } catch { }
             var kb = Keyboard;
             return kb != null && kb.rKey.wasPressedThisFrame;
+        }
+    }
+
+    /// <summary>Rキーが押されている（リセット誤爆防止の長押し判定用）</summary>
+    public static bool ResetHeld
+    {
+        get
+        {
+            try { if (Input.GetKey(KeyCode.R)) return true; } catch { }
+            var kb = Keyboard;
+            return kb != null && kb.rKey.isPressed;
         }
     }
 

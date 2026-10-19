@@ -214,7 +214,7 @@ public class AdventureWindRing : MonoBehaviour
             _ringVisual.localScale = Vector3.one * pulse;
         }
 
-        // 確実な通過感知（リング開口の薄いゲートのみ）
+        // 確実な通過感知
         if (!_isCooldown)
         {
             var player = AdventurePlayerController.Resolve();
@@ -223,14 +223,86 @@ public class AdventureWindRing : MonoBehaviour
         }
     }
 
+    void LateUpdate()
+    {
+        // プレイヤー移動の後に吸い込み（同一フレームでMoveが打ち消されず滑らかに吸い込まれる）
+        TickRingMagnet();
+    }
+
+    /// <summary>
+    /// リング接近時の気流ファネル吸引（滑空中のグライダーを中心へ引き寄せ、連続コンボを吸い込まれるように決める）
+    /// </summary>
+    void TickRingMagnet()
+    {
+        if (_isCooldown) return;
+
+        var player = AdventurePlayerController.Resolve();
+        // ★絶対防衛: 滑空していない地上歩行時や通常ジャンプ時は一切吸引しない！
+        // プレイヤーが自ら翼を広げて滑空（IsGliding）している時のみ、気流アシストを発動する。
+        if (player == null || player.IsGrounded || !player.IsGliding) return;
+
+        Vector3 center = transform.position;
+        Vector3 playerPos = player.transform.position + Vector3.up * 0.9f;
+        Vector3 toPlayer = playerPos - center;
+
+        // リングの法線軸（前後方向）
+        Vector3 forward = transform.forward.normalized;
+        float axialDist = Vector3.Dot(toPlayer, forward);
+
+        // リングの軸から外れた半径方向の距離
+        Vector3 onAxis = center + forward * axialDist;
+        Vector3 radialOffset = playerPos - onAxis;
+        float radialDist = radialOffset.magnitude;
+
+        // 吸引ゾーン：リング手前・奥 16m、半径 9m の適正な気流ファネル
+        const float maxAxial = 16.0f;
+        const float maxRadial = 9.0f;
+
+        if (Mathf.Abs(axialDist) > maxAxial || radialDist > maxRadial) return;
+
+        bool inGate = IsPlayerInsideGate(player);
+
+        // 中心へ向かう緊急度・引力カーブ
+        float radialFactor = 1.0f - Mathf.Clamp01(radialDist / maxRadial);
+        float axialFactor = 1.0f - Mathf.Clamp01(Mathf.Abs(axialDist) / maxAxial);
+        float urgency = radialFactor * axialFactor;
+        urgency = Mathf.Pow(urgency, 0.6f) + 0.35f;
+
+        float dt = Time.deltaTime;
+        Vector3 pullDelta = Vector3.zero;
+
+        // 1. リングの中心線（軸）への滑らかな吸引
+        if (radialDist > 0.15f)
+        {
+            Vector3 toAxis = -radialOffset.normalized;
+            float pullSpeed = inGate ? 4.0f : 12.0f;
+            pullDelta += toAxis * (pullSpeed * urgency * dt);
+        }
+
+        // 2. リング開口部をくぐり抜ける進行方向への気流ガイド
+        Vector3 through = ResolveBoostDirection(player);
+        float pushSpeed = inGate ? 3.0f : 8.0f;
+        pullDelta += through * (pushSpeed * urgency * dt);
+
+        if (pullDelta.sqrMagnitude > 0.000001f)
+        {
+            player.ApplyRingMagnetPull(pullDelta);
+        }
+
+        if (inGate)
+        {
+            TriggerBoost(player);
+        }
+    }
+
     bool IsPlayerInsideGate(AdventurePlayerController player)
     {
-        // リング半径約3.5mの開口内＋薄い厚さだけ（手前で誤爆して押し戻さない）
+        // 進入角度や高速滑空時でも確実に感知できるよう判定を適正拡大（半径5.2m、厚さ2.5m）
         Vector3[] samplePoints =
         {
             player.transform.position + Vector3.up * 0.5f,
-            player.transform.position + Vector3.up * 1.1f,
-            player.transform.position + Vector3.up * 1.6f,
+            player.transform.position + Vector3.up * 1.0f,
+            player.transform.position + Vector3.up * 1.5f,
         };
 
         for (int i = 0; i < samplePoints.Length; i++)
@@ -238,7 +310,7 @@ public class AdventureWindRing : MonoBehaviour
             Vector3 localPos = transform.InverseTransformPoint(samplePoints[i]);
             float radiusDist = Mathf.Sqrt(localPos.x * localPos.x + localPos.y * localPos.y);
             float zDist = Mathf.Abs(localPos.z);
-            if (radiusDist <= 4.2f && zDist <= 1.8f)
+            if (radiusDist <= 5.2f && zDist <= 2.5f)
                 return true;
         }
         return false;

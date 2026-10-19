@@ -72,6 +72,9 @@ public partial class AdventureRustDrone : MonoBehaviour
     float _nextRadarBeepTime = 0f;
 
     AdventureScrapItem _guidedScrap;
+    AdventureScrapItem _distantScrap;
+    float _distantScrapDist = 999f;
+    float _nextDistantScrapNotice = 0f;
     float _nextGuideNotice = 0f;
     bool _isPointingToScrap = false;
     public bool IsGuidingTreasure => _guidedTreasureType != GuidedTreasureType.None;
@@ -111,6 +114,7 @@ public partial class AdventureRustDrone : MonoBehaviour
 
     // Qキー道案内（Floatのガイドシグナル＆先行フライト）
     Vector3 _guideLeadPos;
+    Vector3 _guideTargetLookPos;
     float _guideTimer = 0f;
     TrailRenderer _guideTrail;
 
@@ -160,7 +164,19 @@ public partial class AdventureRustDrone : MonoBehaviour
     }
 
 
-    public static AdventureRustDrone Instance { get; private set; }
+    private static AdventureRustDrone _instance;
+    public static AdventureRustDrone Instance
+    {
+        get
+        {
+            if (_instance == null || _instance.gameObject == null)
+            {
+                _instance = Object.FindAnyObjectByType<AdventureRustDrone>();
+            }
+            return _instance;
+        }
+        private set => _instance = value;
+    }
 
     public static void Ensure()
     {
@@ -516,12 +532,14 @@ public partial class AdventureRustDrone : MonoBehaviour
             return;
         }
 
-        if (CurrentState == RustState.Follow && Time.time >= _hitchUntil && !IsClimaxCrisis && !_prologueDistress && !_climaxHealing && !_skybreakNestle)
+        if (CurrentState == RustState.Follow && Time.time >= _hitchUntil && !IsClimaxCrisis && !_prologueDistress && !_climaxHealing && !_skybreakNestle
+            && !_isPointingToScrap && _guidedTreasureType == GuidedTreasureType.None && !_isGuidingToTower)
         {
             if (!isNikoMoving && player.IsGrounded && !player.HasMoveInput)
             {
                 _nikoStillDuration += Time.deltaTime;
-                if (_nikoStillDuration >= 3.2f)
+                float sleepWait = (_distantScrap != null) ? 14.0f : 3.8f;
+                if (_nikoStillDuration >= sleepWait)
                 {
                     EnterPerchSleep();
                 }
@@ -678,7 +696,9 @@ public partial class AdventureRustDrone : MonoBehaviour
             goal.y += bounce;
             _guideTimer -= Time.deltaTime;
             float distToLead = Vector3.Distance(transform.position, goal);
-            if (_guideTimer <= 0f || distToLead < 1.8f)
+            float playerDist = Vector3.Distance(transform.position, _lookAt != null ? _lookAt.position : transform.position);
+            // リード地点に到達してもすぐに戻らず、時間切れ（6秒）またはプレイヤーが合流するまで指差しホバリングを維持
+            if (_guideTimer <= 0f || (distToLead < 2.2f && playerDist < 6.5f && _guideTimer < 3.0f))
             {
                 CurrentState = RustState.Follow;
                 if (_guideTrail != null) _guideTrail.enabled = false;
@@ -818,6 +838,14 @@ public partial class AdventureRustDrone : MonoBehaviour
                     to = _guidedTreasurePos + Vector3.up * 0.25f - transform.position;
                 else if (_isPointingToScrap && _guidedScrap != null)
                     to = _guidedScrap.transform.position + Vector3.up * 0.3f - transform.position;
+                else if (_distantScrap != null && AdventurePlayerController.Instance != null && !AdventurePlayerController.Instance.HasMoveInput)
+                {
+                    // 立ち止まり待機時：最寄りパーツの方角を向いて合図！
+                    Vector3 toScrap = _distantScrap.transform.position - transform.position;
+                    toScrap.y = 0f;
+                    if (toScrap.sqrMagnitude > 0.01f)
+                        to = toScrap.normalized * 5f;
+                }
             }
         }
         else if (CurrentState == RustState.Returning)
@@ -879,14 +907,16 @@ public partial class AdventureRustDrone : MonoBehaviour
             }
             else if (CurrentState == RustState.Guiding)
             {
-                Vector3 moveDir = _velocity.sqrMagnitude > 0.05f ? _velocity.normalized : (_guideLeadPos - transform.position).normalized;
-                moveDir.y = 0f;
-                if (moveDir.sqrMagnitude > 0.01f)
-                    look = Quaternion.LookRotation(moveDir) * Quaternion.Euler(14f, 0f, 0f); // 目標に向かって前傾フライト
+                Vector3 toTarget = _guideTargetLookPos - transform.position;
+                toTarget.y = 0f;
+                Vector3 lookDir = toTarget.sqrMagnitude > 0.05f ? toTarget.normalized : (_guideLeadPos - transform.position).normalized;
+                lookDir.y = 0f;
+                if (lookDir.sqrMagnitude > 0.01f)
+                    look = Quaternion.LookRotation(lookDir) * Quaternion.Euler(10f, 0f, Mathf.Sin(Time.time * 8f) * 5f);
             }
             else if (hitching)
                 look *= Quaternion.Euler(0f, Mathf.Sin(Time.time * 18f) * 8f, 0f);
-            else if ((_guidedTreasureType != GuidedTreasureType.None || _isPointingToScrap) && CurrentState == RustState.Follow)
+            else if ((_guidedTreasureType != GuidedTreasureType.None || _isPointingToScrap || (_distantScrap != null && AdventurePlayerController.Instance != null && !AdventurePlayerController.Instance.HasMoveInput)) && CurrentState == RustState.Follow)
                 look *= Quaternion.Euler(Mathf.Sin(Time.time * 10f) * 6f, 0f, Mathf.Cos(Time.time * 8f) * 4f);
             else if (CurrentState == RustState.Follow)
             {
@@ -1097,26 +1127,27 @@ public partial class AdventureRustDrone : MonoBehaviour
             _nearbyScrap = nearestScrap;
         }
 
-        // Qキー または マウス中クリックで「道案内シグナル（Floatのガイド先行フライト＆コンパスPing）」
-        bool qPressed = false;
-        var kb = AdventureInputReader.Keyboard;
-        if (kb != null) qPressed = kb.qKey.wasPressedThisFrame;
-        try { if (Input.GetKeyDown(KeyCode.Q) || Input.GetMouseButtonDown(2)) qPressed = true; } catch { }
-
-        if (qPressed && (CurrentState == RustState.Follow || CurrentState == RustState.Guiding))
-        {
-            TriggerGuideSignal();
-        }
-
-        // Fキー（AdventureInputReader.CommandFetchDown 経由で新旧InputSystem + Gamepad統合）
-        bool fPressed = AdventureInputReader.CommandFetchDown;
-
-        // 通常探索状態ならいつでも指示受付可能（ScoutingやGuiding中、Perching中も即時割り込み）
+        // 通常探索状態ならいつでも指示・案内受付可能（ScoutingやGuiding中、Perching中も即時割り込み）
         bool canAcceptCommand = CurrentState == RustState.Follow ||
                                 CurrentState == RustState.Scouting ||
                                 CurrentState == RustState.Guiding ||
                                 CurrentState == RustState.Perching ||
                                 CurrentState == RustState.Celebrating;
+
+        // Qキー または マウス中クリック または ゲームパッドLBで「道案内シグナル（Floatのガイド先行フライト＆コンパスPing）」
+        bool qPressed = AdventureInputReader.GuideDown;
+
+        if (qPressed && canAcceptCommand)
+        {
+            if (CurrentState == RustState.Perching)
+            {
+                WakeUpFromPerch();
+            }
+            TriggerGuideSignal();
+        }
+
+        // Fキー（AdventureInputReader.CommandFetchDown 経由で新旧InputSystem + Gamepad統合）
+        bool fPressed = AdventureInputReader.CommandFetchDown;
 
         if (fPressed && canAcceptCommand)
         {
@@ -1166,6 +1197,9 @@ public partial class AdventureRustDrone : MonoBehaviour
     /// </summary>
     public void TriggerGuideSignal()
     {
+        if (CurrentState == RustState.Perching)
+            WakeUpFromPerch();
+
         if (IsClimaxCrisis || _skybreakNestle || _prologueDistress || CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill)
             return;
 
@@ -1194,7 +1228,14 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
         else
         {
-            // 1. 未起動の古代風脈クリスタルを優先探索
+            // 1. 最寄りの未回収古代パーツ（スクラップ）を最優先探索！
+            float scrapDist = float.MaxValue;
+            AdventureScrapItem nearestScrap = scrapMgr != null ? scrapMgr.GetNearestScrapItem(playerPos, out scrapDist) : null;
+
+            // 2. 漂着木箱
+            var nearestBox = AdventureBeachDriftBox.GetNearestUnopenedBox(playerPos, out float boxDist);
+
+            // 3. 未起動の古代風脈クリスタル
             var vents = FindObjectsByType<AdventureAncientWindVent>(FindObjectsInactive.Exclude);
             AdventureAncientWindVent nearestUnactivatedVent = null;
             float nearestVentDist = float.MaxValue;
@@ -1211,24 +1252,11 @@ public partial class AdventureRustDrone : MonoBehaviour
                 }
             }
 
-            // 2. 最寄りの未回収パーツ（スクラップ / 漂着木箱）を探索
-            float scrapDist = float.MaxValue;
-            AdventureScrapItem nearestScrap = scrapMgr != null ? scrapMgr.GetNearestScrapItem(playerPos, out scrapDist) : null;
-            var nearestBox = AdventureBeachDriftBox.GetNearestUnopenedBox(playerPos, out float boxDist);
-
-            if (nearestUnactivatedVent != null && nearestVentDist < 120f)
-            {
-                targetPos = nearestUnactivatedVent.transform.position;
-                targetName = "古代の風脈クリスタル";
-                dialogue = "ピピッ！あっちに古代の風脈があるよ！送電チャージしに行こう！";
-                targetColor = new Color(0.35f, 1.0f, 0.75f, 1f);
-                foundTarget = true;
-            }
-            else if (nearestScrap != null && scrapDist <= boxDist)
+            if (nearestScrap != null)
             {
                 targetPos = nearestScrap.transform.position;
                 targetName = nearestScrap.itemName;
-                dialogue = $"ピピッ！あっちからパーツ（{nearestScrap.itemName}）の反応をキャッチしたよ！案内するね！";
+                dialogue = $"ピピッ！あっちから古代パーツ（{nearestScrap.itemName}、約{scrapDist:F0}m）の共鳴をキャッチしたよ！案内するね！";
                 targetColor = nearestScrap.itemColor;
                 foundTarget = true;
             }
@@ -1238,6 +1266,14 @@ public partial class AdventureRustDrone : MonoBehaviour
                 targetName = nearestBox.boxTitle;
                 dialogue = "ピピッ！あっちの砂浜に漂着ボックスがあるよ！行ってみよう！";
                 targetColor = new Color(0.35f, 1.0f, 0.65f, 1f);
+                foundTarget = true;
+            }
+            else if (nearestUnactivatedVent != null)
+            {
+                targetPos = nearestUnactivatedVent.transform.position;
+                targetName = "古代の風脈クリスタル";
+                dialogue = "ピピッ！あっちに古代の風脈があるよ！送電チャージしに行こう！";
+                targetColor = new Color(0.35f, 1.0f, 0.75f, 1f);
                 foundTarget = true;
             }
             else
@@ -1258,9 +1294,10 @@ public partial class AdventureRustDrone : MonoBehaviour
             Vector3 toTarget = (targetPos - playerPos);
             toTarget.y = 0f;
             Vector3 leadDir = toTarget.sqrMagnitude > 1f ? toTarget.normalized : player.forward;
-            float leadDist = Mathf.Clamp(toTarget.magnitude * 0.35f, 12f, 24f);
-            _guideLeadPos = playerPos + leadDir * leadDist + Vector3.up * 2.5f;
-            _guideTimer = 3.2f;
+            float leadDist = Mathf.Clamp(toTarget.magnitude * 0.35f, 16f, 32f);
+            _guideLeadPos = playerPos + leadDir * leadDist + Vector3.up * 2.8f;
+            _guideTargetLookPos = targetPos;
+            _guideTimer = 6.0f; // 6秒間じっくり案内
             CurrentState = RustState.Guiding;
 
             if (_guideTrail != null)
@@ -1268,7 +1305,7 @@ public partial class AdventureRustDrone : MonoBehaviour
                 _guideTrail.Clear();
                 _guideTrail.enabled = true;
             }
-            SpeakCustom(dialogue, 4.2f);
+            SpeakCustom(dialogue, 4.5f);
 
             if (_audio != null)
             {
@@ -1284,7 +1321,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             }
 
             // コンパスHUDへもPing送信して即座にハイライト連動！
-            AdventureCompassHUD.Instance?.TriggerGuidePing(targetPos, targetName, targetColor, 8.5f);
+            AdventureCompassHUD.Instance?.TriggerGuidePing(targetPos, targetName, targetColor, 12.0f);
         }
     }
 
@@ -1383,7 +1420,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             _isGuidingToTower = false;
         }
 
-        // 2. スクラップパーツの探知（35m以内、脱出・修復に最重要なお宝）
+        // 2. スクラップパーツの探知（最重要なお宝）
         AdventureScrapItem nearestScrap = null;
         float scrapDist = 999f;
         if (scrapMgr != null)
@@ -1391,10 +1428,13 @@ public partial class AdventureRustDrone : MonoBehaviour
             nearestScrap = scrapMgr.GetNearestScrapItem(nikoPos, out scrapDist);
         }
 
-        if (nearestScrap != null && scrapDist <= 35f && !nearestScrap.IsCollected)
+        // 近距離（75m以内）：Rustがお宝寄りに先行飛行して黄金の輝きで指差し案内
+        if (nearestScrap != null && scrapDist <= 75f && !nearestScrap.IsCollected)
         {
             _guidedTreasureType = GuidedTreasureType.Scrap;
             _guidedScrap = nearestScrap;
+            _distantScrap = nearestScrap;
+            _distantScrapDist = scrapDist;
             _guidedTreasurePos = nearestScrap.transform.position;
             _radarLightColor = new Color(1f, 0.85f, 0.2f); // 黄金の輝き
             _isPointingToScrap = true;
@@ -1402,7 +1442,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             if (_prevGuidedTreasureType != GuidedTreasureType.Scrap || Time.time >= _nextGuideNotice)
             {
                 _nextGuideNotice = Time.time + 12f;
-                SetSpeech("ピピピッ！あそこにパーツの反応があるよ！", 3.8f);
+                SetSpeech($"ピピピッ！あそこにパーツ（{nearestScrap.itemName}）の反応があるよ！", 3.8f);
                 PlayRadarSonarSound();
             }
 
@@ -1466,7 +1506,35 @@ public partial class AdventureRustDrone : MonoBehaviour
             return;
         }
 
-        // 周囲にお宝なし
+        // 5. 周囲に直接のお宝がない場合でも、最寄りの未回収パーツの方角・共鳴を保持してナビゲート
+        if (nearestScrap != null && !nearestScrap.IsCollected)
+        {
+            _distantScrap = nearestScrap;
+            _distantScrapDist = scrapDist;
+            _radarLightColor = new Color(1f, 0.85f, 0.2f); // 黄金の共鳴パルス
+
+            // プレイヤーが立ち止まっている時、または30秒ごとに方位を案内
+            bool isIdle = AdventurePlayerController.Instance != null && !AdventurePlayerController.Instance.HasMoveInput;
+            if (Time.time >= _nextDistantScrapNotice && (isIdle || Time.time >= _nextDistantScrapNotice + 15f))
+            {
+                _nextDistantScrapNotice = Time.time + 28f;
+                Vector3 diff = nearestScrap.transform.position - nikoPos;
+                string dirName;
+                if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
+                    dirName = diff.x > 0 ? "東（右奥）" : "西（海側）";
+                else
+                    dirName = diff.z > 0 ? "北（奥の高台）" : "南（浜辺側）";
+
+                SetSpeech($"ピピッ！{dirName}の方角（約{scrapDist:F0}m）から、古代パーツ（{nearestScrap.itemName}）の共鳴を感じるよ！", 4.5f);
+                PlayRadarSonarSound();
+            }
+        }
+        else
+        {
+            _distantScrap = null;
+        }
+
+        // 周囲至近にお宝なし
         _guidedTreasureType = GuidedTreasureType.None;
         _prevGuidedTreasureType = GuidedTreasureType.None;
         _isPointingToScrap = false;
@@ -2712,6 +2780,15 @@ public partial class AdventureRustDrone : MonoBehaviour
                 DrawCenterPrompt(0.62f, "【F】Rustにパーツを拾わせる");
                 return;
             }
+        }
+
+        if (canCommand && _distantScrap != null && _aimedScrap == null && _nearbyScrap == null)
+        {
+            if (_isPlayerNear)
+                DrawCenterPrompt(0.68f, "【Q】パーツ案内  /  【E】Rustと話す");
+            else
+                DrawCenterPrompt(0.88f, "【Q】相棒Rustに最寄りパーツを案内してもらう");
+            return;
         }
 
         if (!_isPlayerNear || CurrentState != RustState.Follow) return;

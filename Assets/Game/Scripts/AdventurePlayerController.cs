@@ -88,6 +88,7 @@ public partial class AdventurePlayerController : MonoBehaviour
     bool    _wasMoveInput;
     float   _startupBoostTimer;
     int     _rockStuckFrames;
+    float   _resetHoldTimer;
     #endregion
 
     #region Constants & Geographic Data
@@ -472,7 +473,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         InteractPressed = AdventureInputReader.InteractDown;
     }
 
-    /// <summary>Rキー押下でスポーン地点へリセット。滑空タイムアタック中はスタート台へ優先リトライ。</summary>
+    /// <summary>Rキー押下でリセット。滑空タイムアタック中はスタート台へ即時リトライ、通常探索時は誤爆防止のため0.5秒長押し。</summary>
     bool TryHandleResetKey()
     {
         // [T]キーでいつでもスカイダイブスタート台へテレポート
@@ -489,24 +490,44 @@ public partial class AdventurePlayerController : MonoBehaviour
             }
         }
 
-        if (!AdventureInputReader.ResetDown) return false;
-
         // 滑空タイムアタック中、またはリザルト中、または直近で滑空コース付近にいる場合、タイムアタック台へ即時リトライ
         var gMgr = AdventureGlidingTimeAttackManager.Instance;
-        if (gMgr != null && (gMgr.isRunning || gMgr.IsGlidingActiveOrRecent))
+        bool inTimeAttack = (gMgr != null && (gMgr.isRunning || gMgr.IsGlidingActiveOrRecent));
+        if (inTimeAttack)
         {
-            gMgr.RetryAtStart();
-            return true;
+            if (AdventureInputReader.ResetDown)
+            {
+                _resetHoldTimer = 0f;
+                gMgr.RetryAtStart();
+                return true;
+            }
+            return false;
         }
 
-        // エンディング途中のRで保留クライマックスが再点火しないよう演出を止める
-        AdventureSanctuaryTowerManager.Ensure();
-        AdventureSanctuaryTowerManager.Instance?.AbortEndingForEmergencyReset();
-        AdventurePettingAction.Instance?.CancelPetting();
+        // 通常探索時のスタート地点テレポートは長押し（0.5秒）ガードで誤爆を防ぐ
+        if (AdventureInputReader.ResetHeld)
+        {
+            _resetHoldTimer += Time.deltaTime;
+            if (_resetHoldTimer >= 0.5f)
+            {
+                _resetHoldTimer = 0f;
 
-        ForceGroundReset();
-        Teleport(spawnPosition);
-        return true;
+                // エンディング途中のRで保留クライマックスが再点火しないよう演出を止める
+                AdventureSanctuaryTowerManager.Ensure();
+                AdventureSanctuaryTowerManager.Instance?.AbortEndingForEmergencyReset();
+                AdventurePettingAction.Instance?.CancelPetting();
+
+                ForceGroundReset();
+                Teleport(spawnPosition);
+                return true;
+            }
+        }
+        else
+        {
+            _resetHoldTimer = 0f;
+        }
+
+        return false;
     }
 
     /// <summary>K/F5キーで手動クイックセーブ</summary>

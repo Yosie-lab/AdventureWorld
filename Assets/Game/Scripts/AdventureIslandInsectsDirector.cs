@@ -302,8 +302,8 @@ public class AdventureIslandInsectsDirector : MonoBehaviour
         go.transform.SetParent(parent, false);
         go.transform.position = pos;
 
-        // 遠景（滑空中）でも存在感が伝わるゲームスケール（1.7倍）
-        go.transform.localScale = Vector3.one * 1.7f;
+        // 自然で愛らしい昆虫プロポーション（翼開長約26cm・体長約18cmの自然な黄金比）
+        go.transform.localScale = Vector3.one * 0.50f;
 
         // DragonflyFlightコンポーネントを付与
         var flight = go.AddComponent<DragonflyFlight>();
