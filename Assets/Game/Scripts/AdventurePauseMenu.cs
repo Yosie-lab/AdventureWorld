@@ -60,6 +60,18 @@ public class AdventurePauseMenu : MonoBehaviour
     Text _tabCreditsBtnLabel;
     GameObject _tabBarGo;
 
+    // ガイド＆モーダル ローカライズ参照
+    Text _guideLeftText;
+    Text _guideRightText;
+    Text _restartModalTitleText;
+    Text _restartModalDescText;
+    Text _restartModalYesBtnText;
+    Text _restartModalNoBtnText;
+    Text _returnTitleModalTitleText;
+    Text _returnTitleModalDescText;
+    Text _returnTitleModalYesBtnText;
+    Text _returnTitleModalNoBtnText;
+
     // オーディオ＆操作 スライダー
     Slider _bgmSlider;
     Text _bgmValueText;
@@ -1166,35 +1178,16 @@ public class AdventurePauseMenu : MonoBehaviour
         var bg = _tabGuidePanel.AddComponent<Image>();
         bg.color = new Color(0.015f, 0.04f, 0.08f, 0.65f);
 
-        // 2カラムで操作ガイドを分かりやすく表示
-        var leftCol = MakeLabel(_tabGuidePanel.transform, "LeftCol", new Vector2(25f, -15f), new Vector2(380f, 320f), "", 13, new Color(0.95f, 0.97f, 1f, 0.95f));
-        leftCol.lineSpacing = 1.35f;
-        leftCol.alignment = TextAnchor.UpperLeft;
-        leftCol.supportRichText = true;
-        leftCol.text =
-            "<b>[ 基本操作 ＆ アクション ]</b>\n\n" +
-            "<b>[W][A][S][D]</b>  移動 / 歩行\n" +
-            "<b>[Shift]</b>  ダッシュ走行（速度アップ）\n" +
-            "<b>[マウス移動]</b>  視点回転（左右360°/上下）\n" +
-            "<b>[Space]</b>  ジャンプ / <b>長押しで滑空展開</b>\n" +
-            "<b>[J]</b>  小ジャンプ（軽快・段差乗り越え）\n" +
-            "<b>[W] / [S]</b>  ダイブ急降下 / 滞空フレア（滑空中）\n" +
-            "<b>[A] / [D]</b>  機首バンク旋回（滑空中）";
+        // 2カラムで操作ガイドを分かりやすく表示（多言語対応）
+        _guideLeftText = MakeLabel(_tabGuidePanel.transform, "LeftCol", new Vector2(25f, -15f), new Vector2(380f, 320f), "", 13, new Color(0.95f, 0.97f, 1f, 0.95f));
+        _guideLeftText.lineSpacing = 1.35f;
+        _guideLeftText.alignment = TextAnchor.UpperLeft;
+        _guideLeftText.supportRichText = true;
 
-        var rightCol = MakeLabel(_tabGuidePanel.transform, "RightCol", new Vector2(430f, -15f), new Vector2(380f, 320f), "", 13, new Color(0.95f, 0.97f, 1f, 0.95f));
-        rightCol.lineSpacing = 1.35f;
-        rightCol.alignment = TextAnchor.UpperLeft;
-        rightCol.supportRichText = true;
-        rightCol.text =
-            "<b>[ インタラクト ＆ システム ]</b>\n\n" +
-            "<b>[E] / [左クリック]</b>  調べる / 注油 / 撫でる\n" +
-            "<b>[Q] / [中クリック]</b>  <b>相棒Floatに道案内を頼む（最寄り目標へ先行フライト）</b>\n" +
-            "<b>[F]</b>  遠隔パーツ回収 / 視線偵察指示\n" +
-            "<b>[B]</b>  Rustの着せ替え工房を開く\n" +
-            "<b>[Tab]</b>  クエスト目標 ⇄ ミニマルHUD切替\n" +
-            "<b>[F5] / [Cmd+S]</b>  クイックセーブ\n" +
-            "<b>[ESC] / [Pad B]</b>  ポーズ ＆ 設定メニュー開閉\n\n" +
-            "✦ コンパスHUDと相棒Floatが最寄りの風脈・パーツ・タワーを常時案内します。";
+        _guideRightText = MakeLabel(_tabGuidePanel.transform, "RightCol", new Vector2(430f, -15f), new Vector2(380f, 320f), "", 13, new Color(0.95f, 0.97f, 1f, 0.95f));
+        _guideRightText.lineSpacing = 1.35f;
+        _guideRightText.alignment = TextAnchor.UpperLeft;
+        _guideRightText.supportRichText = true;
     }
 
     void CreateCreditsTab(Transform parent)
@@ -1250,6 +1243,21 @@ public class AdventurePauseMenu : MonoBehaviour
 
         if (_creditsRightText != null)
             _creditsRightText.text = $"<b>[ 音源・フォント・謝辞 ]</b>\n・Dynamic Synthesized Audio Engine\n・Procedural Wind, Gliding, and Water Ambience\n・Kenney Open Game Assets & Community Sound Libraries\n\n<b>{AdventureLocalizationManager.Get("credits_platform_title")}</b>\n{AdventureLocalizationManager.Get("credits_platform_body")}\n\n<i>Special Thanks to all testers and explorers soaring in the sky.</i>";
+
+        if (_guideLeftText != null)
+            _guideLeftText.text = AdventureLocalizationManager.Get("guide_basic_body");
+        if (_guideRightText != null)
+            _guideRightText.text = AdventureLocalizationManager.Get("guide_interact_body");
+
+        if (_restartModalTitleText != null) _restartModalTitleText.text = AdventureLocalizationManager.Get("confirm_restart_title");
+        if (_restartModalDescText != null) _restartModalDescText.text = AdventureLocalizationManager.Get("confirm_restart_desc");
+        if (_restartModalYesBtnText != null) _restartModalYesBtnText.text = AdventureLocalizationManager.Get("confirm_restart_yes");
+        if (_restartModalNoBtnText != null) _restartModalNoBtnText.text = AdventureLocalizationManager.Get("confirm_restart_no");
+
+        if (_returnTitleModalTitleText != null) _returnTitleModalTitleText.text = AdventureLocalizationManager.Get("confirm_title_title");
+        if (_returnTitleModalDescText != null) _returnTitleModalDescText.text = AdventureLocalizationManager.Get("confirm_title_desc");
+        if (_returnTitleModalYesBtnText != null) _returnTitleModalYesBtnText.text = AdventureLocalizationManager.Get("confirm_title_yes");
+        if (_returnTitleModalNoBtnText != null) _returnTitleModalNoBtnText.text = AdventureLocalizationManager.Get("confirm_title_no");
     }
 
     void CreateSettingSlider(Transform parent, string label, float topOffset, float minVal, float maxVal, out Slider slider, out Text valueText, UnityEngine.Events.UnityAction<float> onValueChanged)
@@ -1434,14 +1442,14 @@ public class AdventurePauseMenu : MonoBehaviour
         cOutline.effectColor = new Color(0.85f, 0.35f, 0.35f, 0.8f);
         cOutline.effectDistance = new Vector2(2f, -2f);
 
-        var tText = MakeLabel(cardGo.transform, "Title", new Vector2(0f, -24f), new Vector2(480f, 32f), "⚠️ 冒険の初期化確認", 20, new Color(1f, 0.45f, 0.45f, 1f));
-        tText.fontStyle = FontStyle.Bold;
-        tText.alignment = TextAnchor.MiddleCenter;
+        _restartModalTitleText = MakeLabel(cardGo.transform, "Title", new Vector2(0f, -24f), new Vector2(480f, 32f), AdventureLocalizationManager.Get("confirm_restart_title"), 20, new Color(1f, 0.45f, 0.45f, 1f));
+        _restartModalTitleText.fontStyle = FontStyle.Bold;
+        _restartModalTitleText.alignment = TextAnchor.MiddleCenter;
 
-        var dText = MakeLabel(cardGo.transform, "Desc", new Vector2(0f, -68f), new Vector2(440f, 75f),
-            "セーブデータと全パーツ・ポイントを初期化し、\n西側白砂ビーチの座礁艇前から新規開始します。\nよろしいですか？", 14, new Color(0.95f, 0.92f, 0.92f, 0.95f));
-        dText.lineSpacing = 1.35f;
-        dText.alignment = TextAnchor.MiddleCenter;
+        _restartModalDescText = MakeLabel(cardGo.transform, "Desc", new Vector2(0f, -68f), new Vector2(440f, 75f),
+            AdventureLocalizationManager.Get("confirm_restart_desc"), 14, new Color(0.95f, 0.92f, 0.92f, 0.95f));
+        _restartModalDescText.lineSpacing = 1.35f;
+        _restartModalDescText.alignment = TextAnchor.MiddleCenter;
 
         // はい
         var yesGo = new GameObject("YesButton");
@@ -1456,9 +1464,9 @@ public class AdventurePauseMenu : MonoBehaviour
         yImg.color = new Color(0.75f, 0.18f, 0.22f, 1f);
         var yBtn = yesGo.AddComponent<Button>();
         yBtn.onClick.AddListener(OnConfirmRestartYes);
-        var ytText = MakeLabel(yesGo.transform, "Text", Vector2.zero, Vector2.zero, "はい、初期化する", 15, Color.white);
-        ytText.fontStyle = FontStyle.Bold;
-        ytText.alignment = TextAnchor.MiddleCenter;
+        _restartModalYesBtnText = MakeLabel(yesGo.transform, "Text", Vector2.zero, Vector2.zero, AdventureLocalizationManager.Get("confirm_restart_yes"), 15, Color.white);
+        _restartModalYesBtnText.fontStyle = FontStyle.Bold;
+        _restartModalYesBtnText.alignment = TextAnchor.MiddleCenter;
 
         // キャンセル
         var noGo = new GameObject("NoButton");
@@ -1473,9 +1481,9 @@ public class AdventurePauseMenu : MonoBehaviour
         nImg.color = new Color(0.2f, 0.3f, 0.45f, 1f);
         var nBtn = noGo.AddComponent<Button>();
         nBtn.onClick.AddListener(OnConfirmRestartNo);
-        var ntText = MakeLabel(noGo.transform, "Text", Vector2.zero, Vector2.zero, "キャンセル", 15, Color.white);
-        ntText.fontStyle = FontStyle.Bold;
-        ntText.alignment = TextAnchor.MiddleCenter;
+        _restartModalNoBtnText = MakeLabel(noGo.transform, "Text", Vector2.zero, Vector2.zero, AdventureLocalizationManager.Get("confirm_restart_no"), 15, Color.white);
+        _restartModalNoBtnText.fontStyle = FontStyle.Bold;
+        _restartModalNoBtnText.alignment = TextAnchor.MiddleCenter;
 
         _confirmModalRoot.SetActive(false);
     }
@@ -1508,14 +1516,14 @@ public class AdventurePauseMenu : MonoBehaviour
         cOutline.effectColor = new Color(0.35f, 0.75f, 1f, 0.8f);
         cOutline.effectDistance = new Vector2(2f, -2f);
 
-        var tText = MakeLabel(cardGo.transform, "Title", new Vector2(0f, -24f), new Vector2(480f, 32f), "✦ タイトル画面へ戻る", 20, new Color(0.45f, 0.90f, 1f, 1f));
-        tText.fontStyle = FontStyle.Bold;
-        tText.alignment = TextAnchor.MiddleCenter;
+        _returnTitleModalTitleText = MakeLabel(cardGo.transform, "Title", new Vector2(0f, -24f), new Vector2(480f, 32f), AdventureLocalizationManager.Get("confirm_title_title"), 20, new Color(0.45f, 0.90f, 1f, 1f));
+        _returnTitleModalTitleText.fontStyle = FontStyle.Bold;
+        _returnTitleModalTitleText.alignment = TextAnchor.MiddleCenter;
 
-        var dText = MakeLabel(cardGo.transform, "Desc", new Vector2(0f, -68f), new Vector2(440f, 75f),
-            "現在の冒険の進行状況をオートセーブして\nタイトル画面へ戻ります。\nよろしいですか？", 14, new Color(0.92f, 0.95f, 1f, 0.95f));
-        dText.lineSpacing = 1.35f;
-        dText.alignment = TextAnchor.MiddleCenter;
+        _returnTitleModalDescText = MakeLabel(cardGo.transform, "Desc", new Vector2(0f, -68f), new Vector2(440f, 75f),
+            AdventureLocalizationManager.Get("confirm_title_desc"), 14, new Color(0.92f, 0.95f, 1f, 0.95f));
+        _returnTitleModalDescText.lineSpacing = 1.35f;
+        _returnTitleModalDescText.alignment = TextAnchor.MiddleCenter;
 
         // はい
         var yesGo = new GameObject("YesButton");
@@ -1530,9 +1538,9 @@ public class AdventurePauseMenu : MonoBehaviour
         yImg.color = new Color(0.15f, 0.55f, 0.75f, 1f);
         var yBtn = yesGo.AddComponent<Button>();
         yBtn.onClick.AddListener(OnConfirmReturnTitleYes);
-        var ytText = MakeLabel(yesGo.transform, "Text", Vector2.zero, Vector2.zero, "はい、保存して戻る", 15, Color.white);
-        ytText.fontStyle = FontStyle.Bold;
-        ytText.alignment = TextAnchor.MiddleCenter;
+        _returnTitleModalYesBtnText = MakeLabel(yesGo.transform, "Text", Vector2.zero, Vector2.zero, AdventureLocalizationManager.Get("confirm_title_yes"), 15, Color.white);
+        _returnTitleModalYesBtnText.fontStyle = FontStyle.Bold;
+        _returnTitleModalYesBtnText.alignment = TextAnchor.MiddleCenter;
 
         // キャンセル
         var noGo = new GameObject("NoButton");
@@ -1547,9 +1555,9 @@ public class AdventurePauseMenu : MonoBehaviour
         nImg.color = new Color(0.2f, 0.3f, 0.45f, 1f);
         var nBtn = noGo.AddComponent<Button>();
         nBtn.onClick.AddListener(OnConfirmReturnTitleNo);
-        var ntText = MakeLabel(noGo.transform, "Text", Vector2.zero, Vector2.zero, "キャンセル", 15, Color.white);
-        ntText.fontStyle = FontStyle.Bold;
-        ntText.alignment = TextAnchor.MiddleCenter;
+        _returnTitleModalNoBtnText = MakeLabel(noGo.transform, "Text", Vector2.zero, Vector2.zero, AdventureLocalizationManager.Get("confirm_title_no"), 15, Color.white);
+        _returnTitleModalNoBtnText.fontStyle = FontStyle.Bold;
+        _returnTitleModalNoBtnText.alignment = TextAnchor.MiddleCenter;
 
         _returnTitleConfirmModal.SetActive(false);
     }

@@ -243,6 +243,125 @@ public static class AdventureLocalizationManager
             "- Fully compatible with Steam & Steam Deck\n- Native gamepad support (Xbox, PlayStation, Steam Deck)\n- Integrated Steam Achievements system (10 achievements)\n- Zero telemetry and no unauthorized tracking (GDPR compliant)",
             "・完美兼容 Steam 与 Steam Deck\n・原生支持 Xbox、PlayStation 及 Steam Deck 手柄操作\n・内置 Steam 成就系统（全10项成就联动）\n・不含任何外部遥测或未授权追踪（遵循GDPR隐私规范）",
             "- Totalmente compatible con Steam y Steam Deck\n- Soporte nativo para mandos (Xbox, PlayStation, Steam Deck)\n- Sistema integrado de Logros de Steam (10 logros)\n- Cero telemetría y sin rastreo no autorizado (cumple con GDPR)"
+        } },
+
+        // --- 確認モーダル（上書き / リセット / タイトル復帰） ---
+        { "confirm_overwrite_title", new[] { "⚠️ セーブデータの上書き確認", "⚠️ Overwrite Save Data Confirmation", "⚠️ 覆盖存档确认", "⚠️ Confirmación de Sobrescritura" } },
+        { "confirm_overwrite_desc", new[] {
+            "これまでのセーブデータと収集記録をリセットし、\n最初から新しく冒険を開始します。\n本当によろしいですか？",
+            "This will reset all progress and collected scrap parts,\nstarting a brand new adventure from the beginning.\nAre you sure you want to proceed?",
+            "将重置所有游戏进度与收集记录，\n从头开始全新的冒险旅程。\n确定要继续吗？",
+            "Esto reiniciará todo el progreso y las piezas recolectadas,\ncomenzando una nueva aventura desde el principio.\n¿Estás seguro de que deseas continuar?"
+        } },
+        { "confirm_overwrite_yes", new[] { "はい、新しくはじめる", "Yes, Start New Adventure", "是，开启新冒险", "Sí, empezar de nuevo" } },
+        { "confirm_cancel", new[] { "キャンセル", "Cancel", "取消", "Cancelar" } },
+
+        { "confirm_restart_title", new[] { "⚠️ 冒険の初期化確認", "⚠️ Restart from Beginning", "⚠️ 重新开始冒险确认", "⚠️ Reiniciar desde el Principio" } },
+        { "confirm_restart_desc", new[] {
+            "セーブデータと全パーツ・ポイントを初期化し、\n西側白砂ビーチの座礁艇前から新規開始します。\nよろしいですか？",
+            "Reset all scrap parts and progress, returning to the stranded vessel at Paradise Beach.\nDo you wish to proceed?",
+            "重置所有零件与探索点数，重新返回西侧白沙海滩的遇难艇前。\n确定要继续吗？",
+            "Reiniciar todas las piezas y volver al bote encallado en la playa oeste.\n¿Deseas continuar?"
+        } },
+        { "confirm_restart_yes", new[] { "はい、初期化する", "Yes, Restart", "是，重置并开始", "Sí, reiniciar" } },
+
+        { "confirm_title_title", new[] { "⌂ タイトルへ戻る確認", "⌂ Return to Title Confirmation", "⌂ 返回标题画面确认", "⌂ Volver al Título" } },
+        { "confirm_title_desc", new[] {
+            "現在の進行状況をクイックセーブしてタイトルに戻ります。\nよろしいですか？",
+            "Save current progress and return to the main title screen.\nAre you sure?",
+            "将保存当前探索进度并返回主标题画面。\n确定要返回吗？",
+            "Guarda el progreso actual y vuelve a la pantalla de título.\n¿Deseas volver?"
+        } },
+        { "confirm_title_yes", new[] { "はい、タイトルへ戻る", "Yes, Return to Title", "是，返回标题", "Sí, volver al título" } },
+
+        // --- 画面上アクション・指示プロンプト ---
+        { "prompt_rust_fetch", new[] { "【F】光るパーツを取ってきて", "[F] Fetch glowing scrap part", "【F】去取发光的零件", "[F] Ve a por la pieza brillante" } },
+        { "prompt_rust_pickup", new[] { "【F】Rustにパーツを拾わせる", "[F] Send Rust to collect scrap", "【F】让Rust回收零件", "[F] Enviar a Rust a recoger la pieza" } },
+        { "prompt_rust_guide_talk", new[] { "【Q】パーツ案内  /  【E】Rustと話す", "[Q] Guide to Scrap / [E] Talk with Rust", "【Q】零件引路 / 【E】与Rust对话", "[Q] Guiar a la pieza / [E] Hablar con Rust" } },
+        { "prompt_rust_guide_nearest", new[] { "【Q】相棒Rustに最寄りパーツを案内してもらう", "[Q] Ask Rust to guide to nearest scrap", "【Q】让Rust指引最近的零件", "[Q] Pedir a Rust que guíe a la pieza más cercana" } },
+        { "prompt_rust_talk", new[] { "【E / クリック】Rustと話す", "[E / Click] Talk with Rust", "【E / 点击】与Rust对话", "[E / Clic] Hablar con Rust" } },
+        { "prompt_workbench", new[] { "<b>[E / クリック] Rustの着せ替え工房</b>\n<size=16><color=#DDEEFF>地上で [B] キーでも開ける</color></size>", "<b>[E / Click] Rust's Customization Workshop</b>\n<size=16><color=#DDEEFF>Press [B] on ground to open anytime</color></size>", "<b>[E / 点击] Rust的外观工坊</b>\n<size=16><color=#DDEEFF>在地面按 [B] 键也可随时开启</color></size>", "<b>[E / Clic] Taller de Rust</b>\n<size=16><color=#DDEEFF>Pulsa [B] en el suelo para abrir</color></size>" } },
+        { "modal_close_hint", new[] { "[ESC / クリック] 閉じる", "[ESC / Click] Close", "[ESC / 点击] 关闭", "[ESC / Clic] Cerrar" } },
+
+        // --- 操作ガイド ---
+        { "guide_basic_body", new[] {
+            "<b>[ 基本操作 ＆ アクション ]</b>\n\n" +
+            "<b>[W][A][S][D]</b>  移動 / 歩行\n" +
+            "<b>[Shift]</b>  ダッシュ走行（速度アップ）\n" +
+            "<b>[マウス移動]</b>  視点回転（左右360°/上下）\n" +
+            "<b>[Space]</b>  ジャンプ / <b>長押しで滑空展開</b>\n" +
+            "<b>[J]</b>  小ジャンプ（軽快・段差乗り越え）\n" +
+            "<b>[W] / [S]</b>  ダイブ急降下 / 滞空フレア（滑空中）\n" +
+            "<b>[A] / [D]</b>  機首バンク旋回（滑空中）",
+
+            "<b>[ Basic Controls & Actions ]</b>\n\n" +
+            "<b>[W][A][S][D]</b>  Move / Walk\n" +
+            "<b>[Shift]</b>  Dash Run (Speed Boost)\n" +
+            "<b>[Mouse]</b>  Camera Rotation (360° / Pitch)\n" +
+            "<b>[Space]</b>  Jump / <b>Hold to Glide</b>\n" +
+            "<b>[J]</b>  Short Hop (Nimble Step)\n" +
+            "<b>[W] / [S]</b>  Steep Dive / Aerodynamic Flare (Gliding)\n" +
+            "<b>[A] / [D]</b>  Bank Turn (Gliding)",
+
+            "<b>[ 基本操作与动作 ]</b>\n\n" +
+            "<b>[W][A][S][D]</b>  移动 / 行走\n" +
+            "<b>[Shift]</b>  冲刺奔跑 (加速)\n" +
+            "<b>[鼠标移动]</b>  视角旋转 (360°全向)\n" +
+            "<b>[空格 Space]</b>  跳跃 / <b>长按展开滑翔翼</b>\n" +
+            "<b>[J]</b>  轻跳 (灵巧越障)\n" +
+            "<b>[W] / [S]</b>  俯冲急降 / 仰角减速拉平 (滑翔中)\n" +
+            "<b>[A] / [D]</b>  机身倾斜转弯 (滑翔中)",
+
+            "<b>[ Controles Básicos y Acciones ]</b>\n\n" +
+            "<b>[W][A][S][D]</b>  Moverse / Caminar\n" +
+            "<b>[Shift]</b>  Carrera rápida\n" +
+            "<b>[Ratón]</b>  Rotación de cámara (360°)\n" +
+            "<b>[Espacio]</b>  Saltar / <b>Mantener para planear</b>\n" +
+            "<b>[J]</b>  Salto corto y ágil\n" +
+            "<b>[W] / [S]</b>  Picado en picado / Frenado en el aire\n" +
+            "<b>[A] / [D]</b>  Giro inclinado en planeo"
+        } },
+
+        { "guide_interact_body", new[] {
+            "<b>[ インタラクト ＆ システム ]</b>\n\n" +
+            "<b>[E] / [左クリック]</b>  調べる / 注油 / 撫でる\n" +
+            "<b>[Q] / [中クリック]</b>  <b>相棒Floatに道案内を頼む（最寄り目標へ先行フライト）</b>\n" +
+            "<b>[F]</b>  遠隔パーツ回収 / 視線偵察指示\n" +
+            "<b>[B]</b>  Rustの着せ替え工房を開く\n" +
+            "<b>[Tab]</b>  クエスト目標 ⇄ ミニマルHUD切替\n" +
+            "<b>[F5] / [Cmd+S]</b>  クイックセーブ\n" +
+            "<b>[ESC] / [Pad B]</b>  ポーズ ＆ 設定メニュー開閉\n\n" +
+            "✦ コンパスHUDと相棒Floatが最寄りの風脈・パーツ・タワーを常時案内します。",
+
+            "<b>[ Interactions & System ]</b>\n\n" +
+            "<b>[E] / [Left Click]</b>  Inspect / Lubricate / Pet\n" +
+            "<b>[Q] / [Middle Click]</b>  <b>Ask Float to Guide (Scout to nearest goal)</b>\n" +
+            "<b>[F]</b>  Remote Scrap Retrieve / Scout Command\n" +
+            "<b>[B]</b>  Open Rust Customization Workshop\n" +
+            "<b>[Tab]</b>  Toggle Quest Objectives / Minimal HUD\n" +
+            "<b>[F5] / [Cmd+S]</b>  Quick Save\n" +
+            "<b>[ESC] / [Pad B]</b>  Pause & Settings Menu\n\n" +
+            "✦ Compass HUD & Float always guide you to nearby currents and scrap.",
+
+            "<b>[ 互动与系统功能 ]</b>\n\n" +
+            "<b>[E] / [左键点击]</b>  调查 / 注油 / 抚摸\n" +
+            "<b>[Q] / [中键点击]</b>  <b>请求Float引路 (飞向最近目标)</b>\n" +
+            "<b>[F]</b>  远程回收零件 / 视线侦察指令\n" +
+            "<b>[B]</b>  打开Rust外观工坊\n" +
+            "<b>[Tab]</b>  切换任务目标 / 极简HUD\n" +
+            "<b>[F5] / [Cmd+S]</b>  快速存档\n" +
+            "<b>[ESC] / [手柄 B]</b>  暂停与设置菜单\n\n" +
+            "✦ 罗盘HUD与Float将时刻为您指引风脉、零件与圣域之塔。",
+
+            "<b>[ Interacción y Sistema ]</b>\n\n" +
+            "<b>[E] / [Clic Izquierdo]</b>  Examinar / Lubricar / Acariciar\n" +
+            "<b>[Q] / [Clic Central]</b>  <b>Pedir guía a Float (Vuela al objetivo cercano)</b>\n" +
+            "<b>[F]</b>  Recuperar pieza a distancia / Orden de exploración\n" +
+            "<b>[B]</b>  Abrir taller de personalización de Rust\n" +
+            "<b>[Tab]</b>  Alternar HUD de misiones / Modo mínimo\n" +
+            "<b>[F5] / [Cmd+S]</b>  Guardado rápido\n" +
+            "<b>[ESC] / [Mando B]</b>  Pausa y menú de ajustes\n\n" +
+            "✦ La brújula y Float te guiarán siempre hacia las corrientes y piezas."
         } }
     };
 }

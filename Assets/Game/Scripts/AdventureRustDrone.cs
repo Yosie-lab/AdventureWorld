@@ -2870,12 +2870,12 @@ public partial class AdventureRustDrone : MonoBehaviour
         {
             if (_aimedScrap != null)
             {
-                DrawCenterPrompt(0.62f, "【F】光るパーツを取ってきて");
+                DrawCenterPrompt(0.62f, AdventureLocalizationManager.Get("prompt_rust_fetch"));
                 return;
             }
             else if (_nearbyScrap != null)
             {
-                DrawCenterPrompt(0.62f, "【F】Rustにパーツを拾わせる");
+                DrawCenterPrompt(0.62f, AdventureLocalizationManager.Get("prompt_rust_pickup"));
                 return;
             }
         }
@@ -2883,9 +2883,9 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (canCommand && _distantScrap != null && _aimedScrap == null && _nearbyScrap == null)
         {
             if (_isPlayerNear)
-                DrawCenterPrompt(0.68f, "【Q】パーツ案内  /  【E】Rustと話す");
+                DrawCenterPrompt(0.68f, AdventureLocalizationManager.Get("prompt_rust_guide_talk"));
             else
-                DrawCenterPrompt(0.88f, "【Q】相棒Rustに最寄りパーツを案内してもらう");
+                DrawCenterPrompt(0.88f, AdventureLocalizationManager.Get("prompt_rust_guide_nearest"));
             return;
         }
 
@@ -2898,7 +2898,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(player.transform.position))
             return;
 
-        DrawCenterPrompt(0.68f, "【E / クリック】Rustと話す");
+        DrawCenterPrompt(0.68f, AdventureLocalizationManager.Get("prompt_rust_talk"));
     }
 
     static GUIStyle _cachedPromptStyle;

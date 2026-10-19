@@ -113,11 +113,19 @@ public class AdventureRustWorkshopUI : MonoBehaviour
     void OnEnable()
     {
         AdventureBeachSeashellManager.OnInventoryChanged += RefreshUI;
+        AdventureLocalizationManager.OnLanguageChanged += UpdatePromptText;
     }
 
     void OnDisable()
     {
         AdventureBeachSeashellManager.OnInventoryChanged -= RefreshUI;
+        AdventureLocalizationManager.OnLanguageChanged -= UpdatePromptText;
+    }
+
+    void UpdatePromptText()
+    {
+        if (_promptText != null)
+            _promptText.text = AdventureLocalizationManager.Get("prompt_workbench");
     }
 
     void Update()
@@ -1054,7 +1062,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         _promptText.fontSize = 22;
         _promptText.alignment = TextAnchor.MiddleCenter;
         _promptText.color = new Color(1f, 0.95f, 0.65f);
-        _promptText.text = "<b>[E / クリック] Rustの着せ替え工房</b>\n<size=16><color=#DDEEFF>地上で [B] キーでも開ける</color></size>";
+        _promptText.text = AdventureLocalizationManager.Get("prompt_workbench");
 
         // ビルボード（常にカメラの方を向く）
         promptCanvasGo.AddComponent<BillboardLookAtCamera>();

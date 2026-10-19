@@ -70,6 +70,10 @@ public class AdventureRustFloatOpening : MonoBehaviour
     GameObject _newGameConfirmModal;
     Button _confirmNewGameYesBtn;
     Button _confirmNewGameNoBtn;
+    Text _confirmModalTitle;
+    Text _confirmModalDesc;
+    Text _confirmModalYesBtnLabel;
+    Text _confirmModalNoBtnLabel;
 
     bool _isClosing = false;
     float _openTime = 0f;
@@ -182,6 +186,11 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_newGameBtnLabel != null) _newGameBtnLabel.text = "✦  " + AdventureLocalizationManager.Get("title_newgame");
         if (_settingsBtnLabel != null) _settingsBtnLabel.text = "⚙  " + AdventureLocalizationManager.Get("title_settings");
         if (_quitBtnLabel != null) _quitBtnLabel.text = "✖  " + AdventureLocalizationManager.Get("title_quit");
+
+        if (_confirmModalTitle != null) _confirmModalTitle.text = AdventureLocalizationManager.Get("confirm_overwrite_title");
+        if (_confirmModalDesc != null) _confirmModalDesc.text = AdventureLocalizationManager.Get("confirm_overwrite_desc");
+        if (_confirmModalYesBtnLabel != null) _confirmModalYesBtnLabel.text = AdventureLocalizationManager.Get("confirm_overwrite_yes");
+        if (_confirmModalNoBtnLabel != null) _confirmModalNoBtnLabel.text = AdventureLocalizationManager.Get("confirm_cancel");
 
         RefreshSaveDataStatus();
     }
@@ -928,22 +937,22 @@ public class AdventureRustFloatOpening : MonoBehaviour
         cOutline.effectDistance = new Vector2(2f, -2f);
 
         // タイトル
-        var title = MakeText(cardGo.transform, "Title", new Vector2(0f, -24f), new Vector2(0.5f, 1f), new Vector2(480f, 32f), 20, TextAnchor.MiddleCenter, font);
-        title.fontStyle = FontStyle.Bold;
-        title.color = new Color(1f, 0.75f, 0.35f, 1f);
-        title.text = "⚠️ セーブデータの上書き確認";
+        _confirmModalTitle = MakeText(cardGo.transform, "Title", new Vector2(0f, -24f), new Vector2(0.5f, 1f), new Vector2(480f, 32f), 20, TextAnchor.MiddleCenter, font);
+        _confirmModalTitle.fontStyle = FontStyle.Bold;
+        _confirmModalTitle.color = new Color(1f, 0.75f, 0.35f, 1f);
+        _confirmModalTitle.text = AdventureLocalizationManager.Get("confirm_overwrite_title");
 
         // 説明文
-        var desc = MakeText(cardGo.transform, "Desc", new Vector2(0f, -68f), new Vector2(0.5f, 1f), new Vector2(440f, 80f), 14, TextAnchor.MiddleCenter, font);
-        desc.lineSpacing = 1.35f;
-        desc.color = new Color(0.95f, 0.95f, 1.0f, 0.95f);
-        desc.text = "これまでのセーブデータと収集記録をリセットし、\n最初から新しく冒険を開始します。\n本当によろしいですか？";
+        _confirmModalDesc = MakeText(cardGo.transform, "Desc", new Vector2(0f, -68f), new Vector2(0.5f, 1f), new Vector2(440f, 80f), 14, TextAnchor.MiddleCenter, font);
+        _confirmModalDesc.lineSpacing = 1.35f;
+        _confirmModalDesc.color = new Color(0.95f, 0.95f, 1.0f, 0.95f);
+        _confirmModalDesc.text = AdventureLocalizationManager.Get("confirm_overwrite_desc");
 
         // ボタン領域
         // 1. 「はい、新しくはじめる」
         _confirmNewGameYesBtn = CreateMenuButton(cardGo.transform, "YesBtn", new Vector2(-120f, 22f), new Vector2(210f, 44f),
             new Color(0.75f, 0.25f, 0.20f, 1f), new Color(0.95f, 0.35f, 0.30f, 1f),
-            "はい、新しくはじめる", 15, OnConfirmNewGameYes, font, out _, out _);
+            AdventureLocalizationManager.Get("confirm_overwrite_yes"), 15, OnConfirmNewGameYes, font, out _, out _confirmModalYesBtnLabel);
         var yesBtn = _confirmNewGameYesBtn;
         var yRt = yesBtn.GetComponent<RectTransform>();
         yRt.anchorMin = new Vector2(0.5f, 0f);
@@ -954,7 +963,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         // 2. 「キャンセル」
         _confirmNewGameNoBtn = CreateMenuButton(cardGo.transform, "CancelBtn", new Vector2(120f, 22f), new Vector2(180f, 44f),
             new Color(0.20f, 0.35f, 0.50f, 1f), new Color(0.30f, 0.50f, 0.70f, 1f),
-            "キャンセル", 15, OnConfirmNewGameNo, font, out _, out _);
+            AdventureLocalizationManager.Get("confirm_cancel"), 15, OnConfirmNewGameNo, font, out _, out _confirmModalNoBtnLabel);
         var cancelBtn = _confirmNewGameNoBtn;
         var cBtnRt = cancelBtn.GetComponent<RectTransform>();
         cBtnRt.anchorMin = new Vector2(0.5f, 0f);

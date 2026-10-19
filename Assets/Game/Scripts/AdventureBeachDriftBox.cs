@@ -1178,12 +1178,12 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
         AddOutline(closeGo, new Color(0.45f, 0.85f, 1.0f, 0.6f), new Vector2(1.5f, -1.5f));
 
-        var closeText = CreateTextElement(closeGo.transform, "Text", font, 17,
+        _modalCloseHintText = CreateTextElement(closeGo.transform, "Text", font, 17,
             new Color(0.65f, 0.92f, 1.0f), FontStyle.Bold, TextAnchor.MiddleCenter,
             Vector2.zero, Vector2.zero);
-        closeText.text = "【 Space / Enter / クリックで閉じる 】";
-        closeText.raycastTarget = false;
-        var closeTextRt = closeText.GetComponent<RectTransform>();
+        _modalCloseHintText.text = AdventureLocalizationManager.Get("modal_close_hint");
+        _modalCloseHintText.raycastTarget = false;
+        var closeTextRt = _modalCloseHintText.GetComponent<RectTransform>();
         closeTextRt.anchorMin = Vector2.zero;
         closeTextRt.anchorMax = Vector2.one;
         closeTextRt.sizeDelta = Vector2.zero;
@@ -1213,6 +1213,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
         _modalTitleText.text = "📦 " + title;
         _modalAuthorText.text = "── " + author + " ──";
         _modalBodyText.text = body;
+        if (_modalCloseHintText != null)
+            _modalCloseHintText.text = AdventureLocalizationManager.Get("modal_close_hint");
 
         _modalPanel.transform.parent.gameObject.SetActive(true);
         _isModalOpen = true;
