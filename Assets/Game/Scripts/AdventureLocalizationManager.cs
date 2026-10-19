@@ -172,17 +172,39 @@ public static class AdventureLocalizationManager
         { "opt_bgm", new[] { "BGM 音量", "Music Volume", "背景音乐音量", "Volumen de Música" } },
         { "opt_se", new[] { "SE 音量", "Sound Effects (SE)", "音效音量", "Efectos de Sonido" } },
         { "opt_sensitivity", new[] { "カメラ操作感度 (マウス/スティック)", "Camera Sensitivity (Mouse/Stick)", "镜头旋转灵敏度 (鼠标/摇杆)", "Sensibilidad de Cámara (Ratón/Palanca)" } },
+        { "opt_audio_hint", new[] {
+            "✦ スライダーや言語設定は自動保存されます。コントローラーでも快適に操作可能です。",
+            "✦ Audio and language settings are saved automatically. Fully controller supported.",
+            "✦ 音频与语言设置将自动保存。完全支持手柄操作。",
+            "✦ Los ajustes de audio e idioma se guardan automáticamente. Compatible con mando."
+        } },
 
         // --- ディスプレイ・画質設定 ---
         { "opt_display_mode", new[] { "画面表示モード", "Display Mode", "显示模式", "Modo de Pantalla" } },
-        { "opt_fullscreen", new[] { "フルスクリーン", "Fullscreen", "全屏显示", "Pantalla Completa" } },
-        { "opt_windowed", new[] { "ウィンドウ", "Windowed", "窗口模式", "Modo Ventana" } },
+        { "opt_fullscreen", new[] { "✦ フルスクリーン", "✦ Fullscreen", "✦ 全屏显示", "✦ Pantalla Completa" } },
+        { "opt_windowed", new[] { "✦ ウィンドウ表示", "✦ Windowed", "✦ 窗口模式", "✦ Modo Ventana" } },
         { "opt_quality", new[] { "グラフィック描画品質", "Graphics Quality", "画面渲染品质", "Calidad Gráfica" } },
-        { "opt_quality_fast", new[] { "軽量 (Fast)", "Fast", "流畅 (Fast)", "Rápido" } },
-        { "opt_quality_high", new[] { "高画質 (High)", "High", "高画质 (High)", "Alto" } },
-        { "opt_quality_ultra", new[] { "最高画質 (Ultra)", "Ultra", "极致 (Ultra)", "Ultra" } },
-        { "opt_vsync", new[] { "垂直同期 (V-Sync)", "V-Sync", "垂直同步 (V-Sync)", "Sincronización Vertical (V-Sync)" } },
-        { "opt_resolution", new[] { "解像度プリセット", "Resolution", "分辨率预设", "Resolución" } },
+        { "opt_quality_fast", new[] { "✦ 軽量 (Fast)", "✦ Fast", "✦ 流畅 (Fast)", "✦ Rápido" } },
+        { "opt_quality_high", new[] { "✦ 標準 (High)", "✦ High", "✦ 标准 (High)", "✦ Alto" } },
+        { "opt_quality_ultra", new[] { "✦ 最高 (Ultra)", "✦ Ultra", "✦ 极致 (Ultra)", "✦ Ultra" } },
+        { "opt_vsync", new[] { "垂直同期 (VSync)", "V-Sync", "垂直同步 (V-Sync)", "Sincronización Vertical (V-Sync)" } },
+        { "opt_vsync_on", new[] { "✓ 垂直同期 ON (安定)", "✓ VSync ON (Stable)", "✓ 垂直同步 开启 (稳定)", "✓ VSync ACTIVADO (Estable)" } },
+        { "opt_vsync_off", new[] { "✕ 垂直同期 OFF (低遅延)", "✕ VSync OFF (Low Latency)", "✕ 垂直同步 关闭 (低延迟)", "✕ VSync DESACTIVADO (Baja latencia)" } },
+        { "opt_resolution", new[] { "画面解像度", "Resolution", "分辨率预设", "Resolución" } },
+
+        // --- タイトルセーブ情報 ---
+        { "title_save_summary", new[] {
+            "✦ パーツ: {0}/3個　油: {1}　保存: {2}",
+            "✦ Parts: {0}/3  Oil: {1}  Saved: {2}",
+            "✦ 零件: {0}/3个　油: {1}　保存: {2}",
+            "✦ Piezas: {0}/3  Aceite: {1}  Guardado: {2}"
+        } },
+        { "title_save_none", new[] {
+            "※ セーブデータは見つかりませんでした",
+            "※ No save data found",
+            "※ 未找到存档数据",
+            "※ No se encontraron datos guardados"
+        } },
 
         // --- HUD・コンパス ---
         { "hud_parts_goal", new[] { "✦ 目標: パーツ回収 ({0}/{1}) [計 {2}pt]", "✦ Goal: Collect Scrap Parts ({0}/{1}) [{2} pts]", "✦ 目标: 收集零件 ({0}/{1}) [总计 {2}分]", "✦ Objetivo: Recuperar piezas ({0}/{1}) [{2} pts]" } },

@@ -325,12 +325,12 @@ public class AdventureRustFloatOpening : MonoBehaviour
         {
             if (hasSave && summary != null)
             {
-                _continueSubText.text = $"✦ パーツ: {summary.collectedCount}/3個　油: {summary.oilCount}　保存: {summary.saveTime}";
+                _continueSubText.text = AdventureLocalizationManager.GetFormat("title_save_summary", summary.collectedCount, summary.oilCount, summary.saveTime);
                 _continueSubText.color = new Color(0.45f, 0.95f, 0.85f, 0.95f);
             }
             else
             {
-                _continueSubText.text = "※ セーブデータは見つかりませんでした";
+                _continueSubText.text = AdventureLocalizationManager.Get("title_save_none");
                 _continueSubText.color = new Color(0.6f, 0.7f, 0.8f, 0.5f);
             }
         }

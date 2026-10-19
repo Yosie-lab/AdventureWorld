@@ -113,6 +113,26 @@ public class AdventurePauseMenu : MonoBehaviour
     Image _res720BtnImg;
     Text _displayStatusText;
 
+    // オーディオ＆操作 設定ラベル
+    Text _langLabelText;
+    Text _audioHintText;
+    Text _bgmLabelText;
+    Text _seLabelText;
+    Text _sensLabelText;
+
+    // ディスプレイ 行ラベル＆ボタンラベル
+    Text _screenModeRowLabel;
+    Text _qualityRowLabel;
+    Text _vsyncRowLabel;
+    Text _resolutionRowLabel;
+    Text _fullscreenBtnText;
+    Text _windowedBtnText;
+    Text _qUltraBtnText;
+    Text _qHighBtnText;
+    Text _qFastBtnText;
+    Text _vsyncOnBtnText;
+    Text _vsyncOffBtnText;
+
     float _prevTimeScale = 1f;
     float _lastToggleTime = -1f;
     bool _openedFromTitle = false;
@@ -728,7 +748,16 @@ public class AdventurePauseMenu : MonoBehaviour
         if (_res720BtnImg != null) _res720BtnImg.color = (w < 1500) ? activeCol : inactiveCol;
 
         if (_displayStatusText != null)
-            _displayStatusText.text = "現在: " + AdventureDisplaySettings.DescribeCurrent();
+        {
+            string prefix = AdventureLocalizationManager.CurrentLanguage switch
+            {
+                AdventureLocalizationManager.GameLanguage.English => "Current: ",
+                AdventureLocalizationManager.GameLanguage.SimplifiedChinese => "当前: ",
+                AdventureLocalizationManager.GameLanguage.Spanish => "Actual: ",
+                _ => "現在: "
+            };
+            _displayStatusText.text = prefix + AdventureDisplaySettings.DescribeCurrent();
+        }
     }
 
     void OnBgmSliderChanged(float val)
@@ -1059,18 +1088,18 @@ public class AdventurePauseMenu : MonoBehaviour
         CreateLanguageSelectorRow(_tabAudioPanel.transform, -10f);
 
         // BGM スライダー
-        CreateSettingSlider(_tabAudioPanel.transform, "BGM 音量", -78f, 0f, 1f, out _bgmSlider, out _bgmValueText, OnBgmSliderChanged);
+        CreateSettingSlider(_tabAudioPanel.transform, AdventureLocalizationManager.Get("opt_bgm"), -78f, 0f, 1f, out _bgmSlider, out _bgmValueText, out _bgmLabelText, OnBgmSliderChanged);
 
         // SE スライダー
-        CreateSettingSlider(_tabAudioPanel.transform, "SE 音量", -146f, 0f, 1f, out _seSlider, out _seValueText, OnSeSliderChanged);
+        CreateSettingSlider(_tabAudioPanel.transform, AdventureLocalizationManager.Get("opt_se"), -146f, 0f, 1f, out _seSlider, out _seValueText, out _seLabelText, OnSeSliderChanged);
 
         // マウス視点感度 スライダー
-        CreateSettingSlider(_tabAudioPanel.transform, "カメラ操作感度", -214f, 0.05f, 0.60f, out _sensSlider, out _sensValueText, OnSensitivitySliderChanged);
+        CreateSettingSlider(_tabAudioPanel.transform, AdventureLocalizationManager.Get("opt_sensitivity"), -214f, 0.05f, 0.60f, out _sensSlider, out _sensValueText, out _sensLabelText, OnSensitivitySliderChanged);
 
         // ガイドヒント
-        var hint = MakeLabel(_tabAudioPanel.transform, "AudioHint", new Vector2(12f, -284f), new Vector2(800f, 30f),
-            "✦ スライダーや言語設定は自動保存されます。コントローラーでも快適に操作可能です。", 12, new Color(0.6f, 0.8f, 0.95f, 0.8f));
-        hint.alignment = TextAnchor.MiddleLeft;
+        _audioHintText = MakeLabel(_tabAudioPanel.transform, "AudioHint", new Vector2(12f, -284f), new Vector2(800f, 30f),
+            AdventureLocalizationManager.Get("opt_audio_hint"), 12, new Color(0.6f, 0.8f, 0.95f, 0.8f));
+        _audioHintText.alignment = TextAnchor.MiddleLeft;
     }
 
     void CreateLanguageSelectorRow(Transform parent, float topOffset)
@@ -1092,8 +1121,8 @@ public class AdventurePauseMenu : MonoBehaviour
         outline.effectColor = new Color(0.15f, 0.35f, 0.55f, 0.35f);
         outline.effectDistance = new Vector2(1f, -1f);
 
-        var lText = MakeLabel(rowGo.transform, "Label", new Vector2(16f, -18f), new Vector2(300f, 22f), "🌐  表示言語 (Language)", 14, new Color(0.92f, 0.96f, 1f, 1f));
-        lText.fontStyle = FontStyle.Bold;
+        _langLabelText = MakeLabel(rowGo.transform, "Label", new Vector2(16f, -18f), new Vector2(300f, 22f), AdventureLocalizationManager.Get("opt_language"), 14, new Color(0.92f, 0.96f, 1f, 1f));
+        _langLabelText.fontStyle = FontStyle.Bold;
 
         // セレクター [ ◀ ] [ 言語名 ] [ ▶ ]
         var selGo = new GameObject("SelectorContainer");
@@ -1192,33 +1221,33 @@ public class AdventurePauseMenu : MonoBehaviour
         float rowH = 62f;
 
         // 1. 画面モード
-        CreateDisplayRow(_tabDisplayPanel.transform, "画面モード", -10f, rowH, out var row1);
-        _fsBtn = CreateOptionButton(row1, "FsBtn", new Vector2(240f, 0f), new Vector2(220f, 38f), "⛶  フルスクリーン", () => SetFullscreen(true), out _fsBtnImg);
-        _winBtn = CreateOptionButton(row1, "WinBtn", new Vector2(480f, 0f), new Vector2(220f, 38f), "🗖  ウィンドウ", () => SetFullscreen(false), out _winBtnImg);
+        CreateDisplayRow(_tabDisplayPanel.transform, AdventureLocalizationManager.Get("opt_display_mode"), -10f, rowH, out var row1, out _screenModeRowLabel);
+        _fsBtn = CreateOptionButton(row1, "FsBtn", new Vector2(240f, 0f), new Vector2(220f, 38f), AdventureLocalizationManager.Get("opt_fullscreen"), () => SetFullscreen(true), out _fsBtnImg, out _fullscreenBtnText);
+        _winBtn = CreateOptionButton(row1, "WinBtn", new Vector2(480f, 0f), new Vector2(220f, 38f), AdventureLocalizationManager.Get("opt_windowed"), () => SetFullscreen(false), out _winBtnImg, out _windowedBtnText);
 
         // 2. グラフィックス品質
-        CreateDisplayRow(_tabDisplayPanel.transform, "グラフィック品質", -10f - rowH - 12f, rowH, out var row2);
-        _qUltraBtn = CreateOptionButton(row2, "QUltra", new Vector2(240f, 0f), new Vector2(160f, 38f), "✦ 最高 (Ultra)", () => SetQuality(2), out _qUltraBtnImg);
-        _qHighBtn = CreateOptionButton(row2, "QHigh", new Vector2(420f, 0f), new Vector2(160f, 38f), "✦ 標準 (High)", () => SetQuality(1), out _qHighBtnImg);
-        _qFastBtn = CreateOptionButton(row2, "QFast", new Vector2(600f, 0f), new Vector2(160f, 38f), "✦ 軽量 (Fast)", () => SetQuality(0), out _qFastBtnImg);
+        CreateDisplayRow(_tabDisplayPanel.transform, AdventureLocalizationManager.Get("opt_quality"), -10f - rowH - 12f, rowH, out var row2, out _qualityRowLabel);
+        _qUltraBtn = CreateOptionButton(row2, "QUltra", new Vector2(240f, 0f), new Vector2(160f, 38f), AdventureLocalizationManager.Get("opt_quality_ultra"), () => SetQuality(2), out _qUltraBtnImg, out _qUltraBtnText);
+        _qHighBtn = CreateOptionButton(row2, "QHigh", new Vector2(420f, 0f), new Vector2(160f, 38f), AdventureLocalizationManager.Get("opt_quality_high"), () => SetQuality(1), out _qHighBtnImg, out _qHighBtnText);
+        _qFastBtn = CreateOptionButton(row2, "QFast", new Vector2(600f, 0f), new Vector2(160f, 38f), AdventureLocalizationManager.Get("opt_quality_fast"), () => SetQuality(0), out _qFastBtnImg, out _qFastBtnText);
 
         // 3. 垂直同期 (VSync)
-        CreateDisplayRow(_tabDisplayPanel.transform, "垂直同期 (VSync)", -10f - (rowH + 12f) * 2, rowH, out var row3);
-        _vsyncOnBtn = CreateOptionButton(row3, "VSyncOn", new Vector2(240f, 0f), new Vector2(220f, 38f), "✓ 垂直同期 ON (安定)", () => SetVSync(true), out _vsyncOnBtnImg);
-        _vsyncOffBtn = CreateOptionButton(row3, "VSyncOff", new Vector2(480f, 0f), new Vector2(220f, 38f), "✕ 垂直同期 OFF (低遅延)", () => SetVSync(false), out _vsyncOffBtnImg);
+        CreateDisplayRow(_tabDisplayPanel.transform, AdventureLocalizationManager.Get("opt_vsync"), -10f - (rowH + 12f) * 2, rowH, out var row3, out _vsyncRowLabel);
+        _vsyncOnBtn = CreateOptionButton(row3, "VSyncOn", new Vector2(240f, 0f), new Vector2(220f, 38f), AdventureLocalizationManager.Get("opt_vsync_on"), () => SetVSync(true), out _vsyncOnBtnImg, out _vsyncOnBtnText);
+        _vsyncOffBtn = CreateOptionButton(row3, "VSyncOff", new Vector2(480f, 0f), new Vector2(220f, 38f), AdventureLocalizationManager.Get("opt_vsync_off"), () => SetVSync(false), out _vsyncOffBtnImg, out _vsyncOffBtnText);
 
         // 4. 画面解像度
-        CreateDisplayRow(_tabDisplayPanel.transform, "画面解像度", -10f - (rowH + 12f) * 3, rowH, out var row4);
-        _res1080Btn = CreateOptionButton(row4, "Res1080", new Vector2(240f, 0f), new Vector2(160f, 38f), "1920 × 1080", () => SetResolution(1920, 1080), out _res1080BtnImg);
-        _res900Btn = CreateOptionButton(row4, "Res900", new Vector2(420f, 0f), new Vector2(160f, 38f), "1600 × 900", () => SetResolution(1600, 900), out _res900BtnImg);
-        _res720Btn = CreateOptionButton(row4, "Res720", new Vector2(600f, 0f), new Vector2(160f, 38f), "1280 × 720", () => SetResolution(1280, 720), out _res720BtnImg);
+        CreateDisplayRow(_tabDisplayPanel.transform, AdventureLocalizationManager.Get("opt_resolution"), -10f - (rowH + 12f) * 3, rowH, out var row4, out _resolutionRowLabel);
+        _res1080Btn = CreateOptionButton(row4, "Res1080", new Vector2(240f, 0f), new Vector2(160f, 38f), "1920 × 1080", () => SetResolution(1920, 1080), out _res1080BtnImg, out _);
+        _res900Btn = CreateOptionButton(row4, "Res900", new Vector2(420f, 0f), new Vector2(160f, 38f), "1600 × 900", () => SetResolution(1600, 900), out _res900BtnImg, out _);
+        _res720Btn = CreateOptionButton(row4, "Res720", new Vector2(600f, 0f), new Vector2(160f, 38f), "1280 × 720", () => SetResolution(1280, 720), out _res720BtnImg, out _);
 
         _displayStatusText = MakeLabel(_tabDisplayPanel.transform, "DisplayStatus", new Vector2(12f, 8f),
             new Vector2(820f, 22f), "", 12, new Color(0.55f, 0.82f, 0.95f, 0.9f));
         _displayStatusText.alignment = TextAnchor.LowerLeft;
     }
 
-    void CreateDisplayRow(Transform parent, string title, float topY, float height, out Transform rowTransform)
+    void CreateDisplayRow(Transform parent, string title, float topY, float height, out Transform rowTransform, out Text titleText)
     {
         var rowGo = new GameObject(title + "_Row");
         rowGo.transform.SetParent(parent, false);
@@ -1237,14 +1266,14 @@ public class AdventurePauseMenu : MonoBehaviour
         outline.effectColor = new Color(0.15f, 0.35f, 0.55f, 0.35f);
         outline.effectDistance = new Vector2(1f, -1f);
 
-        var l = MakeLabel(rowGo.transform, "Label", new Vector2(16f, 0f), new Vector2(200f, height), title, 14, new Color(0.92f, 0.96f, 1f, 1f));
-        l.fontStyle = FontStyle.Bold;
-        l.alignment = TextAnchor.MiddleLeft;
+        titleText = MakeLabel(rowGo.transform, "Label", new Vector2(16f, 0f), new Vector2(200f, height), title, 14, new Color(0.92f, 0.96f, 1f, 1f));
+        titleText.fontStyle = FontStyle.Bold;
+        titleText.alignment = TextAnchor.MiddleLeft;
 
         rowTransform = rowGo.transform;
     }
 
-    Button CreateOptionButton(Transform parent, string name, Vector2 pos, Vector2 size, string label, UnityEngine.Events.UnityAction onClick, out Image outImg)
+    Button CreateOptionButton(Transform parent, string name, Vector2 pos, Vector2 size, string label, UnityEngine.Events.UnityAction onClick, out Image outImg, out Text outText)
     {
         var btnGo = new GameObject(name);
         btnGo.transform.SetParent(parent, false);
@@ -1265,9 +1294,9 @@ public class AdventurePauseMenu : MonoBehaviour
         var btn = btnGo.AddComponent<Button>();
         btn.onClick.AddListener(onClick);
 
-        var text = MakeLabel(btnGo.transform, "Text", Vector2.zero, size, label, 13, Color.white);
-        text.fontStyle = FontStyle.Bold;
-        text.alignment = TextAnchor.MiddleCenter;
+        outText = MakeLabel(btnGo.transform, "Text", Vector2.zero, size, label, 13, Color.white);
+        outText.fontStyle = FontStyle.Bold;
+        outText.alignment = TextAnchor.MiddleCenter;
 
         return btn;
     }
@@ -1342,8 +1371,27 @@ public class AdventurePauseMenu : MonoBehaviour
         if (_returnTitleBtnText != null)
             _returnTitleBtnText.text = AdventureLocalizationManager.Get("pause_title_return");
 
+        // オーディオ＆操作
+        if (_langLabelText != null) _langLabelText.text = AdventureLocalizationManager.Get("opt_language");
         if (_langValueText != null)
             _langValueText.text = AdventureLocalizationManager.LanguageNames[(int)AdventureLocalizationManager.CurrentLanguage];
+        if (_bgmLabelText != null) _bgmLabelText.text = AdventureLocalizationManager.Get("opt_bgm");
+        if (_seLabelText != null) _seLabelText.text = AdventureLocalizationManager.Get("opt_se");
+        if (_sensLabelText != null) _sensLabelText.text = AdventureLocalizationManager.Get("opt_sensitivity");
+        if (_audioHintText != null) _audioHintText.text = AdventureLocalizationManager.Get("opt_audio_hint");
+
+        // ディスプレイ＆画質
+        if (_screenModeRowLabel != null) _screenModeRowLabel.text = AdventureLocalizationManager.Get("opt_display_mode");
+        if (_qualityRowLabel != null) _qualityRowLabel.text = AdventureLocalizationManager.Get("opt_quality");
+        if (_vsyncRowLabel != null) _vsyncRowLabel.text = AdventureLocalizationManager.Get("opt_vsync");
+        if (_resolutionRowLabel != null) _resolutionRowLabel.text = AdventureLocalizationManager.Get("opt_resolution");
+        if (_fullscreenBtnText != null) _fullscreenBtnText.text = AdventureLocalizationManager.Get("opt_fullscreen");
+        if (_windowedBtnText != null) _windowedBtnText.text = AdventureLocalizationManager.Get("opt_windowed");
+        if (_qUltraBtnText != null) _qUltraBtnText.text = AdventureLocalizationManager.Get("opt_quality_ultra");
+        if (_qHighBtnText != null) _qHighBtnText.text = AdventureLocalizationManager.Get("opt_quality_high");
+        if (_qFastBtnText != null) _qFastBtnText.text = AdventureLocalizationManager.Get("opt_quality_fast");
+        if (_vsyncOnBtnText != null) _vsyncOnBtnText.text = AdventureLocalizationManager.Get("opt_vsync_on");
+        if (_vsyncOffBtnText != null) _vsyncOffBtnText.text = AdventureLocalizationManager.Get("opt_vsync_off");
 
         if (_creditsLeftText != null)
             _creditsLeftText.text = $"<b>{AdventureLocalizationManager.Get("credits_project_title")}</b>\n{AdventureLocalizationManager.Get("credits_project_body")}\n\n<b>{AdventureLocalizationManager.Get("credits_license_title")}</b>\n{AdventureLocalizationManager.Get("credits_license_body")}";
@@ -1365,9 +1413,11 @@ public class AdventurePauseMenu : MonoBehaviour
         if (_returnTitleModalDescText != null) _returnTitleModalDescText.text = AdventureLocalizationManager.Get("confirm_title_desc");
         if (_returnTitleModalYesBtnText != null) _returnTitleModalYesBtnText.text = AdventureLocalizationManager.Get("confirm_title_yes");
         if (_returnTitleModalNoBtnText != null) _returnTitleModalNoBtnText.text = AdventureLocalizationManager.Get("confirm_title_no");
+
+        UpdateDisplayHighlights();
     }
 
-    void CreateSettingSlider(Transform parent, string label, float topOffset, float minVal, float maxVal, out Slider slider, out Text valueText, UnityEngine.Events.UnityAction<float> onValueChanged)
+    void CreateSettingSlider(Transform parent, string label, float topOffset, float minVal, float maxVal, out Slider slider, out Text valueText, out Text labelText, UnityEngine.Events.UnityAction<float> onValueChanged)
     {
         var rowGo = new GameObject(label + "_Row");
         rowGo.transform.SetParent(parent, false);
@@ -1386,8 +1436,8 @@ public class AdventurePauseMenu : MonoBehaviour
         outline.effectColor = new Color(0.15f, 0.35f, 0.55f, 0.35f);
         outline.effectDistance = new Vector2(1f, -1f);
 
-        var lText = MakeLabel(rowGo.transform, "Label", new Vector2(16f, -10f), new Vector2(300f, 22f), label, 14, new Color(0.92f, 0.96f, 1f, 1f));
-        lText.fontStyle = FontStyle.Bold;
+        labelText = MakeLabel(rowGo.transform, "Label", new Vector2(16f, -10f), new Vector2(300f, 22f), label, 14, new Color(0.92f, 0.96f, 1f, 1f));
+        labelText.fontStyle = FontStyle.Bold;
 
         valueText = MakeLabel(rowGo.transform, "ValueText", new Vector2(-20f, -10f), new Vector2(120f, 22f), "100%", 14, new Color(1f, 0.85f, 0.35f, 1f));
         valueText.fontStyle = FontStyle.Bold;
@@ -1674,11 +1724,24 @@ public class AdventurePauseMenu : MonoBehaviour
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
         var rt = go.AddComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0f, 1f);
-        rt.anchorMax = new Vector2(1f, 1f);
-        rt.pivot = new Vector2(0f, 1f);
-        rt.anchoredPosition = pos;
-        rt.sizeDelta = size;
+        if (size == Vector2.zero)
+        {
+            // 親全体にピッタリ配置（ボタン内テキスト用）
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+        else
+        {
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = pos;
+            rt.sizeDelta = size;
+        }
 
         var t = go.AddComponent<Text>();
         t.font = _font;
@@ -1686,6 +1749,8 @@ public class AdventurePauseMenu : MonoBehaviour
         t.color = col;
         t.text = textStr;
         t.raycastTarget = false;
+        t.verticalOverflow = VerticalWrapMode.Overflow;
+        t.horizontalOverflow = HorizontalWrapMode.Wrap;
         return t;
     }
 
