@@ -645,12 +645,6 @@ public class AdventureScrapManager : MonoBehaviour
 
         // 20ポイント達成判定：巨大レバーのロックを解除（※実際にタワーで引くまで天蓋は開放されない）
         CheckPointsAndNotifyLeverUnlock();
-
-        // オートセーブを実行！
-        if (AdventureSaveManager.Instance != null)
-        {
-            AdventureSaveManager.Instance.SaveGame($"パーツ発見！({CollectedCount}/{TotalScrapCount})");
-        }
     }
 
     [ContextMenu("Debug: 20pt達成・タワー誘導開始（その場）")]
@@ -779,11 +773,6 @@ public class AdventureScrapManager : MonoBehaviour
 
         CheckPointsAndNotifyCampfireUnlock();
         CheckPointsAndNotifyLeverUnlock();
-
-        if (AdventureSaveManager.Instance != null)
-        {
-            AdventureSaveManager.Instance.SaveGame($"ピアノ遺物回収！({TotalProgressPoints}pt)");
-        }
     }
 
     /// <summary>ドリフトボックス開封時のポイント加算通知と祝福チャイム再生（10pt/20pt達成発火フラグ返却対応）</summary>

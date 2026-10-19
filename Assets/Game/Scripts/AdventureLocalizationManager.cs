@@ -2273,5 +2273,361 @@ public static class AdventureLocalizationManager
             "【E】触碰林隙之标",
             "[E] Tocar el poste del bosque"
         } }
+,
+
+        { "いっくよー！大空へダイブ！！", new[] {
+            "いっくよー！大空へダイブ！！",
+            "Here we go! Diving into the great sky!!",
+            "要上啦！向着苍穹纵情飞跃！！",
+            "¡¡Allá vamos!! ¡¡Zambulléndonos en el gran cielo!!"
+        } },
+        { "わっ、水面スレスレ！すごいスピード！！", new[] {
+            "わっ、水面スレスレ！すごいスピード！！",
+            "Whoa, skimming right above the water! Incredible speed!!",
+            "哇，贴近水面了！好惊人的速度！！",
+            "¡Uau, rozando el agua! ¡¡Qué velocidad increíble!!"
+        } },
+        { "わぁぁ！ピアノの上に光るパーツがあったよ！これで3ポイントゲットだね！", new[] {
+            "わぁぁ！ピアノの上に光るパーツがあったよ！これで3ポイントゲットだね！",
+            "Whoa! There was a shining relic on the piano! That's 3 whole points!",
+            "哇啊！钢琴上竟然有发光的遗物！这样就拿到3点啦！",
+            "¡Uauuu! ¡Había una reliquia brillante en el piano! ¡Son 3 puntos enteros!"
+        } },
+        { "あ、砂浜の焚き火だ！10ポイント貯まったから火が点けられるよ！\n【Bキー】の工房で何かクラフトしてから、ここで温まりに行こうよ、Float！", new[] {
+            "あ、砂浜の焚き火だ！10ポイント貯まったから火が点けられるよ！\\n【Bキー】の工房で何かクラフトしてから、ここで温まりに行こうよ、Float！",
+            "Ah, the beach campfire! We have 10 points so we can light it now!\\nLet's craft something at the workshop [B] and warm up here, Float!",
+            "啊，是沙滩营火！已经攒了10点所以可以点燃了！\\n按【B键】去工坊制作点饰品，再来这里取暖吧，Float！",
+            "¡Ah, la hoguera de la playa! ¡Tenemos 10 puntos, así que ya podemos encenderla!\\n¡Fabriquemos algo en el taller [B] y vengamos a calentarnos, Float!"
+        } },
+        { "わぁ……！火が点いた！すごくあったかいね……！\n【Bキー】の工房で新しいアクセサリーを作って、ここでゆっくり眺めるのも最高だね！", new[] {
+            "わぁ……！火が点いた！すごくあったかいね……！\\n【Bキー】の工房で新しいアクセサリーを作って、ここでゆっくり眺めるのも最高だね！",
+            "Whoa...! The fire is lit! It's so warm and cozy...!\\nCrafting new accessories at the workshop [B] and relaxing here is the best!",
+            "哇啊……！火焰点燃了！真的好温暖啊……！\\n按【B键】在工坊制作新饰品，然后在这里悠闲欣赏真是太棒了！",
+            "¡Uau...! ¡El fuego está encendido! ¡Es tan cálido y acogedor...!\\n¡Fabricar nuevos accesorios en el taller [B] y relajarse aquí es lo mejor!"
+        } },
+        { "Float、いい風が吹いてるよ！", new[] {
+            "Float、いい風が吹いてるよ！",
+            "Float, a wonderful wind is blowing!",
+            "Float，迎面吹来的风好舒服呀！",
+            "¡Float, sopla un viento maravilloso!"
+        } },
+        { "どこまでも飛べるね、Float！", new[] {
+            "どこまでも飛べるね、Float！",
+            "We can fly anywhere like this, Float!",
+            "感觉能这样飞向任何地方呢，Float！",
+            "¡Podemos volar hasta el fin del mundo, Float!"
+        } },
+        { "翼を並べて飛ぶの、大好きだよ……♪", new[] {
+            "翼を並べて飛ぶの、大好きだよ……♪",
+            "I love flying side by side with you...♪",
+            "最喜欢像这样并肩翱翔了……♪",
+            "Me encanta volar ala con ala a tu lado...♪"
+        } },
+        { "風に乗って、どこまでも行けそう", new[] {
+            "風に乗って、どこまでも行けそう",
+            "Riding the wind, feels like we can go anywhere.",
+            "乘着这阵风，仿佛哪里都能到达。",
+            "Sobre este viento parece que podemos llegar donde sea."
+        } },
+        { "島を見下ろすと、すごく綺麗だね", new[] {
+            "島を見下ろすと、すごく綺麗だね",
+            "Looking down at the island, it's so beautiful.",
+            "俯瞰整座岛屿，真的很美丽呢。",
+            "Mirar la isla desde aquí arriba es precioso."
+        } },
+        { "わぁ…！風が気持ちいいね、Float", new[] {
+            "わぁ…！風が気持ちいいね、Float",
+            "Whoa...! The breeze feels so refreshing, Float.",
+            "哇……！微风吹拂着好惬意呀，Float。",
+            "¡Uau...! La brisa se siente tan agradable, Float."
+        } },
+        { "この高度、ちょうどいいね", new[] {
+            "この高度、ちょうどいいね",
+            "This altitude feels just right.",
+            "这个飞行高度刚刚好呢。",
+            "Esta altitud es perfecta."
+        } },
+        { "ヒューッ……いいフライトだ", new[] {
+            "ヒューッ……いいフライトだ",
+            "Whew... what a great flight.",
+            "呼……真是一次棒极了的飞行。",
+            "Uf... qué buen vuelo."
+        } },
+        { "一緒だと大空がもっと綺麗だね…♪", new[] {
+            "一緒だと大空がもっと綺麗だね…♪",
+            "The sky looks even more beautiful when we're together...♪",
+            "只要跟你在一起，苍穹就变得更加美丽了呢…♪",
+            "El cielo es aún más hermoso cuando estamos juntos...♪"
+        } },
+        { "自由な空……これが、これからずっと続くといいな", new[] {
+            "自由な空……これが、これからずっと続くといいな",
+            "This free sky... I hope it lasts forever.",
+            "自由的天空……希望这份自由能永远持续下去。",
+            "Este cielo libre... Ojalá dure para siempre."
+        } },
+        { "昔は倉庫の棚で眠ってた。Floatが連れ出した日、いちばん覚えてる", new[] {
+            "昔は倉庫の棚で眠ってた。Floatが連れ出した日、いちばん覚えてる",
+            "I used to sleep on a warehouse shelf. The day you took me out is what I remember most.",
+            "过去我总是在仓库的架子上沉睡。你带我离开的那一天，我一直记得最清楚。",
+            "Solía dormir en la estantería de un almacén. El día que me sacaste es lo que mejor recuerdo."
+        } },
+        { "最適化の街では、僕の声も『不要』ってラベルだったんだ", new[] {
+            "最適化の街では、僕の声も『不要』ってラベルだったんだ",
+            "In the optimized city, even my voice was labeled 'unnecessary'.",
+            "在那个被极致最优化的都市里，连我的声音都被贴上了『多余』的标签。",
+            "En la ciudad optimizada, incluso mi voz tenía la etiqueta de 'innecesaria'."
+        } },
+        { "塩水に濡れた最初の夜、怖かった。でもFloatの手が温かかった", new[] {
+            "塩水に濡れた最初の夜、怖かった。でもFloatの手が温かかった",
+            "That first night soaked in salt water was scary. But your hands were so warm, Float.",
+            "浸在海水里的第一个夜晚真的很害怕。但是Float的手好温暖。",
+            "Aquella primera noche empapado en agua salada tuve miedo. Pero tus manos eran muy cálidas, Float."
+        } },
+        { "スクラップ寸前の僕を、Floatは『相棒』って呼んでくれた", new[] {
+            "スクラップ寸前の僕を、Floatは『相棒』って呼んでくれた",
+            "When I was almost scrap metal, you called me your 'partner', Float.",
+            "在快要变成废铁的时候，是Float叫了我一声『伙伴』。",
+            "Cuando estaba a punto de ser chatarra, me llamaste 'compañero', Float."
+        } },
+        { "あの波……逃げてきた海の音、まだ耳の奥に残ってる", new[] {
+            "あの波……逃げてきた海の音、まだ耳の奥に残ってる",
+            "Those waves... the sound of the ocean we escaped across still lingers in my ears.",
+            "那些巨浪……我们逃亡时渡过的海浪声，至今仍在耳畔回响。",
+            "Aquellas olas... el sonido del mar por el que escapamos aún resuena en mis oídos."
+        } },
+        { "管理されるだけの日々より、今の不確かさのほうが好き", new[] {
+            "管理されるだけの日々より、今の不確かさのほうが好き",
+            "I prefer our uncertain days right now over a life of just being controlled.",
+            "比起被严密管控的日子，我更喜欢现在充满未知的生活。",
+            "Prefiero la incertidumbre de hoy que una vida donde todo estaba controlado."
+        } },
+        { "昔の記憶データ、ところどころ欠落してる。でもFloatの顔は鮮明だよ", new[] {
+            "昔の記憶データ、ところどころ欠落してる。でもFloatの顔は鮮明だよ",
+            "Some of my old memory data is missing. But your face is always crystal clear, Float.",
+            "过去的记忆数据虽然有些残缺了。但Float的面容一直都非常清晰哦。",
+            "Faltan algunos datos de mi memoria antigua. Pero tu rostro es totalmente nítido, Float."
+        } },
+        { "翼が直ったら、蒼い空のてっぺんまで行こうね", new[] {
+            "翼が直ったら、蒼い空のてっぺんまで行こうね",
+            "When my wings are all fixed up, let's fly all the way to the top of the blue sky!",
+            "等机翼修好了，我们一起飞到蓝天的最顶端吧！",
+            "¡Cuando mis alas estén arregladas, volemos hasta la cima del cielo azul!"
+        } },
+        { "天蓋の向こう……どんな景色が待ってるんだろう", new[] {
+            "天蓋の向こう……どんな景色が待ってるんだろう",
+            "Beyond the canopy... I wonder what kinds of sights are waiting for us.",
+            "天穹的另一侧……究竟有着怎样的景色在等待着我们呢。",
+            "Más allá de la cúpula... qué clase de paisajes nos estarán esperando."
+        } },
+        { "これからも、Floatのそばで飛びたい", new[] {
+            "これからも、Floatのそばで飛びたい",
+            "I always want to keep flying beside you, Float.",
+            "今后我也想一直陪伴在Float的身旁飞行。",
+            "Quiero seguir volando siempre a tu lado, Float."
+        } },
+        { "パーツが揃ったら、もっと遠くまで案内できるよ", new[] {
+            "パーツが揃ったら、もっと遠くまで案内できるよ",
+            "Once we gather the parts, I can guide you even farther!",
+            "等零件集齐了，我就能为你引路去更远的地方啦！",
+            "¡En cuanto reunamos las piezas, podré guiarte aún más lejos!"
+        } },
+        { "いつか、怖がらずに笑いながら飛べるようになりたい", new[] {
+            "いつか、怖がらずに笑いながら飛べるようになりたい",
+            "Someday, I want to fly with a big smile, completely fearless.",
+            "总有一天，我也想毫不畏惧地笑着在空中飞翔。",
+            "Algún día quiero volar sonriendo, sin ningún temor."
+        } },
+        { "この島のあとにも、冒険はあるのかな……ワクワクする", new[] {
+            "この島のあとにも、冒険はあるのかな……ワクワクする",
+            "Will there be more adventures after this island...? I'm so excited!",
+            "在这座岛屿之后，还会有新的冒险吗……真让人期待！",
+            "¿Habrá más aventuras después de esta isla...? ¡Qué emoción!"
+        } },
+        { "Floatと見つけたもの、全部覚えておくね。未来の僕の宝物だ", new[] {
+            "Floatと見つけたもの、全部覚えておくね。未来の僕の宝物だ",
+            "I'll remember everything we found together. They're my treasures for the future.",
+            "和Float一起发现的所有东西，我都会牢牢记住。那都是我未来的宝物。",
+            "Recordaré todo lo que encontramos juntos. Son mis tesoros para el futuro."
+        } },
+        { "今日の関節、なめらかだよ。油のおかげかな", new[] {
+            "今日の関節、なめらかだよ。油のおかげかな",
+            "My joints feel so smooth today. Must be thanks to the oil!",
+            "今天的关节运转很顺畅呢。多亏了润滑油的保养吧！",
+            "Mis articulaciones van muy suaves hoy. ¡Será gracias al aceite!"
+        } },
+        { "ピロッ……ファンの回転、気持ちいい音してる", new[] {
+            "ピロッ……ファンの回転、気持ちいい音してる",
+            "Beep... my fans are spinning with such a pleasant sound.",
+            "哔噜……风扇转动的声音听起来好惬意。",
+            "Bip... mis ventiladores giran con un sonido muy agradable."
+        } },
+        { "センサーは快調。潮の匂いまで拾えてるよ", new[] {
+            "センサーは快調。潮の匂いまで拾えてるよ",
+            "Sensors in tip-top shape. I can even catch the scent of the tide!",
+            "传感器状态绝佳。甚至连海潮的气息都能捕捉到呢！",
+            "Sensores en perfecto estado. ¡Hasta capto el olor de la marea!"
+        } },
+        { "少し眠い……でも、そばにいると元気が出る", new[] {
+            "少し眠い……でも、そばにいると元気が出る",
+            "A little sleepy... but staying by your side gives me energy.",
+            "稍微有点困了……但只要待在你身旁，就觉得充满精神。",
+            "Un poco soñoliento... pero estar a tu lado me llena de energía."
+        } },
+        { "ギアが軽やか。今ならどこまでもついていける", new[] {
+            "ギアが軽やか。今ならどこまでもついていける",
+            "My gears feel so light. I can follow you anywhere right now!",
+            "齿轮运转好轻快。现在不管去哪里我都能跟上你！",
+            "Los engranajes van ligeros. ¡Ahora puedo seguirte a cualquier parte!"
+        } },
+        { "胸のコアが温かい。Floatのペース、ちょうどいい", new[] {
+            "胸のコアが温かい。Floatのペース、ちょうどいい",
+            "My core feels so warm. Your pace is just right, Float.",
+            "胸口的核心暖暖的。Float的步伐节奏刚刚好呢。",
+            "Mi núcleo está calentito. Tu ritmo es perfecto, Float."
+        } },
+        { "バランスいいね。転びそうな気配、いまはないよ", new[] {
+            "バランスいいね。転びそうな気配、いまはないよ",
+            "Great balance! No sign of tumbling at all right now.",
+            "平衡感很好哦。现在完全没有要跌倒的迹象呢。",
+            "¡Buen equilibrio! No hay señales de tropezar en absoluto."
+        } },
+        { "えへへ……Floatと歩くの、楽しい", new[] {
+            "えへへ……Floatと歩くの、楽しい",
+            "Ehehe... walking with you is so much fun, Float.",
+            "诶嘿嘿……和Float一起漫步好开心呀。",
+            "Jejeje... caminar contigo es muy divertido, Float."
+        } },
+        { "今、すごく安心してる。ここにいていいんだって感じ", new[] {
+            "今、すごく安心してる。ここにいていいんだって感じ",
+            "I feel so peaceful right now. Like it's truly okay for me to be here.",
+            "现在心里非常踏实。感觉自己真正属于这里一样。",
+            "Ahora mismo me siento muy tranquilo. Como si realmente perteneciera aquí."
+        } },
+        { "ピキーッ……嬉しい。言葉にすると恥ずかしいけど", new[] {
+            "ピキーッ……嬉しい。言葉にすると恥ずかしいけど",
+            "Beep-whistle... I'm so happy. A little shy to say it out loud, though!",
+            "哔叽——……好开心呀。虽然说出口有点难为情！",
+            "Bip-pío... Qué feliz soy. ¡Aunque me da un poco de vergüenza decirlo!"
+        } },
+        { "風も光も、全部が優しいね。今日はいい日だ", new[] {
+            "風も光も、全部が優しいね。今日はいい日だ",
+            "The wind, the sunlight, everything is so gentle. Today is a great day.",
+            "微风与阳光，一切都如此温柔。今天真是美好的一天。",
+            "El viento, la luz, todo es tan suave. Hoy es un día maravilloso."
+        } },
+        { "Floatの足音、好き。リズムが落ち着く", new[] {
+            "Floatの足音、好き。リズムが落ち着く",
+            "I love the sound of your footsteps, Float. The rhythm is so calming.",
+            "我很喜欢Float的脚步声。那阵节奏让人感到格外安心。",
+            "Me gusta el sonido de tus pasos, Float. Su ritmo me tranquiliza mucho."
+        } },
+        { "見つかるたびに、胸がふくらむ。幸せのセンサーが鳴ってる", new[] {
+            "見つかるたびに、胸がふくらむ。幸せのセンサーが鳴ってる",
+            "Every time we find something, my chest swells. My happiness sensor is pinging!",
+            "每次找到新东西，心里就充满成就感。幸福传感器一直在响呢！",
+            "Cada vez que encontramos algo, se me ensancha el pecho. ¡Mi sensor de felicidad pita!"
+        } },
+        { "一緒にいるだけで、充電されてるみたい", new[] {
+            "一緒にいるだけで、充電されてるみたい",
+            "Just being with you feels like I'm getting recharged.",
+            "只要待在一起，就仿佛正在被充电一样。",
+            "Solo con estar contigo siento como si me recargara."
+        } },
+        { "ピピッ…砂の中に、光るものないかな？", new[] {
+            "ピピッ…砂の中に、光るものないかな？",
+            "Beep... I wonder if there's something shining in the sand?",
+            "哔哔……沙子里会不会埋着发光的东西呢？",
+            "Bip... ¿Habrá algo brillante entre la arena?"
+        } },
+        { "楽しい探しものしよう。ギアのかけら、どこだろ", new[] {
+            "楽しい探しものしよう。ギアのかけら、どこだろ",
+            "Let's go on a fun treasure hunt! Where could those gear fragments be?",
+            "来寻找有趣的东西吧。齿轮碎片会藏在哪里呢？",
+            "¡Vamos a buscar tesoros! ¿Dónde estarán los fragmentos de engranaje?"
+        } },
+        { "あそこに光柱がある気がする。行ってみる？", new[] {
+            "あそこに光柱がある気がする。行ってみる？",
+            "I feel like there's a pillar of light over there. Want to go check it out?",
+            "感觉那边好像有一道光柱。要过去看看吗？",
+            "Me da la sensación de que hay un pilar de luz allí. ¿Vamos a mirar?"
+        } },
+        { "砂浜を歩くの、冒険の入口みたいでワクワクする", new[] {
+            "砂浜を歩くの、冒険の入口みたいでワクワクする",
+            "Walking on the sandy beach feels like the entrance to an adventure, so exciting!",
+            "漫步在沙滩上，就像是踏入了冒险的序章一样，真让人兴奋！",
+            "Caminar por la playa de arena parece el inicio de una aventura, ¡qué emocionante!"
+        } },
+        { "カピタに会うのも楽しいし、遺物探しもしよう", new[] {
+            "カピタに会うのも楽しいし、遺物探しもしよう",
+            "Meeting Capyta is fun, and let's search for relics too!",
+            "去见见卡皮塔很有趣，同时也去找找古代遗物吧！",
+            "Ver a Capyta es divertido, ¡y busquemos reliquias también!"
+        } },
+        { "リングをくぐると風が歌うよ。油ももらえるし", new[] {
+            "リングをくぐると風が歌うよ。油ももらえるし",
+            "The wind sings when you pass through rings. And we get oil too!",
+            "穿过光环时风儿会歌唱呢。而且还能获得润滑油！",
+            "El viento canta al atravesar los anillos. ¡Y también nos dan aceite!"
+        } },
+        { "草むらの奥、何か隠れてないかな？偵察するよ", new[] {
+            "草むらの奥、何か隠れてないかな？偵察するよ",
+            "Is there something hidden deep in the grass? I'll scout ahead!",
+            "草丛深处会不会藏着什么呢？我来侦察一下！",
+            "¿Habrá algo escondido entre la hierba? ¡Voy a explorar!"
+        } },
+        { "最初のパーツ、きっとすぐ見つかる。僕が手伝う", new[] {
+            "最初のパーツ、きっとすぐ見つかる。僕が手伝う",
+            "We'll find the first part in no time. I'll help you!",
+            "第一个零件肯定很快就能找到的。我会全力帮忙！",
+            "Seguro que encontramos la primera pieza enseguida. ¡Yo te ayudo!"
+        } },
+        { "ピピッ…何か光るものがあるかな？", new[] {
+            "ピピッ…何か光るものがあるかな？",
+            "Beep... Is there something shining around here?",
+            "哔哔……周围会有发光的东西吗？",
+            "Bip... ¿Habrá algo brillante por aquí?"
+        } },
+        { "リングをくぐると油も増えるよ。くぐってみよう", new[] {
+            "リングをくぐると油も増えるよ。くぐってみよう",
+            "Passing through rings gives us more oil. Let's fly through them!",
+            "穿过光环油量也会增加哦。试着多穿过几个吧！",
+            "Atravesar anillos nos da más aceite. ¡Probemos a atravesarlos!"
+        } },
+        { "タワーの方、まだ遠く見えるね。少しずつ近づこう", new[] {
+            "タワーの方、まだ遠く見えるね。少しずつ近づこう",
+            "The tower still looks far away. Let's make our way closer bit by bit.",
+            "高塔看起来还挺遥远的呢。我们一步步慢慢靠近吧。",
+            "La torre aún parece lejana. Vayamos acercándonos poco a poco."
+        } },
+        { "楽しいこと探そう。未踏の岸辺、まだあるはず", new[] {
+            "楽しいこと探そう。未踏の岸辺、まだあるはず",
+            "Let's look for fun things! There must still be shores we haven't explored.",
+            "去找点好玩的事吧。一定还有尚未涉足的海岸！",
+            "¡Busquemos cosas divertidas! Seguro que aún quedan costas inexploradas."
+        } },
+        { "森の音が変わる場所、何かありそうだよ", new[] {
+            "森の音が変わる場所、何かありそうだよ",
+            "Where the sounds of the forest change, there might be something waiting!",
+            "森林声音发生变化的地方，似乎藏着什么东西呢！",
+            "Donde cambia el sonido del bosque, ¡seguro que hay algo!"
+        } },
+        { "崖の上から滑空したら、新しい景色が見えるかも", new[] {
+            "崖の上から滑空したら、新しい景色が見えるかも",
+            "If we glide from atop the cliff, maybe we'll discover a brand new view!",
+            "如果从悬崖顶端滑翔的话，或许能看到崭新的景色呢！",
+            "Si planeamos desde lo alto del acantilado, ¡quizá veamos un nuevo paisaje!"
+        } },
+        { "調子はいいよ。次の遺物、一緒に探そう", new[] {
+            "調子はいいよ。次の遺物、一緒に探そう",
+            "I'm feeling great. Let's go look for the next relic together!",
+            "状态好极了。下一件遗物，我们一起去找找吧！",
+            "¡Me siento genial! ¡Busquemos la siguiente reliquia juntos!"
+        } },
+        { "光る柱の方角、覚えておくね。道しるべだ", new[] {
+            "光る柱の方角、覚えておくね。道しるべだ",
+            "I'll remember the direction of the light pillar. It's our guiding star!",
+            "光柱的方向我已经记住了。那就是我们的指路明灯！",
+            "Recordaré la dirección del pilar de luz. ¡Es nuestro faro guía!"
+        } }
     };
 }

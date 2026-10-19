@@ -470,8 +470,6 @@ public partial class AdventureSanctuaryTowerManager
         // 上昇演出を優先。最大4.5秒でクライマックスへ必ず接続（後半途切れ防止）
         ArmPendingClimax(failsafeSeconds: 4.5f);
 
-        AdventureSaveManager.Instance?.SaveGame("天蓋開放・到達記録を保存しました");
-
         var drone = GetDrone();
         if (drone != null)
             drone.StartSkybreakNestle();

@@ -305,8 +305,6 @@ public class AdventureSaveManager : MonoBehaviour
         TryLoadGame();
     }
 
-    float _periodicSaveTimer = 180f; // 3分間隔の定期オートセーブ
-
     void Update()
     {
         // Mac/Windows問わず確実に押せるセーブキー判定
@@ -356,14 +354,6 @@ public class AdventureSaveManager : MonoBehaviour
                 }
             }
             catch { }
-        }
-
-        // 定期オートセーブ
-        _periodicSaveTimer -= Time.deltaTime;
-        if (_periodicSaveTimer <= 0f)
-        {
-            _periodicSaveTimer = 180f;
-            SaveGame("オートセーブ完了");
         }
 
         // uGUIバナーのフェードアニメーション
