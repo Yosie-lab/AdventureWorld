@@ -393,10 +393,29 @@ public class AdventureCapytaBlessing : MonoBehaviour
     {
         switch (mood)
         {
-            case Mood.Calm: return "ふつうの機嫌";
-            case Mood.Happy: return "ご機嫌";
-            case Mood.Generous: return "気前よし";
-            default: return "大盤振る舞い！！";
+            case Mood.Calm: return AdventureLocalizationManager.Get("capyta_mood_calm");
+            case Mood.Happy: return AdventureLocalizationManager.Get("capyta_mood_happy");
+            case Mood.Generous: return AdventureLocalizationManager.Get("capyta_mood_generous");
+            default: return AdventureLocalizationManager.Get("capyta_mood_jackpot");
+        }
+    }
+
+    static string BuildCombinedDialogue(string capytaText, string rustText, int amount, int totalOil)
+    {
+        string capLoc = AdventureLocalizationManager.Get(capytaText);
+        string rustLoc = AdventureLocalizationManager.Get(rustText);
+
+        var lang = AdventureLocalizationManager.CurrentLanguage;
+        switch (lang)
+        {
+            case AdventureLocalizationManager.GameLanguage.English:
+                return $"Capyta: \"{capLoc}\"\nRust: \"{rustLoc}\" (+{amount} Oil / Total: {totalOil})";
+            case AdventureLocalizationManager.GameLanguage.SimplifiedChinese:
+                return $"卡皮塔「{capLoc}」\nRust「{rustLoc}（润滑油 +{amount}／持有: {totalOil}）」";
+            case AdventureLocalizationManager.GameLanguage.Spanish:
+                return $"Capyta: «{capLoc}»\nRust: «{rustLoc}» (+{amount} Aceite / Total: {totalOil})";
+            default:
+                return $"カピタ「{capLoc}」\nRust「{rustLoc}（油 +{amount}／所持: {totalOil}）」";
         }
     }
 
@@ -419,10 +438,9 @@ public class AdventureCapytaBlessing : MonoBehaviour
         }
 
         int mi = (int)mood;
-        string combined =
-            $"カピタ「{CapytaByMood[mi]}」\n" +
-            $"Rust「{RustByMood[mi]}（油 +{amount}／所持: {drone.oilCount}）」";
-        drone.SpeakAs($"🐾 カピタ（{MoodLabel(mood)}）", new Color(0.40f, 1f, 0.70f), combined, 5.0f);
+        string combined = BuildCombinedDialogue(CapytaByMood[mi], RustByMood[mi], amount, drone.oilCount);
+        string speaker = AdventureLocalizationManager.GetFormat("capyta_speaker_mood", MoodLabel(mood));
+        drone.SpeakAs(speaker, new Color(0.40f, 1f, 0.70f), combined, 5.0f);
         PlayGiftChime();
         _talkIndex++;
     }
@@ -510,26 +528,19 @@ public class AdventureCapytaBlessing : MonoBehaviour
         int oilNow = drone != null ? drone.oilCount : amount;
         int mi = (int)mood;
 
-        // ボードの多重重なりを完全解消：
-        // カピタの言葉と相棒Rustの声を美しい1つのシネマダイアログに統合
         if (firstJump)
         {
             int ci = Random.Range(0, CapytaFirst.Length);
             int ri = Random.Range(0, RustFirst.Length);
-
-            string combined =
-                $"カピタ「{CapytaFirst[ci]}」\n" +
-                $"Rust「{RustFirst[ri]}（油 +{amount}／所持: {oilNow}）」";
-
-            drone?.SpeakAs("🐾 カピタの祝福 ✦ スーパージャンプ獲得！", new Color(0.40f, 1f, 0.70f), combined, 6.2f);
+            string combined = BuildCombinedDialogue(CapytaFirst[ci], RustFirst[ri], amount, oilNow);
+            string speaker = AdventureLocalizationManager.Get("capyta_speaker_blessing");
+            drone?.SpeakAs(speaker, new Color(0.40f, 1f, 0.70f), combined, 6.2f);
         }
         else
         {
-            string combined =
-                $"カピタ「{CapytaByMood[mi]}」\n" +
-                $"Rust「{RustByMood[mi]}（油 +{amount}／所持: {oilNow}）」";
-
-            drone?.SpeakAs($"🐾 カピタ（{MoodLabel(mood)}）", new Color(0.40f, 1f, 0.70f), combined, 5.0f);
+            string combined = BuildCombinedDialogue(CapytaByMood[mi], RustByMood[mi], amount, oilNow);
+            string speaker = AdventureLocalizationManager.GetFormat("capyta_speaker_mood", MoodLabel(mood));
+            drone?.SpeakAs(speaker, new Color(0.40f, 1f, 0.70f), combined, 5.0f);
         }
 
         PlayGiftChime();
@@ -543,8 +554,9 @@ public class AdventureCapytaBlessing : MonoBehaviour
         if (shellMgr == null || !shellMgr.TryConsumeAnyShell(out var consumedKind))
         {
             var drone = AdventureRustDrone.Instance;
-            drone?.SpeakAs("🐾 カピタ", new Color(0.40f, 1f, 0.70f),
-                "カピタ「ブヒ…？ 砂浜に落ちてる綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ！」", 4.5f);
+            string capTitle = AdventureLocalizationManager.Get("capyta_speaker_title");
+            string noShellMsg = AdventureLocalizationManager.Get("カピタ「ブヒ…？ 砂浜に落ちてる綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ！」");
+            drone?.SpeakAs(capTitle, new Color(0.40f, 1f, 0.70f), noShellMsg, 4.5f);
             return;
         }
 
@@ -564,17 +576,36 @@ public class AdventureCapytaBlessing : MonoBehaviour
         if (rust != null)
         {
             rust.oilCount += giftOil;
-            rust.TriggerCelebration("わぁぁ！カピタに貝殻プレゼントできたね！頭にみかん乗せて大喜びしてるよ！", 3.0f);
+            string celeb = AdventureLocalizationManager.Get("わぁぁ！カピタに貝殻プレゼントできたね！頭にみかん乗せて大喜びしてるよ！");
+            rust.TriggerCelebration(celeb, 3.0f);
         }
 
-        string shellName = ShellNames.TryGetValue(consumedKind, out var sn) ? sn : "綺麗な貝殻";
-        string capytaLine = CapytaTradeReactions.TryGetValue(consumedKind, out var cr) ? cr : "ブヒヒ！きれいな貝殻、ありがとう！";
+        string rawShellName = ShellNames.TryGetValue(consumedKind, out var sn) ? sn : "綺麗な貝殻";
+        string shellName = AdventureLocalizationManager.Get(rawShellName);
+        string rawCapLine = CapytaTradeReactions.TryGetValue(consumedKind, out var cr) ? cr : "ブヒヒ！きれいな貝殻、ありがとう！";
+        string capytaLine = AdventureLocalizationManager.Get(rawCapLine);
 
-        string combined =
-            $"カピタ「{capytaLine}」\n" +
-            $"Rust「頭にみかんが乗ったよ！かわいい…！（油 +{giftOil}／所持: {(rust != null ? rust.oilCount : giftOil)}）」";
+        int totalOilNow = rust != null ? rust.oilCount : giftOil;
+        string combined;
+        var lang = AdventureLocalizationManager.CurrentLanguage;
+        switch (lang)
+        {
+            case AdventureLocalizationManager.GameLanguage.English:
+                combined = $"Capyta: \"{capytaLine}\"\nRust: \"Look, a mandarin on its head! So cute...!\" (+{giftOil} Oil / Total: {totalOilNow})";
+                break;
+            case AdventureLocalizationManager.GameLanguage.SimplifiedChinese:
+                combined = $"卡皮塔「{capytaLine}」\nRust「头上顶着橘子了呢！好可爱……！（润滑油 +{giftOil}／持有: {totalOilNow}）」";
+                break;
+            case AdventureLocalizationManager.GameLanguage.Spanish:
+                combined = $"Capyta: «{capytaLine}»\nRust: «¡Lleva una mandarina en la cabeza! ¡Qué monada...! (+{giftOil} Aceite / Total: {totalOilNow})";
+                break;
+            default:
+                combined = $"カピタ「{capytaLine}」\nRust「頭にみかんが乗ったよ！かわいい…！（油 +{giftOil}／所持: {totalOilNow}）」";
+                break;
+        }
 
-        rust?.SpeakAs($"🐾 カピタ ✦ 『{shellName}』の物々交換！", new Color(1.0f, 0.82f, 0.25f), combined, 6.2f);
+        string tradeSpeaker = AdventureLocalizationManager.GetFormat("capyta_speaker_trade", shellName);
+        rust?.SpeakAs(tradeSpeaker, new Color(1.0f, 0.82f, 0.25f), combined, 6.2f);
         PlayGiftChime();
         _tradeCount++;
     }
@@ -750,6 +781,37 @@ public class AdventureCapytaBlessing : MonoBehaviour
         return Mathf.Sqrt(dx * dx + dz * dz);
     }
 
+    static Font _cachedPromptFont;
+    static Font ResolvePromptFont()
+    {
+        if (_cachedPromptFont != null) return _cachedPromptFont;
+        string[] fonts = {
+            "PingFang SC",
+            "Hiragino Sans GB",
+            "Heiti SC",
+            "Hiragino Sans",
+            "Hiragino Kaku Gothic ProN",
+            "Microsoft YaHei",
+            "Arial Unicode MS",
+            "YuGothic",
+            "Apple SD Gothic Neo",
+            "Arial"
+        };
+        try
+        {
+            _cachedPromptFont = Font.CreateDynamicFontFromOSFont(fonts, 20);
+            if (_cachedPromptFont != null) return _cachedPromptFont;
+        }
+        catch { }
+        foreach (var name in fonts)
+        {
+            var f = Font.CreateDynamicFontFromOSFont(name, 20);
+            if (f != null) { _cachedPromptFont = f; return f; }
+        }
+        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+               ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+    }
+
     void OnGUI()
     {
         if (!_promptVisible) return;
@@ -760,8 +822,8 @@ public class AdventureCapytaBlessing : MonoBehaviour
 
         // カピタ会話・交換プロンプト（視認性の高いエメラルドグリーンの美しいバナー）
         float scale = Mathf.Clamp(Screen.height / 720f, 1f, 1.35f);
-        float w = Mathf.Min((shellCount > 0 ? 560f : 440f) * scale, Screen.width * 0.90f);
-        float h = 40f * scale;
+        float w = Mathf.Min((shellCount > 0 ? 600f : 460f) * scale, Screen.width * 0.94f);
+        float h = 42f * scale;
         float x = (Screen.width - w) * 0.5f;
         float y = Screen.height - (185f * scale);
         float bar = 3f * scale;
@@ -775,6 +837,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
 
         var style = new GUIStyle(GUI.skin.label)
         {
+            font = ResolvePromptFont(),
             fontSize = Mathf.RoundToInt(15f * scale),
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
@@ -785,13 +848,13 @@ public class AdventureCapytaBlessing : MonoBehaviour
         string tip;
         if (shellCount > 0)
         {
-            tip = $"🐾 【E / クリック】ふれあう  |  🐚 【Q】貝殻を渡して物々交換（所持: {shellCount}個）";
+            tip = AdventureLocalizationManager.GetFormat("prompt_capyta_trade", shellCount);
         }
         else
         {
             tip = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.hasCapytaSuperJump
-                ? "🐾 【E / クリック】カピタとふれあう（スキンシップ＆潤滑油）"
-                : "🐾 【E / クリック】カピタと話す（スーパージャンプ＆潤滑油）";
+                ? AdventureLocalizationManager.Get("prompt_capyta_talk_skin")
+                : AdventureLocalizationManager.Get("prompt_capyta_talk_first");
         }
 
         GUI.Label(new Rect(x, y, w, h), tip, style);

@@ -1033,7 +1033,7 @@ public class AdventureBeachCampfire : MonoBehaviour
         if (drone != null)
         {
             drone.SetCampfireChill(false);
-            drone.SpeakCustom("よいしょ！さぁ、冒険を続けよう！", 3.0f);
+            drone.SpeakCustom(AdventureLocalizationManager.Get("campfire_stand_rust"), 3.0f);
         }
 
         // 3. カメラを通常モードへ復帰
@@ -1082,11 +1082,42 @@ public class AdventureBeachCampfire : MonoBehaviour
                 };
 
                 string msg = dialogues[_dialogueIndex % dialogues.Length];
-                drone.SpeakCustom(msg, 5.0f);
+                drone.SpeakCustom(AdventureLocalizationManager.Get(msg), 5.0f);
                 _dialogueIndex++;
                 _nextDialogueTime = _chillTimer + Random.Range(16f, 24f);
             }
         }
+    }
+
+    static Font _cachedCampfireFont;
+    static Font ResolveCampfireFont()
+    {
+        if (_cachedCampfireFont != null) return _cachedCampfireFont;
+        string[] fonts = {
+            "PingFang SC",
+            "Hiragino Sans GB",
+            "Heiti SC",
+            "Hiragino Sans",
+            "Hiragino Kaku Gothic ProN",
+            "Microsoft YaHei",
+            "Arial Unicode MS",
+            "YuGothic",
+            "Apple SD Gothic Neo",
+            "Arial"
+        };
+        try
+        {
+            _cachedCampfireFont = Font.CreateDynamicFontFromOSFont(fonts, 20);
+            if (_cachedCampfireFont != null) return _cachedCampfireFont;
+        }
+        catch { }
+        foreach (var name in fonts)
+        {
+            var f = Font.CreateDynamicFontFromOSFont(name, 20);
+            if (f != null) { _cachedCampfireFont = f; return f; }
+        }
+        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+               ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
     }
 
     void OnGUI()
@@ -1105,6 +1136,7 @@ public class AdventureBeachCampfire : MonoBehaviour
 
         var skin = GUI.skin;
         var style = new GUIStyle(skin.label);
+        style.font = ResolveCampfireFont();
         style.alignment = TextAnchor.MiddleCenter;
         style.fontSize = 20;
         style.normal.textColor = Color.white;
@@ -1116,8 +1148,8 @@ public class AdventureBeachCampfire : MonoBehaviour
         if (_isSitting)
         {
             // 座っている時の控えめなプロンプト
-            string sitPrompt = "【 W / A / S / D 】または【 Space 】立ち上がる";
-            float w = 500f;
+            string sitPrompt = AdventureLocalizationManager.Get("campfire_standup");
+            float w = 520f;
             float h = 40f;
             float x = (Screen.width - w) * 0.5f;
             float y = Screen.height - 90f;
@@ -1132,14 +1164,14 @@ public class AdventureBeachCampfire : MonoBehaviour
                 string prompt;
                 if (CanLightCampfire)
                 {
-                    prompt = "🔥 【E / クリック】焚き火に火を点ける";
+                    prompt = AdventureLocalizationManager.Get("campfire_light");
                 }
                 else
                 {
-                    prompt = $"🔥 砂浜の焚き火（探索 10pt で点火可能 / 現在: {CurrentProgressPoints}/{RequiredPointsToLight} pt）";
+                    prompt = AdventureLocalizationManager.GetFormat("campfire_need_points", CurrentProgressPoints, RequiredPointsToLight);
                 }
 
-                float w = 540f;
+                float w = 580f;
                 float h = 40f;
                 float x = (Screen.width - w) * 0.5f;
                 float y = Screen.height * 0.65f;
@@ -1149,8 +1181,8 @@ public class AdventureBeachCampfire : MonoBehaviour
             }
             else if (inBenchZone)
             {
-                string prompt = "🪵 【E / クリック】丸太に腰掛ける（海と炎を眺める）";
-                float w = 480f;
+                string prompt = AdventureLocalizationManager.Get("campfire_sit");
+                float w = 520f;
                 float h = 40f;
                 float x = (Screen.width - w) * 0.5f;
                 float y = Screen.height * 0.65f;
@@ -1160,5 +1192,4 @@ public class AdventureBeachCampfire : MonoBehaviour
             }
         }
     }
-
 }

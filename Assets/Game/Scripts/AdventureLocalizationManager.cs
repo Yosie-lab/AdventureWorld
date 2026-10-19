@@ -1669,6 +1669,459 @@ public static class AdventureLocalizationManager
             "Whoa! What a treasure perched atop the cliff! We climbed up here on our own, Float!",
             "哇啊！悬崖顶上居然藏着这等宝物！凭我们自己的力量登上来了呢，Float！",
             "¡Uau! ¡Menudo tesoro había sobre el acantilado! ¡Subimos con nuestras propias fuerzas, Float!"
-        } }
+        } },
+
+        // ==========================================
+        // カピタ（Capyta）会話・機嫌・祝福・物々交換
+        // ==========================================
+        { "capyta_name", new[] { "カピタ", "Capyta", "卡皮塔", "Capyta" } },
+        { "capyta_speaker_title", new[] { "🐾 カピタ", "🐾 Capyta", "🐾 卡皮塔", "🐾 Capyta" } },
+        { "capyta_speaker_blessing", new[] { "🐾 カピタの祝福 ✦ スーパージャンプ獲得！", "🐾 Capyta's Blessing ✦ Super Jump Unlocked!", "🐾 卡皮塔的祝福 ✦ 获得超级跳跃！", "🐾 ¡Bendición de Capyta ✦ Super Salto desbloqueado!" } },
+        { "capyta_speaker_trade", new[] { "🐾 カピタ ✦ 『{0}』の物々交換！", "🐾 Capyta ✦ Trading for \"{0}\"!", "🐾 卡皮塔 ✦ 『{0}』物物交换！", "🐾 Capyta ✦ ¡Intercambio por «{0}»!" } },
+        { "capyta_speaker_mood", new[] { "🐾 カピタ（{0}）", "🐾 Capyta ({0})", "🐾 卡皮塔（{0}）", "🐾 Capyta ({0})" } },
+
+        { "capyta_mood_calm", new[] { "ふつうの機嫌", "Calm Mood", "普通的心情", "Humor tranquilo" } },
+        { "capyta_mood_happy", new[] { "ご機嫌", "Good Mood", "好心情", "Buen humor" } },
+        { "capyta_mood_generous", new[] { "気前よし", "Generous", "大方慷慨", "Generoso" } },
+        { "capyta_mood_jackpot", new[] { "大盤振る舞い！！", "Jackpot!!", "超级大丰收！！", "¡¡Premio gordo!!" } },
+
+        { "ブヒ…今日はまあまあ。油、これくらいで我慢してね。", new[] {
+            "ブヒ…今日はまあまあ。油、これくらいで我慢してね。",
+            "Oink... Feeling so-so today. Make do with this much oil.",
+            "呼噜…今天马马虎虎吧。这点油就先将就着用吧。",
+            "Oink... Hoy estoy así asá. Confórmate con este poquito de aceite."
+        } },
+        { "ブヒヒ！機嫌がいいよ。潤滑油、多めにあげるね！", new[] {
+            "ブヒヒ！機嫌がいいよ。潤滑油、多めにあげるね！",
+            "Oink-oink! I'm in a great mood! Here's extra lubricant for you!",
+            "呼噜噜！今天心情真好。多给你一点润滑油吧！",
+            "¡Oink-oink! ¡Estoy de buen humor! ¡Te daré bastante aceite lubricante!"
+        } },
+        { "プヒヒ……！今日は気前がいい日。缶をあけて、たっぷりの油を持っていって！", new[] {
+            "プヒヒ……！今日は気前がいい日。缶をあけて、たっぷりの油を持っていって！",
+            "Snort-snort...! Feeling extra generous today. Pop the can and take plenty of oil!",
+            "呼哧哧……！今天我格外慷慨。开罐拿走大把的润滑油吧！",
+            "¡Oink...! Hoy me siento generoso. ¡Abre la lata y llévate un montón de aceite!"
+        } },
+        { "ブヒッヒッヒ！！最高の気分だ！！油を山盛りにしてあげる！！Rustをぬるぬるにしてあげて！", new[] {
+            "ブヒッヒッヒ！！最高の気分だ！！油を山盛りにしてあげる！！Rustをぬるぬるにしてあげて！",
+            "OINK-OINK-OINK!! Feeling fantastic!! A mountain of oil for you!! Polish Rust till he shines!",
+            "呼噜噜噜噜！！心情棒极啦！！给你堆成小山一样的油！！把Rust涂得滑溜溜的吧！",
+            "¡¡OINK-OINK!! ¡¡Me siento genial!! ¡¡Toma una montaña de aceite!! ¡Deja a Rust reluciente y resbaladizo!"
+        } },
+
+        { "ブヒヒ…！大地の弾力と、相棒のための潤滑油をわけてあげるね！機嫌次第でもっと出すよ！", new[] {
+            "ブヒヒ…！大地の弾力と、相棒のための潤滑油をわけてあげるね！機嫌次第でもっと出すよ！",
+            "Oink-oink...! I'll share the earth's bounce and lubricant for your pal! I'll give more when I'm thrilled!",
+            "呼噜噜…！把大地的弹力与伙伴的润滑油分给你们！要是心情更好，我还会给更多哦！",
+            "¡Oink-oink...! ¡Os doy el bote de la tierra y aceite para tu compi! ¡Si estoy de buenas, daré más!"
+        } },
+        { "ブヒッ。Rustのために油をたっぷり。調子がいい日は、もっと山盛りにしてあげる！", new[] {
+            "ブヒッ。Rustのために油をたっぷり。調子がいい日は、もっと山盛りにしてあげる！",
+            "Oink. Plenty of oil for Rust. On lucky days, I'll shower you with heaps more!",
+            "呼噜。给Rust准备了充足的油。状态好的日子，还会给你们堆得更高哦！",
+            "Oink. Mucho aceite para Rust. ¡Los días buenos os daré una montaña aún mayor!"
+        } },
+
+        { "ピロッ……油もらったよ。あとで整備しよう", new[] {
+            "ピロッ……油もらったよ。あとで整備しよう",
+            "Beep... Got some oil. Let's do maintenance later.",
+            "滴答……收到油了呢。待会儿做个检修吧。",
+            "Bip... Ya tenemos aceite. Hagamos mantenimiento luego."
+        } },
+        { "カピタ機嫌がいいね。油、ありがたい", new[] {
+            "カピタ機嫌がいいね。油、ありがたい",
+            "Capyta seems joyful. Really appreciate the oil.",
+            "卡皮塔心情很好呢。真感谢这珍贵的油。",
+            "Capyta está contento. Qué bien nos viene el aceite."
+        } },
+        { "わぁ……油がたくさん。助かるよ、Float", new[] {
+            "わぁ……油がたくさん。助かるよ、Float",
+            "Whoa... so much oil! This helps so much, Float.",
+            "哇啊……好多润滑油。帮大忙了呢，Float。",
+            "¡Hala...! ¡Cuánto aceite! Nos ayuda muchísimo, Float."
+        } },
+        { "ピキーッ……山盛りだ。これでしばらく安心だね", new[] {
+            "ピキーッ……山盛りだ。これでしばらく安心だね",
+            "Beep-ding...! A whole mountain! We're all set for a good while.",
+            "哔咔……堆成小山啦。这下能安心好一阵子了呢。",
+            "¡Bip-bip...! ¡Una barbaridad! Con esto aguantamos tranquilos."
+        } },
+
+        { "わぁ…！カピタの祝福だ！スーパージャンプと油をもらったよ、Float！！", new[] {
+            "わぁ…！カピタの祝福だ！スーパージャンプと油をもらったよ、Float！！",
+            "Whoa...! Capyta's blessing! We got Super Jump and oil, Float!!",
+            "哇啊…！是卡皮塔的祝福！获得了超级跳跃和润滑油，Float！！",
+            "¡Uau...! ¡La bendición de Capyta! ¡Tenemos Super Salto y aceite, Float!"
+        } },
+        { "ピキーッ！カピタ優しい…！ジャンプも油も…Float、あとで撫でてね……？", new[] {
+            "ピキーッ！カピタ優しい…！ジャンプも油も…Float、あとで撫でてね……？",
+            "Beep-whee! Capyta is so sweet...! Jump and oil... Float, will you pet me later...?",
+            "哔咔！卡皮塔好温柔…！又是跳跃又是润滑油…Float，待会儿摸摸我好吗……？",
+            "¡Bip! ¡Capyta es tan cariñoso...! Salto y aceite... Float, ¿me acaricias luego...?"
+        } },
+
+        { "ブヒヒ！桜色のきれいなサクラガイ！大好物だよ！お礼に油を山盛りあげるね！", new[] {
+            "ブヒヒ！桜色のきれいなサクラガイ！大好物だよ！お礼に油を山盛りあげるね！",
+            "Oink-oink! A gorgeous pink blossom shell! My favorite! Here's a mountain of oil as a reward!",
+            "呼噜噜！粉樱般美丽的樱贝！是我的最爱！作为谢礼给你堆成山的油！",
+            "¡Oink-oink! ¡Una preciosa concha rosa cerezo! ¡Mi favorita! ¡Toma una montaña de aceite!"
+        } },
+        { "プヒッ！深緑のガラス玉！海が削ったエメラルドだね、頭のみかんも喜んでるよ！", new[] {
+            "プヒッ！深緑のガラス玉！海が削ったエメラルドだね、頭のみかんも喜んでるよ！",
+            "Snort! A deep green sea glass pebble! An emerald polished by the sea, my mandarin orange loves it!",
+            "呼哧！深绿色的海玻璃珠！是大海打磨的翡翠呢，连我头上的橘子都乐开花了！",
+            "¡Oink! ¡Un cristal marino verde esmeralda! Tallado por el mar, ¡hasta mi mandarina está contenta!"
+        } },
+        { "ブヒヒッ！吸い込まれそうな青いサファイアガラス…一番の宝物にするね！", new[] {
+            "ブヒヒッ！吸い込まれそうな青いサファイアガラス…一番の宝物にするね！",
+            "Oink-snort! Mesmerizing blue sapphire glass... I'll treasure it as my top jewel!",
+            "呼噜噜！深邃如海的蓝宝石玻璃……我要把它当成最棒的宝贝珍藏！",
+            "¡Oink! Cristal azul zafiro tan profundo... ¡Será mi mayor tesoro!"
+        } },
+        { "ブヒィィ！黄金色に透き通る太陽の琥珀！最高のお宝だ！！", new[] {
+            "ブヒィィ！黄金色に透き通る太陽の琥珀！最高のお宝だ！！",
+            "OINK!! Translucent golden sun amber! The greatest treasure ever!!",
+            "呼噜——！！晶莹澄澈的金色太阳琥珀！简直是无上的宝物！！",
+            "¡¡OINK!! ¡Ámbar solar dorado y translúcido! ¡¡Es el mejor tesoro de todos!!"
+        } },
+        { "プヒ〜…耳に当てると遠い海の波音がするよ。大切にするね！", new[] {
+            "プヒ〜…耳に当てると遠い海の波音がするよ。大切にするね！",
+            "Snort~... Listening closely, I hear waves of distant seas. I will cherish it!",
+            "呼哧~…贴近耳朵能听见远方潮汐的回音呢。我会好好珍惜的！",
+            "Oink~... Si escuchas con atención, suena el oleaje del mar lejano. ¡Lo cuidaré bien!"
+        } },
+
+        { "桜色のサクラガイ", new[] { "桜色のサクラガイ", "Pink Cherry Shell", "樱色樱贝", "Concha Rosa Cerezo" } },
+        { "エメラルド・シーグラス", new[] { "エメラルド・シーグラス", "Emerald Sea Glass", "翡翠海玻璃", "Cristal Marino Esmeralda" } },
+        { "サファイア・シーグラス", new[] { "サファイア・シーグラス", "Sapphire Sea Glass", "蓝宝石海玻璃", "Cristal Marino Zafiro" } },
+        { "太陽の小琥珀", new[] { "太陽の小琥珀", "Sun Amber Pebble", "太阳小琥珀", "Pequeño Ámbar Solar" } },
+        { "純白の小巻貝", new[] { "純白の小巻貝", "Pure White Conch", "纯白小卷贝", "Caracola Blanca Pura" } },
+        { "綺麗な貝殻", new[] { "綺麗な貝殻", "Beautiful Seashell", "美丽的贝壳", "Hermosa Concha" } },
+        { "ブヒヒ！きれいな貝殻、ありがとう！", new[] {
+            "ブヒヒ！きれいな貝殻、ありがとう！",
+            "Oink-oink! Thank you for the lovely shell!",
+            "呼噜噜！谢谢你送来这么好看的贝壳！",
+            "¡Oink-oink! ¡Gracias por la bonita concha!"
+        } },
+
+        { "カピタ「ブヒ…？ 砂浜に落ちてる綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ！」", new[] {
+            "カピタ「ブヒ…？ 砂浜に落ちてる綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ！」",
+            "Capyta: \"Oink...? Bring me pretty seashells and sea glass along the beach, and I'll trade treasures with you!\"",
+            "卡皮塔「呼噜…？要是把沙滩上漂亮的贝壳或海玻璃带给我，我可以用宝物跟你物物交换哦！」",
+            "Capyta: «¿Oink...? ¡Si me traes bonitas conchas y cristales marinos de la playa, los cambiaré por tesoros!»"
+        } },
+
+        { "prompt_capyta_trade", new[] {
+            "🐾 【E / クリック】ふれあう  |  🐚 【Q】貝殻を渡して物々交換（所持: {0}個）",
+            "🐾 [E / Click] Interact  |  🐚 [Q] Trade Seashell (Own: {0})",
+            "🐾 【E / 点击】互动  |  🐚 【Q】赠送贝壳交换宝物（持有: {0}个）",
+            "🐾 [E / Clic] Interactuar  |  🐚 [Q] Cambiar concha (Tienes: {0})"
+        } },
+        { "prompt_capyta_talk_skin", new[] {
+            "🐾 【E / クリック】カピタとふれあう（スキンシップ＆潤滑油）",
+            "🐾 [E / Click] Pet Capyta (Skinship & Lubricant)",
+            "🐾 【E / 点击】与卡皮塔互动（亲近触碰＆获取润滑油）",
+            "🐾 [E / Clic] Acariciar a Capyta (Cariño y lubricante)"
+        } },
+        { "prompt_capyta_talk_first", new[] {
+            "🐾 【E / クリック】カピタと話す（スーパージャンプ＆潤滑油）",
+            "🐾 [E / Click] Talk to Capyta (Super Jump & Lubricant)",
+            "🐾 【E / 点击】与卡皮塔交谈（获得超级跳跃＆润滑油）",
+            "🐾 [E / Clic] Hablar con Capyta (Super Salto y lubricante)"
+        } },
+
+        // ==========================================
+        // ワークショップUI＆アクセサリー（Craft Workshop & Cosmetics）
+        // ==========================================
+        { "workshop_title", new[] {
+            "✦ RUST CRAFT WORKSHOP ✦ 〜 相棒のドレスアップ工房 〜",
+            "✦ RUST CRAFT WORKSHOP ✦ — Companion Dress-Up Studio —",
+            "✦ RUST CRAFT WORKSHOP ✦ 〜 伙伴装扮工坊 〜",
+            "✦ TALLER DE ARTESANÍA DE RUST ✦ — Vestuario de tu compañero —"
+        } },
+        { "workshop_pouch_title", new[] { "✦ 素材ポーチ", "✦ Material Pouch", "✦ 素材锦囊", "✦ Bolsa de materiales" } },
+        { "workshop_pouch_sub", new[] { "浜辺の波打ち際で拾った宝物", "Treasures gathered along the waves", "在海滨浪花边拾得的宝物", "Tesoros recogidos en la orilla" } },
+        { "workshop_pouch_hint", new[] {
+            "\n【ヒント】\n砂浜のキラキラ光る場所へ行き、[Eキー] で拾えます。\n全24個の貝殻が波打ち際に漂着しています。",
+            "\n[Tip]\nHead to glittering spots on the beach and press [E] to collect.\n24 seashells in total are washed ashore along the beach.",
+            "\n【提示】\n前往沙滩上闪闪发光之处，按下【E键】即可拾取。\n共有24枚贝壳漂流搁浅在浪花边缘。",
+            "\n[Consejo]\nVe a las zonas brillantes de la playa y pulsa [E] para recogerlas.\nHay 24 conchas en total varadas a lo largo de la orilla."
+        } },
+        { "workshop_btn_hud", new[] { "👗 Rust工房 [B]", "👗 Rust Workshop [B]", "👗 Rust工坊 [B]", "👗 Taller de Rust [B]" } },
+        { "workshop_status_equipped", new[] { "<color=#66FFAA><b>✦ そうび中</b></color>", "<color=#66FFAA><b>✦ Equipped</b></color>", "<color=#66FFAA><b>✦ 穿戴中</b></color>", "<color=#66FFAA><b>✦ Equipado</b></color>" } },
+        { "workshop_status_owned", new[] { "<color=#BBBBCC>所持中</color>", "<color=#BBBBCC>In Bag</color>", "<color=#BBBBCC>已拥有</color>", "<color=#BBBBCC>En inventario</color>" } },
+        { "workshop_status_crafted", new[] { "<color=#AAAAAA>作成済み</color>", "<color=#AAAAAA>Crafted</color>", "<color=#AAAAAA>已制作</color>", "<color=#AAAAAA>Fabricado</color>" } },
+        { "workshop_status_craftable", new[] { "<color=#FFAA33><b>✦ 作成可能！</b></color>", "<color=#FFAA33><b>✦ Ready to Craft!</b></color>", "<color=#FFAA33><b>✦ 可制作！</b></color>", "<color=#FFAA33><b>✦ ¡Listo para fabricar!</b></color>" } },
+        { "workshop_status_need_mat", new[] { "<color=#AA9988>素材を集めて作成</color>", "<color=#AA9988>Gather Materials</color>", "<color=#AA9988>收集素材以制作</color>", "<color=#AA9988>Reúne materiales</color>" } },
+        { "workshop_btn_unequip", new[] { "[{0}] はずす", "[{0}] Unequip", "[{0}] 卸下", "[{0}] Quitar" } },
+        { "workshop_btn_equip", new[] { "[{0}] そうび", "[{0}] Equip", "[{0}] 穿戴", "[{0}] Equipar" } },
+        { "workshop_btn_craft", new[] { "[{0}] ✦ 作成する", "[{0}] ✦ Craft", "[{0}] ✦ 制作", "[{0}] ✦ Fabricar" } },
+        { "workshop_cost_format", new[] { "必要: <color=#{0}>{1}</color> <color={2}>{3}/{4}</color>", "Cost: <color=#{0}>{1}</color> <color={2}>{3}/{4}</color>", "需求: <color=#{0}>{1}</color> <color={2}>{3}/{4}</color>", "Coste: <color=#{0}>{1}</color> <color={2}>{3}/{4}</color>" } },
+
+        // コスメティクス5種
+        { "cosmetic_sakuragai_name", new[] { "サクラガイの花冠", "Blossom Crown", "樱贝花冠", "Corona de Flor de Concha" } },
+        { "cosmetic_sakuragai_desc", new[] {
+            "薄紅色の貝殻を優美に編み込んだティアラ。桜色の優しい光の粉がふわふわと舞う。",
+            "A tiara woven gracefully from delicate pink shells. Gentle blossom petals float around softly.",
+            "以淡粉樱贝优雅编织而成的花冠王冠。柔和的粉白光尘在周围悠扬飞舞。",
+            "Una tiara tejida delicadamente con conchas rosas. Partículas suaves flotan a su alrededor."
+        } },
+        { "cosmetic_sakuragai_reaction", new[] {
+            "わぁ…！花冠、すっごく可愛い！お花の妖精さんみたい？",
+            "Whoa...! The crown is so adorable! Do I look like a flower fairy?",
+            "哇啊…！花冠好可爱呀！我是不是像花间的小妖精？",
+            "¡Hala...! ¡La corona es monísima! ¿Parezco un hada de las flores?"
+        } },
+
+        { "cosmetic_emerald_name", new[] { "エメラルド・アンテナランプ", "Emerald Beacon", "翡翠天线灯", "Faro Esmeralda" } },
+        { "cosmetic_emerald_desc", new[] {
+            "アンテナ先端に装着する深緑のクリスタル。暗がりで神秘的な光を灯し、周囲を照らす。",
+            "A deep-green crystal mounted on the antenna tip. Casts a mystical glow that illuminates the dark.",
+            "装备于天线顶端的深绿水晶。在幽暗中泛起神秘幽光，照亮身旁四方。",
+            "Un cristal verde intenso en la punta de la antena. Arroja una luz mística que ilumina la oscuridad."
+        } },
+        { "cosmetic_emerald_reaction", new[] {
+            "ピキッ！頭がピカピカ光ってる！これなら暗い森も怖くないよ！",
+            "Beep-ding! My head is glowing bright! Now dark woods won't be scary at all!",
+            "哔咔！脑袋变得亮闪闪的！这样一来黑暗的森林也完全不害怕了！",
+            "¡Bip-tink! ¡Mi cabeza brilla mucho! ¡Ya no le tendré miedo a los bosques oscuros!"
+        } },
+
+        { "cosmetic_sapphire_name", new[] { "サファイアの翼チャーム", "Sapphire Wings", "蓝宝石之翼吊饰", "Alas de Zafiro" } },
+        { "cosmetic_sapphire_desc", new[] {
+            "波に磨かれた蒼いガラスの小翼。空を飛ぶたびに流麗なサファイアの光跡（Trail）を残す。",
+            "Blue glass winglets polished by the waves. Leaves a graceful sapphire light trail wherever you fly.",
+            "经浪涛打磨的蔚蓝玻璃双翼。飞翔时会在空中留下优雅流动的蓝宝石光轨。",
+            "Alitas de cristal azul pulidas por el oleaje. Deja una elegante estela de zafiro al volar."
+        } },
+        { "cosmetic_sapphire_reaction", new[] {
+            "見て見てFloat！飛ぶたびに青い光がキラキラついてくるよ！",
+            "Look, look, Float! A trail of sparkling blue follows me everywhere I fly!",
+            "快看快看Float！每次飞翔身后都跟着一串闪闪发光的蓝光呢！",
+            "¡Mira, mira, Float! ¡Me sigue una estela azul brillante cada vez que vuelo!"
+        } },
+
+        { "cosmetic_amber_name", new[] { "太陽の琥珀コア", "Amber Sun Core", "太阳琥珀核心", "Núcleo de Ámbar Solar" } },
+        { "cosmetic_amber_desc", new[] {
+            "胴体中央のランプが温かい黄金琥珀色に輝き、ホバリング推進炎がゴールドスパークに変化する。",
+            "The center lamp shines with warm golden amber, turning hovering thruster flames into golden sparks.",
+            "机体中央的灯光泛起温暖金珀光辉，悬浮喷射的推进尾焰变为耀眼的金色星火。",
+            "La luz central brilla con un cálido ámbar dorado y las llamas propulsoras se vuelven chispas de oro."
+        } },
+        { "cosmetic_amber_reaction", new[] {
+            "あったかい…！太陽の力が湧いてくるみたい！",
+            "So warm...! Feels like the sun's vibrant power is surging inside!",
+            "好温暖……！仿佛太阳的力量源源不断涌上来了！",
+            "¡Qué calorcito...! ¡Siento surgir la fuerza del sol en mi interior!"
+        } },
+
+        { "cosmetic_conch_name", new[] { "純白巻貝のホイッスル", "Seashell Whistle", "纯白卷贝哨音", "Silbato de Caracola" } },
+        { "cosmetic_conch_desc", new[] {
+            "側面に寄り添う小さな純白巻貝。Rustが嬉しそうに鳴くときに澄んだ潮騒のチャイムが重なる。",
+            "A tiny white spiral shell nestled on his side. Harmonizes with a crystal tide chime when Rust chirps happily.",
+            "依偎在侧面的纯白小卷贝。当Rust开心地鸣叫时，会叠加上清澈宛转的海潮风铃乐声。",
+            "Una pequeña caracola blanca a su costado. Suena con un limpio murmullo de olas cuando Rust pita contento."
+        } },
+        { "cosmetic_conch_reaction", new[] {
+            "ポォーッ♪ 耳をすますと、波の音が聴こえるよ！",
+            "Toot-toot♪ If you listen close, you can hear the ocean waves!",
+            "嘟——♪ 侧耳倾听，能听见海潮的涛声呢！",
+            "¡Tururú♪ Si aguzas el oído, ¡puedes escuchar las olas del mar!"
+        } },
+
+        // ==========================================
+        // タイムアタック＆スカイダイブ（Gliding Time Attack）
+        // ==========================================
+        { "ta_btn_warp", new[] { "🪂 [R] スカイダイブ台", "🪂 [R] Skydive Platform", "🪂 [R] 高空跳伞台", "🪂 [R] Plataforma de salto" } },
+        { "ta_hud_rings", new[] { "リング: {0}/{1}  {2}", "Rings: {0}/{1}  {2}", "风环: {0}/{1}  {2}", "Aros: {0}/{1}  {2}" } },
+        { "ta_hud_retry", new[] { "🔄 [R]キーでいつでもスタート台へ即時リトライ", "🔄 Press [R] anytime to retry from start", "🔄 按 [R] 键可随时重新返回起点", "🔄 Pulsa [R] en cualquier momento para reiniciar" } },
+        { "ta_result_new_record", new[] { "🏆 NEW RECORD! 達成！", "🏆 NEW RECORD ACHIEVED!", "🏆 新纪录达成！", "🏆 ¡NUEVO RÉCORD CONSEGUIDO!" } },
+        { "ta_result_finish", new[] { "🏁 FLIGHT FINISHED!", "🏁 FLIGHT FINISHED!", "🏁 飞行结束！", "🏁 ¡VUELO FINALIZADO!" } },
+        { "ta_result_details", new[] {
+            "タイム: {0:F2} 秒\n通過リング: {1} / {2}\n評価ランク: {3}\nベストタイム: {4:F2} 秒 ({5})",
+            "Time: {0:F2} s\nRings Passed: {1} / {2}\nRank: {3}\nBest Time: {4:F2} s ({5})",
+            "用时: {0:F2} 秒\n通过风环: {1} / {2}\n评价等级: {3}\n最佳纪录: {4:F2} 秒 ({5})",
+            "Tiempo: {0:F2} s\nAros cruzados: {1} / {2}\nCalificación: {3}\nMejor tiempo: {4:F2} s ({5})"
+        } },
+        { "ta_btn_fly_again", new[] { "🪂 もう一度飛ぶ！ [R]キー", "🪂 Fly Again! [R] Key", "🪂 再飞一次！ [R] 键", "🪂 ¡Volar otra vez! Tecla [R]" } },
+        { "ta_clear_s", new[] {
+            "信じられないスピードだ、Float！Sランク達成！！お前、翼が生えてるんじゃないか！？（タイム: {0:F2}秒）",
+            "Incredible speed, Float! S-Rank achieved!! Do you secretly have wings?! (Time: {0:F2}s)",
+            "不可思议的速度，Float！达成S级评分！！你背后是不是悄悄长翅膀了！？（用时: {0:F2}秒）",
+            "¡Velocidad increíble, Float! ¡¡Rango S conseguido!! ¿No te habrán salido alas a ti también? (Tiempo: {0:F2}s)"
+        } },
+        { "ta_clear_a", new[] {
+            "ナイスゴール！Aランクだ！風に乗る感覚、最高だったろ！？（タイム: {0:F2}秒）",
+            "Nice landing! A-Rank! Riding the winds felt amazing, didn't it?! (Time: {0:F2}s)",
+            "顺利抵达终点！是A级评分哦！乘风飞翔的感觉很棒吧！？（用时: {0:F2}秒）",
+            "¡Buena llegada! ¡Rango A! Sentir el viento bajo las alas es lo mejor, ¿a que sí? (Tiempo: {0:F2}s)"
+        } },
+        { "ta_clear_generic", new[] {
+            "無事着地！気持ちいい滑空だったね！[R]キーでスタートに戻って、次はもっと上を狙おう！（タイム: {_resultTimer:F2}秒）",
+            "Safe landing! That was such a refreshing glide! Press [R] to retry and aim higher! (Time: {0:F2}s)",
+            "平安着陆！真是让人心旷神怡的滑翔呢！按 [R] 键返回起点，下次冲刺更高纪录吧！（用时: {0:F2}秒）",
+            "¡Aterrizaje perfecto! ¡Qué planeo tan refrescante! ¡Pulsa [R] para volver al inicio y superarte! (Tiempo: {0:F2}s)"
+        } },
+
+        // ==========================================
+        // 砂浜ナラティブ（漂着艇・キャンプ・メモリチップ・漂着ボトル）
+        // ==========================================
+        { "narrative_prompt_memory", new[] { "【Eキー】記憶チップを再生", "[E] Play Memory Chip", "【E键】回放记忆芯片", "[E] Reproducir chip de memoria" } },
+        { "narrative_prompt_bottle", new[] { "【Eキー】手紙を読む", "[E] Read Letter", "【E键】阅读信笺", "[E] Leer carta" } },
+        { "narrative_prompt_inspect", new[] { "【Eキー】調べる", "[E] Inspect", "【E键】调查", "[E] Examinar" } },
+
+        // 漂着艇
+        { "narrative_boat_title", new[] { "✦ 二人の漂着艇（木造手漕ぎボート） ✦", "✦ Our Escape Rowboat ✦", "✦ 二人的漂流木舟 ✦", "✦ Nuestra barca de remos varada ✦" } },
+        { "narrative_boat_sub", new[] { "外の管理都市コード704から海を渡ってきた小さな木の小舟", "A tiny wooden boat that crossed the seas from exterior City Code 704", "从外界管制都市代号704漂洋过海而来的小小木船", "Un bote de madera que cruzó el mar desde la Ciudad Código 704" } },
+        { "narrative_boat_body", new[] {
+            "潮風と荒波に耐え抜いた、小さな木造の手漕ぎボート。\n\n【Floatの航海日誌】\n「2050年7月14日 深夜。\n『効率性欠如』としてスクラップ処分が決まったRustを整備ドックから連れ出し、夜の海へ漕ぎ出した。\n小さな木造ボートで真っ暗な外洋に出たときは、冷たい荒波が打ち寄せて死ぬほど怖かった。\nでも、暗闇の中でRustが小さな体で船首に座って、ランタンの灯りで前を照らし続けてくれたから、迷わずに漕ぎ続けられた。\n\nオールを握る手の豆がつぶれ、波に揺られてどれくらい経っただろう。\n気がつくとこの波の静かな美しい白砂ビーチに打ち上げられていた。\n見上げた空は眩しいほど青く、風に乗って蝉の声が聞こえて……\n二人で抱き合って、声を出して泣いた」",
+            "A small wooden rowboat that weathered fierce tides and salt winds.\n\n[Float's Log]\n\"Late night, July 14, 2050.\nAfter Rust was marked for scrap due to 'efficiency deficits', I smuggled him out from the maintenance dock and rowed into the dark open sea.\nVenturing into the pitch-black exterior ocean in a wooden skiff was terrifying as freezing crests slammed against us.\nYet through the void, Rust sat curled on the bow, keeping his little lantern burning to light our way forward, guiding every stroke.\n\nBlisters tore across my palms, rocking endlessly on the swell.\nBefore I knew it, we washed ashore onto this serene white-sand beach.\nThe sky above was blindingly blue, sea breezes carried the chorus of cicadas...\nWe held each other tight, weeping aloud in relief.\"",
+            "经受住了咸湿海风与滔天巨浪的细小木制手划船。\n\n【Float的航海日志】\n「2050年7月14日 深夜。\nRust因『缺乏效率』被判定为废弃拆解，我将它从检修船坞偷偷带出，划向了茫茫夜海。\n乘坐细小木船驶入漆黑的外洋时，冰冷刺骨的狂浪扑面而来，吓得我浑身发抖。\n但在无边黑暗中，Rust用那娇小的身躯坐在船首，高举灯火不停照亮前路，让我坚定了不断划桨的决心。\n\n手掌上握桨磨出的水泡早已破裂，在浪涛摇曳中不知漂流了多久。\n回过神来时，已经搁浅在这片波浪恬静的美丽白沙滩上。\n仰望的天空蔚蓝耀眼，微风中传来了蝉鸣的旋律……\n我们紧紧相拥在一起，放声痛哭。」",
+            "Una pequeña barca de remos de madera que sobrevivió a duras olas y salitre.\n\n[Diario de Float]\n«Medianoche del 14 de julio de 2050.\nCuando Rust fue sentenciado al desguace por 'falta de eficiencia', lo saqué en secreto del taller y remé hacia el mar oscuro.\nSalir a mar abierto en una barca de madera fue aterrador mientras las olas heladas nos golpeaban.\nPero en la oscuridad, Rust se sentó en la proa, alumbrando sin parar con su linterna para guiar cada remada.\n\nSe me reventaron las ampollas de las manos de tanto remar mecido por las olas.\nAl despertar, habíamos varado en esta hermosa playa de arena blanca y aguas tranquilas.\nEl cielo era deslumbrantemente azul, la brisa traía el canto de las cigarras...\nNos abrazamos con fuerza y lloramos juntos.»"
+        } },
+        { "narrative_boat_rust", new[] {
+            "「あの航海、怖かったね Float……でも、Floatが一生懸命オールを漕いで僕を守ってくれたから、僕の回路はショートしなかったんだよ」",
+            "\"That voyage was terrifying, Float... But because you rowed with all your might to protect me, my circuits stayed safe and sound.\"",
+            "「那场航行真的好可怕呀，Float……但是，正因为Float拼命划桨保护了我，我的回路才没有烧坏短路呢。」",
+            "«Aquel viaje dio mucho miedo, Float... Pero como remaste con todas tus fuerzas para protegerme, mis circuitos no sufrieron nada.»"
+        } },
+
+        // ビーチキャンプ跡
+        { "narrative_camp_title", new[] { "✦ 漂着初日のビーチキャンプ（追憶の焚き火） ✦", "✦ First Night Beach Camp (Campfire of Memories) ✦", "✦ 漂流首日的海滩营地（追忆的篝火） ✦", "✦ Campamento de la primera noche (Hoguera de recuerdos) ✦" } },
+        { "narrative_camp_sub", new[] { "二人が初めて火を囲んで眠った場所", "Where we first gathered around the fire to rest", "二人首次围坐在火堆旁安眠之所", "Donde descansamos por primera vez junto al fuego" } },
+        { "narrative_camp_body", new[] {
+            "流木と石で組まれた小さな焚き火跡。\n\n島に漂着した初日の夜、服を乾かし、震える肩を寄せ合って火を灯した。\n外の都市では見ることのできなかった無数の星と、静かな波の音。\n「僕たち、本当に逃げてこられたんだね」\n二つの影が、火の粉と一緒に夜空へ揺れていた。",
+            "A modest firepit circled by driftwood and stones.\n\nOn our first night after washing ashore, we dried our soaking clothes and huddled shivering beside the fire.\nCountless stars unseen beneath city domes, accompanied by gentle whisper of waves.\n\"We really made it out, didn't we?\"\nTwo silhouettes swayed softly into the night sky alongside glowing embers.",
+            "用浮木与顽石围筑而成的小小营火痕迹。\n\n漂流到岛上的首夜，我们烘干湿透的衣裳，依偎着颤抖的双肩点燃了微火。\n那是外界都市中从未得见的繁星银河，以及轻柔恬静的潮浪之声。\n「我们，真的顺利逃出来了呢」\n两道交叠的身影，伴随着飞扬的火星在夜幕下轻轻摇曳。",
+            "Un pequeño hogar circular de piedras y madera flotante.\n\nLa primera noche tras llegar a la isla, secamos la ropa y nos acurrucamos temblorosos al calor del fuego.\nUn sinfín de estrellas jamás vistas en las ciudades cúpula, acompañadas del suave susurro de las olas.\n«De verdad lo hemos conseguido, ¿verdad?»\nDos siluetas mecidas suavemente en la noche junto a las ascuas doradas."
+        } },
+        { "narrative_camp_rust", new[] {
+            "「あの日、ここで食べた保存食、半分こしたね。少し砂の味がしたけど、今まで食べたどのオイルよりも温かかったよ」",
+            "\"That day, we split our ration bars right here. It tasted a bit like sand, but it felt warmer than any oil I'd ever tasted.\"",
+            "「那天，我们在这里把仅剩的口粮对半分着吃了呢。虽然带了点沙子的味道，却比我以往尝过的任何机油都要温热。」",
+            "«Aquel día compartimos aquí nuestras raciones a medias. Sabía un poco a arena, pero me calentó más que ningún aceite que haya probado jamás.»"
+        } },
+
+        // 焚き火プロンプト＆チル呟き
+        { "campfire_standup", new[] { "【 W / A / S / D 】または【 Space 】立ち上がる", "[W / A / S / D] or [Space] Stand Up", "【 W / A / S / D 】或【 空格 】站起身", "[W / A / S / D] o [Espacio] Levantarse" } },
+        { "campfire_light", new[] { "🔥 【E / クリック】焚き火に火を点ける", "🔥 [E / Click] Light Campfire", "🔥 【E / 点击】点燃篝火", "🔥 [E / Clic] Encender la hoguera" } },
+        { "campfire_need_points", new[] {
+            "🔥 砂浜の焚き火（探索 10pt で点火可能 / 現在: {0}/{1} pt）",
+            "🔥 Beach Campfire (Requires 10 Explored pts / Current: {0}/{1} pt)",
+            "🔥 沙滩营火（探索度达 10pt 即可点燃 / 当前: {0}/{1} pt）",
+            "🔥 Hoguera de la playa (Requiere 10 pts de exploración / Actual: {0}/{1} pt)"
+        } },
+        { "campfire_sit", new[] { "🪵 【E / クリック】丸太に腰掛ける（海と炎を眺める）", "🪵 [E / Click] Sit on Log (Gaze at fire & waves)", "🪵 【E / 点击】在圆木上小坐（眺望海浪与营火）", "🪵 [E / Clic] Sentarse en el tronco (Mirar el mar y el fuego)" } },
+        { "campfire_stand_rust", new[] { "よいしょ！さぁ、冒険を続けよう！", "Heigh-ho! Alright, onward with our adventure!", "嘿咻！走吧，继续我们的冒险！", "¡Arriba! ¡Vamos a continuar la aventura!" } },
+
+        { "……あったかいね、Float。", new[] {
+            "……あったかいね、Float。",
+            "...So warm, Float.",
+            "……好温暖呀，Float。",
+            "...Qué calorcito, Float."
+        } },
+        { "パチパチって、なんだか落ち着く音だね……", new[] {
+            "パチパチって、なんだか落ち着く音だね……",
+            "The crackling wood is such a soothing sound...",
+            "柴火噼啪作响的声音，听着让人心底好平静……",
+            "El chisporroteo de la leña es tan relajante..."
+        } },
+        { "波の音がきれいに聴こえるよ……", new[] {
+            "波の音がきれいに聴こえるよ……",
+            "The waves sound so clear and serene...",
+            "潮水的声音听起来好清澈空灵呀……",
+            "El sonido de las olas se escucha tan claro..."
+        } },
+        { "ずっとこうして、海を眺めていたいな……", new[] {
+            "ずっとこうして、海を眺めていたいな……",
+            "I could stay like this, watching the ocean forever...",
+            "真想就这样，一直一直眺望着大海呢……",
+            "Me quedaría así, mirando el mar para siempre..."
+        } },
+        { "ふぅ……少し休んでいこう……", new[] {
+            "ふぅ……少し休んでいこう……",
+            "Whew... let's take a peaceful breather...",
+            "呼……稍微在这里休憩一会儿吧……",
+            "Uf... descansemos un ratito..."
+        } },
+        { "Floatと一緒にいると、心があったかくなるよ。", new[] {
+            "Floatと一緒にいると、心があったかくなるよ。",
+            "Whenever I'm with you, Float, my core feels warm inside.",
+            "和Float在一起的时候，整个核心都变得暖洋洋的。",
+            "Estar contigo, Float, me llena el núcleo de calor."
+        } },
+
+        // 貝殻プロンプト
+        { "prompt_shell_pickup", new[] { "【E】{0}を拾う", "[E] Pick up {0}", "【E】拾取 {0}", "[E] Recoger {0}" } },
+        { "prompt_flotsam_inspect", new[] { "【E】調べる", "[E] Inspect", "【E】调查", "[E] Examinar" } },
+
+        // 貝殻拾得トースト＆セリフ
+        { "わぁ、花びらみたいな貝殻だね！", new[] {
+            "わぁ、花びらみたいな貝殻だね！",
+            "Whoa, it looks just like a cherry petal!",
+            "哇啊，像花瓣一样娇艳的贝壳呢！",
+            "¡Uau, parece el pétalo de una flor!"
+        } },
+        { "波に磨かれて角がすべすべだ！宝石みたい…！", new[] {
+            "波に磨かれて角がすべすべだ！宝石みたい…！",
+            "Polished so smooth by waves! Like a genuine gem...!",
+            "被海浪打磨得圆润光滑！简直像宝石一样…！",
+            "¡El mar ha pulido sus bordes hasta dejarlos suaves! ¡Parece una gema...!"
+        } },
+        { "深海みたいな綺麗な青色！空に透かすとキラキラするよ！", new[] {
+            "深海みたいな綺麗な青色！空に透かすとキラキラするよ！",
+            "Such a deep ocean blue! Shines brilliantly against the sky!",
+            "深邃如浩瀚汪洋般的纯净蔚蓝！迎着阳光看晶莹剔透呢！",
+            "¡Un azul tan bonito como el mar profundo! ¡Brilla a contraluz contra el cielo!"
+        } },
+        { "黄金色に光ってる…！昔の太陽の光を閉じ込めたみたい！", new[] {
+            "黄金色に光ってる…！昔の太陽の光を閉じ込めたみたい！",
+            "Gleaming in gold...! Like ancient sunlight trapped inside!",
+            "散发着金色的光晕…！仿佛把远古的暖阳封存在了里面！",
+            "¡Brilla en color dorado...! ¡Como si guardara la luz del sol antiguo!"
+        } },
+        { "耳を当ててみて、Float！遠くの波の音が聞こえるよ！", new[] {
+            "耳を当ててみて、Float！遠くの波の音が聞こえるよ！",
+            "Hold it to your ear, Float! You can hear distant tides singing!",
+            "快贴到耳边听听看，Float！能听见远方潮水的回音呢！",
+            "¡Póntela en la oreja, Float! ¡Se oye el murmullo de las olas lejanas!"
+        } },
+
+        // 貝殻トースト
+        { "shell_toast_picked", new[] {
+            "<color=#{0}><b>✦ {1}</b></color> <color=#FFFFFF>を拾った</color>  <size=13><color=#FFE066>(所持: {2}個)</color></size>",
+            "<color=#{0}><b>✦ {1}</b></color> <color=#FFFFFF>collected</color>  <size=13><color=#FFE066>(Own: {2})</color></size>",
+            "<color=#{0}><b>✦ 拾获 {1}</b></color>  <size=13><color=#FFE066>(持有: {2}个)</color></size>",
+            "<color=#{0}><b>✦ {1}</b></color> <color=#FFFFFF>recogido</color>  <size=13><color=#FFE066>(Tienes: {2})</color></size>"
+        } },
+        { "shell_toast_craftable", new[] {
+            "<color=#{0}><b>✦ {1}</b></color> <color=#FFFFFF>を拾った！</color> <size=13><color=#66FFAA>({2}個)</color></size>\n<size=14><color=#FFE066>✨「{3}」が作れるよ！【Bキー】で工房を開こう！</color></size>",
+            "<color=#{0}><b>✦ {1}</b></color> <color=#FFFFFF>collected!</color> <size=13><color=#66FFAA>({2})</color></size>\n<size=14><color=#FFE066>✨ \"{3}\" is ready to craft! Press [B] to open workshop!</color></size>",
+            "<color=#{0}><b>✦ 拾获 {1}！</b></color> <size=13><color=#66FFAA>({2}个)</color></size>\n<size=14><color=#FFE066>✨ 可制作「{3}」啦！按【B键】打开工房吧！</color></size>",
+            "<color=#{0}><b>✦ ¡{1}</b></color> <color=#FFFFFF>recogido!</color> <size=13><color=#66FFAA>({2})</color></size>\n<size=14><color=#FFE066>✨ ¡Puedes fabricar «{3}»! ¡Pulsa [B] para abrir el taller!</color></size>"
+        } },
+        { "shell_craft_ready_speech", new[] {
+            "ピピピッ！「{0}」の素材が揃ったよ！\n【Bキー】で工房を開いて作ってみよう！",
+            "Beep-beep! Materials for \"{0}\" are ready!\nPress [B] to open workshop and craft it!",
+            "哔哔哔！制作「{0}」的素材已经集齐啦！\n按【B键】打开工坊来制作看看吧！",
+            "¡Bip-bip! ¡Tenemos los materiales para «{0}»!\n¡Pulsa [B] para abrir el taller y fabricarlo!"
+        } },
+        { "shell_picked_generic_speech", new[] {
+            "ピピッ！綺麗な「{0}」だね！",
+            "Beep! Such a lovely \"{0}\"!",
+            "哔哔！好漂亮的「{0}」呀！",
+            "¡Bip! ¡Qué bonito es este «{0}»!"
+        } },
+        { "shell_not_enough_speech", new[] {
+            "ピピッ！「{0}」を作るには「{1}」があと{2}個必要だよ！砂浜の波打ち際を探してみよう！",
+            "Beep! To craft \"{0}\", we still need {2} more \"{1}\"! Let's search the beach shores!",
+            "哔哔！想要制作「{0}」，还需要{2}个「{1}」呢！我们再去沙滩边缘找找看吧！",
+            "¡Bip! Para fabricar «{0}», ¡aún necesitamos {2} más de «{1}»! ¡Busquemos en la orilla!"
+        } },
+
+        // 共通話者タグ
+        { "✦ 相棒 Rust", new[] { "✦ 相棒 Rust", "✦ Companion Rust", "✦ 伙伴 Rust", "✦ Compañero Rust" } },
+        { "✦ Float", new[] { "✦ Float", "✦ Float", "✦ Float", "✦ Float" } }
     };
 }

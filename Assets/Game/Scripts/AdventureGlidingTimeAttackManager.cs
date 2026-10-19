@@ -315,15 +315,15 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         {
             if (_currentResultRank.StartsWith("S"))
             {
-                drone.SetSpeech($"信じられないスピードだ、Float！Sランク達成！！お前、翼が生えてるんじゃないか！？（タイム: {_resultTimer:F2}秒）", 5.5f);
+                drone.SetSpeech(AdventureLocalizationManager.GetFormat("ta_clear_s", _resultTimer), 5.5f);
             }
             else if (_currentResultRank.StartsWith("A"))
             {
-                drone.SetSpeech($"ナイスゴール！Aランクだ！風に乗る感覚、最高だったろ！？（タイム: {_resultTimer:F2}秒）", 5.0f);
+                drone.SetSpeech(AdventureLocalizationManager.GetFormat("ta_clear_a", _resultTimer), 5.0f);
             }
             else
             {
-                drone.SetSpeech($"無事着地！気持ちいい滑空だったね！[R]キーでスタートに戻って、次はもっと上を狙おう！（タイム: {_resultTimer:F2}秒）", 5.0f);
+                drone.SetSpeech(AdventureLocalizationManager.GetFormat("ta_clear_generic", _resultTimer), 5.0f);
             }
         }
     }
@@ -334,11 +334,11 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
 
         // 画面右上にいつでも即座にスタート台へ行けるボタン（クリックまたは [R] / [T] キー対応）
         float sW = Screen.width;
-        float bW = 175f;
+        float bW = 190f;
         float bH = 36f;
         Rect warpBtn = new Rect(sW - bW - 18f, 55f, bW, bH);
         GUI.color = new Color(0.12f, 0.45f, 0.85f, 0.85f);
-        if (GUI.Button(warpBtn, "🪂 [R] スカイダイブ台"))
+        if (GUI.Button(warpBtn, AdventureLocalizationManager.Get("ta_btn_warp")))
         {
             RetryAtStart();
         }
@@ -349,7 +349,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         {
             // 上部中央タイマー
             float screenW = Screen.width;
-            float panelW = 340f;
+            float panelW = 360f;
             float panelH = 75f;
             Rect panelRect = new Rect((screenW - panelW) * 0.5f, 15f, panelW, panelH);
 
@@ -376,10 +376,12 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
                 }
                 _cachedRingDots = sb.ToString();
             }
-            GUI.Label(new Rect(panelRect.x, panelRect.y + 40, panelW, 26), $"リング: {ringsPassedCount}/{total}  {_cachedRingDots}", _ringStyle);
+            string ringText = AdventureLocalizationManager.GetFormat("ta_hud_rings", ringsPassedCount, total, _cachedRingDots);
+            GUI.Label(new Rect(panelRect.x, panelRect.y + 40, panelW, 26), ringText, _ringStyle);
 
             // リトライ案内
-            GUI.Label(new Rect(panelRect.x, panelRect.y + panelH + 5, panelW, 22), "🔄 [R]キーでいつでもスタート台へ即時リトライ", _retryStyle);
+            string retryText = AdventureLocalizationManager.Get("ta_hud_retry");
+            GUI.Label(new Rect(panelRect.x, panelRect.y + panelH + 5, panelW, 22), retryText, _retryStyle);
         }
 
         // リザルト画面
@@ -387,8 +389,8 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         {
             float screenW = Screen.width;
             float screenH = Screen.height;
-            float resW = 460f;
-            float resH = 260f;
+            float resW = 480f;
+            float resH = 270f;
             Rect resRect = new Rect((screenW - resW) * 0.5f, (screenH - resH) * 0.4f, resW, resH);
 
             GUI.color = new Color(0.02f, 0.06f, 0.14f, 0.94f);
@@ -401,27 +403,60 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
             GUI.DrawTexture(new Rect(resRect.x, resRect.y + resH - 4, resW, 4), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            string title = _isNewRecord ? "🏆 NEW RECORD! 達成！" : "🏁 FLIGHT FINISHED!";
+            string title = _isNewRecord
+                ? AdventureLocalizationManager.Get("ta_result_new_record")
+                : AdventureLocalizationManager.Get("ta_result_finish");
             GUI.Label(new Rect(resRect.x, resRect.y + 14, resW, 36), title, _resultTitleStyle);
 
             int total = courseRings.Count > 0 ? courseRings.Count : 10;
-            string details = $"タイム: {_resultTimer:F2} 秒\n" +
-                             $"通過リング: {ringsPassedCount} / {total}\n" +
-                             $"評価ランク: {_currentResultRank}\n" +
-                             $"ベストタイム: {bestTime:F2} 秒 ({bestRank})";
+            string details = AdventureLocalizationManager.GetFormat("ta_result_details", _resultTimer, ringsPassedCount, total, _currentResultRank, bestTime, bestRank);
 
-            GUI.Label(new Rect(resRect.x + 30, resRect.y + 60, resW - 60, 130), details, _resultBodyStyle);
+            GUI.Label(new Rect(resRect.x + 30, resRect.y + 60, resW - 60, 140), details, _resultBodyStyle);
 
             // リトライボタン
-            if (GUI.Button(new Rect(resRect.x + 80, resRect.y + 200, resW - 160, 42), "🪂 もう一度飛ぶ！ [R]キー"))
+            string flyAgain = AdventureLocalizationManager.Get("ta_btn_fly_again");
+            if (GUI.Button(new Rect(resRect.x + 80, resRect.y + 210, resW - 160, 42), flyAgain))
             {
                 RetryAtStart();
             }
         }
     }
 
+    static Font _cachedTaFont;
+    static Font ResolveTaFont()
+    {
+        if (_cachedTaFont != null) return _cachedTaFont;
+        string[] fonts = {
+            "PingFang SC",
+            "Hiragino Sans GB",
+            "Heiti SC",
+            "Hiragino Sans",
+            "Hiragino Kaku Gothic ProN",
+            "Microsoft YaHei",
+            "Arial Unicode MS",
+            "YuGothic",
+            "Apple SD Gothic Neo",
+            "Arial"
+        };
+        try
+        {
+            _cachedTaFont = Font.CreateDynamicFontFromOSFont(fonts, 20);
+            if (_cachedTaFont != null) return _cachedTaFont;
+        }
+        catch { }
+        foreach (var name in fonts)
+        {
+            var f = Font.CreateDynamicFontFromOSFont(name, 20);
+            if (f != null) { _cachedTaFont = f; return f; }
+        }
+        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+               ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+    }
+
     void EnsureStyles()
     {
+        Font sharedFont = ResolveTaFont();
+
         if (_panelBg == null)
         {
             _panelBg = new Texture2D(1, 1);
@@ -432,6 +467,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         if (_timeStyle == null)
         {
             _timeStyle = new GUIStyle();
+            _timeStyle.font = sharedFont;
             _timeStyle.fontSize = 24;
             _timeStyle.fontStyle = FontStyle.Bold;
             _timeStyle.alignment = TextAnchor.MiddleCenter;
@@ -441,6 +477,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         if (_ringStyle == null)
         {
             _ringStyle = new GUIStyle();
+            _ringStyle.font = sharedFont;
             _ringStyle.fontSize = 15;
             _ringStyle.alignment = TextAnchor.MiddleCenter;
             _ringStyle.normal.textColor = new Color(0.85f, 1.0f, 0.85f);
@@ -449,6 +486,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         if (_retryStyle == null)
         {
             _retryStyle = new GUIStyle();
+            _retryStyle.font = sharedFont;
             _retryStyle.fontSize = 12;
             _retryStyle.alignment = TextAnchor.MiddleCenter;
             _retryStyle.normal.textColor = new Color(0.8f, 0.8f, 0.8f, 0.8f);
@@ -457,7 +495,8 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         if (_resultTitleStyle == null)
         {
             _resultTitleStyle = new GUIStyle();
-            _resultTitleStyle.fontSize = 24;
+            _resultTitleStyle.font = sharedFont;
+            _resultTitleStyle.fontSize = 22;
             _resultTitleStyle.fontStyle = FontStyle.Bold;
             _resultTitleStyle.alignment = TextAnchor.MiddleCenter;
             _resultTitleStyle.normal.textColor = new Color(1.0f, 0.9f, 0.2f);
@@ -466,6 +505,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         if (_resultBodyStyle == null)
         {
             _resultBodyStyle = new GUIStyle();
+            _resultBodyStyle.font = sharedFont;
             _resultBodyStyle.fontSize = 16;
             _resultBodyStyle.alignment = TextAnchor.UpperLeft;
             _resultBodyStyle.normal.textColor = Color.white;

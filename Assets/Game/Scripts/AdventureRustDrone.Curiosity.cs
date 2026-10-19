@@ -88,9 +88,20 @@ public partial class AdventureRustDrone
         if (IsClimaxCrisis || IsClimaxOverdrive || _climaxHealing || _prologueDistress || _climaxFalling)
             return;
 
-        string speech = (newlyCraftable != null)
-            ? $"ピピピッ！「{newlyCraftable.displayName}」の素材が揃ったよ！\n【Bキー】で工房を開いて作ってみよう！"
-            : (!string.IsNullOrEmpty(itemReaction) ? itemReaction : $"ピピッ！綺麗な「{itemName}」だね！");
+        string speech;
+        if (newlyCraftable != null)
+        {
+            speech = AdventureLocalizationManager.GetFormat("shell_craft_ready_speech", newlyCraftable.displayName);
+        }
+        else if (!string.IsNullOrEmpty(itemReaction))
+        {
+            speech = AdventureLocalizationManager.Get(itemReaction);
+        }
+        else
+        {
+            string locItem = AdventureLocalizationManager.Get(itemName);
+            speech = AdventureLocalizationManager.GetFormat("shell_picked_generic_speech", locItem);
+        }
 
         // 喜びの宙返りアニメーション（フリップ回転）＆セリフ発火！
         TriggerCelebration(speech, 3.2f);

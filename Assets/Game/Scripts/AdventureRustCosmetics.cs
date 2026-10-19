@@ -34,12 +34,16 @@ public class AdventureRustCosmetics : MonoBehaviour
     {
         public CosmeticId id;
         public CosmeticSlot slot;
-        public string displayName;
-        public string description;
+        public string displayNameKey;
+        public string descriptionKey;
         public AdventureBeachSeashellItem.ShellKind requiredKind;
         public int requiredCount;
         public Color themeColor;
-        public string rustReaction;
+        public string rustReactionKey;
+
+        public string displayName => AdventureLocalizationManager.Get(displayNameKey);
+        public string description => AdventureLocalizationManager.Get(descriptionKey);
+        public string rustReaction => AdventureLocalizationManager.Get(rustReactionKey);
     }
 
     public static readonly CosmeticDef[] AllDefs = new CosmeticDef[]
@@ -48,56 +52,56 @@ public class AdventureRustCosmetics : MonoBehaviour
         {
             id = CosmeticId.SakuragaiCrown,
             slot = CosmeticSlot.Head,
-            displayName = "サクラガイの花冠",
-            description = "薄紅色の貝殻を優美に編み込んだティアラ。桜色の優しい光の粉がふわふわと舞う。",
+            displayNameKey = "cosmetic_sakuragai_name",
+            descriptionKey = "cosmetic_sakuragai_desc",
             requiredKind = AdventureBeachSeashellItem.ShellKind.Sakuragai,
             requiredCount = 1,
             themeColor = new Color(1f, 0.72f, 0.82f),
-            rustReaction = "わぁ…！花冠、すっごく可愛い！お花の妖精さんみたい？"
+            rustReactionKey = "cosmetic_sakuragai_reaction"
         },
         new CosmeticDef
         {
             id = CosmeticId.EmeraldBeacon,
             slot = CosmeticSlot.Antenna,
-            displayName = "エメラルド・アンテナランプ",
-            description = "アンテナ先端に装着する深緑のクリスタル。暗がりで神秘的な光を灯し、周囲を照らす。",
+            displayNameKey = "cosmetic_emerald_name",
+            descriptionKey = "cosmetic_emerald_desc",
             requiredKind = AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald,
             requiredCount = 1,
             themeColor = new Color(0.35f, 0.95f, 0.65f),
-            rustReaction = "ピキッ！頭がピカピカ光ってる！これなら暗い森も怖くないよ！"
+            rustReactionKey = "cosmetic_emerald_reaction"
         },
         new CosmeticDef
         {
             id = CosmeticId.SapphireWings,
             slot = CosmeticSlot.Wings,
-            displayName = "サファイアの翼チャーム",
-            description = "波に磨かれた蒼いガラスの小翼。空を飛ぶたびに流麗なサファイアの光跡（Trail）を残す。",
+            displayNameKey = "cosmetic_sapphire_name",
+            descriptionKey = "cosmetic_sapphire_desc",
             requiredKind = AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire,
             requiredCount = 1,
             themeColor = new Color(0.25f, 0.75f, 1f),
-            rustReaction = "見て見てFloat！飛ぶたびに青い光がキラキラついてくるよ！"
+            rustReactionKey = "cosmetic_sapphire_reaction"
         },
         new CosmeticDef
         {
             id = CosmeticId.AmberSunCore,
             slot = CosmeticSlot.Core,
-            displayName = "太陽の琥珀コア",
-            description = "胴体中央のランプが温かい黄金琥珀色に輝き、ホバリング推進炎がゴールドスパークに変化する。",
+            displayNameKey = "cosmetic_amber_name",
+            descriptionKey = "cosmetic_amber_desc",
             requiredKind = AdventureBeachSeashellItem.ShellKind.AmberPebble,
             requiredCount = 1,
             themeColor = new Color(1f, 0.82f, 0.28f),
-            rustReaction = "あったかい…！太陽の力が湧いてくるみたい！"
+            rustReactionKey = "cosmetic_amber_reaction"
         },
         new CosmeticDef
         {
             id = CosmeticId.SeashellConch,
             slot = CosmeticSlot.Side,
-            displayName = "純白巻貝のホイッスル",
-            description = "側面に寄り添う小さな純白巻貝。Rustが嬉しそうに鳴くときに澄んだ潮騒のチャイムが重なる。",
+            displayNameKey = "cosmetic_conch_name",
+            descriptionKey = "cosmetic_conch_desc",
             requiredKind = AdventureBeachSeashellItem.ShellKind.SpiralShell,
             requiredCount = 1,
             themeColor = new Color(0.96f, 0.95f, 1f),
-            rustReaction = "ポォーッ♪ 耳をすますと、波の音が聴こえるよ！"
+            rustReactionKey = "cosmetic_conch_reaction"
         }
     };
 

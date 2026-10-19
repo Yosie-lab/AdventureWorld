@@ -161,6 +161,22 @@ public class AdventureRustSpeechUI : MonoBehaviour
             {
                 speakerName = "✦ Float";
             }
+            else if (rawSpeaker.Contains("カピタ") || rawSpeaker.Contains("Capyta"))
+            {
+                speakerName = AdventureLocalizationManager.CurrentLanguage switch
+                {
+                    AdventureLocalizationManager.GameLanguage.English => "🐾 Capyta",
+                    AdventureLocalizationManager.GameLanguage.SimplifiedChinese => "🐾 水豚卡皮塔",
+                    AdventureLocalizationManager.GameLanguage.Spanish => "🐾 Capibara Capyta",
+                    _ => "🐾 カピタ"
+                };
+            }
+            else
+            {
+                string locSpeaker = AdventureLocalizationManager.Get(rawSpeaker);
+                if (!string.IsNullOrEmpty(locSpeaker) && locSpeaker != rawSpeaker)
+                    speakerName = locSpeaker;
+            }
 
             _speaker.text = speakerName;
             _speaker.color = drone.ActiveSpeechSpeakerColor;

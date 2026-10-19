@@ -271,18 +271,23 @@ public class AdventureBeachFlotsamManager : MonoBehaviour
         Rect bar = new Rect(x, y, 6f, boxHeight);
         GUI.DrawTexture(bar, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, eraCol, 0, 0);
 
+        Font sharedFont = AdventureBeachFlotsam.ResolveFlotsamFont();
+
         // タイトル
         GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
+        titleStyle.font = sharedFont;
         titleStyle.fontSize = fontSize;
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.normal.textColor = new Color(1.0f, 1.0f, 1.0f);
 
         GUIStyle eraStyle = new GUIStyle(GUI.skin.label);
+        eraStyle.font = sharedFont;
         eraStyle.fontSize = subSize;
         eraStyle.fontStyle = FontStyle.Bold;
         eraStyle.normal.textColor = eraCol;
 
         GUIStyle descStyle = new GUIStyle(GUI.skin.label);
+        descStyle.font = sharedFont;
         descStyle.fontSize = subSize;
         descStyle.wordWrap = true;
         descStyle.normal.textColor = new Color(0.88f, 0.92f, 0.96f);

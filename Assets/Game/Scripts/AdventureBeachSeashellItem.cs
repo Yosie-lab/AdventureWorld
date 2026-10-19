@@ -1042,6 +1042,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         {
             _cachedSeashellStyle = new GUIStyle(GUI.skin.box)
             {
+                font = AdventureBeachFlotsam.ResolveFlotsamFont(),
                 fontSize = 13,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
@@ -1049,7 +1050,8 @@ public class AdventureBeachSeashellItem : MonoBehaviour
             _cachedSeashellStyle.normal.textColor = new Color(1f, 0.95f, 0.6f);
         }
 
-        string prompt = $"【E】{itemName}を拾う";
+        string locName = AdventureLocalizationManager.Get(itemName);
+        string prompt = AdventureLocalizationManager.GetFormat("prompt_shell_pickup", locName);
         Vector2 size = _cachedSeashellStyle.CalcSize(new GUIContent(prompt)) + new Vector2(16f, 6f);
         GUI.Box(new Rect(x - size.x * 0.5f, y - size.y * 0.5f, size.x, size.y), prompt, _cachedSeashellStyle);
     }

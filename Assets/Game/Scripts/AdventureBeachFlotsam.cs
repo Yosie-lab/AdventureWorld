@@ -202,11 +202,45 @@ public class AdventureBeachFlotsam : MonoBehaviour
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
-            drone.SpeakCustom(rustDialogue, 5.0f);
+            drone.SpeakCustom(AdventureLocalizationManager.Get(rustDialogue), 5.0f);
         }
 
         // 通知・案内表示
-        AdventureBeachFlotsamManager.Instance?.ShowInspectHUD(itemName, eraLabel, description);
+        string locName = AdventureLocalizationManager.Get(itemName);
+        string locEra = AdventureLocalizationManager.Get(eraLabel);
+        string locDesc = AdventureLocalizationManager.Get(description);
+        AdventureBeachFlotsamManager.Instance?.ShowInspectHUD(locName, locEra, locDesc);
+    }
+
+    static Font _cachedFlotsamFont;
+    public static Font ResolveFlotsamFont()
+    {
+        if (_cachedFlotsamFont != null) return _cachedFlotsamFont;
+        string[] fonts = {
+            "PingFang SC",
+            "Hiragino Sans GB",
+            "Heiti SC",
+            "Hiragino Sans",
+            "Hiragino Kaku Gothic ProN",
+            "Microsoft YaHei",
+            "Arial Unicode MS",
+            "YuGothic",
+            "Apple SD Gothic Neo",
+            "Arial"
+        };
+        try
+        {
+            _cachedFlotsamFont = Font.CreateDynamicFontFromOSFont(fonts, 18);
+            if (_cachedFlotsamFont != null) return _cachedFlotsamFont;
+        }
+        catch { }
+        foreach (var name in fonts)
+        {
+            var f = Font.CreateDynamicFontFromOSFont(name, 18);
+            if (f != null) { _cachedFlotsamFont = f; return f; }
+        }
+        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+               ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
     }
 
     static GUIStyle _cachedFlotsamStyle;
@@ -225,6 +259,7 @@ public class AdventureBeachFlotsam : MonoBehaviour
         {
             _cachedFlotsamStyle = new GUIStyle(GUI.skin.box)
             {
+                font = ResolveFlotsamFont(),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -232,7 +267,8 @@ public class AdventureBeachFlotsam : MonoBehaviour
         }
         _cachedFlotsamStyle.fontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.020f, 16f, 24f));
 
-        GUI.Box(new Rect(x, y, 140f, _cachedFlotsamStyle.fontSize + 12f), "【E】調べる", _cachedFlotsamStyle);
+        string prompt = AdventureLocalizationManager.Get("prompt_flotsam_inspect");
+        GUI.Box(new Rect(x, y, 140f, _cachedFlotsamStyle.fontSize + 12f), prompt, _cachedFlotsamStyle);
     }
 
     static AudioClip MakeInspectSound()

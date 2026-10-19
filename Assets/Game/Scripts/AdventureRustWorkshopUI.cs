@@ -23,6 +23,11 @@ public class AdventureRustWorkshopUI : MonoBehaviour
     GameObject _panelRoot;
 
     // 左カラム：素材ポーチ
+    Text _panelTitleText;
+    Text _pouchHeaderTitle;
+    Text _pouchHeaderSub;
+    Text _pouchGuideText;
+    readonly Text[] _pouchRowLabelTexts = new Text[5];
     Text _textSakuragai;
     Text _textEmerald;
     Text _textSapphire;
@@ -113,13 +118,19 @@ public class AdventureRustWorkshopUI : MonoBehaviour
     void OnEnable()
     {
         AdventureBeachSeashellManager.OnInventoryChanged += RefreshUI;
-        AdventureLocalizationManager.OnLanguageChanged += UpdatePromptText;
+        AdventureLocalizationManager.OnLanguageChanged += HandleLanguageChanged;
     }
 
     void OnDisable()
     {
         AdventureBeachSeashellManager.OnInventoryChanged -= RefreshUI;
-        AdventureLocalizationManager.OnLanguageChanged -= UpdatePromptText;
+        AdventureLocalizationManager.OnLanguageChanged -= HandleLanguageChanged;
+    }
+
+    void HandleLanguageChanged()
+    {
+        UpdatePromptText();
+        RefreshUI();
     }
 
     void UpdatePromptText()
@@ -217,9 +228,10 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         // 1. 工房が閉じている時：画面右上に常設の「👗 Rust工房 (B)」GUIボタン
         if (!isVisible && !pauseMenu && !openingModal && !awakening && CanOpenWorkshopNow())
         {
-            Rect btnRect = new Rect(Screen.width - 160, 56, 145, 34);
+            Rect btnRect = new Rect(Screen.width - 180, 56, 165, 34);
             GUI.color = new Color(0.2f, 0.85f, 1f, 0.95f);
-            if (GUI.Button(btnRect, "👗 Rust工房 [B]"))
+            string hudText = AdventureLocalizationManager.Get("workshop_btn_hud");
+            if (GUI.Button(btnRect, hudText))
             {
                 SetVisible(true);
             }
@@ -393,14 +405,36 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         var shellMgr = AdventureBeachSeashellManager.Instance;
         var cosmetics = AdventureRustCosmetics.Instance;
 
-        // 1. 左カラム：素材ポーチの個数更新
+        // 1. ヘッダー・素材ポーチの静的テキスト多言語更新
+        if (_panelTitleText != null) _panelTitleText.text = AdventureLocalizationManager.Get("workshop_title");
+        if (_pouchHeaderTitle != null) _pouchHeaderTitle.text = AdventureLocalizationManager.Get("workshop_pouch_title");
+        if (_pouchHeaderSub != null) _pouchHeaderSub.text = AdventureLocalizationManager.Get("workshop_pouch_sub");
+        if (_pouchGuideText != null) _pouchGuideText.text = AdventureLocalizationManager.Get("workshop_pouch_hint");
+
+        string[] shellKeys = { "桜色のサクラガイ", "エメラルド・シーグラス", "サファイア・シーグラス", "太陽の小琥珀", "純白の小巻貝" };
+        string[] shellIcons = { "🌸 ", "🟢 ", "🔷 ", "☀️ ", "🐚 " };
+        for (int k = 0; k < _pouchRowLabelTexts.Length && k < shellKeys.Length; k++)
+        {
+            if (_pouchRowLabelTexts[k] != null)
+                _pouchRowLabelTexts[k].text = shellIcons[k] + AdventureLocalizationManager.Get(shellKeys[k]);
+        }
+
+        string unitStr = AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => "",
+            AdventureLocalizationManager.GameLanguage.Spanish => "",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => " 个",
+            _ => " 個"
+        };
+
+        // 素材ポーチの個数更新
         if (shellMgr != null)
         {
-            if (_textSakuragai != null) _textSakuragai.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.Sakuragai)} 個";
-            if (_textEmerald != null) _textEmerald.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald)} 個";
-            if (_textSapphire != null) _textSapphire.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire)} 個";
-            if (_textAmber != null) _textAmber.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.AmberPebble)} 個";
-            if (_textConch != null) _textConch.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.SpiralShell)} 個";
+            if (_textSakuragai != null) _textSakuragai.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.Sakuragai)}{unitStr}";
+            if (_textEmerald != null) _textEmerald.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald)}{unitStr}";
+            if (_textSapphire != null) _textSapphire.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire)}{unitStr}";
+            if (_textAmber != null) _textAmber.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.AmberPebble)}{unitStr}";
+            if (_textConch != null) _textConch.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.SpiralShell)}{unitStr}";
         }
 
         // 2. 右カラム：各カードのステータスとボタン更新
@@ -408,6 +442,9 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         {
             var card = _cardUIs[i];
             if (card == null || card.def == null || cosmetics == null) continue;
+
+            if (card.titleText != null) card.titleText.text = card.def.displayName;
+            if (card.descText != null) card.descText.text = card.def.description;
 
             bool isUnlocked = cosmetics.IsUnlocked(card.def.id);
             bool isEquipped = cosmetics.IsEquipped(card.def.id);
@@ -418,21 +455,21 @@ public class AdventureRustWorkshopUI : MonoBehaviour
             {
                 if (isEquipped)
                 {
-                    card.statusText.text = "<color=#66FFAA><b>✦ そうび中</b></color>";
-                    card.actionBtnText.text = $"[{keyIndex}] はずす";
+                    card.statusText.text = AdventureLocalizationManager.Get("workshop_status_equipped");
+                    card.actionBtnText.text = AdventureLocalizationManager.GetFormat("workshop_btn_unequip", keyIndex);
                     card.actionBtnText.color = Color.white;
                     card.actionBtnImage.color = new Color(0.35f, 0.45f, 0.55f, 0.95f);
                     card.actionBtn.interactable = true;
                 }
                 else
                 {
-                    card.statusText.text = "<color=#BBBBCC>所持中</color>";
-                    card.actionBtnText.text = $"[{keyIndex}] そうび";
+                    card.statusText.text = AdventureLocalizationManager.Get("workshop_status_owned");
+                    card.actionBtnText.text = AdventureLocalizationManager.GetFormat("workshop_btn_equip", keyIndex);
                     card.actionBtnText.color = new Color(0.10f, 0.12f, 0.18f);
                     card.actionBtnImage.color = new Color(0.2f, 0.75f, 0.55f, 0.95f);
                     card.actionBtn.interactable = true;
                 }
-                card.costText.text = "<color=#AAAAAA>作成済み</color>";
+                card.costText.text = AdventureLocalizationManager.Get("workshop_status_crafted");
             }
             else
             {
@@ -442,23 +479,23 @@ public class AdventureRustWorkshopUI : MonoBehaviour
                 int curCount = shellMgr != null ? shellMgr.GetShellCount(card.def.requiredKind) : 0;
                 string countColor = curCount >= card.def.requiredCount ? "#66FFAA" : "#FF7777";
 
-                card.costText.text = $"必要: <color=#{hexCol}>{kindName}</color> <color={countColor}>{curCount}/{card.def.requiredCount}</color>";
+                card.costText.text = AdventureLocalizationManager.GetFormat("workshop_cost_format", hexCol, kindName, countColor, curCount, card.def.requiredCount);
 
                 if (canCraft)
                 {
-                    card.statusText.text = "<color=#FFAA33><b>✦ 作成可能！</b></color>";
-                    card.actionBtnText.text = $"[{keyIndex}] ✦ 作成する";
+                    card.statusText.text = AdventureLocalizationManager.Get("workshop_status_craftable");
+                    card.actionBtnText.text = AdventureLocalizationManager.GetFormat("workshop_btn_craft", keyIndex);
                     card.actionBtnText.color = new Color(0.10f, 0.12f, 0.18f);
                     card.actionBtnImage.color = new Color(1f, 0.78f, 0.22f, 1f);
                     card.actionBtn.interactable = true;
                 }
                 else
                 {
-                    card.statusText.text = "<color=#AA9988>素材を集めて作成</color>";
-                    card.actionBtnText.text = $"[{keyIndex}] ✦ 作成する";
+                    card.statusText.text = AdventureLocalizationManager.Get("workshop_status_need_mat");
+                    card.actionBtnText.text = AdventureLocalizationManager.GetFormat("workshop_btn_craft", keyIndex);
                     card.actionBtnText.color = new Color(0.96f, 0.96f, 0.96f);
                     card.actionBtnImage.color = new Color(0.50f, 0.36f, 0.22f, 1f);
-                    card.actionBtn.interactable = true; // クリック可能！押したときに不足素材を案内！
+                    card.actionBtn.interactable = true;
                 }
             }
         }
@@ -468,12 +505,12 @@ public class AdventureRustWorkshopUI : MonoBehaviour
     {
         switch (kind)
         {
-            case AdventureBeachSeashellItem.ShellKind.Sakuragai: return "サクラガイ";
-            case AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald: return "エメラルド硝子";
-            case AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire: return "サファイア硝子";
-            case AdventureBeachSeashellItem.ShellKind.AmberPebble: return "太陽の小琥珀";
-            case AdventureBeachSeashellItem.ShellKind.SpiralShell: return "純白の巻貝";
-            default: return "貝殻";
+            case AdventureBeachSeashellItem.ShellKind.Sakuragai: return AdventureLocalizationManager.Get("桜色のサクラガイ");
+            case AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald: return AdventureLocalizationManager.Get("エメラルド・シーグラス");
+            case AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire: return AdventureLocalizationManager.Get("サファイア・シーグラス");
+            case AdventureBeachSeashellItem.ShellKind.AmberPebble: return AdventureLocalizationManager.Get("太陽の小琥珀");
+            case AdventureBeachSeashellItem.ShellKind.SpiralShell: return AdventureLocalizationManager.Get("純白の小巻貝");
+            default: return AdventureLocalizationManager.Get("綺麗な貝殻");
         }
     }
 
@@ -508,7 +545,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
                 int needed = Mathf.Max(1, card.def.requiredCount - count);
                 PlayErrorSound();
                 var drone = AdventureRustDrone.Instance;
-                drone?.SetSpeech($"ピピッ！「{card.def.displayName}」を作るには「{kindName}」があと{needed}個必要だよ！砂浜の波打ち際で拾おう！", 4.5f);
+                string speech = AdventureLocalizationManager.GetFormat("shell_not_enough_speech", card.def.displayName, kindName, needed);
+                drone?.SetSpeech(speech, 4.5f);
             }
         }
         else
@@ -617,7 +655,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         titleText.fontSize = 22;
         titleText.alignment = TextAnchor.MiddleLeft;
         titleText.color = new Color(1f, 0.92f, 0.55f);
-        titleText.text = "✦ RUST CRAFT WORKSHOP ✦ 〜 相棒のドレスアップ工房 〜";
+        titleText.text = AdventureLocalizationManager.Get("workshop_title");
+        _panelTitleText = titleText;
 
         // 閉じる×ボタン
         var closeGo = new GameObject("CloseButton");
@@ -682,21 +721,21 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         vlg.childForceExpandHeight = false;
 
         // 見出し
-        CreateTextItem(pouchGo.transform, "✦ 素材ポーチ", 18, new Color(0.95f, 0.85f, 0.45f), font, TextAnchor.MiddleLeft);
-        CreateTextItem(pouchGo.transform, "浜辺の波打ち際で拾った宝物", 12, new Color(0.7f, 0.75f, 0.85f), font, TextAnchor.MiddleLeft);
+        _pouchHeaderTitle = CreateTextItem(pouchGo.transform, AdventureLocalizationManager.Get("workshop_pouch_title"), 18, new Color(0.95f, 0.85f, 0.45f), font, TextAnchor.MiddleLeft);
+        _pouchHeaderSub = CreateTextItem(pouchGo.transform, AdventureLocalizationManager.Get("workshop_pouch_sub"), 12, new Color(0.7f, 0.75f, 0.85f), font, TextAnchor.MiddleLeft);
 
         // アイテムリスト
-        _textSakuragai = CreatePouchRow(pouchGo.transform, "🌸 桜色のサクラガイ", font);
-        _textEmerald = CreatePouchRow(pouchGo.transform, "🟢 エメラルド硝子", font);
-        _textSapphire = CreatePouchRow(pouchGo.transform, "🔷 サファイア硝子", font);
-        _textAmber = CreatePouchRow(pouchGo.transform, "☀️ 太陽の小琥珀", font);
-        _textConch = CreatePouchRow(pouchGo.transform, "🐚 純白の小巻貝", font);
+        _textSakuragai = CreatePouchRow(pouchGo.transform, 0, "🌸 " + AdventureLocalizationManager.Get("桜色のサクラガイ"), font);
+        _textEmerald = CreatePouchRow(pouchGo.transform, 1, "🟢 " + AdventureLocalizationManager.Get("エメラルド・シーグラス"), font);
+        _textSapphire = CreatePouchRow(pouchGo.transform, 2, "🔷 " + AdventureLocalizationManager.Get("サファイア・シーグラス"), font);
+        _textAmber = CreatePouchRow(pouchGo.transform, 3, "☀️ " + AdventureLocalizationManager.Get("太陽の小琥珀"), font);
+        _textConch = CreatePouchRow(pouchGo.transform, 4, "🐚 " + AdventureLocalizationManager.Get("純白の小巻貝"), font);
 
         // 下部ガイド
-        var guide = CreateTextItem(pouchGo.transform, "\n【ヒント】\n砂浜のキラキラ光る場所へ行き、[Eキー] で拾えます。\n全24個の貝殻が波打ち際に漂着しています。", 12, new Color(0.65f, 0.75f, 0.85f), font, TextAnchor.MiddleLeft);
+        _pouchGuideText = CreateTextItem(pouchGo.transform, AdventureLocalizationManager.Get("workshop_pouch_hint"), 12, new Color(0.65f, 0.75f, 0.85f), font, TextAnchor.MiddleLeft);
     }
 
-    Text CreatePouchRow(Transform parent, string title, Font font)
+    Text CreatePouchRow(Transform parent, int rowIndex, string title, Font font)
     {
         var row = new GameObject("PouchRow");
         row.transform.SetParent(parent, false);
@@ -710,6 +749,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         var nameText = CreateTextItem(row.transform, title, 13, Color.white, font, TextAnchor.MiddleLeft);
         var nRect = nameText.GetComponent<RectTransform>();
         nRect.sizeDelta = new Vector2(150f, 30f);
+        if (rowIndex >= 0 && rowIndex < _pouchRowLabelTexts.Length)
+            _pouchRowLabelTexts[rowIndex] = nameText;
 
         var valText = CreateTextItem(row.transform, "0 個", 13, new Color(1f, 0.9f, 0.4f), font, TextAnchor.MiddleRight);
         var vRect = valText.GetComponent<RectTransform>();

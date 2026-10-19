@@ -358,15 +358,18 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         // 3. トースト案内
         if (_toastText != null)
         {
+            _toastText.font = AdventureBeachFlotsam.ResolveFlotsamFont();
             string hexCol = ColorUtility.ToHtmlStringRGB(item.themeColor);
+            string locItemName = AdventureLocalizationManager.Get(item.itemName);
             if (newlyCraftable != null)
             {
-                _toastText.text = $"<color=#{hexCol}><b>✦ {item.itemName}</b></color> <color=#FFFFFF>を拾った！</color> <size=13><color=#66FFAA>({currentStock}個)</color></size>\n<size=14><color=#FFE066>✨「{newlyCraftable.displayName}」が作れるよ！【Bキー】で工房を開こう！</color></size>";
+                string locCraftName = newlyCraftable.displayName;
+                _toastText.text = AdventureLocalizationManager.GetFormat("shell_toast_craftable", hexCol, locItemName, currentStock, locCraftName);
                 _toastTimer = 4.2f;
             }
             else
             {
-                _toastText.text = $"<color=#{hexCol}><b>✦ {item.itemName}</b></color> <color=#FFFFFF>を拾った</color>  <size=13><color=#FFE066>(所持: {currentStock}個)</color></size>";
+                _toastText.text = AdventureLocalizationManager.GetFormat("shell_toast_picked", hexCol, locItemName, currentStock);
                 _toastTimer = 2.6f;
             }
         }

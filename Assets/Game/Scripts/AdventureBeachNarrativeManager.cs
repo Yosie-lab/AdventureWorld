@@ -586,15 +586,19 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         string keyBase = "narrative_" + id;
         string locTitle = AdventureLocalizationManager.Get(keyBase + "_title");
         if (!string.IsNullOrEmpty(locTitle) && locTitle != keyBase + "_title") title = locTitle;
+        else title = AdventureLocalizationManager.Get(title);
 
         string locSub = AdventureLocalizationManager.Get(keyBase + "_sub");
         if (!string.IsNullOrEmpty(locSub) && locSub != keyBase + "_sub") subTitle = locSub;
+        else subTitle = AdventureLocalizationManager.Get(subTitle);
 
         string locBody = AdventureLocalizationManager.Get(keyBase + "_body");
         if (!string.IsNullOrEmpty(locBody) && locBody != keyBase + "_body") body = locBody;
+        else body = AdventureLocalizationManager.Get(body);
 
         string locRust = AdventureLocalizationManager.Get(keyBase + "_rust");
         if (!string.IsNullOrEmpty(locRust) && locRust != keyBase + "_rust") rustComment = locRust;
+        else rustComment = AdventureLocalizationManager.Get(rustComment);
 
         _modalTitle = title;
         _modalSubTitle = subTitle;
@@ -846,13 +850,19 @@ public class AdventureBeachNarrativeSpot : MonoBehaviour
         {
             _cachedNarrativePromptStyle = new GUIStyle(GUI.skin.label)
             {
+                font = AdventureBeachFlotsam.ResolveFlotsamFont(),
                 fontSize = 20,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
         }
 
-        string prompt = "【Eキー】" + (isMemoryItem ? "記憶チップを再生" : (isBottle ? "手紙を読む" : "調べる"));
+        string prompt = isMemoryItem 
+            ? AdventureLocalizationManager.Get("narrative_prompt_memory")
+            : (isBottle 
+                ? AdventureLocalizationManager.Get("narrative_prompt_bottle") 
+                : AdventureLocalizationManager.Get("narrative_prompt_inspect"));
+
         GUI.color = Color.white;
 
         // 影
