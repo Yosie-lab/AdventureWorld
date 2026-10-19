@@ -377,15 +377,23 @@ public class AdventurePauseMenu : MonoBehaviour
             }
         }
 
-        // オーディオ＆言語タブ（タブ0）表示中の左右矢印・A/Dキーでの言語切り替え
+        // オーディオ＆言語タブ（タブ0）表示中の左右矢印・A/Dキー・ゲームパッド十字キーでの言語切り替え
         if (_currentTab == 0)
         {
             var kb = Keyboard.current;
             if (kb != null)
             {
-                if (kb.leftArrowKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame)
+                if (kb.leftArrowKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame || kb.qKey.wasPressedThisFrame)
                     OnPrevLanguageClicked();
-                else if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame)
+                else if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)
+                    OnNextLanguageClicked();
+            }
+
+            if (gp != null)
+            {
+                if (gp.dpad.left.wasPressedThisFrame)
+                    OnPrevLanguageClicked();
+                else if (gp.dpad.right.wasPressedThisFrame)
                     OnNextLanguageClicked();
             }
         }
@@ -416,7 +424,9 @@ public class AdventurePauseMenu : MonoBehaviour
         // 3. 各タブ内容
         if (_currentTab == 0)
         {
-            // uGUI Button.onClick で確実に処理されるため二重発火を防止
+            if (IsHit(_prevLangBtn, mousePos)) { OnPrevLanguageClicked(); return; }
+            if (IsHit(_nextLangBtn, mousePos)) { OnNextLanguageClicked(); return; }
+            if (IsHit(_langValueBtn, mousePos)) { OnNextLanguageClicked(); return; }
         }
         else if (_currentTab == 1)
         {
@@ -469,10 +479,13 @@ public class AdventurePauseMenu : MonoBehaviour
     }
 
     float _lastLangClickTime = -1f;
+    int _lastLangClickFrame = -1;
 
     void OnPrevLanguageClicked()
     {
-        if (Time.unscaledTime - _lastLangClickTime < 0.20f) return;
+        if (Time.frameCount == _lastLangClickFrame) return;
+        if (Time.unscaledTime - _lastLangClickTime < 0.06f) return;
+        _lastLangClickFrame = Time.frameCount;
         _lastLangClickTime = Time.unscaledTime;
 
         PlayClickSound();
@@ -482,7 +495,9 @@ public class AdventurePauseMenu : MonoBehaviour
 
     void OnNextLanguageClicked()
     {
-        if (Time.unscaledTime - _lastLangClickTime < 0.20f) return;
+        if (Time.frameCount == _lastLangClickFrame) return;
+        if (Time.unscaledTime - _lastLangClickTime < 0.06f) return;
+        _lastLangClickFrame = Time.frameCount;
         _lastLangClickTime = Time.unscaledTime;
 
         PlayClickSound();
@@ -1136,7 +1151,7 @@ public class AdventurePauseMenu : MonoBehaviour
         sRt.anchorMax = new Vector2(1f, 0.5f);
         sRt.pivot = new Vector2(1f, 0.5f);
         sRt.anchoredPosition = new Vector2(-16f, 0f);
-        sRt.sizeDelta = new Vector2(300f, 42f);
+        sRt.sizeDelta = new Vector2(320f, 44f);
 
         // 左ボタン [ ◀ ]
         var prevBtnGo = new GameObject("PrevBtn");
@@ -1146,9 +1161,10 @@ public class AdventurePauseMenu : MonoBehaviour
         pbRt.anchorMax = new Vector2(0f, 0.5f);
         pbRt.pivot = new Vector2(0f, 0.5f);
         pbRt.anchoredPosition = new Vector2(0f, 0f);
-        pbRt.sizeDelta = new Vector2(42f, 38f);
+        pbRt.sizeDelta = new Vector2(48f, 40f);
         var pbImg = prevBtnGo.AddComponent<Image>();
         pbImg.color = new Color(0.15f, 0.35f, 0.55f, 0.95f);
+        pbImg.raycastTarget = true;
         _prevLangBtn = prevBtnGo.AddComponent<Button>();
         _prevLangBtn.onClick.AddListener(OnPrevLanguageClicked);
         var pbColors = _prevLangBtn.colors;
@@ -1158,7 +1174,7 @@ public class AdventurePauseMenu : MonoBehaviour
         var pbOutline = prevBtnGo.AddComponent<Outline>();
         pbOutline.effectColor = new Color(0.35f, 0.75f, 1f, 0.6f);
         pbOutline.effectDistance = new Vector2(1f, -1f);
-        var pbText = MakeLabel(prevBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "◀", 15, Color.white);
+        var pbText = MakeLabel(prevBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "◀", 16, Color.white);
         pbText.alignment = TextAnchor.MiddleCenter;
 
         // 言語名表示ラベル（クリックで次言語へ進むボタンとしても機能）
@@ -1169,9 +1185,10 @@ public class AdventurePauseMenu : MonoBehaviour
         ltRt.anchorMax = new Vector2(0.5f, 0.5f);
         ltRt.pivot = new Vector2(0.5f, 0.5f);
         ltRt.anchoredPosition = Vector2.zero;
-        ltRt.sizeDelta = new Vector2(196f, 38f);
+        ltRt.sizeDelta = new Vector2(212f, 40f);
         var ltBg = langTextGo.AddComponent<Image>();
         ltBg.color = new Color(0.04f, 0.09f, 0.16f, 0.85f);
+        ltBg.raycastTarget = true;
         _langValueBtn = langTextGo.AddComponent<Button>();
         _langValueBtn.onClick.AddListener(OnNextLanguageClicked);
         var ltColors = _langValueBtn.colors;
@@ -1196,9 +1213,10 @@ public class AdventurePauseMenu : MonoBehaviour
         nbRt.anchorMax = new Vector2(1f, 0.5f);
         nbRt.pivot = new Vector2(1f, 0.5f);
         nbRt.anchoredPosition = new Vector2(0f, 0f);
-        nbRt.sizeDelta = new Vector2(42f, 38f);
+        nbRt.sizeDelta = new Vector2(48f, 40f);
         var nbImg = nextBtnGo.AddComponent<Image>();
         nbImg.color = new Color(0.15f, 0.35f, 0.55f, 0.95f);
+        nbImg.raycastTarget = true;
         _nextLangBtn = nextBtnGo.AddComponent<Button>();
         _nextLangBtn.onClick.AddListener(OnNextLanguageClicked);
         var nbColors = _nextLangBtn.colors;
@@ -1208,7 +1226,7 @@ public class AdventurePauseMenu : MonoBehaviour
         var nbOutline = nextBtnGo.AddComponent<Outline>();
         nbOutline.effectColor = new Color(0.35f, 0.75f, 1f, 0.6f);
         nbOutline.effectDistance = new Vector2(1f, -1f);
-        var nbText = MakeLabel(nextBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "▶", 15, Color.white);
+        var nbText = MakeLabel(nextBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "▶", 16, Color.white);
         nbText.alignment = TextAnchor.MiddleCenter;
     }
 
@@ -1376,9 +1394,17 @@ public class AdventurePauseMenu : MonoBehaviour
             _returnTitleBtnText.text = AdventureLocalizationManager.Get("pause_title_return");
 
         // オーディオ＆操作
-        if (_langLabelText != null) _langLabelText.text = AdventureLocalizationManager.Get("opt_language");
+        Font menuFont = ResolveFont();
+        if (_langLabelText != null)
+        {
+            if (menuFont != null) _langLabelText.font = menuFont;
+            _langLabelText.text = AdventureLocalizationManager.Get("opt_language");
+        }
         if (_langValueText != null)
+        {
+            if (menuFont != null) _langValueText.font = menuFont;
             _langValueText.text = AdventureLocalizationManager.LanguageNames[(int)AdventureLocalizationManager.CurrentLanguage];
+        }
         if (_bgmLabelText != null) _bgmLabelText.text = AdventureLocalizationManager.Get("opt_bgm");
         if (_seLabelText != null) _seLabelText.text = AdventureLocalizationManager.Get("opt_se");
         if (_sensLabelText != null) _sensLabelText.text = AdventureLocalizationManager.Get("opt_sensitivity");

@@ -57,10 +57,13 @@ public static class AdventureLocalizationManager
     }
 
     static float _lastSwitchTime = -1f;
+    static int _lastSwitchFrame = -1;
 
     public static void NextLanguage()
     {
-        if (Time.unscaledTime - _lastSwitchTime < 0.15f) return;
+        if (Time.frameCount == _lastSwitchFrame) return;
+        if (Time.unscaledTime - _lastSwitchTime < 0.05f) return;
+        _lastSwitchFrame = Time.frameCount;
         _lastSwitchTime = Time.unscaledTime;
         int next = ((int)CurrentLanguage + 1) % 4;
         CurrentLanguage = (GameLanguage)next;
@@ -68,7 +71,9 @@ public static class AdventureLocalizationManager
 
     public static void PrevLanguage()
     {
-        if (Time.unscaledTime - _lastSwitchTime < 0.15f) return;
+        if (Time.frameCount == _lastSwitchFrame) return;
+        if (Time.unscaledTime - _lastSwitchTime < 0.05f) return;
+        _lastSwitchFrame = Time.frameCount;
         _lastSwitchTime = Time.unscaledTime;
         int prev = ((int)CurrentLanguage + 3) % 4;
         CurrentLanguage = (GameLanguage)prev;
