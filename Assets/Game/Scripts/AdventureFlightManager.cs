@@ -45,6 +45,8 @@ public class AdventureFlightManager : MonoBehaviour
         BuildCalderaLakeCourse(root.transform, land);
         BuildMountainGorgeSlalomCourse(root.transform, land);
         BuildSouthCoastCourse(root.transform, land);
+        BuildSkyHighTrioCourse(root.transform, land);
+        BuildOceanSkimmingTrioCourse(root.transform, land);
     }
 
     /// <summary>西海岸コース: メガジャンプ（高度78m）からの内陸向け高空3連リング ＋ 海岸散策ライン</summary>
@@ -198,6 +200,30 @@ public class AdventureFlightManager : MonoBehaviour
 
         // 南海岸の海風サーマル
         CreateThermalAt(course.transform, new Vector3(260f, 0f, 180f), 12.0f, 55f, land);
+    }
+
+    /// <summary>コース8: 東部高空スカイ3連鎖リング（原生林上空から白亜タワー東テラスへ向かう壮大な大空ライン）</summary>
+    void BuildSkyHighTrioCourse(Transform parent, Terrain land)
+    {
+        var course = new GameObject("Course_SkyHighTrio");
+        course.transform.SetParent(parent, false);
+
+        // 東部原生林上空（高度102m）から白亜タワー東テラス（高度82m）へ向かう高空3連鎖リング
+        CreateWindRingDirect(course.transform, new Vector3(635f, 102.0f, 545f), Quaternion.Euler(5f, -110f, 0f));
+        CreateWindRingDirect(course.transform, new Vector3(585f, 92.0f, 528f), Quaternion.Euler(6f, -110f, 0f));
+        CreateWindRingDirect(course.transform, new Vector3(535f, 82.0f, 515f), Quaternion.Euler(7f, -110f, 0f));
+    }
+
+    /// <summary>コース9: 西海岸オーシャンスキミング3連鎖リング（海面高度5.5mのスレスレ7.2mを白波疾走する海上ライン）</summary>
+    void BuildOceanSkimmingTrioCourse(Transform parent, Terrain land)
+    {
+        var course = new GameObject("Course_OceanSkimmingTrio");
+        course.transform.SetParent(parent, false);
+
+        // パラダイスビーチ沖合エメラルド海面（水面スキミング判定と完全連動する海上3連鎖リング）
+        CreateWindRingDirect(course.transform, new Vector3(125f, 7.2f, 255f), Quaternion.Euler(0f, 15f, 0f));
+        CreateWindRingDirect(course.transform, new Vector3(132f, 7.2f, 300f), Quaternion.Euler(0f, 12f, 0f));
+        CreateWindRingDirect(course.transform, new Vector3(138f, 7.2f, 345f), Quaternion.Euler(0f, 10f, 0f));
     }
 
     void CreateRingAt(Transform parent, Vector3 xzPos, float heightAboveGround, Quaternion rotation, Terrain land)
