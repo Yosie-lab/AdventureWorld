@@ -140,7 +140,7 @@ public class AdventureCameraFollow : MonoBehaviour
         right = flat * Vector3.right;
     }
 
-    /// <summary>Rキー／リセット時：標準後方カメラへ即復帰</summary>
+    /// <summary>Rキー／リセット時／ダイブ発進時：標準後方カメラへ即復帰</summary>
     public void SnapBehindTarget()
     {
         if (target == null) return;
@@ -150,6 +150,7 @@ public class AdventureCameraFollow : MonoBehaviour
         _targetPitch = WalkPitch;
         _yawVel = 0f;
         _pitchVel = 0f;
+        _lastMouseInputTime = Time.time;
         _currentPivot = target.position + Vector3.up * WalkPivotHeight;
         _pivotVelocity = Vector3.zero;
         _currentDistance = distance;
@@ -462,21 +463,26 @@ public class AdventureCameraFollow : MonoBehaviour
         float followRate = cine > 0.2f || isAutoGlide ? 55f : 36f;
         bool walkingGround = !isGliding && !isAutoGlide && cine < 0.05f && (playerGrounded || playerMoving);
 
-        if ((isGliding || isAutoGlide) && (Time.time - _lastMouseInputTime > followIdle))
+        bool hasGlideSteer = isGliding && Mathf.Abs(AdventureInputReader.MoveAxis.x) > 0.05f;
+        float deltaToHeading = target != null ? Mathf.Abs(Mathf.DeltaAngle(_targetYaw, target.eulerAngles.y)) : 0f;
+        // マウス操作していない時の自動追従は、A/Dキー旋回中、または機首とカメラが15度以上乖離した時のみ作動させ、相互追従ループ共振を根絶
+        bool shouldAutoFollow = hasGlideSteer || (Time.time - _lastMouseInputTime > followIdle && deltaToHeading > 15f);
+        if ((isGliding || isAutoGlide) && shouldAutoFollow)
         {
             float targetHeading = target.eulerAngles.y;
             float dt = Time.unscaledDeltaTime;
+            float currentFollowRate = hasGlideSteer ? 85f : followRate;
             // エピローグのシネマ中：映画的な斜めアングル＋微細ドリフト（ドローンショット）
             if (isAutoGlide && cine > 0.3f)
             {
                 float driftYaw = 14f + Mathf.Sin(Time.unscaledTime * 0.16f) * 8f;
                 float driftPitch = WalkPitch + 3.4f + Mathf.Sin(Time.unscaledTime * 0.11f) * 1.6f;
-                _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading + driftYaw, followRate * 0.85f * dt);
+                _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading + driftYaw, currentFollowRate * 0.85f * dt);
                 _targetPitch = Mathf.MoveTowards(_targetPitch, driftPitch, 14f * dt);
             }
             else
             {
-                _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading, followRate * dt);
+                _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, targetHeading, currentFollowRate * dt);
                 if (cine > 0.01f)
                     _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, 24f * dt);
             }

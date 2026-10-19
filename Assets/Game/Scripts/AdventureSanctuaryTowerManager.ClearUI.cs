@@ -427,6 +427,11 @@ public partial class AdventureSanctuaryTowerManager
             player.ApplyGlideBoost(4.0f, 85f);
         }
         SetCinematicCamera(false); // ★カメラ自由視点を即座に復帰
+        var camFollow = AdventureCameraFollow.InstanceOrFind();
+        if (camFollow != null)
+        {
+            camFollow.SnapBehindTarget();
+        }
         SetExplorationHudVisible(true);
         var drone = GetDrone();
         if (drone != null)

@@ -106,7 +106,7 @@ public class AdventureScrapManager : MonoBehaviour
 
     #region Candidate Coordinates Pool
     /// <summary>現行プレイで使うXZ配置（Yはスポーン時に地面合わせ）</summary>
-    readonly List<Vector3> _scrapSpawnPositions = new List<Vector3>(12);
+    [SerializeField] List<Vector3> _scrapSpawnPositions = new List<Vector3>(12);
 
     /// <summary>
     /// 各パーツの候補座標プール（同一ステージ内で複数地点）。
@@ -491,79 +491,114 @@ public class AdventureScrapManager : MonoBehaviour
         }
     }
 
+    static readonly string[] ScrapNames = new string[]
+    {
+        "古代の推進黄金ギア",       // 1. スタート座礁艇まわり
+        "耐熱スタビライザー",         // 2. 南西岬〜南砂浜
+        "海風のエネルギーコア",       // 3. 西砂浜中央〜焚き火 (★3個: ダッシュ)
+        "潮騒のバランスリング",       // 4. 北西砂浜テラス
+        "反重力サスペンション",       // 5. 大草原入り口
+        "跳躍反重力コア",             // 6. せせらぎ池 (★6個: 二段ジャンプ)
+        "清流の共鳴プリズム",         // 7. 大河飛び石
+        "水冷コンデンサー",           // 8. カルデラ湖
+        "高周波ソナークリスタル",     // 9. 深林渓流 (★9個: 探知ソナー)
+        "古代探知コア",               // 10. 大樹海
+        "高空ジェットスラスター",     // 11. 北の大滑空崖
+        "天蓋開放マスターコア"        // 12. 中央タワー (★12個)
+    };
+
+    AdventureScrapItem SpawnSingleScrap(int scrapId, Transform root, Terrain land)
+    {
+        int i = scrapId - 1;
+        if (i < 0 || i >= _scrapSpawnPositions.Count) return null;
+
+        Vector3 pos = _scrapSpawnPositions[i];
+        Vector3 rayOrigin = new Vector3(pos.x, 200f, pos.z);
+        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 250f))
+        {
+            pos.y = hit.point.y + 1.45f;
+        }
+        else if (land != null)
+        {
+            pos.y = land.SampleHeight(pos) + land.transform.position.y + 1.45f;
+        }
+        else
+        {
+            pos.y = 15f;
+        }
+
+        var scrapGo = new GameObject("ScrapItem_" + scrapId);
+        if (root != null) scrapGo.transform.SetParent(root, false);
+        scrapGo.transform.position = pos;
+
+        var item = scrapGo.AddComponent<AdventureScrapItem>();
+        item.itemId = scrapId;
+        item.itemName = (i < ScrapNames.Length) ? ScrapNames[i] : ("古代パーツ #" + scrapId);
+
+        // アイテムのバリエーション（ギア・コア・プリズム）
+        if (i % 3 == 0)
+            item.itemColor = new Color(1.0f, 0.78f, 0.22f); // 黄金
+        else if (i % 3 == 1)
+            item.itemColor = new Color(0.25f, 0.95f, 0.85f); // シアンエメラルド
+        else
+            item.itemColor = new Color(1.0f, 0.45f, 0.85f); // マゼンタピンク
+
+        return item;
+    }
+
+    public void SpawnMissingScraps()
+    {
+        EnsureSpawnLayoutLoaded();
+        var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
+        var rootGo = GameObject.Find("ScrapItemsRoot") ?? new GameObject("ScrapItemsRoot");
+
+        var presentIds = new HashSet<int>();
+        for (int i = 0; i < _activeItems.Count; i++)
+        {
+            if (_activeItems[i] != null && _activeItems[i].gameObject != null)
+                presentIds.Add(_activeItems[i].itemId);
+        }
+
+        for (int scrapId = 1; scrapId <= TotalScrapCount; scrapId++)
+        {
+            if (_collectedIds.Contains(scrapId)) continue;
+            if (presentIds.Contains(scrapId)) continue;
+
+            var item = SpawnSingleScrap(scrapId, rootGo.transform, land);
+            if (item != null)
+            {
+                _activeItems.Add(item);
+                presentIds.Add(scrapId);
+            }
+        }
+    }
+
     void SpawnAllScraps()
     {
+        EnsureSpawnLayoutLoaded();
         var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
-        var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
-        Vector3 pSpawn = (player != null && player.spawnPosition != Vector3.zero) 
-            ? player.spawnPosition 
-            : new Vector3(170f, 43f, 166f);
-
-        var root = new GameObject("ScrapItemsRoot");
-
-        // 砂浜4＋内陸8のストーリープログレッション配置
-        string[] itemNames = new string[]
-        {
-            "古代の推進黄金ギア",       // 1. スタート座礁艇まわり
-            "耐熱スタビライザー",         // 2. 南西岬〜南砂浜
-            "海風のエネルギーコア",       // 3. 西砂浜中央〜焚き火 (★3個: ダッシュ)
-            "潮騒のバランスリング",       // 4. 北西砂浜テラス
-            "反重力サスペンション",       // 5. 大草原入り口
-            "跳躍反重力コア",             // 6. せせらぎ池 (★6個: 二段ジャンプ)
-            "清流の共鳴プリズム",         // 7. 大河飛び石
-            "水冷コンデンサー",           // 8. カルデラ湖
-            "高周波ソナークリスタル",     // 9. 深林渓流 (★9個: 探知ソナー)
-            "古代探知コア",               // 10. 大樹海
-            "高空ジェットスラスター",     // 11. 北の大滑空崖
-            "天蓋開放マスターコア"        // 12. 中央タワー (★12個)
-        };
+        var rootGo = GameObject.Find("ScrapItemsRoot") ?? new GameObject("ScrapItemsRoot");
 
         for (int i = 0; i < _scrapSpawnPositions.Count; i++)
         {
-            Vector3 pos = _scrapSpawnPositions[i];
-            // Raycastで地面や白亜テラス床・岩の天面を確実に捉えて配置
-            Vector3 rayOrigin = new Vector3(pos.x, 200f, pos.z);
-            if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 250f))
-            {
-                pos.y = hit.point.y + 1.45f;
-            }
-            else if (land != null)
-            {
-                pos.y = land.SampleHeight(pos) + land.transform.position.y + 1.45f;
-            }
-            else
-            {
-                pos.y = 15f;
-            }
-
             int scrapId = i + 1;
-            // 既にセーブデータで取得済みの場合は生成をスキップ
             if (_collectedIds.Contains(scrapId))
                 continue;
 
-            var scrapGo = new GameObject("ScrapItem_" + scrapId);
-            scrapGo.transform.SetParent(root.transform, false);
-            scrapGo.transform.position = pos;
-
-            var item = scrapGo.AddComponent<AdventureScrapItem>();
-            item.itemId = scrapId;
-            item.itemName = (i < itemNames.Length) ? itemNames[i] : ("古代パーツ #" + scrapId);
-
-            // アイテムのバリエーション（ギア・コア・プリズム）
-            if (i % 3 == 0)
+            bool exists = false;
+            for (int k = 0; k < _activeItems.Count; k++)
             {
-                item.itemColor = new Color(1.0f, 0.78f, 0.22f); // 黄金
+                if (_activeItems[k] != null && _activeItems[k].itemId == scrapId)
+                {
+                    exists = true;
+                    break;
+                }
             }
-            else if (i % 3 == 1)
-            {
-                item.itemColor = new Color(0.25f, 0.95f, 0.85f); // シアンエメラルド
-            }
-            else
-            {
-                item.itemColor = new Color(1.0f, 0.45f, 0.85f); // マゼンタピンク
-            }
+            if (exists) continue;
 
-            _activeItems.Add(item);
+            var item = SpawnSingleScrap(scrapId, rootGo.transform, land);
+            if (item != null)
+                _activeItems.Add(item);
         }
     }
 
@@ -946,10 +981,11 @@ public class AdventureScrapManager : MonoBehaviour
             }
         }
 
-        // 2. もし未回収パーツがシーン内に不足している場合、再生成
-        if (_activeItems.Count == 0 && CollectedCount < TotalScrapCount)
+        // 2. もし未回収パーツがシーン内に不足している場合、未生成パーツを自動補完
+        int expectedUncollected = TotalScrapCount - _collectedIds.Count;
+        if (_activeItems.Count < expectedUncollected && expectedUncollected > 0)
         {
-            SpawnAllScraps();
+            SpawnMissingScraps();
         }
 
         if (_activeItems.Count == 0)
@@ -1094,8 +1130,14 @@ public class AdventureScrapManager : MonoBehaviour
     }
 #endif
 
-    void EnsureSpawnLayoutLoaded()
+    public void EnsureSpawnLayoutLoaded()
     {
+        if (_scrapSpawnPositions != null && _scrapSpawnPositions.Count == TotalScrapCount)
+            return;
+
+        if (_scrapSpawnPositions == null)
+            _scrapSpawnPositions = new List<Vector3>(TotalScrapCount);
+
         _scrapSpawnPositions.Clear();
         if (TryLoadLayoutFromPrefs(_scrapSpawnPositions) && _scrapSpawnPositions.Count == TotalScrapCount)
             return;

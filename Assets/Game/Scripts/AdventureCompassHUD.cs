@@ -45,6 +45,8 @@ public class AdventureCompassHUD : MonoBehaviour
     int _boxHint;
     int _shownDeg = int.MinValue;
     float _targetSearchCooldown = 0f;
+    enum TargetMode { None, Tower, Scrap, Crystal, Terrace }
+    TargetMode _cachedTargetMode = TargetMode.None;
     Vector3 _cachedTargetPos;
     string _cachedTargetName = "";
     Color _cachedTargetColor = Color.white;
@@ -72,14 +74,60 @@ public class AdventureCompassHUD : MonoBehaviour
         _hasGuidePing = true;
     }
 
-    struct CompassElement
+    [System.Serializable]
+    public struct CompassElement
     {
         public float TargetAngle;
         public RectTransform Rt;
         public Text Txt;
     }
 
-    readonly List<CompassElement> _elements = new List<CompassElement>();
+    [SerializeField] List<CompassElement> _elements = new List<CompassElement>();
+
+    /// <summary>ドメインリロードや再コンパイル後でもコンパス目盛り要素を確実に復元・再バインドする</summary>
+    void EnsureElementsReady()
+    {
+        if (_elements.Count > 0 && _elements[0].Rt != null) return;
+
+        _elements.Clear();
+        if (_ribbonContainer == null)
+        {
+            var rc = transform.Find("CompassRibbon");
+            if (rc != null) _ribbonContainer = rc.GetComponent<RectTransform>();
+        }
+
+        if (_ribbonContainer == null) return;
+
+        string[] cardinals = { "北", "北東", "東", "南東", "南", "南西", "西", "北西" };
+        int[] angles = { 0, 45, 90, 135, 180, 225, 270, 315 };
+
+        for (int i = 0; i < cardinals.Length; i++)
+        {
+            var t = _ribbonContainer.Find("Card_" + cardinals[i]);
+            if (t != null)
+            {
+                var rt = t.GetComponent<RectTransform>();
+                var txt = t.GetComponent<Text>();
+                _elements.Add(new CompassElement { TargetAngle = angles[i], Rt = rt, Txt = txt });
+            }
+            for (int sub = 1; sub < 3; sub++)
+            {
+                float subAngle = (angles[i] + sub * 15f) % 360f;
+                var dt = _ribbonContainer.Find("Tick_" + subAngle);
+                if (dt != null)
+                {
+                    var dRt = dt.GetComponent<RectTransform>();
+                    var dTxt = dt.GetComponent<Text>();
+                    _elements.Add(new CompassElement { TargetAngle = subAngle, Rt = dRt, Txt = dTxt });
+                }
+            }
+        }
+
+        if (_elements.Count == 0)
+        {
+            BuildUI(ResolveSafeFont());
+        }
+    }
 
     /// <summary>コンパスHUDがシーン内に確実に存在することを保証する</summary>
     public static AdventureCompassHUD Ensure(Transform parent = null, Font font = null)
@@ -445,24 +493,37 @@ public class AdventureCompassHUD : MonoBehaviour
             _ribbonContainer.gameObject.SetActive(true);
 
         var cam = GetActiveCamera();
-        if (cam == null)
-            return;
+        float rawYaw = 0f;
+        if (cam != null && cam.isActiveAndEnabled)
+        {
+            rawYaw = cam.transform.eulerAngles.y;
+        }
+        else
+        {
+            var follow = AdventureCameraFollow.Instance ?? FindAnyObjectByType<AdventureCameraFollow>();
+            if (follow != null)
+                rawYaw = follow.transform.eulerAngles.y;
+            else if (AdventurePlayerController.Instance != null)
+                rawYaw = AdventurePlayerController.Instance.transform.eulerAngles.y;
+            else
+                return;
+        }
 
-        // ピッチに揺れないヨーだけを遅れて追従（マウスの細かいブレをリボンに出さない）
-        float rawYaw = cam.transform.eulerAngles.y;
+        // ヨー角を即座かつ滑らかに追従（SmoothDampAngleの0/360度境界スタックを完全根絶）
         float dt = Time.unscaledDeltaTime;
-        if (!_yawInitialized)
+        if (!_yawInitialized || dt <= 0f)
         {
             _displayYaw = rawYaw;
             _yawInitialized = true;
         }
         else
         {
-            _displayYaw = Mathf.SmoothDampAngle(
-                _displayYaw, rawYaw, ref _displayYawVel, YawSmoothTime, Mathf.Infinity, dt);
+            _displayYaw = Mathf.MoveTowardsAngle(_displayYaw, rawYaw, 720f * dt);
         }
-        _displayYaw = Mathf.Repeat(_displayYaw, 360f);
         float yaw = _displayYaw;
+
+        // ドメインリロード等で要素リストが消去されていた場合の自動復元
+        EnsureElementsReady();
 
         // 1. 各方角は常に流し、枠外はマスクで切る
         for (int i = 0; i < _elements.Count; i++)
@@ -510,6 +571,7 @@ public class AdventureCompassHUD : MonoBehaviour
 
                 if (_cachedIsGuidingToTower)
                 {
+                    _cachedTargetMode = TargetMode.Tower;
                     _cachedTargetPos = new Vector3(512f, 63.2f, 501.5f); // 南正面メイン巨大レバー
                     _cachedTargetName = "白亜タワー（巨大レバー）";
                     _cachedTargetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
@@ -518,6 +580,7 @@ public class AdventureCompassHUD : MonoBehaviour
                 else if (nearest != null)
                 {
                     // 未回収パーツを最優先でコンパスHUDに表示
+                    _cachedTargetMode = TargetMode.Scrap;
                     _cachedTargetPos = nearest.transform.position;
                     _cachedTargetName = nearest.itemName;
                     _cachedTargetColor = nearest.itemColor;
@@ -525,6 +588,7 @@ public class AdventureCompassHUD : MonoBehaviour
                 }
                 else if (_cachedIsGuidingToCrystal)
                 {
+                    _cachedTargetMode = TargetMode.Crystal;
                     _cachedTargetPos = puzzle.crystalBasePos;
                     _cachedTargetName = "古代の送電クリスタル";
                     _cachedTargetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
@@ -532,6 +596,7 @@ public class AdventureCompassHUD : MonoBehaviour
                 }
                 else if (_cachedIsGuidingToTerrace)
                 {
+                    _cachedTargetMode = TargetMode.Terrace;
                     _cachedTargetPos = puzzle.cliffTerracePos;
                     _cachedTargetName = "崖上の隠しテラス（古代宝箱）";
                     _cachedTargetColor = new Color(1.0f, 0.85f, 0.35f, 1.0f);
@@ -539,6 +604,7 @@ public class AdventureCompassHUD : MonoBehaviour
                 }
                 else
                 {
+                    _cachedTargetMode = TargetMode.None;
                     _cachedTargetPos = Vector3.zero;
                     _cachedTargetName = "";
                     _cachedTargetColor = Color.white;
@@ -562,25 +628,23 @@ public class AdventureCompassHUD : MonoBehaviour
                 {
                     float targetYaw = YawFromForward(toTarget);
                     float angle = Mathf.DeltaAngle(yaw, targetYaw);
-                    if (!_scrapBearingInit)
+                    if (!_scrapBearingInit || dt <= 0f)
                     {
                         _scrapBearing = angle;
-                        _scrapBearingVel = 0f;
                         _scrapBearingInit = true;
                     }
                     else
                     {
-                        _scrapBearing = Mathf.SmoothDampAngle(
-                            _scrapBearing, angle, ref _scrapBearingVel, BearingSmoothTime, Mathf.Infinity, dt);
+                        _scrapBearing = Mathf.MoveTowardsAngle(_scrapBearing, angle, 540f * dt);
                     }
 
                     if (_scrapMarkerRt != null)
                     {
                         _scrapMarkerRt.gameObject.SetActive(true);
-                        string iconCenter = _cachedIsGuidingToTower ? "🏛️" : (_cachedIsGuidingToCrystal ? "⚡" : (_cachedIsGuidingToTerrace ? "🎁" : "★"));
-                        string iconSub = _cachedIsGuidingToTower ? "🏛️" : (_cachedIsGuidingToCrystal ? "⚡" : (_cachedIsGuidingToTerrace ? "🎁" : "✦"));
-                        string iconRight = _cachedIsGuidingToTower ? "🏛️▶" : (_cachedIsGuidingToCrystal ? "⚡▶" : (_cachedIsGuidingToTerrace ? "🎁▶" : "✦▶"));
-                        string iconLeft = _cachedIsGuidingToTower ? "◀🏛️" : (_cachedIsGuidingToCrystal ? "◀⚡" : (_cachedIsGuidingToTerrace ? "◀🎁" : "◀✦"));
+                        string iconCenter = _cachedTargetMode == TargetMode.Tower ? "🏛️" : (_cachedTargetMode == TargetMode.Crystal ? "⚡" : (_cachedTargetMode == TargetMode.Terrace ? "🎁" : "★"));
+                        string iconSub = _cachedTargetMode == TargetMode.Tower ? "🏛️" : (_cachedTargetMode == TargetMode.Crystal ? "⚡" : (_cachedTargetMode == TargetMode.Terrace ? "🎁" : "✦"));
+                        string iconRight = _cachedTargetMode == TargetMode.Tower ? "🏛️▶" : (_cachedTargetMode == TargetMode.Crystal ? "⚡▶" : (_cachedTargetMode == TargetMode.Terrace ? "🎁▶" : "✦▶"));
+                        string iconLeft = _cachedTargetMode == TargetMode.Tower ? "◀🏛️" : (_cachedTargetMode == TargetMode.Crystal ? "◀⚡" : (_cachedTargetMode == TargetMode.Terrace ? "◀🎁" : "◀✦"));
 
                         PlaceEdgeMarker(
                             _scrapMarkerRt, _scrapMarkerText, _scrapBearing, targetColor,
@@ -618,16 +682,14 @@ public class AdventureCompassHUD : MonoBehaviour
 
                     boxArrow = BearingHint(boxAngle, ref _boxHint);
 
-                    if (!_boxBearingInit)
+                    if (!_boxBearingInit || dt <= 0f)
                     {
                         _boxBearing = boxAngle;
-                        _boxBearingVel = 0f;
                         _boxBearingInit = true;
                     }
                     else
                     {
-                        _boxBearing = Mathf.SmoothDampAngle(
-                            _boxBearing, boxAngle, ref _boxBearingVel, BearingSmoothTime, Mathf.Infinity, dt);
+                        _boxBearing = Mathf.MoveTowardsAngle(_boxBearing, boxAngle, 540f * dt);
                     }
 
                     if (_boxMarkerRt != null)
@@ -661,16 +723,14 @@ public class AdventureCompassHUD : MonoBehaviour
                 {
                     float towerYaw = YawFromForward(toTowerCenter);
                     float tAngle = Mathf.DeltaAngle(yaw, towerYaw);
-                    if (!_towerBearingInit)
+                    if (!_towerBearingInit || dt <= 0f)
                     {
                         _towerBearing = tAngle;
-                        _towerBearingVel = 0f;
                         _towerBearingInit = true;
                     }
                     else
                     {
-                        _towerBearing = Mathf.SmoothDampAngle(
-                            _towerBearing, tAngle, ref _towerBearingVel, BearingSmoothTime, Mathf.Infinity, dt);
+                        _towerBearing = Mathf.MoveTowardsAngle(_towerBearing, tAngle, 540f * dt);
                     }
 
                     if (_towerMarkerRt != null)
@@ -715,7 +775,7 @@ public class AdventureCompassHUD : MonoBehaviour
                     _scrapNavText.text = $"✦ Floatの道案内 ➔ {_guidePingName} 約{Mathf.RoundToInt(pingDist)}m（{pCard}方角） [Qキーで再案内]";
                     _scrapNavText.color = _guidePingColor;
                 }
-                else if (_cachedIsGuidingToTower)
+                else if (_cachedTargetMode == TargetMode.Tower)
                 {
                     Vector3 toTower = targetPos - playerPos;
                     toTower.y = 0f;
@@ -733,7 +793,31 @@ public class AdventureCompassHUD : MonoBehaviour
                         _scrapNavText.color = new Color(0.25f, 0.95f, 1.0f, 1.0f);
                     }
                 }
-                else if (_cachedIsGuidingToCrystal)
+                else if (_cachedTargetMode == TargetMode.Scrap && hasTarget)
+                {
+                    Vector3 toTarget = targetPos - playerPos;
+                    toTarget.y = 0f;
+                    float targetYaw = YawFromForward(toTarget);
+                    float angle = Mathf.DeltaAngle(yaw, targetYaw);
+                    string targetCardinal = GetCardinal(targetYaw);
+                    string arrow = BearingHint(angle, ref _scrapHint);
+
+                    if (dist <= 3.5f)
+                    {
+                        _scrapNavText.text = $"✦ {targetName} 【Eキーで回収！】";
+                    }
+                    else if (hasBoxTarget && boxDist > 3.5f)
+                    {
+                        string boxShortName = nearestBox.boxTitle.Replace("漂着", "");
+                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m({targetCardinal}) [{arrow}]   |   📦 {boxShortName} 約{Mathf.RoundToInt(boxDist)}m({boxCardinal}) [{boxArrow}]";
+                    }
+                    else
+                    {
+                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m（{targetCardinal}方角） [{arrow}]  [Qキー 道案内]";
+                    }
+                    _scrapNavText.color = targetColor;
+                }
+                else if (_cachedTargetMode == TargetMode.Crystal)
                 {
                     Vector3 toCrystal = targetPos - playerPos;
                     toCrystal.y = 0f;
@@ -754,7 +838,7 @@ public class AdventureCompassHUD : MonoBehaviour
                         _scrapNavText.color = new Color(0.25f, 0.95f, 1.0f, 1.0f);
                     }
                 }
-                else if (_cachedIsGuidingToTerrace)
+                else if (_cachedTargetMode == TargetMode.Terrace)
                 {
                     Vector3 toTerrace = targetPos - playerPos;
                     toTerrace.y = 0f;
@@ -774,32 +858,6 @@ public class AdventureCompassHUD : MonoBehaviour
                         _scrapNavText.text = $"🎁 崖上の隠しテラス（黄金光柱） 約{Mathf.RoundToInt(terDist)}m（{terCard}方角） [{terArrow}] 【送風ファンで上昇！】";
                         _scrapNavText.color = new Color(1.0f, 0.85f, 0.35f, 1.0f);
                     }
-                }
-                else if (hasTarget && dist > 3.5f)
-                {
-                    Vector3 toTarget = targetPos - playerPos;
-                    toTarget.y = 0f;
-                    float targetYaw = YawFromForward(toTarget);
-                    float angle = Mathf.DeltaAngle(yaw, targetYaw);
-                    string targetCardinal = GetCardinal(targetYaw);
-                    string arrow = BearingHint(angle, ref _scrapHint);
-
-                    // パーツとボックスの両方を1行でわかりやすく表示
-                    if (hasBoxTarget && boxDist > 3.5f)
-                    {
-                        string boxShortName = nearestBox.boxTitle.Replace("漂着", "");
-                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m({targetCardinal}) [{arrow}]   |   📦 {boxShortName} 約{Mathf.RoundToInt(boxDist)}m({boxCardinal}) [{boxArrow}]";
-                    }
-                    else
-                    {
-                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m（{targetCardinal}方角） [{arrow}]  [Qキー 道案内]";
-                    }
-                    _scrapNavText.color = targetColor;
-                }
-                else if (hasTarget && dist <= 3.5f)
-                {
-                    _scrapNavText.text = $"✦ {targetName} [★ 足元]";
-                    _scrapNavText.color = targetColor;
                 }
                 else if (hasBoxTarget && boxDist > 3.5f)
                 {
