@@ -17,7 +17,8 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
     {
         Coast,      // 砂浜・波打ち際（標高 < 12m、半径 > 340m）
         Meadow,     // 西側大草原（標高 12〜38m、西側 X < 450m）
-        Forest,     // 東部樹海・カルデラ湖畔・オアシス（X > 400m、Z 350〜650m、池周辺）
+        Forest,     // 東部樹海・深林（X > 400m、木漏れ日と小鳥）
+        Stream,     // 清流・渓流・せせらぎ池・大河（心地よい水しぶきと水流音）
         Highland,   // 中央タワー・北崖（標高 > 54m）
     }
 
@@ -26,27 +27,35 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
     public float currentGlidingFactor = 0f;
 
     // 各バイオーム用の環境ループ音源
+    AudioSource _coastWaveSource;
     AudioSource _meadowWindSource;
     AudioSource _forestRustleSource;
+    AudioSource _streamWaterSource;
     AudioSource _highlandWindSource;
     AudioSource _glidingWindSource;
     AudioSource _birdChirpSource;
 
     // 合成オーディオクリップ
+    AudioClip _coastWaveClip;
     AudioClip _meadowWindClip;
     AudioClip _forestRustleClip;
+    AudioClip _streamWaterClip;
     AudioClip _highlandWindClip;
     AudioClip _glidingWindClip;
     AudioClip[] _birdChirpClips;
 
     // 音量目標値と現在値（スムーズなクロスフェード用）
+    float _targetCoastVol = 0f;
     float _targetMeadowVol = 0f;
     float _targetForestVol = 0f;
+    float _targetStreamVol = 0f;
     float _targetHighlandVol = 0f;
     float _targetGlidingVol = 0f;
 
+    float _curCoastVol = 0f;
     float _curMeadowVol = 0f;
     float _curForestVol = 0f;
+    float _curStreamVol = 0f;
     float _curHighlandVol = 0f;
     float _curGlidingVol = 0f;
 
@@ -54,8 +63,10 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
     bool _suppressWindLoopsForClear;
 
     // 基準音量（BGMを邪魔しないオーガニックなレベル）
+    const float BaseCoastVol = 0.22f;
     const float BaseMeadowVol = 0.16f;
     const float BaseForestVol = 0.18f;
+    const float BaseStreamVol = 0.20f;
     const float BaseHighlandVol = 0.22f;
     const float BaseGlidingVol = 0.32f;
 
@@ -81,8 +92,13 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
 
     void ApplyAllWindLoopVolumesImmediate(float vol)
     {
-        _targetMeadowVol = _targetForestVol = _targetHighlandVol = _targetGlidingVol = vol;
-        _curMeadowVol = _curForestVol = _curHighlandVol = _curGlidingVol = vol;
+        _targetCoastVol = _targetMeadowVol = _targetForestVol = _targetStreamVol = _targetHighlandVol = _targetGlidingVol = vol;
+        _curCoastVol = _curMeadowVol = _curForestVol = _curStreamVol = _curHighlandVol = _curGlidingVol = vol;
+        if (_coastWaveSource != null)
+        {
+            _coastWaveSource.volume = vol;
+            if (vol <= 0f && _coastWaveSource.isPlaying) _coastWaveSource.Stop();
+        }
         if (_meadowWindSource != null)
         {
             _meadowWindSource.volume = vol;
@@ -92,6 +108,11 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
         {
             _forestRustleSource.volume = vol;
             if (vol <= 0f && _forestRustleSource.isPlaying) _forestRustleSource.Stop();
+        }
+        if (_streamWaterSource != null)
+        {
+            _streamWaterSource.volume = vol;
+            if (vol <= 0f && _streamWaterSource.isPlaying) _streamWaterSource.Stop();
         }
         if (_highlandWindSource != null)
         {
@@ -140,8 +161,10 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
 
     void SetupAudioSources()
     {
+        _coastWaveSource = CreateLoopSource("CoastWave", _coastWaveClip);
         _meadowWindSource = CreateLoopSource("MeadowWind", _meadowWindClip);
         _forestRustleSource = CreateLoopSource("ForestRustle", _forestRustleClip);
+        _streamWaterSource = CreateLoopSource("StreamWater", _streamWaterClip);
         _highlandWindSource = CreateLoopSource("HighlandWind", _highlandWindClip);
         _glidingWindSource = CreateLoopSource("GlidingWind", _glidingWindClip);
 
@@ -192,8 +215,10 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
             return;
         }
 
+        _targetCoastVol = (currentBiome == BiomeType.Coast) ? (BaseCoastVol * seScale) : 0f;
         _targetMeadowVol = (currentBiome == BiomeType.Meadow) ? (BaseMeadowVol * seScale) : 0f;
         _targetForestVol = (currentBiome == BiomeType.Forest) ? (BaseForestVol * seScale) : 0f;
+        _targetStreamVol = (currentBiome == BiomeType.Stream) ? (BaseStreamVol * seScale) : 0f;
         _targetHighlandVol = (currentBiome == BiomeType.Highland) ? (BaseHighlandVol * seScale) : 0f;
         _targetGlidingVol = BaseGlidingVol * currentGlidingFactor * seScale;
 
@@ -201,8 +226,10 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
         if (currentGlidingFactor > 0.2f)
         {
             float groundDucking = 1f - Mathf.Clamp01(currentGlidingFactor * 0.6f);
+            _targetCoastVol *= groundDucking;
             _targetMeadowVol *= groundDucking;
             _targetForestVol *= groundDucking;
+            _targetStreamVol *= groundDucking;
             _targetHighlandVol *= groundDucking;
         }
 
@@ -223,13 +250,17 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
 
         // 4. スムーズな音量フェード（時定数約2.0秒）
         float fadeSpeed = Time.deltaTime * 0.85f;
+        _curCoastVol = Mathf.MoveTowards(_curCoastVol, _targetCoastVol, fadeSpeed);
         _curMeadowVol = Mathf.MoveTowards(_curMeadowVol, _targetMeadowVol, fadeSpeed);
         _curForestVol = Mathf.MoveTowards(_curForestVol, _targetForestVol, fadeSpeed);
+        _curStreamVol = Mathf.MoveTowards(_curStreamVol, _targetStreamVol, fadeSpeed);
         _curHighlandVol = Mathf.MoveTowards(_curHighlandVol, _targetHighlandVol, fadeSpeed);
         _curGlidingVol = Mathf.MoveTowards(_curGlidingVol, _targetGlidingVol, Time.deltaTime * 2.5f);
 
+        if (_coastWaveSource != null) _coastWaveSource.volume = _curCoastVol;
         if (_meadowWindSource != null) _meadowWindSource.volume = _curMeadowVol;
         if (_forestRustleSource != null) _forestRustleSource.volume = _curForestVol;
+        if (_streamWaterSource != null) _streamWaterSource.volume = _curStreamVol;
         if (_highlandWindSource != null) _highlandWindSource.volume = _curHighlandVol;
         if (_glidingWindSource != null)
         {
@@ -259,6 +290,13 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
         float distFromCenter = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(512f, 512f));
         if (pos.y <= 11.5f || distFromCenter >= 345f)
             return BiomeType.Coast;
+
+        // 渓流・大河飛び石・せせらぎ池・カルデラ湖（水流の心地よいせせらぎ）
+        bool nearRiver = (pos.x >= 340f && pos.x <= 490f && pos.z >= 350f && pos.z <= 490f && pos.y < 35f);
+        bool nearOasis = (pos.x >= 250f && pos.x <= 330f && pos.z >= 320f && pos.z <= 400f && pos.y < 32f);
+        bool nearCaldera = (pos.x >= 510f && pos.x <= 590f && pos.z >= 400f && pos.z <= 480f && pos.y < 42f);
+        if (nearRiver || nearOasis || nearCaldera)
+            return BiomeType.Stream;
 
         // 東部樹海・カルデラ湖畔・湧水オアシス（X > 430m、カルデラ湖やオアシス池・森のテラス）
         if (pos.x >= 430f || (pos.z >= 420f && pos.z <= 620f && pos.x >= 380f))
@@ -290,6 +328,8 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
         _forestRustleClip = SynthesizeForestRustle();
         _highlandWindClip = SynthesizeHighlandWind();
         _glidingWindClip = SynthesizeGlidingWind();
+        _coastWaveClip = SynthesizeCoastWaves();
+        _streamWaterClip = SynthesizeStreamWater();
 
         _birdChirpClips = new AudioClip[]
         {
@@ -297,6 +337,78 @@ public class AdventureBiomeAmbienceManager : MonoBehaviour
             SynthesizeBirdChirp("BirdChirp_2", 3200f, 2600f, 0.22f),
             SynthesizeBirdChirp("BirdChirp_3", 3000f, 3800f, 0.35f)
         };
+    }
+
+    /// <summary>海岸の波音：周期的なうねりと押し寄せて引く波打ち際の波音</summary>
+    AudioClip SynthesizeCoastWaves()
+    {
+        const int rate = 44100;
+        const float duration = 9.0f; // 9秒の自然な波周期ループ
+        int count = (int)(rate * duration);
+        float[] samples = new float[count];
+
+        float lowFilter = 0f;
+        float midFilter = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float white = Random.value * 2f - 1f;
+
+            // 潮騒の重低音と白波の泡立ち
+            lowFilter = Mathf.Lerp(lowFilter, white, 0.025f);
+            midFilter = Mathf.Lerp(midFilter, white - lowFilter, 0.085f);
+
+            // 周期約4.5秒の波の押し寄せと引き
+            float swell1 = Mathf.Pow(Mathf.Sin(t * (2f * Mathf.PI / 4.5f)) * 0.5f + 0.5f, 2.2f);
+            float swell2 = Mathf.Pow(Mathf.Sin((t + 1.8f) * (2f * Mathf.PI / 4.5f)) * 0.5f + 0.5f, 1.8f) * 0.5f;
+            float combinedSwell = Mathf.Clamp01(swell1 + swell2 * 0.4f);
+
+            // 引き波のサラサラ感
+            float foam = (Random.value * 2f - 1f) * 0.12f * combinedSwell;
+
+            samples[i] = (lowFilter * 0.7f + midFilter * 0.45f + foam) * (0.25f + combinedSwell * 0.75f) * 0.48f;
+        }
+
+        var clip = AudioClip.Create("CoastWavesLoop", count, 1, rate, false);
+        clip.SetData(samples, 0);
+        return clip;
+    }
+
+    /// <summary>渓流・せせらぎ：岩肌を縫って流れる水しぶきと泡立つ水流音</summary>
+    AudioClip SynthesizeStreamWater()
+    {
+        const int rate = 44100;
+        const float duration = 6.0f;
+        int count = (int)(rate * duration);
+        float[] samples = new float[count];
+
+        float streamFilter1 = 0f;
+        float streamFilter2 = 0f;
+        float bubblePhase = 0f;
+
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float white = Random.value * 2f - 1f;
+
+            // 清流のバンドパス（さらさらとした中高域の水流）
+            streamFilter1 = Mathf.Lerp(streamFilter1, white, 0.14f);
+            streamFilter2 = Mathf.Lerp(streamFilter2, white - streamFilter1, 0.28f);
+
+            // 小さな気泡のチャープ（ポコポコと水中で弾ける微細音）
+            float bubbleFreq = 720f + Mathf.Sin(t * 18f) * 280f + Mathf.Sin(t * 31f) * 150f;
+            bubblePhase += 2f * Mathf.PI * bubbleFreq / rate;
+            float bubble = Mathf.Sin(bubblePhase) * 0.045f * (Mathf.Sin(t * 5.2f) * 0.5f + 0.5f);
+
+            // 水の跳ねと揺らぎ
+            float streamSwell = Mathf.Sin(t * 2.3f) * 0.15f + Mathf.Sin(t * 4.7f) * 0.1f + 0.75f;
+
+            samples[i] = (streamFilter1 * 0.45f + streamFilter2 * 0.35f + bubble) * streamSwell * 0.42f;
+        }
+
+        var clip = AudioClip.Create("StreamWaterLoop", count, 1, rate, false);
+        clip.SetData(samples, 0);
+        return clip;
     }
 
     /// <summary>草原の風：乾いた草を撫でるサラサラとした風（低〜中域のオーガニックなゆらぎ）</summary>

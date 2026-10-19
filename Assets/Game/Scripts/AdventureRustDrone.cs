@@ -592,6 +592,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         // セリフ進行は lookAt 無しでも回す（吹き出しが見えない事故防止）
         UpdateSpeech();
         TickClimaxOverdriveBooster();
+        UpdateSmartCameraOcclusion();
 
         if (_lookAt == null)
             return;
@@ -1681,6 +1682,21 @@ public partial class AdventureRustDrone : MonoBehaviour
         Vector3 rightBack = _lookAt.right * 1.25f - _lookAt.forward * 1.55f;
         Vector3 targetPos = niko + rightBack;
 
+        // スマート視界退避：カメラの視界中央を遮らないよう自動で外側へ退避
+        var mainCam = Camera.main;
+        if (mainCam != null)
+        {
+            Vector3 camFwd = mainCam.transform.forward;
+            Vector3 toRust = (transform.position - mainCam.transform.position).normalized;
+            float centerDot = Vector3.Dot(camFwd, toRust);
+            // カメラ正面視界（約32度以内）に入り込んでいる場合、カメラの右下方向へ退避
+            if (centerDot > 0.85f)
+            {
+                Vector3 avoidOffset = mainCam.transform.right * 1.15f - mainCam.transform.up * 0.40f;
+                targetPos += avoidOffset;
+            }
+        }
+
         // Nikoの真正面／体内にRustが居座るのを防止（直径≈1.75m）
         const float bodyClearance = 1.75f;
         float flat = FlatDistance(niko);
@@ -1719,6 +1735,50 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
 
         return finalGoal;
+    }
+
+    Renderer[] _cachedRenderers;
+    float _currentAlpha = 1.0f;
+
+    /// <summary>カメラ至近時や画面中央に入り込んだ場合のスマート透明化（視界妨害の完全根絶）</summary>
+    void UpdateSmartCameraOcclusion()
+    {
+        var cam = Camera.main;
+        if (cam == null) return;
+
+        float distToCam = Vector3.Distance(cam.transform.position, transform.position);
+        Vector3 vp = cam.WorldToViewportPoint(transform.position);
+        bool inCenterView = (vp.z > 0.1f && vp.z < 2.5f && vp.x > 0.32f && vp.x < 0.68f && vp.y > 0.28f && vp.y < 0.72f);
+
+        float targetAlpha = (distToCam < 1.35f || inCenterView) ? 0.22f : 1.0f;
+        _currentAlpha = Mathf.MoveTowards(_currentAlpha, targetAlpha, Time.unscaledDeltaTime * 4.5f);
+
+        if (_cachedRenderers == null || _cachedRenderers.Length == 0)
+            _cachedRenderers = GetComponentsInChildren<Renderer>(true);
+
+        for (int i = 0; i < _cachedRenderers.Length; i++)
+        {
+            var r = _cachedRenderers[i];
+            if (r == null || r is ParticleSystemRenderer || r is TrailRenderer) continue;
+            var mats = r.materials;
+            for (int m = 0; m < mats.Length; m++)
+            {
+                var mat = mats[m];
+                if (mat == null) continue;
+                if (mat.HasProperty("_BaseColor"))
+                {
+                    Color c = mat.GetColor("_BaseColor");
+                    c.a = _currentAlpha;
+                    mat.SetColor("_BaseColor", c);
+                }
+                else if (mat.HasProperty("_Color"))
+                {
+                    Color c = mat.color;
+                    c.a = _currentAlpha;
+                    mat.color = c;
+                }
+            }
+        }
     }
 
     float SurfaceY(Vector3 pos)
@@ -2307,10 +2367,14 @@ public partial class AdventureRustDrone : MonoBehaviour
 
     public void OnNikoFoundScrap(int count)
     {
-        // 嬉しそうにピョンと跳ねる
+        // 嬉しそうにピョンと跳ねる＆頭上でクルッと歓喜宙返り
         _velocity += Vector3.up * 2.8f;
         if (_audio != null && _happyBeepClip != null)
-            _audio.PlayOneShot(_happyBeepClip, 0.5f);
+            _audio.PlayOneShot(_happyBeepClip, 0.65f);
+
+        // 歓喜スローモーション＆宙返り光粒演出
+        StartCoroutine(ScrapSlowMotionRoutine());
+        StartCoroutine(ScrapSomersaultAndSparkleRoutine());
 
         // 光る遺物回収ボーナス：潤滑油（その時々でランダム）
         int scrapOilBonus = RollScrapOilBonus(count);
@@ -2366,6 +2430,39 @@ public partial class AdventureRustDrone : MonoBehaviour
         {
             StartCoroutine(KeystoneFittedRoutine(count));
         }
+    }
+
+    /// <summary>パーツ取得の瞬間に一瞬だけ0.1秒スローモーション（ジューシーなインパクトと余韻）</summary>
+    IEnumerator ScrapSlowMotionRoutine()
+    {
+        float originalScale = Time.timeScale;
+        Time.timeScale = 0.20f;
+        yield return new WaitForSecondsRealtime(0.12f);
+        Time.timeScale = originalScale;
+    }
+
+    /// <summary>パーツ取得時にNikoの頭上でクルッと360度歓喜宙返りし、花火光粒を放つ</summary>
+    IEnumerator ScrapSomersaultAndSparkleRoutine()
+    {
+        // 1. ゴールドスパークル花火を放射
+        SpawnGoldSparkles(transform.position, 36);
+
+        // 2. 宙返りアニメーション（クルッと360度宙返り＆垂直バウンス）
+        float duration = 0.65f;
+        float elapsed = 0f;
+        Quaternion startRot = transform.rotation;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float angle = Mathf.SmoothStep(0f, 360f, t);
+            transform.rotation = startRot * Quaternion.Euler(angle, 0f, 0f);
+            yield return null;
+        }
+
+        transform.rotation = startRot;
+        SpawnGoldSparkles(transform.position, 18);
     }
 
     /// <summary>光る遺物回収時の油量。通常2〜6、キーストーン節目は多め。</summary>

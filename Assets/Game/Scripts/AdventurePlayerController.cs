@@ -149,6 +149,9 @@ public partial class AdventurePlayerController : MonoBehaviour
     public bool IsInAir      => !_grounded;
     public bool IsBoostActive => _glideBoostTimer > 0f;
     public bool IsAutoGliding => _autoGlide;
+    /// <summary>狭い足場やテラスへのピンポイント着地アシスト作動中</summary>
+    public bool IsSoftLandingHover => _isSoftLandingHover;
+    bool _isSoftLandingHover = false;
     /// <summary>このフレーム移動入力あり（カメラの歩行スナップ用）</summary>
     public bool HasMoveInput { get; private set; }
 
@@ -578,16 +581,17 @@ public partial class AdventurePlayerController : MonoBehaviour
         bool ccGrounded = _cc.isGrounded;
         // 微小浮遊や凸凹・小石による一瞬の離地を吸収し、地上歩行の滑らかさを維持
         bool rayGrounded = false;
-        if (_hop <= 0.05f)
+        if (_hop <= 0.05f || (_gliding && _isSoftLandingHover))
         {
-            if (Physics.Raycast(transform.position + Vector3.up * 0.12f, Vector3.down, out RaycastHit groundHit, 0.38f, ~0, QueryTriggerInteraction.Ignore))
+            float checkDist = (_gliding && _isSoftLandingHover) ? 0.65f : 0.38f;
+            if (Physics.Raycast(transform.position + Vector3.up * 0.12f, Vector3.down, out RaycastHit groundHit, checkDist, ~0, QueryTriggerInteraction.Ignore))
             {
                 if (groundHit.collider != null && !groundHit.collider.CompareTag("Player") && !groundHit.collider.name.Contains("Rust"))
                     rayGrounded = true;
             }
         }
 
-        bool isGroundedEffective = (ccGrounded || rayGrounded) && _hop <= 0.05f && !TooSteep();
+        bool isGroundedEffective = (ccGrounded || rayGrounded) && (_hop <= 0.05f || (_gliding && _isSoftLandingHover)) && !TooSteep();
 
         if (_glideBoostTimer > 0f)
         {
@@ -1036,6 +1040,25 @@ public partial class AdventurePlayerController : MonoBehaviour
             targetFall = Mathf.Lerp(targetFall, Mathf.Max(targetFall, -0.35f), 0.65f);
 
         float targetPitch = Mathf.Lerp(0f, 8f, diveT) + Mathf.Lerp(0f, -6f, flareT);
+
+        // ── ピンポイント着地アシスト（ホバリング＆ソフトランディング） ──
+        // 足元2.6m以内に着地可能な足場があり、Sキー減速中（flareT > 0.12f）または低速滑空時
+        _isSoftLandingHover = false;
+        if (Physics.Raycast(transform.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit landingHit, 2.6f, ~0, QueryTriggerInteraction.Ignore))
+        {
+            if (landingHit.collider != null && !landingHit.collider.CompareTag("Player") && !landingHit.collider.name.Contains("Rust") && !TooSteep())
+            {
+                if (flareT > 0.12f || gIn.sqrMagnitude < 0.15f)
+                {
+                    _isSoftLandingHover = true;
+                    targetSpeed = Mathf.Min(targetSpeed, 2.2f);
+                    targetFall = -1.15f; // 穏やかに水平沈み込み
+                    targetPitch = 0f;    // 機体を水平に保つ
+                    targetRoll = 0f;
+                    _airMomentum = Vector3.MoveTowards(_airMomentum, Vector3.zero, 16f * dt);
+                }
+            }
+        }
         _glidePitchCurrent = Mathf.SmoothDamp(
             _glidePitchCurrent, targetPitch, ref _glidePitchVel, GlideAttitudeSmooth,
             Mathf.Infinity, dt);
