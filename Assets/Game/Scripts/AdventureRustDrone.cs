@@ -2568,7 +2568,8 @@ public partial class AdventureRustDrone : MonoBehaviour
     /// <summary>セリフを表示し、プレイヤーが次の行動（WASD移動やジャンプなど）を起こすまで画面に維持</summary>
     public void SetSpeech(string text, float duration = 4.5f)
     {
-        _speechText = text;
+        string loc = AdventureLocalizationManager.Get(text);
+        _speechText = loc;
         _speechTimer = duration;
         _waitingForPlayerAction = true;
         _speechShowTime = 0f;
@@ -2581,7 +2582,8 @@ public partial class AdventureRustDrone : MonoBehaviour
     {
         _speechSpeaker = "✦ 相棒 Rust";
         _speechSpeakerColor = new Color(0.35f, 0.92f, 0.98f, 1f);
-        _speechText = text;
+        string loc = AdventureLocalizationManager.Get(text);
+        _speechText = loc;
         _speechTimer = duration;
         _waitingForPlayerAction = false;
         _speechShowTime = 0f;

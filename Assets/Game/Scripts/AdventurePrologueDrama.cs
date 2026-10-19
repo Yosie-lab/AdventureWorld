@@ -196,14 +196,16 @@ public class AdventurePrologueDrama : MonoBehaviour
     IEnumerator SpeakRust(AdventureRustDrone drone, string text, float hold)
     {
         if (drone == null) yield break;
-        drone.SpeakCustom(text, hold);
+        string loc = AdventureLocalizationManager.Get(text);
+        drone.SpeakCustom(loc, hold);
         yield return new WaitForSeconds(hold);
     }
 
     IEnumerator SpeakNiko(AdventureRustDrone drone, string text, float hold)
     {
         if (drone == null) yield break;
-        drone.SpeakAsNiko(text, hold);
+        string loc = AdventureLocalizationManager.Get(text);
+        drone.SpeakAsNiko(loc, hold);
         yield return new WaitForSeconds(hold);
     }
 
@@ -444,6 +446,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         GUI.DrawTexture(new Rect(x, y, w, 4f), Texture2D.whiteTexture);
         GUI.DrawTexture(new Rect(x, y + h - 4f, w, 4f), Texture2D.whiteTexture);
 
+        Font customFont = ResolvePrologueFont();
         var title = new GUIStyle(GUI.skin.label)
         {
             fontSize = 34,
@@ -451,19 +454,21 @@ public class AdventurePrologueDrama : MonoBehaviour
             alignment = TextAnchor.MiddleCenter,
             wordWrap = true
         };
+        if (customFont != null) title.font = customFont;
         title.normal.textColor = new Color(1f, 0.9f, 0.45f, 1f);
-        GUI.Label(new Rect(x + 24f, y + 28f, w - 48f, 56f), "✦ キーストーン I：手動の自由 ✦", title);
+        GUI.Label(new Rect(x + 24f, y + 28f, w - 48f, 56f), AdventureLocalizationManager.Get("prologue_keystone_dash_title"), title);
 
         var body = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 26,
+            fontSize = 24,
             fontStyle = FontStyle.Normal,
             alignment = TextAnchor.MiddleCenter,
             wordWrap = true
         };
+        if (customFont != null) body.font = customFont;
         body.normal.textColor = new Color(0.92f, 0.96f, 1f, 1f);
-        GUI.Label(new Rect(x + 36f, y + 100f, w - 72f, 180f),
-            "指先が油で汚れ、歯車が噛み合う——\nそれが、生きている手応えだ。\n\n【ブースター修復】ダッシュが戻った！\nRustと手をつないで、草原へ駆け上がろう。",
+        GUI.Label(new Rect(x + 36f, y + 96f, w - 72f, 190f),
+            AdventureLocalizationManager.Get("prologue_keystone_dash_body"),
             body);
 
         var hint = new GUIStyle(GUI.skin.label)
@@ -472,9 +477,30 @@ public class AdventurePrologueDrama : MonoBehaviour
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
+        if (customFont != null) hint.font = customFont;
         hint.normal.textColor = new Color(0.45f, 0.95f, 0.9f, 1f);
-        GUI.Label(new Rect(x, y + h - 70f, w, 40f), "【Space / クリック】で続ける", hint);
+        GUI.Label(new Rect(x, y + h - 70f, w, 40f), AdventureLocalizationManager.Get("prologue_keystone_dash_hint"), hint);
         GUI.color = Color.white;
+    }
+
+    static Font _cachedPrologueFont;
+    static Font ResolvePrologueFont()
+    {
+        if (_cachedPrologueFont != null) return _cachedPrologueFont;
+        string[] fonts = {
+            "PingFang SC", "Hiragino Sans GB", "Heiti SC",
+            "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Microsoft YaHei",
+            "Arial Unicode MS", "YuGothic", "Apple SD Gothic Neo", "Arial"
+        };
+        try
+        {
+            _cachedPrologueFont = Font.CreateDynamicFontFromOSFont(fonts, 24);
+            if (_cachedPrologueFont != null) return _cachedPrologueFont;
+        }
+        catch { }
+        _cachedPrologueFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+                              ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        return _cachedPrologueFont;
     }
 
     #region Awakening Sequence (遭難直後の波音とRustの目覚まし)
@@ -779,11 +805,12 @@ public class AdventurePrologueDrama : MonoBehaviour
         hintRt.offsetMin = Vector2.zero;
         hintRt.offsetMax = Vector2.zero;
         var hintText = hintGo.AddComponent<Text>();
-        hintText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        Font hf = ResolvePrologueFont();
+        hintText.font = hf ?? (Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf"));
         hintText.fontSize = 24;
         hintText.alignment = TextAnchor.MiddleCenter;
         hintText.color = new Color(1f, 0.92f, 0.65f, 0.95f);
-        hintText.text = "【クリック / Space】で進む　【Escape】でスキップ";
+        hintText.text = AdventureLocalizationManager.Get("awakening_skip_hint");
         var hintOutline = hintGo.AddComponent<Outline>();
         hintOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
         hintOutline.effectDistance = new Vector2(1.5f, -1.5f);
@@ -803,7 +830,9 @@ public class AdventurePrologueDrama : MonoBehaviour
     IEnumerator ShowSubtitle(Text text, CanvasGroup cg, string message, float duration)
     {
         if (text == null || cg == null) yield break;
-        text.text = message;
+        Font sf = ResolvePrologueFont();
+        if (sf != null) text.font = sf;
+        text.text = AdventureLocalizationManager.Get(message);
 
         // フェードイン
         float t = 0f;

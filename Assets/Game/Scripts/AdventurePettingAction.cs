@@ -59,7 +59,8 @@ public class AdventurePettingAction : MonoBehaviour
     public void PetRust(string speechText = "よしよし、いつもありがとうね", float duration = 3.0f)
     {
         if (_isPetting) return;
-        StartCoroutine(PettingRoutine(speechText, duration));
+        string loc = AdventureLocalizationManager.Get(speechText);
+        StartCoroutine(PettingRoutine(loc, duration));
     }
 
     IEnumerator PettingRoutine(string speechText, float duration)

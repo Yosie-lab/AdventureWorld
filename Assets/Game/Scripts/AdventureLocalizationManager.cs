@@ -1041,6 +1041,634 @@ public static class AdventureLocalizationManager
             "[E / Space / Click] Close",
             "【E / Space / 鼠标点击】关闭",
             "[E / Espacio / Clic] Cerrar"
+        } },
+
+        // ══════════════════════════════════════════
+        // サバイバルケース（Drift Box #1〜#5）
+        // ══════════════════════════════════════════
+        { "driftbox_generic_title", new[] { "漂着サバイバルケース", "Drift Survival Case", "漂流求生箱", "Caja de Supervivencia Varada" } },
+        { "driftbox_generic_author", new[] { "記録メモ", "Recorded Log", "记录便笺", "Nota Registrada" } },
+
+        { "driftbox_1_title", new[] { "漂着サバイバルケース #1", "Drift Survival Case #1", "漂流求生箱 #1", "Caja de Supervivencia Varada #1" } },
+        { "driftbox_1_author", new[] { "先人の漂着記録", "Castaway's Log", "先民的漂流记录", "Diario del Náufrago" } },
+        { "driftbox_1_body", new[] {
+            "気がつくと見知らぬ白砂の海岸に打ち上げられていた。\n\n内陸から心地よいせせらぎが聞こえる。川を遡ると『せせらぎ池』や『カルデラ湖』があるようだ。\n\n水と古代パーツを探すなら、まずは目の前の川沿いに内陸を目指すのが良いだろう。",
+            "I woke up washed ashore on an unfamiliar white sandy beach.\n\nI hear a soothing murmur of water from inland. Following the river upstream leads to 'Murmuring Pond' and 'Caldera Lake'.\n\nIf searching for fresh water and ancient scrap parts, follow the river inland.",
+            "醒来时，我已被冲上这片陌生的白沙海岸。\n\n内陆传来舒缓的潺潺流水声。溯流而上，似乎有『潺潺溪塘』与『破火山口湖』。\n\n若想探寻淡水与古代零件，不妨先沿着眼前的河流向内陆探索。",
+            "Al despertar, me hallé varado en una playa de arena blanca desconocida.\n\nDesde el interior se oye el murmullo del agua. Siguiendo el río río arriba se llega al 'Estanque Murmurante' y al 'Lago Caldera'.\n\nPara buscar agua dulce y piezas antiguas, sigue el curso del río hacia el interior."
+        } },
+        { "driftbox_1_rust", new[] {
+            "ケースの中にサバイバルメモがあるよ！川を遡ると内陸の池や湖に出られるみたいだね。川沿いに行ってみよう！",
+            "There's a survival note inside! It says following the river inland leads to ponds and lakes. Let's follow the stream!",
+            "箱子里有一张求生便笺！看来顺着河流往内陆走能找到池塘和湖泊。我们沿着河岸出发吧！",
+            "¡Hay una nota de supervivencia dentro! Dice que siguiendo el río llegaremos a estanques y lagos. ¡Sigamos la corriente!"
+        } },
+        { "driftbox_1_obj", new[] {
+            "川沿いに進んで内陸のせせらぎ池を目指そう",
+            "Follow the stream inland toward Murmuring Pond",
+            "沿着河流前进，前往内陆的潺潺溪塘",
+            "Sigue el arroyo hacia el interior hasta el Estanque Murmurante"
+        } },
+
+        { "driftbox_2_title", new[] { "漂着メンテナンスBOX #2", "Drift Maintenance Box #2", "漂流维护工具箱 #2", "Caja de Mantenimiento Varada #2" } },
+        { "driftbox_2_author", new[] { "技師の覚書", "Engineer's Memo", "技师的备忘录", "Apuntes del Ingeniero" } },
+        { "driftbox_2_body", new[] {
+            "島中に散らばる『古代パーツ』を集めれば、相棒ドローンの故障したブースターが修復されるらしい。\n\nパーツを【3個】集めると『高速ダッシュ』が解放され、広大な島を快適に駆け抜けられるようになる。\n\n空へ伸びる黄金やシアンの光の柱を探せ。",
+            "Gathering 'Ancient Scrap' scattered across the island can repair your drone companion's broken booster.\n\nCollecting 3 parts unlocks 'Booster Dash', letting you sprint across the vast island.\n\nLook for pillars of gold and cyan light ascending into the sky.",
+            "收集散落在岛屿各处的『古代零件』，似乎能修复伙伴无人机破损的推进器。\n\n集齐【3个】零件即可解锁『高速冲刺』，在辽阔的岛屿上畅快奔跑。\n\n寻找升入天空的金色与青蓝色光柱吧。",
+            "Recoger las 'Piezas Antiguas' esparcidas por la isla puede reparar el propulsor dañado de tu dron compañero.\n\nAl reunir 3 piezas desbloquearás el 'Esprint con Propulsor' para recorrer la isla a toda velocidad.\n\nBusca los pilares de luz dorada y cian que se alzan hacia el cielo."
+        } },
+        { "driftbox_2_rust", new[] {
+            "パーツを3個集めれば僕のブースターが直ってダッシュできるようになるんだ！周りを見渡して光の柱を探そう！",
+            "Gathering 3 parts fixes my booster so we can dash! Let's look around for those light pillars!",
+            "集齐3个零件就能修好我的推进器冲刺了！快环顾四周寻找光柱吧！",
+            "¡Con 3 piezas repararemos mi propulsor para esprintar! ¡Busquemos los pilares de luz a nuestro alrededor!"
+        } },
+        { "driftbox_2_obj", new[] {
+            "古代パーツを3個集めてブースターダッシュを解放しよう",
+            "Collect 3 ancient scrap parts to unlock Booster Dash",
+            "收集3个古代零件以解锁推进器冲刺",
+            "Reúne 3 piezas antiguas para desbloquear el Esprint"
+        } },
+
+        { "driftbox_3_title", new[] { "漂着航海カプセル #3", "Drift Navigation Capsule #3", "漂流航海胶囊 #3", "Caja de Navegación Varada #3" } },
+        { "driftbox_3_author", new[] { "飛行士の記録", "Aviator's Log", "飞行员的航海志", "Diario del Aviador" } },
+        { "driftbox_3_body", new[] {
+            "砂浜と内陸の高台の間には、海風が吹き上げる『サーマル上昇気流』や、登りやすい『木道スロープ』がある。\n\n高い崖も、Spaceキーを長押しして海風に乗れば、一気に上空へ舞い上がって高台を飛び越えられるはずだ。",
+            "Between the beaches and inland plateaus are thermal updrafts lifting from sea winds and easy wooden boardwalks.\n\nEven high cliffs can be scaled by holding Space to glide upon the sea breeze and soar past the summit.",
+            "在沙滩与内陆高台之间，有着海风吹拂形成的『上升热气流』以及易于攀登的『木质坡道』。\n\n哪怕是陡峭绝壁，按住Space键顺风滑翔，也能一口气冲上云霄飞越高台。",
+            "Entre la playa y las mesetas del interior hay corrientes térmicas marinas y suaves rampas de madera.\n\nPuedes superar los altos acantilados manteniendo pulsado Espacio para planear con la brisa marina."
+        } },
+        { "driftbox_3_rust", new[] {
+            "高い崖も海風の上昇気流に乗れば一気に飛べるんだ！Spaceキー長押しで風に乗ってみよう！",
+            "We can soar over high cliffs using the sea thermal updrafts! Let's ride the wind by holding Space!",
+            "只要顺着海风上升气流，连高崖也能一跃而过！长按Space键乘风飞翔吧！",
+            "¡Podemos remontar acantilados con las corrientes térmicas! ¡Mantén pulsado Espacio para cabalgar el viento!"
+        } },
+        { "driftbox_3_obj", new[] {
+            "海風の上昇気流や木道を使って高台へ登ろう",
+            "Ride the sea breeze updrafts or use wooden ramps to reach the plateau",
+            "借助海风上升气流或木道登上高台",
+            "Usa las corrientes térmicas o las pasarelas para subir a la meseta"
+        } },
+
+        { "driftbox_4_title", new[] { "観測機器コンテナ #4", "Sensor Gear Container #4", "观测设备集装箱 #4", "Contenedor de Sensores #4" } },
+        { "driftbox_4_author", new[] { "探査隊の記録", "Expedition Log", "探险队的勘测志", "Registro de la Expedición" } },
+        { "driftbox_4_body", new[] {
+            "東の山岳地帯には原生林『大樹海』と岩が敷き詰められた激流が広がる。\n\n古代パーツを【9個】集めると、相棒ドローンに『探知ソナー』が修復され、近くの未発見パーツを音で教えてくれるようになるという。",
+            "The eastern mountain territory is covered in the primeval 'Great Forest' and rocky rapids.\n\nGathering 9 scrap parts repairs your drone's 'Detection Sonar', signaling nearby undiscovered parts with sound.",
+            "东部山区坐落着繁茂的原始森林『大树海』与乱石激流。\n\n收集【9个】古代零件，伙伴无人机的『探测声呐』便能修好，通过音效提示附近的未发现零件。",
+            "Al este se extiende el bosque virgen 'Gran Arboleda' y rápidos pedregosos.\n\nReunir 9 piezas repara el 'Sónar de Detección' del dron para avisarte con sonidos de las piezas cercanas."
+        } },
+        { "driftbox_4_rust", new[] {
+            "東の大樹海かぁ…！パーツを9個集めれば探知ソナーで音を使って探索できるようになるよ！",
+            "The eastern Great Forest...! With 9 parts, my sonar will help us locate secrets with sound!",
+            "东部的大树海啊……！只要集齐9个零件，我就能用探测声呐的声音指引你探索了！",
+            "¡El Gran Bosque del este...! ¡Con 9 piezas mi sónar te guiará con sonidos hacia las piezas ocultas!"
+        } },
+        { "driftbox_4_obj", new[] {
+            "パーツを9個集めて探知ソナーを解放しよう",
+            "Collect 9 scrap parts to unlock Detection Sonar",
+            "收集9个零件以解锁探测声呐",
+            "Reúne 9 piezas para desbloquear el Sónar de Detección"
+        } },
+
+        { "driftbox_5_title", new[] { "古びた暗号金庫 #5", "Ancient Encrypted Safe #5", "斑驳的密码保险柜 #5", "Caja Fuerte Antigua Cifrada #5" } },
+        { "driftbox_5_author", new[] { "島の創設者の遺言", "Island Founder's Will", "创岛者的遗书", "Testamento del Fundador" } },
+        { "driftbox_5_body", new[] {
+            "島の中央にそびえる白亜のタワー…あそこの最上部には、島の空を覆う『見えない天蓋』を開放する鍵がある。\n\nすべての古代パーツ【12個】を集めた時、タワーへの道が完全に開かれ、外の世界への脱出が可能になる。",
+            "The white sanctuary tower towering at the island's center... atop it lies the key to shattering the 'Invisible Canopy'.\n\nWhen all 12 ancient scrap parts are gathered, the way to the tower fully opens, allowing escape into the world beyond.",
+            "耸立在岛屿中央的白垩高塔……塔顶藏着开启笼罩天空的『隐形天穹』的关键钥匙。\n\n当集齐全部【12个】古代零件时，通往高塔之门将彻底开启，带我们逃向真实的外界。",
+            "La torre blanca en el centro de la isla... en su cima está la llave para quebrar la 'Cúpula Invisible'.\n\nAl reunir las 12 piezas antiguas, el camino a la torre se abrirá permitiendo escapar al exterior."
+        } },
+        { "driftbox_5_rust", new[] {
+            "島の中央にそびえる巨大タワー…あそこが僕たちの最終目的地だね！全部のパーツを集めて脱出しよう！",
+            "That giant tower at the island's center... that's our final destination! Let's collect all parts and escape!",
+            "耸立在岛屿中央的巨塔……那就是我们的最终目的地！集齐所有零件逃离这里吧！",
+            "Esa enorme torre en el centro... ¡es nuestro destino final! ¡Reunamos todas las piezas y escapemos!"
+        } },
+        { "driftbox_5_obj", new[] {
+            "古代パーツを12個集めて中央タワーの天蓋を開放しよう",
+            "Collect 12 scrap parts to unlock the Central Tower canopy",
+            "收集12个古代零件以解除中央高塔的天穹封印",
+            "Reúne 12 piezas para abrir la cúpula en la torre central"
+        } },
+
+        { "driftbox_banner", new[] {
+            "📦 【{0}】を開封！ (+2 pt)\n✦ 探索ポイント: {1} / {2} pt{3}",
+            "📦 Opened [{0}]! (+2 pts)\n✦ Exploration Points: {1} / {2} pts{3}",
+            "📦 已开启【{0}】！(+2 分)\n✦ 探索点数: {1} / {2} 分{3}",
+            "📦 ¡[{0}] abierto! (+2 pts)\n✦ Puntos de exploración: {1} / {2} pts{3}"
+        } },
+        { "driftbox_obj_prefix", new[] {
+            "\n💡 目標: {0}",
+            "\n💡 Goal: {0}",
+            "\n💡 目标: {0}",
+            "\n💡 Objetivo: {0}"
+        } },
+
+        // ══════════════════════════════════════════
+        // プロローグドラマ・Float＆Rustのセリフ
+        // ══════════════════════════════════════════
+        { "prologue_sub_wave", new[] { "……ザザァ……ザザァ……", "...Whoosh... Whoosh...", "……哗啦……哗啦……", "...Zazaa... Zazaa..." } },
+        { "prologue_sub_distant", new[] { "……遠くで、波の音が聴こえる。", "...In the distance, the gentle ocean waves murmur.", "……在遥远的地方，传来了阵阵海浪声。", "...A lo lejos, se escucha el rumor del mar." } },
+        { "prologue_rust_call1", new[] { "……Float？　……Float……？", "...Float? ...Float...?", "……Float？……Float……？", "...¿Float? ...¿Float...?" } },
+        { "prologue_rust_call2", new[] { "Float……！　目を覚まして、Float……！！", "Float...! Wake up, Float...!!", "Float……！快醒醒，Float……！！", "¡Float...! ¡Despierta, Float...!!" } },
+        { "prologue_rust_celebrate", new[] { "ピピッ！……よかったぁぁ！！気がついた……！", "Beep! ...Oh, thank goodness!! You're awake...!", "哔哔！……太好了呜呜！！你终于醒了……！", "¡Bip! ...¡¡Menos mal!! ¡¡Has despertado...!!" } },
+        { "prologue_rust_pod", new[] {
+            "脱出ポッドが海に落ちて……ボクたち、この島に打ち上げられたんだ！",
+            "The escape pod crashed into the sea... and we washed ashore on this island!",
+            "逃生舱掉进了大海……我们被海浪冲到了这座岛上！",
+            "¡La cápsula cayó al mar... y fuimos arrastrados a esta isla!"
+        } },
+
+        { "prologue_rust_distress1", new[] {
+            "キキッ……Float……塩水で古いギアが……凍りついて動かない……",
+            "Creak... Float... the saltwater froze my rusted gears... I can't move...",
+            "嘎吱……Float……海水浸透了我的旧齿轮……冻僵动不了了……",
+            "Cri-cri... Float... el agua salada congeló mis engranajes... no puedo moverme..."
+        } },
+        { "prologue_float_distress1", new[] {
+            "大丈夫だよ、Rust。ここにいるから。ぎゅっとしてていいよ",
+            "It's okay, Rust. I'm right here. Hold on tight to me.",
+            "没事的，Rust。我在这里呢。紧紧抱着我就好。",
+            "Tranquilo, Rust. Estoy aquí contigo. Puedes abrazarte a mí."
+        } },
+        { "prologue_rust_distress2", new[] {
+            "……うぅ……もっとそばにいたい……手が……あったかいの……",
+            "...Ngh... I want to stay closer... your hands... are so warm...",
+            "……呜呜……想离你更近一点……你的手……好温暖……",
+            "...Uff... quiero estar más cerca... tus manos... son tan cálidas..."
+        } },
+        { "prologue_float_distress2", new[] {
+            "よしよし。怖かったね。油をさして、ゆっくり温めてあげる",
+            "There, there. That was scary, wasn't it? I'll oil you up and warm you right away.",
+            "好啦好啦。吓坏了吧？我这就给你上润滑油，慢慢温暖你。",
+            "Ya, ya. Qué miedo pasaste. Te pondré aceite y te calentaremos despacio."
+        } },
+        { "prologue_rust_distress3", new[] {
+            "……お願い……【E】で油をさして……Floatの手、必要……",
+            "...Please... oil me with [E]... I need your touch, Float...",
+            "……拜托了……按【E】给我上油……我需要Float的手心……",
+            "...Por favor... ponme aceite con [E]... necesito tus manos, Float..."
+        } },
+
+        { "prologue_rust_remind1", new[] {
+            "……うぅ……まだ冷たいよ……Floatの手、ほしい……【E】で……",
+            "...Ugh... still so cold... I need your hands, Float... with [E]...",
+            "……呜呜……身上还是好冷……想要Float的手心……按【E】……",
+            "...Uff... aún tengo frío... necesito tus manos, Float... con [E]..."
+        } },
+        { "prologue_rust_remind2", new[] {
+            "……そばにいて……油を……さして……お願い……ぎゅっ……",
+            "...Stay with me... please oil my gears... hold me close...",
+            "……留在我身边……给我……上油……求你了……抱抱我……",
+            "...Quédate a mi lado... ponme... aceite... por favor... abrázame..."
+        } },
+        { "prologue_rust_remind3", new[] {
+            "ピピッ……か、硬い……Float……手当て……して……",
+            "Beep... It's so stiff... Float... please treat me...",
+            "哔哔……好、好僵硬……Float……快来救救我……",
+            "Bip... Es-está duro... Float... cuídame, por favor..."
+        } },
+
+        { "prologue_rust_revived1", new[] {
+            "……あ……温かい……回路が戻ってきた……！ありがとう、Float……",
+            "...Ah... so warm... my circuits are coming back online...! Thank you, Float...",
+            "……啊……好温暖……回路恢复运作了……！谢谢你，Float……",
+            "...Ah... qué calor... ¡mis circuitos vuelven a funcionar...! Gracias, Float..."
+        } },
+        { "prologue_float_revived1", new[] {
+            "よかった……また声が聞けて安心したよ。よしよし、いい子だね",
+            "Thank goodness... Hearing your voice puts me at ease. Good little buddy.",
+            "太好了……再次听到你的声音我终于安心了。乖孩子，真棒。",
+            "Menos mal... Me alivia tanto oírte de nuevo. Qué buen compañero eres."
+        } },
+        { "prologue_rust_revived2", new[] {
+            "えへへ……もうちょっと、胸のあたりにいたい……ピピッ……",
+            "Ehehe... I want to stay nestled close to your chest a bit longer... Beep...",
+            "嘿嘿……还想在你胸口前多贴一会儿……哔哔……",
+            "Jeje... Quiero quedarme acurrucado en tu pecho un ratito más... Bip..."
+        } },
+        { "prologue_float_revived2", new[] {
+            "もちろん。ずっと一緒だよ。怖かったら、すぐくっついてていいからね",
+            "Of course. We're in this together. Whenever you're scared, stay right beside me.",
+            "当然可以。我们会一直在一起。要是害怕，随时贴紧我就好。",
+            "Por supuesto. Siempre juntos. Si tienes miedo, acércate todo lo que quieras."
+        } },
+        { "prologue_rust_revived3", new[] {
+            "……うん。Floatの手の匂い、好き……もうギシギシしないよ",
+            "...Yeah. I love the warmth of your hands... No more creaking sounds!",
+            "……嗯。最喜欢Float手上的温暖气味了……身子再也不咔哒作响了。",
+            "...Sí. Me encanta el calor de tus manos... ¡Ya no chirrío nada!"
+        } },
+        { "prologue_float_revived3", new[] {
+            "さぁ、光るギアを取りに行こう。一歩ずつ、僕がそばにいるよ",
+            "Come on, let's go gather that glowing gear. Step by step, I'll be right with you.",
+            "来，我们去捡那颗发光的齿轮吧。一步一步，我会一直陪着你。",
+            "Vamos a recoger ese engranaje brillante. Paso a paso, estaré contigo."
+        } },
+        { "prologue_rust_guide_gear1", new[] {
+            "うん……！すぐ目の前——脱出艇の脇に、光るギアが落ちてるよ！",
+            "Yeah...! Right ahead—beside the escape pod, a glowing gear is lying there!",
+            "嗯……！就在正前方——逃生舱旁边，正掉落着一颗发光的齿轮！",
+            "¡Sí...! Justo delante, al lado de la cápsula, ¡hay un engranaje brillante!"
+        } },
+
+        { "prologue_rust_gear1_rebirth", new[] {
+            "ピキーン……！ギアが噛み合った……！僕、また飛べそうな気がするよ！！",
+            "Ding...! The gear locked into place...! I feel like I can fly again!!",
+            "叮的一声……！齿轮咬合上了……！我觉得自己又能飞翔了！！",
+            "¡Tink...! ¡El engranaje ha encajado...! ¡¡Siento que puedo volar de nuevo!!"
+        } },
+        { "prologue_float_gear1_rebirth", new[] {
+            "すごいよ、Rust。一歩ずつ、ちゃんと戻ってきてるね",
+            "Amazing, Rust. Step by step, you're restoring yourself.",
+            "太棒了，Rust。一步一步，你正一点点恢复呢。",
+            "Increíble, Rust. Paso a paso, te estás recuperando genial."
+        } },
+        { "prologue_rust_gear1_cuddle", new[] {
+            "……Floatがいてくれるから、怖くないよ。もっとくっついててもいい……？",
+            "...Because you're here with me, Float, I'm not afraid. Can I cuddle closer...?",
+            "……因为有Float在，我什么都不怕。可以再多靠着你一会儿吗……？",
+            "...Como estás conmigo, Float, no tengo miedo. ¿Puedo quedarme pegado a ti...?"
+        } },
+        { "prologue_float_gear1_cuddle", new[] {
+            "いいよ。甘えてて。あと2個集めよう——砂浜の光る柱を探そう",
+            "Of course. Take your time. Let's find 2 more—look for light pillars on the beach.",
+            "当然好啦。尽管撒娇吧。再去收集2个——寻找沙滩上的光柱吧。",
+            "Claro. Acurrúcate todo lo que quieras. Busquemos 2 más rastreando los pilares de luz."
+        } },
+
+        { "prologue_rust_gear2_bond", new[] {
+            "ピロッ……もうひとつ繋がったよ。胸の奥が、すこし暖かい……",
+            "Beep... Another one linked up. Inside my core feels a bit warmer...",
+            "滴答……又连接上了一颗。胸腔核心深处变得温热起来了……",
+            "Bip... Otro más conectado. Siento mi núcleo un poco más calentito..."
+        } },
+        { "prologue_float_gear2_bond", new[] {
+            "調子はどう？無理してたら、すぐ撫でてあげるからね",
+            "How are you feeling? If it hurts, I'll pet and soothe you right away.",
+            "感觉怎么样？要是勉强的话，随时跟我说，我马上给你顺顺气。",
+            "¿Cómo estás? Si te duele, dímelo y te acariciaré enseguida."
+        } },
+        { "prologue_rust_gear2_cuddle", new[] {
+            "えへへ……今は大丈夫。でも、撫でられるの好き……あと1個だよ！",
+            "Ehehe... I'm okay for now. But I love your pets... Just 1 more to go!",
+            "嘿嘿……现在感觉很好。不过被抚摸好舒服呀……只差最后1个了！",
+            "Jeje... Ahora estoy bien. Pero me encantan tus caricias... ¡Solo falta 1!"
+        } },
+
+        { "prologue_keystone_dash_title", new[] {
+            "✦ キーストーン I：手動の自由 ✦",
+            "✦ Keystone I: Freedom of Manual Touch ✦",
+            "✦ 崇高楔石 I：手工的自由 ✦",
+            "✦ Piedra Angular I: La Libertad Manual ✦"
+        } },
+        { "prologue_keystone_dash_body", new[] {
+            "指先が油で汚れ、歯車が噛み合う——\nそれが、生きている手応えだ。\n\n【ブースター修復】ダッシュが戻った！\nRustと手をつないで、草原へ駆け上がろう。",
+            "Fingertips stained with oil, clockwork gears interlocking—\nthat is the true sensation of being alive.\n\n[Booster Repaired] Sprint Dash restored!\nHold Rust close and race up into the rolling meadows.",
+            "指尖染上机油，齿轮紧密咬合——\n那正是活着的真切质感。\n\n【推进器修复】冲刺机能复苏！\n牵起Rust的手，一同向苍翠草原奔腾吧。",
+            "Yemas manchadas de grasa, engranajes engranando—\neso es sentirse vivo de verdad.\n\n¡[Propulsor Reparado] Esprint restaurado!\nToma a Rust y corre hacia las verdes praderas."
+        } },
+        { "prologue_keystone_dash_hint", new[] {
+            "【Space / クリック】で続ける",
+            "[Space / Click] Continue",
+            "【Space / 点击】继续",
+            "[Espacio / Clic] Continuar"
+        } },
+
+        { "prologue_rust_dash_repaired", new[] {
+            "ピキーン！足が軽い……！ダッシュが戻ったよ、Float！！",
+            "Ding! My boosters are so light...! Our dash is back, Float!!",
+            "叮！脚步变得轻盈了……！冲刺动力回来了，Float！！",
+            "¡Tink! ¡Mis propulsores van ligeros...! ¡¡Recuperamos el esprint, Float!!"
+        } },
+        { "prologue_float_dash_repaired", new[] {
+            "やったね！一緒に草原へ駆け上がろう。手、離さないよ",
+            "We did it! Let's race up into the meadows together. I won't let go.",
+            "太棒啦！我们一起奔向辽阔草原吧。绝不会松开你的手。",
+            "¡Lo logramos! Corramos juntos a la pradera. No te soltaré."
+        } },
+        { "prologue_rust_dash_ready", new[] {
+            "うん……！【Shift】で走って……僕、後ろでくっついてるからね！",
+            "Yeah...! Sprint with [Shift]... I'll be flying right beside you!",
+            "嗯……！用【Shift】奔跑吧……我会紧紧跟在你的身后！",
+            "¡Sí...! Corre con [Shift]... ¡Volaré pegadito a ti!"
+        } },
+
+        // ══════════════════════════════════════════
+        // Floatの撫で・手当て・注油セリフ
+        // ══════════════════════════════════════════
+        { "float_pet_good", new[] {
+            "よしよし、いつもありがとうね",
+            "There, there. Thank you for always being by my side.",
+            "好啦好啦，一直以来谢谢你呀。",
+            "Ya, ya. Gracias por estar siempre a mi lado."
+        } },
+        { "float_pet_great", new[] {
+            "すごいよRust！えらいえらい、ありがとう。よしよし",
+            "Incredible, Rust! What a good buddy, thank you. There, there.",
+            "太厉害了Rust！真乖真棒，谢谢你。摸摸头。",
+            "¡Increíble, Rust! Qué buen compañero, gracias. Ya, ya."
+        } },
+        { "float_pet_part", new[] {
+            "やったねRust！パーツを見つけたよ！",
+            "We did it, Rust! We found a scrap part!",
+            "太好了Rust！我们找到零件了！",
+            "¡Bien hecho, Rust! ¡Encontramos una pieza!"
+        } },
+        { "float_oil_apply", new[] {
+            "よし、油をさしたよ。調子はどう、Rust？",
+            "All oiled up. How are your gears feeling, Rust?",
+            "好啦，油已经上好了。感觉怎么样，Rust？",
+            "Listo, bien engrasado. ¿Qué tal te sientes, Rust?"
+        } },
+        { "float_oil_saved", new[] {
+            "セーブしたよ。また何かあったら言って",
+            "Progress saved. Let me know whenever you need anything, buddy.",
+            "进度已经保存好啦。要是身子不舒服随时跟我说哦。",
+            "Partida guardada. Avísame cuando necesites cualquier cosa."
+        } },
+
+        // ══════════════════════════════════════════
+        // 直接日本語文のフォールバック・キーマッピング
+        // ══════════════════════════════════════════
+        { "よしよし、いつもありがとうね", new[] {
+            "よしよし、いつもありがとうね",
+            "There, there. Thank you for always being by my side.",
+            "好啦好啦，一直以来谢谢你呀。",
+            "Ya, ya. Gracias por estar siempre a mi lado."
+        } },
+        { "すごいよRust！えらいえらい、ありがとう。よしよし", new[] {
+            "すごいよRust！えらいえらい、ありがとう。よしよし",
+            "Incredible, Rust! What a good buddy, thank you. There, there.",
+            "太厉害了Rust！真乖真棒，谢谢你。摸摸头。",
+            "¡Increíble, Rust! Qué buen compañero, gracias. Ya, ya."
+        } },
+        { "やったねRust！パーツを見つけたよ！", new[] {
+            "やったねRust！パーツを見つけたよ！",
+            "We did it, Rust! We found a scrap part!",
+            "太好了Rust！我们找到零件了！",
+            "¡Bien hecho, Rust! ¡Encontramos una pieza!"
+        } },
+        { "よし、油をさしたよ。調子はどう、Rust？", new[] {
+            "よし、油をさしたよ。調子はどう、Rust？",
+            "All oiled up. How are your gears feeling, Rust?",
+            "好啦，油已经上好了。感觉怎么样，Rust？",
+            "Listo, bien engrasado. ¿Qué tal te sientes, Rust?"
+        } },
+        { "セーブしたよ。また何かあったら言って", new[] {
+            "セーブしたよ。また何かあったら言って",
+            "Progress saved. Let me know whenever you need anything, buddy.",
+            "进度已经保存好啦。要是身子不舒服随时跟我说哦。",
+            "Partida guardada. Avísame cuando necesites cualquier cosa."
+        } },
+        { "キャッチしたよ！……Floatのところへ、大事に持ってくね", new[] {
+            "キャッチしたよ！……Floatのところへ、大事に持ってくね",
+            "Caught it! ...I'll bring it safely to Float!",
+            "接住了！……我会小心翼翼送去Float身边的！",
+            "¡Atrapado! ...¡Se lo llevaré sano y salvo a Float!"
+        } },
+        { "了解！あのパーツを取ってくるね、Float！", new[] {
+            "了解！あのパーツを取ってくるね、Float！",
+            "Roger that! I'll fly over and fetch that scrap part, Float!",
+            "收到！我去把那个零件捡回来，Float！",
+            "¡Entendido! ¡Iré a recoger esa pieza, Float!"
+        } },
+        { "わぁっ！温かい上昇気流だ！風に乗って大空へ行こう、Float！", new[] {
+            "わぁっ！温かい上昇気流だ！風に乗って大空へ行こう、Float！",
+            "Whoa! A warm thermal updraft! Let's ride the wind into the sky, Float!",
+            "哇啊！是温暖的上升气流！乘着风飞向天空吧，Float！",
+            "¡Uau! ¡Una corriente térmica cálida! ¡Volemos al cielo, Float!"
+        } },
+        { "awakening_skip_hint", new[] {
+            "【クリック / Space】で進む　【Escape】でスキップ",
+            "[Click / Space] Advance  [Escape] Skip",
+            "【点击 / Space】继续　【Escape】跳过",
+            "[Clic / Espacio] Avanzar  [Escape] Saltar"
+        } },
+        { "……ザザァ……ザザァ……", new[] {
+            "……ザザァ……ザザァ……",
+            "...Whoosh... Whoosh...",
+            "……哗啦……哗啦……",
+            "...Zazaa... Zazaa..."
+        } },
+        { "……遠くで、波の音が聴こえる。", new[] {
+            "……遠くで、波の音が聴こえる。",
+            "...In the distance, the gentle ocean waves murmur.",
+            "……在遥远的地方，传来了阵阵海浪声。",
+            "...A lo lejos, se escucha el rumor del mar."
+        } },
+        { "Rust 「……Float？　……Float……？」", new[] {
+            "Rust 「……Float？　……Float……？」",
+            "Rust \"...Float? ...Float...?\"",
+            "Rust「……Float？……Float……？」",
+            "Rust «...¿Float? ...¿Float...?»"
+        } },
+        { "Rust 「Float……！　目を覚まして、Float……！！」", new[] {
+            "Rust 「Float……！　目を覚まして、Float……！！」",
+            "Rust \"Float...! Wake up, Float...!!\"",
+            "Rust「Float……！快醒醒，Float……！！」",
+            "Rust «¡Float...! ¡Despierta, Float...!!»"
+        } },
+        { "……Float？　……Float……？", new[] {
+            "……Float？　……Float……？",
+            "...Float? ...Float...?",
+            "……Float？……Float……？",
+            "...¿Float? ...¿Float...?"
+        } },
+        { "Float……！　目を覚まして、Float……！！", new[] {
+            "Float……！　目を覚まして、Float……！！",
+            "Float...! Wake up, Float...!!",
+            "Float……！快醒醒，Float……！！",
+            "¡Float...! ¡Despierta, Float...!!"
+        } },
+        { "ピピッ！……よかったぁぁ！！気がついた……！", new[] {
+            "ピピッ！……よかったぁぁ！！気がついた……！",
+            "Beep! ...Oh, thank goodness!! You're awake...!",
+            "哔哔！……太好了呜呜！！你终于醒了……！",
+            "¡Bip! ...¡¡Menos mal!! ¡¡Has despertado...!!"
+        } },
+        { "脱出ポッドが海に落ちて……ボクたち、この島に打ち上げられたんだ！", new[] {
+            "脱出ポッドが海に落ちて……ボクたち、この島に打ち上げられたんだ！",
+            "The escape pod crashed into the sea... and we washed ashore on this island!",
+            "逃生舱掉进了大海……我们被海浪冲到了这座岛上！",
+            "¡La cápsula cayó al mar... y fuimos arrastrados a esta isla!"
+        } },
+        { "キキッ……Float……塩水で古いギアが……凍りついて動かない……", new[] {
+            "キキッ……Float……塩水で古いギアが……凍りついて動かない……",
+            "Creak... Float... the saltwater froze my rusted gears... I can't move...",
+            "嘎吱……Float……海水浸透了我的旧齿轮……冻僵动不了了……",
+            "Cri-cri... Float... el agua salada congeló mis engranajes... no puedo moverme..."
+        } },
+        { "大丈夫だよ、Rust。ここにいるから。ぎゅっとしてていいよ", new[] {
+            "大丈夫だよ、Rust。ここにいるから。ぎゅっとしてていいよ",
+            "It's okay, Rust. I'm right here. Hold on tight to me.",
+            "没事的，Rust。我在这里呢。紧紧抱着我就好。",
+            "Tranquilo, Rust. Estoy aquí contigo. Puedes abrazarte a mí."
+        } },
+        { "……うぅ……もっとそばにいたい……手が……あったかいの……", new[] {
+            "……うぅ……もっとそばにいたい……手が……あったかいの……",
+            "...Ngh... I want to stay closer... your hands... are so warm...",
+            "……呜呜……想离你更近一点……你的手……好温暖……",
+            "...Uff... quiero estar más cerca... tus manos... son tan cálidas..."
+        } },
+        { "よしよし。怖かったね。油をさして、ゆっくり温めてあげる", new[] {
+            "よしよし。怖かったね。油をさして、ゆっくり温めてあげる",
+            "There, there. That was scary, wasn't it? I'll oil you up and warm you right away.",
+            "好啦好啦。吓坏了吧？我这就给你上润滑油，慢慢温暖你。",
+            "Ya, ya. Qué miedo pasaste. Te pondré aceite y te calentaremos despacio."
+        } },
+        { "……お願い……【E】で油をさして……Floatの手、必要……", new[] {
+            "……お願い……【E】で油をさして……Floatの手、必要……",
+            "...Please... oil me with [E]... I need your touch, Float...",
+            "……拜托了……按【E】给我上油……我需要Float的手心……",
+            "...Por favor... ponme aceite con [E]... necesito tus manos, Float..."
+        } },
+        { "……あ……温かい……回路が戻ってきた……！ありがとう、Float……", new[] {
+            "……あ……温かい……回路が戻ってきた……！ありがとう、Float……",
+            "...Ah... so warm... my circuits are coming back online...! Thank you, Float...",
+            "……啊……好温暖……回路恢复运作了……！谢谢你，Float……",
+            "...Ah... qué calor... ¡mis circuitos vuelven a funcionar...! Gracias, Float..."
+        } },
+        { "よかった……また声が聞けて安心したよ。よしよし、いい子だね", new[] {
+            "よかった……また声が聞けて安心したよ。よしよし、いい子だね",
+            "Thank goodness... Hearing your voice puts me at ease. Good little buddy.",
+            "太好了……再次听到你的声音我终于安心了。乖孩子，真棒。",
+            "Menos mal... Me alivia tanto oírte de nuevo. Qué buen compañero eres."
+        } },
+        { "えへへ……もうちょっと、胸のあたりにいたい……ピピッ……", new[] {
+            "えへへ……もうちょっと、胸のあたりにいたい……ピピッ……",
+            "Ehehe... I want to stay nestled close to your chest a bit longer... Beep...",
+            "嘿嘿……还想在你胸口前多贴一会儿……哔哔……",
+            "Jeje... Quiero quedarme acurrucado en tu pecho un ratito más... Bip..."
+        } },
+        { "もちろん。ずっと一緒だよ。怖かったら、すぐくっついてていいからね", new[] {
+            "もちろん。ずっと一緒だよ。怖かったら、すぐくっついてていいからね",
+            "Of course. We're in this together. Whenever you're scared, stay right beside me.",
+            "当然可以。我们会一直在一起。要是害怕，随时贴紧我就好。",
+            "Por supuesto. Siempre juntos. Si tienes miedo, acércate todo lo que quieras."
+        } },
+        { "……うん。Floatの手の匂い、好き……もうギシギシしないよ", new[] {
+            "……うん。Floatの手の匂い、好き……もうギシギシしないよ",
+            "...Yeah. I love the warmth of your hands... No more creaking sounds!",
+            "……嗯。最喜欢Float手上的温暖气味了……身子再也不咔哒作响了。",
+            "...Sí. Me encanta el calor de tus manos... ¡Ya no chirrío nada!"
+        } },
+        { "さぁ、光るギアを取りに行こう。一歩ずつ、僕がそばにいるよ", new[] {
+            "さぁ、光るギアを取りに行こう。一歩ずつ、僕がそばにいるよ",
+            "Come on, let's go gather that glowing gear. Step by step, I'll be right with you.",
+            "来，我们去捡那颗发光的齿轮吧。一步一步，我会一直陪着你。",
+            "Vamos a recoger ese engranaje brillante. Paso a paso, estaré contigo."
+        } },
+        { "うん……！すぐ目の前——脱出艇の脇に、光るギアが落ちてるよ！", new[] {
+            "うん……！すぐ目の前——脱出艇の脇に、光るギアが落ちてるよ！",
+            "Yeah...! Right ahead—beside the escape pod, a glowing gear is lying there!",
+            "嗯……！就在正前方——逃生舱旁边，正掉落着一颗发光的齿轮！",
+            "¡Sí...! Justo delante, al lado de la cápsula, ¡hay un engranaje brillante!"
+        } },
+        { "ピキーン……！ギアが噛み合った……！僕、また飛べそうな気がするよ！！", new[] {
+            "ピキーン……！ギアが噛み合った……！僕、また飛べそうな気がするよ！！",
+            "Ding...! The gear locked into place...! I feel like I can fly again!!",
+            "叮的一声……！齿轮咬合上了……！我觉得自己又能飞翔了！！",
+            "¡Tink...! ¡El engranaje ha encajado...! ¡¡Siento que puedo volar de nuevo!!"
+        } },
+        { "すごいよ、Rust。一歩ずつ、ちゃんと戻ってきてるね", new[] {
+            "すごいよ、Rust。一歩ずつ、ちゃんと戻ってきてるね",
+            "Amazing, Rust. Step by step, you're restoring yourself.",
+            "太棒了，Rust。一步一步，你正一点点恢复呢。",
+            "Increíble, Rust. Paso a paso, te estás recuperando genial."
+        } },
+        { "……Floatがいてくれるから、怖くないよ。もっとくっついててもいい……？", new[] {
+            "……Floatがいてくれるから、怖くないよ。もっとくっついててもいい……？",
+            "...Because you're here with me, Float, I'm not afraid. Can I cuddle closer...?",
+            "……因为有Float在，我什么都不怕。可以再多靠着你一会儿吗……？",
+            "...Como estás conmigo, Float, no tengo miedo. ¿Puedo quedarme pegado a ti...?"
+        } },
+        { "いいよ。甘えてて。あと2個集めよう——砂浜の光る柱を探そう", new[] {
+            "いいよ。甘えてて。あと2個集めよう——砂浜の光る柱を探そう",
+            "Of course. Take your time. Let's find 2 more—look for light pillars on the beach.",
+            "当然好啦。尽管撒娇吧。再去收集2个——寻找沙滩上的光柱吧。",
+            "Claro. Acurrúcate todo lo que quieras. Busquemos 2 más rastreando los pilares de luz."
+        } },
+        { "ピロッ……もうひとつ繋がったよ。胸の奥が、すこし暖かい……", new[] {
+            "ピロッ……もうひとつ繋がったよ。胸の奥が、すこし暖かい……",
+            "Beep... Another one linked up. Inside my core feels a bit warmer...",
+            "滴答……又连接上了一颗。胸腔核心深处变得温热起来了……",
+            "Bip... Otro más conectado. Siento mi núcleo un poco más calentito..."
+        } },
+        { "調子はどう？無理してたら、すぐ撫でてあげるからね", new[] {
+            "調子はどう？無理してたら、すぐ撫でてあげるからね",
+            "How are you feeling? If it hurts, I'll pet and soothe you right away.",
+            "感觉怎么样？要是勉强的话，随时跟我说，我马上给你顺顺气。",
+            "¿Cómo estás? Si te duele, dímelo y te acariciaré enseguida."
+        } },
+        { "えへへ……今は大丈夫。でも、撫でられるの好き……あと1個だよ！", new[] {
+            "えへへ……今は大丈夫。でも、撫でられるの好き……あと1個だよ！",
+            "Ehehe... I'm okay for now. But I love your pets... Just 1 more to go!",
+            "嘿嘿……现在感觉很好。不过被抚摸好舒服呀……只差最后1个了！",
+            "Jeje... Ahora estoy bien. Pero me encantan tus caricias... ¡Solo falta 1!"
+        } },
+        { "ピキーン！足が軽い……！ダッシュが戻ったよ、Float！！", new[] {
+            "ピキーン！足が軽い……！ダッシュが戻ったよ、Float！！",
+            "Ding! My boosters are so light...! Our dash is back, Float!!",
+            "叮！脚步变得轻盈了……！冲刺动力回来了，Float！！",
+            "¡Tink! ¡Mis propulsores van ligeros...! ¡¡Recuperamos el esprint, Float!!"
+        } },
+        { "やったね！一緒に草原へ駆け上がろう。手、離さないよ", new[] {
+            "やったね！一緒に草原へ駆け上がろう。手、離さないよ",
+            "We did it! Let's race up into the meadows together. I won't let go.",
+            "太棒啦！我们一起奔向辽阔草原吧。绝不会松开你的手。",
+            "¡Lo logramos! Corramos juntos a la pradera. No te soltaré."
+        } },
+        { "うん……！【Shift】で走って……僕、後ろでくっついてるからね！", new[] {
+            "うん……！【Shift】で走って……僕、後ろでくっついてるからね！",
+            "Yeah...! Sprint with [Shift]... I'll be flying right beside you!",
+            "嗯……！用【Shift】奔跑吧……我会紧紧跟在你的身后！",
+            "¡Sí...! Corre con [Shift]... ¡Volaré pegadito a ti!"
+        } },
+        { "やったぁ！パーツ発見だね！", new[] {
+            "やったぁ！パーツ発見だね！",
+            "Hooray! A scrap part found!",
+            "太好啦！发现零件了呢！",
+            "¡Yupi! ¡Encontramos una pieza!"
+        } },
+        { "ピピッ♪ 大事な手がかりゲット！", new[] {
+            "ピピッ♪ 大事な手がかりゲット！",
+            "Beep♪ Got an important clue!",
+            "哔哔♪ 获得重要线索啦！",
+            "¡Bip♪ Una pista importante!"
+        } },
+        { "えへへ、順調順調！", new[] {
+            "えへへ、順調順調！",
+            "Ehehe, smooth sailing!",
+            "嘿嘿，进展顺利顺利！",
+            "Jeje, ¡todo marcha genial!"
+        } },
+        { "これでまた島を出る準備が進んだね！", new[] {
+            "これでまた島を出る準備が進んだね！",
+            "One step closer to escaping this island!",
+            "这样一来，逃离岛屿的准备又前进了一步呢！",
+            "¡Un paso más cerca de escapar de la isla!"
+        } },
+        { "ピロリン！見つけてくれてありがとう、Float！", new[] {
+            "ピロリン！見つけてくれてありがとう、Float！",
+            "Ding-dong! Thank you for finding this, Float!",
+            "叮咚！谢谢你把它找出来，Float！",
+            "¡Ding-dong! ¡Gracias por encontrarlo, Float!"
+        } },
+        { "わぁぁ！カピタに貝殻プレゼントできたね！頭にみかん乗せて大喜びしてるよ！", new[] {
+            "わぁぁ！カピタに貝殻プレゼントできたね！頭にみかん乗せて大喜びしてるよ！",
+            "Whoa! We gifted the shell to Capyta! Look how happy it is with an orange on its head!",
+            "哇啊啊！给卡皮塔送上贝壳礼物了呢！它头上顶着橘子开心地不得了！",
+            "¡Uau! ¡Le dimos la concha a Capyta! ¡Mira qué contento está con la mandarina en la cabeza!"
+        } },
+        { "わぁぁ！崖の上にこんなお宝があったんだね！ボクたちの力で登れたよ、Float！", new[] {
+            "わぁぁ！崖の上にこんなお宝があったんだね！ボクたちの力で登れたよ、Float！",
+            "Whoa! What a treasure perched atop the cliff! We climbed up here on our own, Float!",
+            "哇啊！悬崖顶上居然藏着这等宝物！凭我们自己的力量登上来了呢，Float！",
+            "¡Uau! ¡Menudo tesoro había sobre el acantilado! ¡Subimos con nuestras propias fuerzas, Float!"
         } }
     };
 }

@@ -86,6 +86,31 @@ public class AdventureBeachDriftBox : MonoBehaviour
     private static bool _isModalOpen = false;
     private static float _modalOpenTimestamp = 0f;
     private static bool _pendingCampfireRemindOnModalClose = false;
+    private static int _currentModalBoxId = -1;
+    private static string _currentModalFallbackTitle = "";
+    private static string _currentModalFallbackAuthor = "";
+    private static string _currentModalFallbackBody = "";
+    private static bool _locSubscribed = false;
+
+    private static Font _cachedDriftBoxFont;
+    private static Font ResolveDriftBoxFont()
+    {
+        if (_cachedDriftBoxFont != null) return _cachedDriftBoxFont;
+        string[] fonts = {
+            "PingFang SC", "Hiragino Sans GB", "Heiti SC",
+            "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Microsoft YaHei",
+            "Arial Unicode MS", "YuGothic", "Apple SD Gothic Neo", "Arial"
+        };
+        try
+        {
+            _cachedDriftBoxFont = Font.CreateDynamicFontFromOSFont(fonts, 20);
+            if (_cachedDriftBoxFont != null) return _cachedDriftBoxFont;
+        }
+        catch { }
+        _cachedDriftBoxFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+                              ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        return _cachedDriftBoxFont;
+    }
 
     /// <summary>
     /// モーダルが実際に画面上に表示されているかどうか。
@@ -107,6 +132,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         _isModalOpen = false;
         _modalOpenTimestamp = 0f;
         _pendingCampfireRemindOnModalClose = false;
+        _currentModalBoxId = -1;
         _activeBoxes.Clear();
     }
 
@@ -370,7 +396,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
                 if (ePressed)
                 {
-                    ShowModal(boxTitle, author, message);
+                    ShowModal(boxId, boxTitle, author, message);
                 }
             }
         }
@@ -948,7 +974,9 @@ public class AdventureBeachDriftBox : MonoBehaviour
             }
             else
             {
-                drone.TriggerCelebration(rustDialogue, 2.2f);
+                string locRust = AdventureLocalizationManager.Get($"driftbox_{boxId}_rust");
+                if (string.IsNullOrEmpty(locRust) || locRust == $"driftbox_{boxId}_rust") locRust = rustDialogue;
+                drone.TriggerCelebration(locRust, 2.2f);
             }
         }
 
@@ -959,8 +987,16 @@ public class AdventureBeachDriftBox : MonoBehaviour
             if (!unlockedLever && !unlockedCampfire)
             {
                 int pts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
-                string objText = !string.IsNullOrEmpty(nextObjective) ? $"\n💡 目標: {nextObjective}" : "";
-                hud.ShowUpgradeBanner($"📦 【{boxTitle}】を開封！ (+2 pt)\n✦ 探索ポイント: {pts} / {AdventureScrapManager.RequiredPointsForCanopy} pt{objText}");
+                string locTitle = AdventureLocalizationManager.Get($"driftbox_{boxId}_title");
+                if (string.IsNullOrEmpty(locTitle) || locTitle == $"driftbox_{boxId}_title") locTitle = boxTitle;
+
+                string locObj = AdventureLocalizationManager.Get($"driftbox_{boxId}_obj");
+                if (string.IsNullOrEmpty(locObj) || locObj == $"driftbox_{boxId}_obj") locObj = nextObjective;
+
+                string objText = !string.IsNullOrEmpty(locObj)
+                    ? AdventureLocalizationManager.GetFormat("driftbox_obj_prefix", locObj)
+                    : "";
+                hud.ShowUpgradeBanner(AdventureLocalizationManager.GetFormat("driftbox_banner", locTitle, pts, AdventureScrapManager.RequiredPointsForCanopy, objText));
             }
         }
 
@@ -970,8 +1006,8 @@ public class AdventureBeachDriftBox : MonoBehaviour
             _pendingCampfireRemindOnModalClose = true;
         }
 
-        // 情報モーダルUIの表示
-        ShowModal(boxTitle, author, message);
+        // 情報モーダルUIの表示（多言語対応）
+        ShowModal(boxId, boxTitle, author, message);
     }
 
     private IEnumerator AnimateOpen()
@@ -1197,11 +1233,21 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     public static void ShowModal(string title, string author, string body)
     {
+        ShowModal(-1, title, author, body);
+    }
+
+    public static void ShowModal(int id, string fallbackTitle, string fallbackAuthor, string fallbackBody)
+    {
         // ナラティブモーダルやキーストーンボード（手動の自由）が表示中の場合は重複表示を防止
         if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal)
             return;
         if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsShowingDashBoard)
             return;
+
+        _currentModalBoxId = id;
+        _currentModalFallbackTitle = fallbackTitle ?? "";
+        _currentModalFallbackAuthor = fallbackAuthor ?? "";
+        _currentModalFallbackBody = fallbackBody ?? "";
 
         EnsureModalUI();
         if (_modalCanvas == null || _modalPanel == null) return;
@@ -1210,11 +1256,13 @@ public class AdventureBeachDriftBox : MonoBehaviour
             _modalCanvas.worldCamera = Camera.main;
         }
 
-        _modalTitleText.text = "📦 " + title;
-        _modalAuthorText.text = "── " + author + " ──";
-        _modalBodyText.text = body;
-        if (_modalCloseHintText != null)
-            _modalCloseHintText.text = AdventureLocalizationManager.Get("modal_close_hint");
+        if (!_locSubscribed)
+        {
+            _locSubscribed = true;
+            AdventureLocalizationManager.OnLanguageChanged += RefreshModalTexts;
+        }
+
+        RefreshModalTexts();
 
         _modalPanel.transform.parent.gameObject.SetActive(true);
         _isModalOpen = true;
@@ -1223,6 +1271,45 @@ public class AdventureBeachDriftBox : MonoBehaviour
         // マウスカーソルを解放してクリックできるようにする
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+    }
+
+    private static void RefreshModalTexts()
+    {
+        if (_modalPanel == null) return;
+
+        Font f = ResolveDriftBoxFont();
+        if (_modalTitleText != null)
+        {
+            if (f != null) _modalTitleText.font = f;
+            string t = _currentModalBoxId > 0
+                ? AdventureLocalizationManager.Get($"driftbox_{_currentModalBoxId}_title")
+                : _currentModalFallbackTitle;
+            if (string.IsNullOrEmpty(t) || t == $"driftbox_{_currentModalBoxId}_title") t = _currentModalFallbackTitle;
+            _modalTitleText.text = "📦 " + t;
+        }
+        if (_modalAuthorText != null)
+        {
+            if (f != null) _modalAuthorText.font = f;
+            string a = _currentModalBoxId > 0
+                ? AdventureLocalizationManager.Get($"driftbox_{_currentModalBoxId}_author")
+                : _currentModalFallbackAuthor;
+            if (string.IsNullOrEmpty(a) || a == $"driftbox_{_currentModalBoxId}_author") a = _currentModalFallbackAuthor;
+            _modalAuthorText.text = "── " + a + " ──";
+        }
+        if (_modalBodyText != null)
+        {
+            if (f != null) _modalBodyText.font = f;
+            string b = _currentModalBoxId > 0
+                ? AdventureLocalizationManager.Get($"driftbox_{_currentModalBoxId}_body")
+                : _currentModalFallbackBody;
+            if (string.IsNullOrEmpty(b) || b == $"driftbox_{_currentModalBoxId}_body") b = _currentModalFallbackBody;
+            _modalBodyText.text = b;
+        }
+        if (_modalCloseHintText != null)
+        {
+            if (f != null) _modalCloseHintText.font = f;
+            _modalCloseHintText.text = AdventureLocalizationManager.Get("modal_close_hint");
+        }
     }
 
     public static void CloseModal()
