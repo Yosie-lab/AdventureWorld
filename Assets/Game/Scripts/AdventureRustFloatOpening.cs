@@ -278,6 +278,17 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     void Update()
     {
+        // タイトルモーダルが非表示なのに未開始状態の場合（ドメインリロード時など）、自己修復してゲーム開始状態へ復帰
+        if (!IsGameStarted)
+        {
+            bool titleActive = (_modalBoard != null && _modalBoard.activeInHierarchy) || (_overlayGo != null && _overlayGo.activeInHierarchy);
+            if (!titleActive && _canvasGo != null)
+            {
+                IsGameStarted = true;
+                return;
+            }
+        }
+
         // エンディング中にタイトルが勝手に復活したときだけ即消す（ShowTitleScreen 意図表示は除外）
         if (!IsGameStarted && ShouldSkipOpeningBoard())
         {

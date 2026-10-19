@@ -232,6 +232,19 @@ public static class AdventureInputReader
         }
     }
 
+    /// <summary>FキーまたはゲームパッドY/△ボタンがこのフレームに押された（Rustへのパーツ回収・指示）</summary>
+    public static bool CommandFetchDown
+    {
+        get
+        {
+            try { if (Input.GetKeyDown(KeyCode.F)) return true; } catch { }
+            var kb = Keyboard;
+            if (kb != null && kb.fKey.wasPressedThisFrame) return true;
+            var gp = Gamepad.current;
+            return gp != null && gp.buttonNorth.wasPressedThisFrame;
+        }
+    }
+
     /// <summary>Rキーがこのフレームに押された（リセット）</summary>
     public static bool ResetDown
     {

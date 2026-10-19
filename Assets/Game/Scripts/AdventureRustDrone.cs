@@ -102,6 +102,7 @@ public partial class AdventureRustDrone : MonoBehaviour
     Vector3 _scoutTargetPos;
     float _stateTimer = 0f;
     AdventureScrapItem _aimedScrap;
+    AdventureScrapItem _nearbyScrap;
 
     // 案B：相棒Floatの情緒的深化（待機居眠り・頭上着地・スキンシップ喜びスパークル）
     float _nikoStillDuration = 0f;
@@ -603,7 +604,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             {
                 goal = _targetScrap.transform.position + Vector3.up * 0.45f;
                 float distToTarget = Vector3.Distance(transform.position, goal);
-                if (distToTarget < 2.0f)
+                if (distToTarget < 2.5f)
                 {
                     _targetScrap.AttachToDrone(transform);
                     CurrentState = RustState.Returning;
@@ -751,8 +752,10 @@ public partial class AdventureRustDrone : MonoBehaviour
             goal.z = transform.position.z;
         }
 
-        _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-2.2f * Time.deltaTime));
-        float smoothTime = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning || CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill || CurrentState == RustState.Perching) ? 0.32f : (wellOiled ? 0.38f : 0.52f);
+        float lerpRate = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 6.5f : 2.2f;
+        _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-lerpRate * Time.deltaTime));
+        float smoothTime = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 0.22f :
+            ((CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill || CurrentState == RustState.Perching) ? 0.32f : (wellOiled ? 0.38f : 0.52f));
         if (CurrentState == RustState.Guiding)
             smoothTime = 0.20f;
         else if (_climaxHealing)
@@ -761,7 +764,8 @@ public partial class AdventureRustDrone : MonoBehaviour
             smoothTime = 0.12f;
         else if (IsClimaxCrisis || _skybreakNestle || _prologueDistress)
             smoothTime = 0.16f;
-        float maxSpeed = (CurrentState == RustState.Guiding) ? 17.5f : (_climaxHealing ? 18f : (IsClimaxOverdrive ? 24f : 8.5f));
+        float maxSpeed = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 15.5f :
+            ((CurrentState == RustState.Guiding) ? 17.5f : (_climaxHealing ? 18f : (IsClimaxOverdrive ? 24f : 8.5f)));
         transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, maxSpeed);
 
         // 画面見切れ防止ガード（オフスクリーン時のみソフト補正）
@@ -1010,35 +1014,67 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (ShouldHideInteractionPrompt(AdventureSanctuaryTowerManager.Instance))
         {
             _aimedScrap = null;
+            _nearbyScrap = null;
             return;
         }
 
-        // 照準先のスクラップを探す（光の柱を見ていても根元のパーツを狙う）
+        // 照準先のスクラップ ＆ 近隣スクラップを検出
         _aimedScrap = null;
+        _nearbyScrap = null;
+
         var cam = ResolveCommandCamera();
-        if (cam != null)
+        var scraps = FindObjectsByType<AdventureScrapItem>(FindObjectsInactive.Exclude);
+        Vector3 playerPos = _lookAt != null ? _lookAt.position : transform.position;
+
+        if (scraps != null && scraps.Length > 0)
         {
-            Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-            var scraps = FindObjectsByType<AdventureScrapItem>(FindObjectsInactive.Exclude);
-            float bestSep = 14f;
-            float bestAlong = 180f;
-            AdventureScrapItem aimed = null;
+            float bestAimScore = float.MaxValue;
+            AdventureScrapItem bestAimScrap = null;
+
+            float nearestPlayerDist = float.MaxValue;
+            AdventureScrapItem nearestScrap = null;
+
+            Ray camRay = cam != null ? cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f)) : new Ray(transform.position, transform.forward);
 
             foreach (var s in scraps)
             {
                 if (s == null || s.IsCollected) continue;
-                Vector3 foot = s.transform.position;
-                ClosestOnRayToSegment(ray, foot, foot + Vector3.up * 60f, out float along, out float sep);
-                if (along < 2f || along > 180f || sep > 14f) continue;
-                if (sep < bestSep - 0.35f || (sep <= bestSep + 0.35f && along < bestAlong))
+
+                Vector3 scrapPos = s.transform.position;
+                float distFromPlayer = Vector3.Distance(playerPos, scrapPos);
+
+                // 1. プレイヤー周囲の最短パーツ（最大50m以内）
+                if (distFromPlayer < 50f && distFromPlayer < nearestPlayerDist)
                 {
-                    bestSep = sep;
-                    bestAlong = along;
-                    aimed = s;
+                    nearestPlayerDist = distFromPlayer;
+                    nearestScrap = s;
+                }
+
+                // 2. 視線照準（エイム）判定
+                if (cam != null)
+                {
+                    Vector3 vp = cam.WorldToViewportPoint(scrapPos + Vector3.up * 0.8f);
+                    bool inFront = vp.z > 0.5f;
+
+                    ClosestOnRayToSegment(camRay, scrapPos, scrapPos + Vector3.up * 60f, out float along, out float sep);
+
+                    float vpDist = inFront ? Vector2.Distance(new Vector2(vp.x, vp.y), new Vector2(0.5f, 0.5f)) : 99f;
+                    bool isAimCandidate = (inFront && vpDist < 0.38f && vp.z < 160f) || (along >= 1.0f && along <= 180f && sep < 26f);
+
+                    if (isAimCandidate)
+                    {
+                        float score = vpDist * 10f + (sep * 0.25f) + (distFromPlayer * 0.04f);
+                        if (score < bestAimScore)
+                        {
+                            bestAimScore = score;
+                            bestAimScrap = s;
+                        }
+                    }
                 }
             }
 
-            _aimedScrap = aimed;
+            _aimedScrap = bestAimScrap;
+            _nearbyScrap = nearestScrap;
         }
 
         // Qキー または マウス中クリックで「道案内シグナル（Floatのガイド先行フライト＆コンパスPing）」
@@ -1052,34 +1088,47 @@ public partial class AdventureRustDrone : MonoBehaviour
             TriggerGuideSignal();
         }
 
-        // Fキー（AdventureInputReader 経由で新旧InputSystem統合）
-        bool fPressed = false;
-        if (kb != null) fPressed = kb.fKey.wasPressedThisFrame;
-        try { if (Input.GetKeyDown(KeyCode.F)) fPressed = true; } catch { }
+        // Fキー（AdventureInputReader.CommandFetchDown 経由で新旧InputSystem + Gamepad統合）
+        bool fPressed = AdventureInputReader.CommandFetchDown;
 
-        if (fPressed && CurrentState == RustState.Follow)
+        // 通常探索状態ならいつでも指示受付可能（ScoutingやGuiding中、Perching中も即時割り込み）
+        bool canAcceptCommand = CurrentState == RustState.Follow ||
+                                CurrentState == RustState.Scouting ||
+                                CurrentState == RustState.Guiding ||
+                                CurrentState == RustState.Perching ||
+                                CurrentState == RustState.Celebrating;
+
+        if (fPressed && canAcceptCommand)
         {
-            if (_aimedScrap != null)
+            // 優先度1: 照準先のパーツ
+            // 優先度2: 周囲50m以内の最寄りパーツ
+            AdventureScrapItem scrapToFetch = _aimedScrap != null ? _aimedScrap : _nearbyScrap;
+
+            if (scrapToFetch != null)
             {
                 // スクラップ回収を指示！
-                _targetScrap = _aimedScrap;
+                _targetScrap = scrapToFetch;
                 CurrentState = RustState.Fetching;
+                if (_guideTrail != null) _guideTrail.enabled = false;
+
                 SpeakCustom("了解！あのパーツを取ってくるね、Float！", 3.2f);
                 if (_audio != null && _happyBeepClip != null)
                 {
-                    _audio.pitch = 1.3f;
-                    _audio.PlayOneShot(_happyBeepClip, 0.75f);
+                    _audio.pitch = 1.35f;
+                    _audio.PlayOneShot(_happyBeepClip, 0.8f);
                 }
             }
             else if (cam != null)
             {
                 // 何もない場所を指差した場合は偵察指示
                 Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-                if (Physics.Raycast(ray, out RaycastHit hit, 35f))
+                if (Physics.Raycast(ray, out RaycastHit hit, 40f))
                 {
                     _scoutTargetPos = hit.point;
                     CurrentState = RustState.Scouting;
                     _stateTimer = 1.8f;
+                    if (_guideTrail != null) _guideTrail.enabled = false;
+
                     SpeakCustom("あそこを見に行ってみるよ！", 2.8f);
                     if (_audio != null && _happyBeepClip != null)
                     {
@@ -2612,10 +2661,24 @@ public partial class AdventureRustDrone : MonoBehaviour
     {
         if (ShouldHideInteractionPrompt(AdventureSanctuaryTowerManager.Instance)) return;
 
-        if (_aimedScrap != null && CurrentState == RustState.Follow)
+        bool canCommand = CurrentState == RustState.Follow ||
+                          CurrentState == RustState.Scouting ||
+                          CurrentState == RustState.Guiding ||
+                          CurrentState == RustState.Perching ||
+                          CurrentState == RustState.Celebrating;
+
+        if (canCommand)
         {
-            DrawCenterPrompt(0.62f, "【F】光るパーツを取ってきて");
-            return;
+            if (_aimedScrap != null)
+            {
+                DrawCenterPrompt(0.62f, "【F】光るパーツを取ってきて");
+                return;
+            }
+            else if (_nearbyScrap != null)
+            {
+                DrawCenterPrompt(0.62f, "【F】Rustにパーツを拾わせる");
+                return;
+            }
         }
 
         if (!_isPlayerNear || CurrentState != RustState.Follow) return;

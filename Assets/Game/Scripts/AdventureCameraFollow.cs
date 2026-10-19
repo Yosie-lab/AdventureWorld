@@ -257,10 +257,18 @@ public class AdventureCameraFollow : MonoBehaviour
         }
     }
 
+    static bool IsTitleModalBlocking()
+    {
+        var opening = AdventureRustFloatOpening.Instance;
+        if (opening != null && opening.IsModalBoardOpen())
+            return true;
+        return false;
+    }
+
     void Update()
     {
         _lookUpdatedThisFrame = false;
-        if (!AdventureRustFloatOpening.IsGameStarted) return;
+        if (IsTitleModalBlocking()) return;
         EnsureTarget();
         if (target == null) return;
         UpdateLookInputOnly();
@@ -269,7 +277,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
-        if (!AdventureRustFloatOpening.IsGameStarted) return;
+        if (IsTitleModalBlocking()) return;
         EnsureTarget();
         if (target == null) return;
 
@@ -305,10 +313,11 @@ public class AdventureCameraFollow : MonoBehaviour
         {
             bool isPointerOverUi = UnityEngine.EventSystems.EventSystem.current != null &&
                                    UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
-            if (!isPointerOverUi && !AdventureStoryFlow.WantsFreeCursor)
+            if (!isPointerOverUi && !AdventureStoryFlow.WantsFreeCursor && !IsTitleModalBlocking())
             {
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
+                AdventureRustFloatOpening.IsGameStarted = true;
             }
         }
 
