@@ -44,7 +44,14 @@ public static class AdventureLocalizationManager
                 _currentLanguage = value;
                 PlayerPrefs.SetInt(PrefKey, (int)_currentLanguage);
                 PlayerPrefs.Save();
-                OnLanguageChanged?.Invoke();
+                if (OnLanguageChanged != null)
+                {
+                    foreach (var d in OnLanguageChanged.GetInvocationList())
+                    {
+                        try { ((System.Action)d)(); }
+                        catch (System.Exception ex) { UnityEngine.Debug.LogWarning($"[AdventureLocalizationManager] Error in listener: {ex.Message}"); }
+                    }
+                }
             }
         }
     }

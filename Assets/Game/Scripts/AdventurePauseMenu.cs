@@ -36,6 +36,9 @@ public class AdventurePauseMenu : MonoBehaviour
     Text _returnTitleBtnText;
     Text _resumeBtnText;
     Text _langValueText;
+    Button _prevLangBtn;
+    Button _nextLangBtn;
+    Button _langValueBtn;
     Text _creditsLeftText;
     Text _creditsRightText;
 
@@ -356,6 +359,19 @@ public class AdventurePauseMenu : MonoBehaviour
                 SwitchTab(nextTab);
             }
         }
+
+        // オーディオ＆言語タブ（タブ0）表示中の左右矢印・A/Dキーでの言語切り替え
+        if (_currentTab == 0)
+        {
+            var kb = Keyboard.current;
+            if (kb != null)
+            {
+                if (kb.leftArrowKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame)
+                    OnPrevLanguageClicked();
+                else if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame)
+                    OnNextLanguageClicked();
+            }
+        }
     }
 
     void TrySettingsDirectMouseClicks()
@@ -371,8 +387,35 @@ public class AdventurePauseMenu : MonoBehaviour
         if (TryClickUiButton(_tabCreditsBtn, mousePos)) { SwitchTab(3); return; }
         if (TryClickUiButton(_tabAudioBtn, mousePos)) { SwitchTab(0); return; }
 
-        if (_currentTab == 1)
+        if (_currentTab == 0)
+            TryAudioTabDirectMouseClicks(mousePos);
+        else if (_currentTab == 1)
             TryDisplayTabDirectMouseClicks(mousePos);
+    }
+
+    void TryAudioTabDirectMouseClicks(Vector2 mousePos)
+    {
+        if (TryClickUiButton(_prevLangBtn, mousePos)) { OnPrevLanguageClicked(); return; }
+        if (TryClickUiButton(_nextLangBtn, mousePos)) { OnNextLanguageClicked(); return; }
+        if (TryClickUiButton(_langValueBtn, mousePos)) { OnNextLanguageClicked(); return; }
+    }
+
+    void OnPrevLanguageClicked()
+    {
+        PlayClickSound();
+        AdventureLocalizationManager.PrevLanguage();
+    }
+
+    void OnNextLanguageClicked()
+    {
+        PlayClickSound();
+        AdventureLocalizationManager.NextLanguage();
+    }
+
+    void PlayClickSound()
+    {
+        if (_audioSource != null && _testBeepClip != null)
+            _audioSource.PlayOneShot(_testBeepClip, 0.45f);
     }
 
     void TryDisplayTabDirectMouseClicks(Vector2 mousePos)
@@ -1020,9 +1063,9 @@ public class AdventurePauseMenu : MonoBehaviour
         sRt.anchorMax = new Vector2(1f, 0.5f);
         sRt.pivot = new Vector2(1f, 0.5f);
         sRt.anchoredPosition = new Vector2(-16f, 0f);
-        sRt.sizeDelta = new Vector2(280f, 38f);
+        sRt.sizeDelta = new Vector2(300f, 42f);
 
-        // 左ボタン
+        // 左ボタン [ ◀ ]
         var prevBtnGo = new GameObject("PrevBtn");
         prevBtnGo.transform.SetParent(selGo.transform, false);
         var pbRt = prevBtnGo.AddComponent<RectTransform>();
@@ -1030,15 +1073,22 @@ public class AdventurePauseMenu : MonoBehaviour
         pbRt.anchorMax = new Vector2(0f, 0.5f);
         pbRt.pivot = new Vector2(0f, 0.5f);
         pbRt.anchoredPosition = new Vector2(0f, 0f);
-        pbRt.sizeDelta = new Vector2(36f, 34f);
+        pbRt.sizeDelta = new Vector2(42f, 38f);
         var pbImg = prevBtnGo.AddComponent<Image>();
-        pbImg.color = new Color(0.12f, 0.28f, 0.42f, 0.9f);
-        var pbBtn = prevBtnGo.AddComponent<Button>();
-        pbBtn.onClick.AddListener(AdventureLocalizationManager.PrevLanguage);
-        var pbText = MakeLabel(prevBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "◀", 14, Color.white);
+        pbImg.color = new Color(0.15f, 0.35f, 0.55f, 0.95f);
+        _prevLangBtn = prevBtnGo.AddComponent<Button>();
+        _prevLangBtn.onClick.AddListener(OnPrevLanguageClicked);
+        var pbColors = _prevLangBtn.colors;
+        pbColors.highlightedColor = new Color(0.25f, 0.55f, 0.85f, 1f);
+        pbColors.pressedColor = new Color(0.10f, 0.20f, 0.35f, 1f);
+        _prevLangBtn.colors = pbColors;
+        var pbOutline = prevBtnGo.AddComponent<Outline>();
+        pbOutline.effectColor = new Color(0.35f, 0.75f, 1f, 0.6f);
+        pbOutline.effectDistance = new Vector2(1f, -1f);
+        var pbText = MakeLabel(prevBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "◀", 15, Color.white);
         pbText.alignment = TextAnchor.MiddleCenter;
 
-        // 言語名表示ラベル
+        // 言語名表示ラベル（クリックで次言語へ進むボタンとしても機能）
         var langTextGo = new GameObject("LangText");
         langTextGo.transform.SetParent(selGo.transform, false);
         var ltRt = langTextGo.AddComponent<RectTransform>();
@@ -1046,16 +1096,26 @@ public class AdventurePauseMenu : MonoBehaviour
         ltRt.anchorMax = new Vector2(0.5f, 0.5f);
         ltRt.pivot = new Vector2(0.5f, 0.5f);
         ltRt.anchoredPosition = Vector2.zero;
-        ltRt.sizeDelta = new Vector2(180f, 34f);
-        _langValueText = langTextGo.AddComponent<Text>();
-        _langValueText.font = _font;
-        _langValueText.fontSize = 15;
+        ltRt.sizeDelta = new Vector2(196f, 38f);
+        var ltBg = langTextGo.AddComponent<Image>();
+        ltBg.color = new Color(0.04f, 0.09f, 0.16f, 0.85f);
+        _langValueBtn = langTextGo.AddComponent<Button>();
+        _langValueBtn.onClick.AddListener(OnNextLanguageClicked);
+        var ltColors = _langValueBtn.colors;
+        ltColors.highlightedColor = new Color(0.08f, 0.16f, 0.28f, 0.95f);
+        ltColors.pressedColor = new Color(0.02f, 0.05f, 0.10f, 1f);
+        _langValueBtn.colors = ltColors;
+        var ltOutline = langTextGo.AddComponent<Outline>();
+        ltOutline.effectColor = new Color(0.20f, 0.45f, 0.70f, 0.4f);
+        ltOutline.effectDistance = new Vector2(1f, -1f);
+
+        _langValueText = MakeLabel(langTextGo.transform, "LabelText", Vector2.zero, Vector2.zero,
+            AdventureLocalizationManager.LanguageNames[(int)AdventureLocalizationManager.CurrentLanguage], 15, new Color(1f, 0.88f, 0.40f, 1f));
         _langValueText.fontStyle = FontStyle.Bold;
         _langValueText.alignment = TextAnchor.MiddleCenter;
-        _langValueText.color = new Color(1f, 0.88f, 0.40f, 1f);
-        _langValueText.text = AdventureLocalizationManager.LanguageNames[(int)AdventureLocalizationManager.CurrentLanguage];
+        _langValueText.raycastTarget = false;
 
-        // 右ボタン
+        // 右ボタン [ ▶ ]
         var nextBtnGo = new GameObject("NextBtn");
         nextBtnGo.transform.SetParent(selGo.transform, false);
         var nbRt = nextBtnGo.AddComponent<RectTransform>();
@@ -1063,12 +1123,19 @@ public class AdventurePauseMenu : MonoBehaviour
         nbRt.anchorMax = new Vector2(1f, 0.5f);
         nbRt.pivot = new Vector2(1f, 0.5f);
         nbRt.anchoredPosition = new Vector2(0f, 0f);
-        nbRt.sizeDelta = new Vector2(36f, 34f);
+        nbRt.sizeDelta = new Vector2(42f, 38f);
         var nbImg = nextBtnGo.AddComponent<Image>();
-        nbImg.color = new Color(0.12f, 0.28f, 0.42f, 0.9f);
-        var nbBtn = nextBtnGo.AddComponent<Button>();
-        nbBtn.onClick.AddListener(AdventureLocalizationManager.NextLanguage);
-        var nbText = MakeLabel(nextBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "▶", 14, Color.white);
+        nbImg.color = new Color(0.15f, 0.35f, 0.55f, 0.95f);
+        _nextLangBtn = nextBtnGo.AddComponent<Button>();
+        _nextLangBtn.onClick.AddListener(OnNextLanguageClicked);
+        var nbColors = _nextLangBtn.colors;
+        nbColors.highlightedColor = new Color(0.25f, 0.55f, 0.85f, 1f);
+        nbColors.pressedColor = new Color(0.10f, 0.20f, 0.35f, 1f);
+        _nextLangBtn.colors = nbColors;
+        var nbOutline = nextBtnGo.AddComponent<Outline>();
+        nbOutline.effectColor = new Color(0.35f, 0.75f, 1f, 0.6f);
+        nbOutline.effectDistance = new Vector2(1f, -1f);
+        var nbText = MakeLabel(nextBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "▶", 15, Color.white);
         nbText.alignment = TextAnchor.MiddleCenter;
     }
 
