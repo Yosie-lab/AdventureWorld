@@ -248,6 +248,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         oilCount = Mathf.Max(oilCount, 8); // 開始時から十分ストック（Rustを甘やかす）
 
         AdventureRustSpeechUI.Ensure();
+        AdventureCompanionCuriosity.AutoInitialize();
 
         // 起動時のあたたかい挨拶（オープニングモーダル表示中は重なり防止のため保留）
         var opening = AdventureRustFloatOpening.Instance;
@@ -2693,20 +2694,26 @@ public partial class AdventureRustDrone : MonoBehaviour
         DrawCenterPrompt(0.68f, "【E / クリック】Rustと話す");
     }
 
+    static GUIStyle _cachedPromptStyle;
     static void DrawCenterPrompt(float yFrac, string label)
     {
         float w = 460f;
         float h = 36f;
         float x = (Screen.width - w) * 0.5f;
         float y = Screen.height * yFrac;
-        var style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 22;
-        style.fontStyle = FontStyle.Bold;
-        style.alignment = TextAnchor.MiddleCenter;
-        style.normal.textColor = Color.black;
-        GUI.Label(new Rect(x + 1.5f, y + 1.5f, w, h), label, style);
-        style.normal.textColor = new Color(1f, 0.92f, 0.55f);
-        GUI.Label(new Rect(x, y, w, h), label, style);
+        if (_cachedPromptStyle == null)
+        {
+            _cachedPromptStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 22,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+        }
+        _cachedPromptStyle.normal.textColor = Color.black;
+        GUI.Label(new Rect(x + 1.5f, y + 1.5f, w, h), label, _cachedPromptStyle);
+        _cachedPromptStyle.normal.textColor = new Color(1f, 0.92f, 0.55f);
+        GUI.Label(new Rect(x, y, w, h), label, _cachedPromptStyle);
     }
 
     static AudioClip MakeSynthBeep(float startFreq, float endFreq, float duration)

@@ -580,8 +580,27 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         }
     }
 
+    static readonly List<AdventureBeachNarrativeSpot> _registeredSpots = new List<AdventureBeachNarrativeSpot>();
+    public static void RegisterSpot(AdventureBeachNarrativeSpot spot)
+    {
+        if (spot != null && !_registeredSpots.Contains(spot)) _registeredSpots.Add(spot);
+    }
+    public static void UnregisterSpot(AdventureBeachNarrativeSpot spot)
+    {
+        if (spot != null) _registeredSpots.Remove(spot);
+    }
+
     void OnGUI()
     {
+        for (int i = 0; i < _registeredSpots.Count; i++)
+        {
+            var s = _registeredSpots[i];
+            if (s != null && s.gameObject.activeInHierarchy)
+            {
+                s.DrawPromptGUI();
+            }
+        }
+
         if (!_isShowingModal) return;
 
         // 全画面の薄い半透明オーバーレイ
@@ -734,7 +753,18 @@ public class AdventureBeachNarrativeSpot : MonoBehaviour
         }
     }
 
-    void OnGUI()
+    void OnEnable()
+    {
+        AdventureBeachNarrativeManager.RegisterSpot(this);
+    }
+
+    void OnDisable()
+    {
+        AdventureBeachNarrativeManager.UnregisterSpot(this);
+    }
+
+    static GUIStyle _cachedNarrativePromptStyle;
+    public void DrawPromptGUI()
     {
         if (!_playerNearby || AdventureBeachDriftBox.IsModalOpen) return;
 
@@ -754,18 +784,23 @@ public class AdventureBeachNarrativeSpot : MonoBehaviour
         GUI.color = new Color(0.35f, 0.90f, 1.0f, 0.9f);
         GUI.DrawTexture(new Rect(x, y + h - 2f, w, 2f), Texture2D.whiteTexture);
 
-        var style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 20;
-        style.fontStyle = FontStyle.Bold;
-        style.alignment = TextAnchor.MiddleCenter;
+        if (_cachedNarrativePromptStyle == null)
+        {
+            _cachedNarrativePromptStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 20,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+        }
 
         string prompt = "【Eキー】" + (isMemoryItem ? "記憶チップを再生" : (isBottle ? "手紙を読む" : "調べる"));
         GUI.color = Color.white;
 
         // 影
-        style.normal.textColor = Color.black;
-        GUI.Label(new Rect(x + 1.5f, y + 1.5f, w, h), prompt, style);
-        style.normal.textColor = new Color(1.0f, 0.92f, 0.5f);
-        GUI.Label(new Rect(x, y, w, h), prompt, style);
+        _cachedNarrativePromptStyle.normal.textColor = Color.black;
+        GUI.Label(new Rect(x + 1.5f, y + 1.5f, w, h), prompt, _cachedNarrativePromptStyle);
+        _cachedNarrativePromptStyle.normal.textColor = new Color(1.0f, 0.92f, 0.5f);
+        GUI.Label(new Rect(x, y, w, h), prompt, _cachedNarrativePromptStyle);
     }
 }

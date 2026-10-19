@@ -1023,7 +1023,8 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    void OnGUI()
+    static GUIStyle _cachedSeashellStyle;
+    public void DrawPromptGUI()
     {
         if (_isCollected || _isCollecting || !_isPlayerNear || ShouldSuppressInteraction()) return;
 
@@ -1037,14 +1038,19 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         float x = screenPos.x;
         float y = Screen.height - screenPos.y;
 
-        var style = new GUIStyle(GUI.skin.box);
-        style.fontSize = 13;
-        style.fontStyle = FontStyle.Bold;
-        style.normal.textColor = new Color(1f, 0.95f, 0.6f);
-        style.alignment = TextAnchor.MiddleCenter;
+        if (_cachedSeashellStyle == null)
+        {
+            _cachedSeashellStyle = new GUIStyle(GUI.skin.box)
+            {
+                fontSize = 13,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            _cachedSeashellStyle.normal.textColor = new Color(1f, 0.95f, 0.6f);
+        }
 
         string prompt = $"【E】{itemName}を拾う";
-        Vector2 size = style.CalcSize(new GUIContent(prompt)) + new Vector2(16f, 6f);
-        GUI.Box(new Rect(x - size.x * 0.5f, y - size.y * 0.5f, size.x, size.y), prompt, style);
+        Vector2 size = _cachedSeashellStyle.CalcSize(new GUIContent(prompt)) + new Vector2(16f, 6f);
+        GUI.Box(new Rect(x - size.x * 0.5f, y - size.y * 0.5f, size.x, size.y), prompt, _cachedSeashellStyle);
     }
 }

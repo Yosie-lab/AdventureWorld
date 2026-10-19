@@ -44,6 +44,16 @@ public class AdventureCompassHUD : MonoBehaviour
     int _scrapHint;
     int _boxHint;
     int _shownDeg = int.MinValue;
+    float _targetSearchCooldown = 0f;
+    Vector3 _cachedTargetPos;
+    string _cachedTargetName = "";
+    Color _cachedTargetColor = Color.white;
+    bool _cachedHasTarget = false;
+    bool _cachedIsGuidingToTower = false;
+    bool _cachedIsGuidingToCrystal = false;
+    bool _cachedIsGuidingToTerrace = false;
+    AdventureScrapManager _cachedScrapMgr;
+    AdventurePlayerController _cachedPlayer;
 
     // Float（相棒ドローン）の道案内Pingシステム
     Vector3 _guidePingPos;
@@ -476,69 +486,72 @@ public class AdventureCompassHUD : MonoBehaviour
             }
         }
 
-        // 3. ナビゲーションターゲットの決定（20pt達成〜天蓋開放前は中央タワー、それ以外は最寄りパーツ）
-        var mgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
-        var player = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
+        if (_cachedScrapMgr == null) _cachedScrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
+        if (_cachedPlayer == null) _cachedPlayer = AdventurePlayerController.Instance ?? FindAnyObjectByType<AdventurePlayerController>();
+
+        var mgr = _cachedScrapMgr;
+        var player = _cachedPlayer;
 
         if (mgr != null && player != null)
         {
             Vector3 playerPos = player.transform.position;
-            bool isGuidingToTower = mgr.IsLeverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken;
+            _targetSearchCooldown -= dt;
 
-            // 古代クリスタルパズルの探知（未起動ならクリスタル、起動後未開封なら崖上の隠しテラスへ案内）
-            AdventureRustCrystalPuzzle.Ensure();
-            var puzzle = AdventureRustCrystalPuzzle.Instance ?? FindAnyObjectByType<AdventureRustCrystalPuzzle>();
-            bool isGuidingToCrystal = puzzle != null && !puzzle.IsActivated;
-            bool isGuidingToTerrace = puzzle != null && puzzle.IsActivated && !puzzle.IsChestOpened;
+            if (_targetSearchCooldown <= 0f)
+            {
+                _targetSearchCooldown = 0.15f; // 1秒間に約6回更新でCPU負荷を大幅削減
+                _cachedIsGuidingToTower = mgr.IsLeverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken;
 
-            Vector3 targetPos;
-            string targetName;
-            Color targetColor;
-            float dist;
-            bool hasTarget = false;
+                var puzzle = AdventureRustCrystalPuzzle.Instance ?? FindAnyObjectByType<AdventureRustCrystalPuzzle>();
+                _cachedIsGuidingToCrystal = puzzle != null && !puzzle.IsActivated;
+                _cachedIsGuidingToTerrace = puzzle != null && puzzle.IsActivated && !puzzle.IsChestOpened;
 
-            if (isGuidingToTower)
-            {
-                targetPos = new Vector3(512f, 63.2f, 501.5f); // 南正面メイン巨大レバー
-                targetName = "白亜タワー（巨大レバー）";
-                targetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
-                dist = Vector3.Distance(playerPos, targetPos);
-                hasTarget = true;
-            }
-            else if (isGuidingToCrystal)
-            {
-                targetPos = puzzle.crystalBasePos;
-                targetName = "古代の送電クリスタル";
-                targetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
-                dist = Vector3.Distance(playerPos, targetPos);
-                hasTarget = true;
-            }
-            else if (isGuidingToTerrace)
-            {
-                targetPos = puzzle.cliffTerracePos;
-                targetName = "崖上の隠しテラス（古代宝箱）";
-                targetColor = new Color(1.0f, 0.85f, 0.35f, 1.0f);
-                dist = Vector3.Distance(playerPos, targetPos);
-                hasTarget = true;
-            }
-            else
-            {
-                var nearest = mgr.GetNearestScrapItem(playerPos, out dist);
-                if (nearest != null)
+                if (_cachedIsGuidingToTower)
                 {
-                    targetPos = nearest.transform.position;
-                    targetName = nearest.itemName;
-                    targetColor = nearest.itemColor;
-                    hasTarget = true;
+                    _cachedTargetPos = new Vector3(512f, 63.2f, 501.5f); // 南正面メイン巨大レバー
+                    _cachedTargetName = "白亜タワー（巨大レバー）";
+                    _cachedTargetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
+                    _cachedHasTarget = true;
+                }
+                else if (_cachedIsGuidingToCrystal)
+                {
+                    _cachedTargetPos = puzzle.crystalBasePos;
+                    _cachedTargetName = "古代の送電クリスタル";
+                    _cachedTargetColor = new Color(0.25f, 0.95f, 1.0f, 1.0f);
+                    _cachedHasTarget = true;
+                }
+                else if (_cachedIsGuidingToTerrace)
+                {
+                    _cachedTargetPos = puzzle.cliffTerracePos;
+                    _cachedTargetName = "崖上の隠しテラス（古代宝箱）";
+                    _cachedTargetColor = new Color(1.0f, 0.85f, 0.35f, 1.0f);
+                    _cachedHasTarget = true;
                 }
                 else
                 {
-                    targetPos = Vector3.zero;
-                    targetName = "";
-                    targetColor = Color.white;
-                    hasTarget = false;
+                    var nearest = mgr.GetNearestScrapItem(playerPos, out float _);
+                    if (nearest != null)
+                    {
+                        _cachedTargetPos = nearest.transform.position;
+                        _cachedTargetName = nearest.itemName;
+                        _cachedTargetColor = nearest.itemColor;
+                        _cachedHasTarget = true;
+                    }
+                    else
+                    {
+                        _cachedTargetPos = Vector3.zero;
+                        _cachedTargetName = "";
+                        _cachedTargetColor = Color.white;
+                        _cachedHasTarget = false;
+                    }
                 }
             }
+
+            Vector3 targetPos = _cachedTargetPos;
+            string targetName = _cachedTargetName;
+            Color targetColor = _cachedTargetColor;
+            bool hasTarget = _cachedHasTarget;
+            float dist = hasTarget ? Vector3.Distance(playerPos, targetPos) : 0f;
 
             // ── 漂着パーツ / 古代クリスタル / タワーレバーのマーカー更新 ──
             if (hasTarget)
@@ -565,10 +578,10 @@ public class AdventureCompassHUD : MonoBehaviour
                     if (_scrapMarkerRt != null)
                     {
                         _scrapMarkerRt.gameObject.SetActive(true);
-                        string iconCenter = isGuidingToTower ? "🏛️" : (isGuidingToCrystal ? "⚡" : (isGuidingToTerrace ? "🎁" : "★"));
-                        string iconSub = isGuidingToTower ? "🏛️" : (isGuidingToCrystal ? "⚡" : (isGuidingToTerrace ? "🎁" : "✦"));
-                        string iconRight = isGuidingToTower ? "🏛️▶" : (isGuidingToCrystal ? "⚡▶" : (isGuidingToTerrace ? "🎁▶" : "✦▶"));
-                        string iconLeft = isGuidingToTower ? "◀🏛️" : (isGuidingToCrystal ? "◀⚡" : (isGuidingToTerrace ? "◀🎁" : "◀✦"));
+                        string iconCenter = _cachedIsGuidingToTower ? "🏛️" : (_cachedIsGuidingToCrystal ? "⚡" : (_cachedIsGuidingToTerrace ? "🎁" : "★"));
+                        string iconSub = _cachedIsGuidingToTower ? "🏛️" : (_cachedIsGuidingToCrystal ? "⚡" : (_cachedIsGuidingToTerrace ? "🎁" : "✦"));
+                        string iconRight = _cachedIsGuidingToTower ? "🏛️▶" : (_cachedIsGuidingToCrystal ? "⚡▶" : (_cachedIsGuidingToTerrace ? "🎁▶" : "✦▶"));
+                        string iconLeft = _cachedIsGuidingToTower ? "◀🏛️" : (_cachedIsGuidingToCrystal ? "◀⚡" : (_cachedIsGuidingToTerrace ? "◀🎁" : "◀✦"));
 
                         PlaceEdgeMarker(
                             _scrapMarkerRt, _scrapMarkerText, _scrapBearing, targetColor,
@@ -640,7 +653,7 @@ public class AdventureCompassHUD : MonoBehaviour
             }
 
             // ── 白亜聖域タワー（島中央 512, 512）の常時マーカー更新 ──
-            if (!isGuidingToTower) // タワーがメインターゲットの時はメインマーカーに任せる
+            if (!_cachedIsGuidingToTower) // タワーがメインターゲットの時はメインマーカーに任せる
             {
                 Vector3 towerCenter = new Vector3(512f, 63.2f, 512f);
                 Vector3 toTowerCenter = towerCenter - playerPos;
@@ -703,7 +716,7 @@ public class AdventureCompassHUD : MonoBehaviour
                     _scrapNavText.text = $"✦ Floatの道案内 ➔ {_guidePingName} 約{Mathf.RoundToInt(pingDist)}m（{pCard}方角） [Qキーで再案内]";
                     _scrapNavText.color = _guidePingColor;
                 }
-                else if (isGuidingToTower)
+                else if (_cachedIsGuidingToTower)
                 {
                     Vector3 toTower = targetPos - playerPos;
                     toTower.y = 0f;
@@ -721,7 +734,7 @@ public class AdventureCompassHUD : MonoBehaviour
                         _scrapNavText.color = new Color(0.25f, 0.95f, 1.0f, 1.0f);
                     }
                 }
-                else if (isGuidingToCrystal)
+                else if (_cachedIsGuidingToCrystal)
                 {
                     Vector3 toCrystal = targetPos - playerPos;
                     toCrystal.y = 0f;
@@ -742,7 +755,7 @@ public class AdventureCompassHUD : MonoBehaviour
                         _scrapNavText.color = new Color(0.25f, 0.95f, 1.0f, 1.0f);
                     }
                 }
-                else if (isGuidingToTerrace)
+                else if (_cachedIsGuidingToTerrace)
                 {
                     Vector3 toTerrace = targetPos - playerPos;
                     toTerrace.y = 0f;

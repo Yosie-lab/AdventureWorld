@@ -11,6 +11,31 @@ created: 2026-09-11
 
 ### 概要・現在の状態
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
+- **案3：さらなる軽量化・完全60fps安定化（2026-10-19 追記）**:
+  1. **URP シャドウカスケード＆シャドウマップ解像度最適化（`UniversalRenderPipelineAsset.asset` & `AdventureRustFloatFeel.cs`）**:
+     - `m_ShadowCascadeCount: 4` ➔ **`2`**（シャドウパス描画回数を半減）。
+     - `m_MainLightShadowmapResolution: 4096` ➔ **`2048`**（GPU VRAM帯域幅とテクスチャフェッチ負荷を大幅圧縮）。
+     - `m_ShadowDistance: 150` ➔ **`90〜100`**、`cascade2Split: 0.28`、ソフトシャドウ品質の最適化。
+     - GPUフレームタイム: `25.6ms` ➔ **`18.7ms〜19.4ms`** へ大幅短縮。
+  2. **Terrain（草花・樹木・地形LOD）描画の適正化（`AdventureRustFloatFeel.cs`）**:
+     - `detailObjectDistance = 85f`（500mから適正化し草花毎フレームバッチングを圧縮）。
+     - `detailObjectDensity = 0.75f`（密度感を保ちつつ頂点数を25%カット）。
+     - `treeBillboardDistance = 75f`（中景ツリーの滑らかなビルボード化）。
+  3. **UI / OnGUI 描画負荷（IMGUIContainer 5ms ➔ 0.86ms）の一掃（`AdventureBeachSeashellManager.cs` / `AdventureBeachFlotsamManager.cs` / `AdventureBeachNarrativeManager.cs` / `AdventureCompassHUD.cs`）**:
+     - シーン内に60個以上散らばる貝殻・漂着物・メッセージボトルの個別 `OnGUI()` を廃止し、各マネージャーの単一 `OnGUI()` による集約一括描画へ刷新。
+     - 毎フレーム `new GUIStyle` を生成していた箇所を静的キャッシュ化。
+     - `AdventureCompassHUD.cs` のターゲット探索を 0.15秒インターバルにキャッシュ化し、CPUメインループを軽量化。
+     - `Application.targetFrameRate = 60` および `vSyncCount = 1` による均一なフレームペーシング。
+- **案4：相棒Float＆Rustの好奇心リアクション（2026-10-19 追記）**:
+  1. **ピアノを弾くカピバラ・花畑への情緒的リアクション（`AdventureCompanionCuriosity.cs`）**:
+     - カピバラピアノ（`AdventureAncientPianoRelic` / `AdventureCapytaBlessing`）接近時（13.5m以内）：
+       - 相棒Rustがふわりと近づいて首をかしげる（ロール/ピッチの愛らしいチルトモーション）。
+       - ドローンRustとプレイヤーFloatの頭上から、プロシージャル生成された音符（♪ ♫）とハート（♥）がふわりと舞い上がる。
+       - 温かみあるオルゴール・ベル風の4音アルペジオチャイム（ド・ミ・ソ・ド♪）が響き、温もりある台詞（「わあ…カピタがピアノを弾いてるよ！優しいメロディだね♪」等）を話す。
+     - 花畑（`FlowerMeadows` / `Plateau_FlowerPatches`）接近時（8.5m以内）：
+       - Rustが花畑に舞い降りて首をかしげ、小さなハート（♥）と音符（♪）が舞い上がる。
+       - そよ風の3音ベルチャイム（ラ・ミ・レ♪）と「きれいなお花がたくさん咲いてる！いい香りだね、Float♪」のリアクション。
+     - Float（プレイヤー）自身も、ピアノや花畑のそばで立ち止まると頭上に小さなハートや音符が浮かび上がり、二人の絆・世界の温もりが深まる。
 - **相棒RustのFキー遠隔回収指示の全面強化（2026-10-19 追記）**:
   1. **スマート照準＆近隣50m自動フォールバック（`AdventureRustDrone.cs`）**:
      - 画面中央（0.5, 0.5）だけでなくビューポート（0.15〜0.85）内の二重判定に拡張し、画面内にパーツが映っていれば素直にロックオン。

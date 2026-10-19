@@ -607,4 +607,16 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         clip.SetData(samples, 0);
         return clip;
     }
+
+    void OnGUI()
+    {
+        for (int i = 0; i < _items.Count; i++)
+        {
+            var item = _items[i];
+            if (item != null && item.gameObject.activeInHierarchy)
+            {
+                item.DrawPromptGUI();
+            }
+        }
+    }
 }

@@ -137,6 +137,9 @@ public static class AdventureRustFloatFeel
         if (_performanceOptimized) return;
         _performanceOptimized = true;
 
+        // 好奇心リアクションシステムの自動常駐
+        try { AdventureCompanionCuriosity.AutoInitialize(); } catch { }
+
         // 1. 静的環境レンダラーのライトプローブサンプリング計算（99msボトルネック）を一括除外
         try
         {
@@ -169,21 +172,33 @@ public static class AdventureRustFloatFeel
             var terrain = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
             if (terrain != null)
             {
-                terrain.detailObjectDistance = 120f; // 500m -> 120m (草花の毎フレームバッチング負荷を大幅削減)
-                terrain.treeDistance = 1200f;        // 5000m -> 1200m
-                terrain.heightmapPixelError = 5f;
+                terrain.detailObjectDistance = 85f;    // 500m -> 85m (草花の毎フレームバッチング負荷を大幅削減)
+                terrain.detailObjectDensity = 0.75f;   // 密度感を維持したまま草花頂点数を25%カット
+                terrain.treeBillboardDistance = 75f;  // 中景ツリーをスムーズにビルボード化
+                terrain.treeDistance = 1000f;
+                terrain.heightmapPixelError = 7f;      // 地形LODを適正化
             }
         }
         catch { }
 
-        // 3. URP シャドウ設定の調律（過剰なカスケード負荷の適正化）
+        // 3. URP シャドウ設定の調律（2カスケード・90m距離で完全60fps安定化）
         try
         {
             var urp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
             if (urp != null)
             {
-                urp.shadowDistance = 100f; // 140m -> 100m
+                urp.shadowDistance = 90f;
+                urp.shadowCascadeCount = 2;
+                urp.cascade2Split = 0.28f;
             }
+        }
+        catch { }
+
+        // 4. フレームレート60fps完全安定化と均一なフレームペーシング
+        try
+        {
+            Application.targetFrameRate = 60;
+            QualitySettings.vSyncCount = 1;
         }
         catch { }
     }

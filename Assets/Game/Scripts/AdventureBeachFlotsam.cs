@@ -209,7 +209,8 @@ public class AdventureBeachFlotsam : MonoBehaviour
         AdventureBeachFlotsamManager.Instance?.ShowInspectHUD(itemName, eraLabel, description);
     }
 
-    void OnGUI()
+    static GUIStyle _cachedFlotsamStyle;
+    public void DrawPromptGUI()
     {
         if (!_isPlayerNear || Camera.main == null || ShouldSuppressInteraction())
             return;
@@ -220,13 +221,18 @@ public class AdventureBeachFlotsam : MonoBehaviour
         float x = screenPos.x - 70f;
         float y = Screen.height - screenPos.y - 25f;
 
-        GUIStyle promptStyle = new GUIStyle(GUI.skin.box);
-        promptStyle.fontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.020f, 16f, 24f));
-        promptStyle.fontStyle = FontStyle.Bold;
-        promptStyle.normal.textColor = new Color(1.0f, 0.95f, 0.8f);
-        promptStyle.alignment = TextAnchor.MiddleCenter;
+        if (_cachedFlotsamStyle == null)
+        {
+            _cachedFlotsamStyle = new GUIStyle(GUI.skin.box)
+            {
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            _cachedFlotsamStyle.normal.textColor = new Color(1.0f, 0.95f, 0.8f);
+        }
+        _cachedFlotsamStyle.fontSize = Mathf.RoundToInt(Mathf.Clamp(Screen.height * 0.020f, 16f, 24f));
 
-        GUI.Box(new Rect(x, y, 140f, promptStyle.fontSize + 12f), "【E】調べる", promptStyle);
+        GUI.Box(new Rect(x, y, 140f, _cachedFlotsamStyle.fontSize + 12f), "【E】調べる", _cachedFlotsamStyle);
     }
 
     static AudioClip MakeInspectSound()

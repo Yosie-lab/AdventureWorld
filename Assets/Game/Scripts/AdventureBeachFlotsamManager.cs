@@ -220,11 +220,23 @@ public class AdventureBeachFlotsamManager : MonoBehaviour
             flotsam.eraLabel = def.eraLabel;
             flotsam.description = def.description;
             flotsam.rustDialogue = def.dialogue;
+            _spawnedFlotsams.Add(flotsam);
         }
     }
 
+    readonly List<AdventureBeachFlotsam> _spawnedFlotsams = new List<AdventureBeachFlotsam>();
+
     void OnGUI()
     {
+        for (int i = 0; i < _spawnedFlotsams.Count; i++)
+        {
+            var f = _spawnedFlotsams[i];
+            if (f != null && f.gameObject.activeInHierarchy)
+            {
+                f.DrawPromptGUI();
+            }
+        }
+
         if (_inspectTimer <= 0f || string.IsNullOrEmpty(_inspectTitle))
             return;
 
