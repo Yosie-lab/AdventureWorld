@@ -892,11 +892,6 @@ public class AdventurePauseMenu : MonoBehaviour
         bRt.anchoredPosition = new Vector2(0f, -72f);
         bRt.sizeDelta = new Vector2(840f, 36f);
 
-        var tabBarCanvas = barGo.AddComponent<Canvas>();
-        tabBarCanvas.overrideSorting = true;
-        tabBarCanvas.sortingOrder = 8;
-        barGo.AddComponent<GraphicRaycaster>();
-
         float tabW = 200f;
         _tabAudioBtn = CreateTabButton(barGo.transform, "TabAudio", new Vector2(-315f, 0f), new Vector2(tabW, 36f), "⚙  オーディオ・操作", () => SwitchTab(0), out _tabAudioBtnImg, out _tabAudioBtnLabel);
         _tabDisplayBtn = CreateTabButton(barGo.transform, "TabDisplay", new Vector2(-105f, 0f), new Vector2(tabW, 36f), "🖥  画面・画質", () => SwitchTab(1), out _tabDisplayBtnImg, out _tabDisplayBtnLabel);
