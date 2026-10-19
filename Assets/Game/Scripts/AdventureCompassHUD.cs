@@ -129,6 +129,34 @@ public class AdventureCompassHUD : MonoBehaviour
         }
     }
 
+
+
+    void UpdateRibbonCardinals()
+    {
+        if (_elements == null || _elements.Count == 0) return;
+        string[] currentCardinals = AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => new[] { "N", "NE", "E", "SE", "S", "SW", "W", "NW" },
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => new[] { "北", "东北", "东", "东南", "南", "西南", "西", "西北" },
+            AdventureLocalizationManager.GameLanguage.Spanish => new[] { "N", "NE", "E", "SE", "S", "SO", "O", "NO" },
+            _ => new[] { "北", "北東", "東", "南東", "南", "南西", "西", "北西" }
+        };
+
+        int cardIdx = 0;
+        for (int i = 0; i < _elements.Count; i++)
+        {
+            var elem = _elements[i];
+            if (elem.Rt != null && elem.Rt.name.StartsWith("Card_"))
+            {
+                if (cardIdx < currentCardinals.Length && elem.Txt != null)
+                {
+                    elem.Txt.text = currentCardinals[cardIdx];
+                }
+                cardIdx++;
+            }
+        }
+    }
+
     /// <summary>コンパスHUDがシーン内に確実に存在することを保証する</summary>
     public static AdventureCompassHUD Ensure(Transform parent = null, Font font = null)
     {
@@ -199,11 +227,14 @@ public class AdventureCompassHUD : MonoBehaviour
     void OnEnable()
     {
         AdventureStoryFlow.OnPhaseChanged += HandleStoryPhaseChanged;
+        AdventureLocalizationManager.OnLanguageChanged += UpdateRibbonCardinals;
+        UpdateRibbonCardinals();
     }
 
     void OnDisable()
     {
         AdventureStoryFlow.OnPhaseChanged -= HandleStoryPhaseChanged;
+        AdventureLocalizationManager.OnLanguageChanged -= UpdateRibbonCardinals;
     }
 
     void HandleStoryPhaseChanged(AdventureStoryFlow.Phase prev, AdventureStoryFlow.Phase next)
@@ -804,16 +835,17 @@ public class AdventureCompassHUD : MonoBehaviour
 
                     if (dist <= 3.5f)
                     {
-                        _scrapNavText.text = $"✦ {targetName} 【Eキーで回収！】";
+                        _scrapNavText.text = FormatNavNear(targetName, "E");
                     }
                     else if (hasBoxTarget && boxDist > 3.5f)
                     {
                         string boxShortName = nearestBox.boxTitle.Replace("漂着", "");
-                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m({targetCardinal}) [{arrow}]   |   📦 {boxShortName} 約{Mathf.RoundToInt(boxDist)}m({boxCardinal}) [{boxArrow}]";
+                        string distLabel = AdventureLocalizationManager.CurrentLanguage == AdventureLocalizationManager.GameLanguage.English ? "~" : "約";
+                        _scrapNavText.text = $"✦ {targetName} {distLabel}{Mathf.RoundToInt(dist)}m({targetCardinal}) [{arrow}]   |   📦 {boxShortName} {distLabel}{Mathf.RoundToInt(boxDist)}m({boxCardinal}) [{boxArrow}]";
                     }
                     else
                     {
-                        _scrapNavText.text = $"✦ {targetName} 約{Mathf.RoundToInt(dist)}m（{targetCardinal}方角） [{arrow}]  [Qキー 道案内]";
+                        _scrapNavText.text = FormatNavFar(targetName, Mathf.RoundToInt(dist), targetCardinal, arrow, "Q");
                     }
                     _scrapNavText.color = targetColor;
                 }
@@ -862,17 +894,23 @@ public class AdventureCompassHUD : MonoBehaviour
                 else if (hasBoxTarget && boxDist > 3.5f)
                 {
                     // パーツ全回収済み、またはボックス優先表示
-                    _scrapNavText.text = $"📦 {nearestBox.boxTitle} 約{Mathf.RoundToInt(boxDist)}m（{boxCardinal}方角） [{boxArrow}]  [Qキー 道案内]";
+                    _scrapNavText.text = FormatNavFar(nearestBox.boxTitle, Mathf.RoundToInt(boxDist), boxCardinal, boxArrow, "Q");
                     _scrapNavText.color = new Color(0.35f, 1.0f, 0.65f, 1.0f);
                 }
                 else if (hasBoxTarget && boxDist <= 3.5f)
                 {
-                    _scrapNavText.text = $"📦 {nearestBox.boxTitle} [★ 足元・近づくと開く]";
+                    _scrapNavText.text = FormatNavNear(nearestBox.boxTitle, "E");
                     _scrapNavText.color = new Color(0.35f, 1.0f, 0.65f, 1.0f);
                 }
                 else
                 {
-                    _scrapNavText.text = "✦ 全ての漂着パーツ＆ボックス回収完了！  [Qキー 絶景案内]";
+                    _scrapNavText.text = AdventureLocalizationManager.CurrentLanguage switch
+                    {
+                        AdventureLocalizationManager.GameLanguage.English => "✦ All Scrap Parts & Boxes Collected! [Q Scenic Tour]",
+                        AdventureLocalizationManager.GameLanguage.SimplifiedChinese => "✦ 已集齐所有零件与漂着宝箱！ [按Q键风景游览]",
+                        AdventureLocalizationManager.GameLanguage.Spanish => "✦ ¡Todas las piezas y cajas recogidas! [Q Tour Panorámico]",
+                        _ => "✦ 全ての漂着パーツ＆ボックス回収完了！  [Qキー 絶景案内]"
+                    };
                     _scrapNavText.color = new Color(0.35f, 1.0f, 0.85f, 0.95f);
                 }
             }
@@ -916,6 +954,28 @@ public class AdventureCompassHUD : MonoBehaviour
         rt.anchoredPosition = new Vector2(Mathf.Clamp(x, -RibbonHalfWidth + 16f, RibbonHalfWidth - 16f), 0f);
     }
 
+    static string FormatNavNear(string name, string actionKey)
+    {
+        return AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => $"✦ {name} [Press {actionKey} to Collect!]",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => $"✦ {name} 【按{actionKey}键回收！】",
+            AdventureLocalizationManager.GameLanguage.Spanish => $"✦ {name} [¡Pulsa {actionKey} para recoger!]",
+            _ => $"✦ {name} 【{actionKey}キーで回収！】"
+        };
+    }
+
+    static string FormatNavFar(string name, int dist, string cardinal, string arrow, string extraKey = "Q")
+    {
+        return AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => $"✦ {name} ~{dist}m ({cardinal}) [{arrow}]  [{extraKey} Guide]",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => $"✦ {name} 约{dist}米（{cardinal}方向） [{arrow}]  [按{extraKey}引路]",
+            AdventureLocalizationManager.GameLanguage.Spanish => $"✦ {name} ~{dist}m ({cardinal}) [{arrow}]  [{extraKey} Guiar]",
+            _ => $"✦ {name} 約{dist}m（{cardinal}方角） [{arrow}]  [{extraKey}キー 道案内]"
+        };
+    }
+
     /// <summary>正面・左右・背後。境界付近では直前の表示を維持してちらつかない。</summary>
     static string BearingHint(float angle, ref int held)
     {
@@ -935,10 +995,13 @@ public class AdventureCompassHUD : MonoBehaviour
         else
             held = angle >= 0f ? 1 : -1;
 
-        if (held == 0) return "▲正面";
-        if (held == 1) return "▶右";
-        if (held == -1) return "◀左";
-        return "▼背後";
+        return AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => held == 0 ? "▲ Ahead" : held == 1 ? "▶ Right" : held == -1 ? "◀ Left" : "▼ Behind",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => held == 0 ? "▲ 正面" : held == 1 ? "▶ 右侧" : held == -1 ? "◀ 左侧" : "▼ 背后",
+            AdventureLocalizationManager.GameLanguage.Spanish => held == 0 ? "▲ Frente" : held == 1 ? "▶ Derecha" : held == -1 ? "◀ Izquierda" : "▼ Detrás",
+            _ => held == 0 ? "▲正面" : held == 1 ? "▶右" : held == -1 ? "◀左" : "▼背後"
+        };
     }
 
     /// <summary>ワールドXZ前方ベクトル → コンパス方位角（北=0 / 東=90 / 南=180 / 西=270）</summary>
@@ -953,14 +1016,23 @@ public class AdventureCompassHUD : MonoBehaviour
 
     public static string GetCardinal(float yaw)
     {
-        if (yaw >= 337.5f || yaw < 22.5f) return "北";
-        if (yaw >= 22.5f && yaw < 67.5f) return "北東";
-        if (yaw >= 67.5f && yaw < 112.5f) return "東";
-        if (yaw >= 112.5f && yaw < 157.5f) return "南東";
-        if (yaw >= 157.5f && yaw < 202.5f) return "南";
-        if (yaw >= 202.5f && yaw < 247.5f) return "南西";
-        if (yaw >= 247.5f && yaw < 292.5f) return "西";
-        return "北西";
+        int index = 0;
+        if (yaw >= 337.5f || yaw < 22.5f) index = 0;
+        else if (yaw >= 22.5f && yaw < 67.5f) index = 1;
+        else if (yaw >= 67.5f && yaw < 112.5f) index = 2;
+        else if (yaw >= 112.5f && yaw < 157.5f) index = 3;
+        else if (yaw >= 157.5f && yaw < 202.5f) index = 4;
+        else if (yaw >= 202.5f && yaw < 247.5f) index = 5;
+        else if (yaw >= 247.5f && yaw < 292.5f) index = 6;
+        else index = 7;
+
+        return AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => (new[] { "N", "NE", "E", "SE", "S", "SW", "W", "NW" })[index],
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => (new[] { "北", "东北", "东", "东南", "南", "西南", "西", "西北" })[index],
+            AdventureLocalizationManager.GameLanguage.Spanish => (new[] { "N", "NE", "E", "SE", "S", "SO", "O", "NO" })[index],
+            _ => (new[] { "北", "北東", "東", "南東", "南", "南西", "西", "北西" })[index]
+        };
     }
 
     public static Font ResolveSafeFont()

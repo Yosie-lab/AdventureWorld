@@ -141,10 +141,37 @@ public class AdventureRustSpeechUI : MonoBehaviour
 
         if (show)
         {
-            _speaker.text = drone.ActiveSpeechSpeaker ?? "✦ 相棒 Rust";
+            string rawSpeaker = drone.ActiveSpeechSpeaker ?? "✦ 相棒 Rust";
+            string speakerName = rawSpeaker;
+            if (rawSpeaker.Contains("Rust") || rawSpeaker.Contains("相棒"))
+            {
+                speakerName = AdventureLocalizationManager.CurrentLanguage switch
+                {
+                    AdventureLocalizationManager.GameLanguage.English => "✦ Companion Rust",
+                    AdventureLocalizationManager.GameLanguage.SimplifiedChinese => "✦ 伙伴 Rust",
+                    AdventureLocalizationManager.GameLanguage.Spanish => "✦ Compañero Rust",
+                    _ => "✦ 相棒 Rust"
+                };
+            }
+
+            _speaker.text = speakerName;
             _speaker.color = drone.ActiveSpeechSpeakerColor;
             if (_accent != null) _accent.color = drone.ActiveSpeechSpeakerColor;
-            _body.text = "「" + (drone.ActiveSpeechText ?? "") + "」";
+
+            string quoteL = AdventureLocalizationManager.CurrentLanguage switch
+            {
+                AdventureLocalizationManager.GameLanguage.English => "\"",
+                AdventureLocalizationManager.GameLanguage.Spanish => "«",
+                _ => "「"
+            };
+            string quoteR = AdventureLocalizationManager.CurrentLanguage switch
+            {
+                AdventureLocalizationManager.GameLanguage.English => "\"",
+                AdventureLocalizationManager.GameLanguage.Spanish => "»",
+                _ => "」"
+            };
+
+            _body.text = quoteL + (drone.ActiveSpeechText ?? "") + quoteR;
             _cg.alpha = 1f; // 即座に表示（フェード待ちで見えない事故を防ぐ）
         }
         else
