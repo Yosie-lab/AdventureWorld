@@ -42,7 +42,14 @@ created: 2026-09-11
      - 光の柱ダイブ指示プロンプト（`【 Space / クリック長押し 】 光の柱へダイブ！`）、長押し中の動的プロンプト（`【 光の柱へダイブ中……！ 】`）、ダイブヒント（`【Space / クリック】空の裂け目へダイブ`）を完全多言語化。
      - 天蓋崩壊の全台本ビート（ナレーション・相棒Rust／Floatセリフ・言語別引用符 `""` / `«»` / `「」`）の動的辞書引きとOSフォント事前レンダリングを完備。
      - クリア後の大空光柱・タワー案内テキスト、フィールド教え（潮目の標・木漏れ日の標）プロンプトを多言語化。
-  7. **全OnGUIカスタムパネルへのOSフォント動的解決チェーン（CJK Multi-Font Chain）適用**:
+  7. **ゲームクリア後大空ダイブ＆日常セリフ全60種の完全多言語化（`AdventureSanctuaryTowerManager.ClearUI.cs` / `AdventureRustDrone.cs`）**:
+     - クリア後の大空ダイブセリフ（`いっくよー！大空へダイブ！！`）、水面スレスレ滑空、上昇気流突入リアクションセリフの4言語対応。
+     - Rustの日常フライト会話（`IdleGlideLines` 全10種）、過去の回想（`IdlePastLines` 全7種）、未来の希望（`IdleFutureLines` 全7種）、身体の調子（`IdleBodyLines` 全7種）、幸せ・安心（`IdleHappyLines` 全7種）、探索セリフ（全16種）の合計59種を辞書登録し、滑空・飛行中も指定言語で発話。
+  8. **ゲーム内バックグラウンド／定期オートセーブの完全撤廃（`AdventureSaveManager.cs` / `AdventureScrapManager.cs`）**:
+     - 3分ごとの定期オートセーブ処理を完全削除。
+     - パーツ回収時、ピアノ遺物回収時、天蓋開放時などの意図しない自動セーブをすべて撤廃。
+     - ユーザーの明示的な手動操作（【K】/【F5】キー、ポーズメニューの「セーブしてタイトルへ戻る」ボタン）のみに限定し、自由なプレイと検証環境を確保。
+  9. **全OnGUIカスタムパネルへのOSフォント動的解決チェーン（CJK Multi-Font Chain）適用**:
      - macOS/Windows/LinuxのOS標準フォント（PingFang SC, Hiragino Sans GB, Heiti SC, Hiragino Sans, Microsoft YaHei, YuGothic 等）を自動解決し、簡体字中国語やスペイン語の文字化け・豆腐（□）を完全根絶。
 - **真の100点満点達成（＋8点ロードマップ完遂・2026-10-19 追記）**:
   1. **【+2点】大空の可視化気流「ウィンド・ストリームライン（風の道筋）」（`AdventureWindStreamlinesDirector.cs`）**:
