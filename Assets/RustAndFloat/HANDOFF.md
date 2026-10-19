@@ -12,6 +12,15 @@ created: 2026-09-11
 ### 概要・現在の状態
 - **作業対象**: `Assets/RustAndFloat/Scenes/RustAndFloat.unity`（元ゲーム `AdventureWorld.unity` は不可侵）
 - **コンパイルエラー**: 0件
+- **空中・海上に浮遊していた灰色のバグオブジェクト完全削除（2026-10-19 追記）**:
+  1. **原因の特定**:
+     - `AdventureSanctuaryTowerManager.Structure.cs` で台座（512, 62, 512）の崖下隙間埋め用に生成されていた `PodiumCliffFoundation_Mesh.asset` は、メッシュ頂点自体がワールド座標（約522, 47, 501）を持っていた。
+     - これをタワー（512, 62, 512）の子にして配置したため、親の座標が加算され、ワールド座標 `(1034, 109, 1013)`（島の北東沖合、上空109m）に幅50mの巨大な灰色メッシュとして浮遊していた。
+     - その結果、カピバラピアノの上方の空、ゲームプレイ中の北東方向、およびエンディング上空滑空時の海上に不自然な灰色の塊として写り込んでいた。
+  2. **修正内容**:
+     - `AdventureSanctuaryTowerManager.Structure.cs`: `EnsurePodiumCliffFoundation` 内での `MeshFilter`/`MeshRenderer` 生成を廃止し、既存コンポーネントを安全に完全破棄（壁判定の `SolidWallColliders` は維持）。
+     - シーン内の該当メッシュコンポーネントおよび不要アセット `PodiumCliffFoundation_Mesh.asset` を完全削除。
+     - スタート前画像（`CurrentSceneCapture.png` / `FK - Image for Splash Screen_.png`）をバグが消えた状態で再キャプチャ・更新。
 - **地上歩行速度の軽快化調整（2026-10-19 追記）**:
   - `AdventureRustFloatFeel.cs`:
     - 初期歩行速度（0pt時）: `5.7f` ➔ **`7.0f`**（スタート直後からキビキビと軽快な歩行）

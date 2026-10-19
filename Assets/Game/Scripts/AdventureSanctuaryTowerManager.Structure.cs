@@ -941,7 +941,7 @@ public partial class AdventureSanctuaryTowerManager
         }
     }
 
-    /// <summary>台座東側〜南東側の崖下空洞を大理石基壇外壁＋ソリッドBoxCollider群で密閉（下からの突き抜け・頭挟まりを物理的に100%遮断）</summary>
+    /// <summary>台座東側〜南東側の崖下空洞をソリッドBoxCollider群で密閉（下からの突き抜け・頭挟まりを物理的に100%遮断）</summary>
     void EnsurePodiumCliffFoundation(GameObject tower)
     {
         var found = tower.transform.Find("PodiumCliffFoundation");
@@ -953,23 +953,28 @@ public partial class AdventureSanctuaryTowerManager
             go.transform.localRotation = Quaternion.identity;
             go.transform.localScale = Vector3.one;
             found = go.transform;
+        }
 
-            var mf = go.AddComponent<MeshFilter>();
-            var mr = go.AddComponent<MeshRenderer>();
-
+        // 過去に付与されていた不要なメッシュ描画コンポーネント（座標オフセットにより空中に浮遊するバグ原因）を完全破棄
+        var mr = found.GetComponent<MeshRenderer>();
+        if (mr != null)
+        {
 #if UNITY_EDITOR
-            var meshAsset = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Assets/RustAndFloat/Meshes/PodiumCliffFoundation_Mesh.asset");
-            if (meshAsset != null)
-            {
-                mf.sharedMesh = meshAsset;
-            }
+            if (!Application.isPlaying) DestroyImmediate(mr);
+            else Destroy(mr);
+#else
+            Destroy(mr);
 #endif
-            var podium = tower.transform.Find("WhiteMarblePodium");
-            if (podium != null)
-            {
-                var pmr = podium.GetComponent<MeshRenderer>();
-                if (pmr != null) mr.sharedMaterial = pmr.sharedMaterial;
-            }
+        }
+        var mf = found.GetComponent<MeshFilter>();
+        if (mf != null)
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying) DestroyImmediate(mf);
+            else Destroy(mf);
+#else
+            Destroy(mf);
+#endif
         }
 
         // 東側崖下からの侵入・頭突き抜けを物理的に100%遮断するソリッドBoxCollider群を保証
