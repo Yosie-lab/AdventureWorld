@@ -117,7 +117,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         ForceDismissForGameplay();
         if (_guideText != null)
         {
-            _guideText.text = "【WASD / 矢印キー】移動　【マウス】視点　【Shift】走る　【Space長押し】滑空　【R】リセット";
+            _guideText.text = AdventureLocalizationManager.Get("guide_hud_opening");
             _guideText.gameObject.SetActive(true);
         }
     }
@@ -193,6 +193,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_confirmModalNoBtnLabel != null) _confirmModalNoBtnLabel.text = AdventureLocalizationManager.Get("confirm_cancel");
 
         RefreshSaveDataStatus();
+        RefreshGuideText();
     }
 
     /// <summary>タイトル上の設定を開いている間、メニュー Canvas の入力・描画順を下げる</summary>
@@ -604,9 +605,9 @@ public class AdventureRustFloatOpening : MonoBehaviour
             camFollow.SnapBehindTarget();
         }
 
+        RefreshGuideText();
         if (_guideText != null)
         {
-            _guideText.text = "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【ESC】設定";
             _guideText.gameObject.SetActive(true);
         }
 
@@ -632,13 +633,21 @@ public class AdventureRustFloatOpening : MonoBehaviour
         }
     }
 
+    private bool _isCurrentlyGlidingGuide = false;
+
     /// <summary>滑空状態に応じて操作ガイドの文言を動的に切り替える</summary>
     public void SetGlideGuideActive(bool isGliding)
     {
+        _isCurrentlyGlidingGuide = isGliding;
+        RefreshGuideText();
+    }
+
+    private void RefreshGuideText()
+    {
         if (_guideText == null) return;
-        _guideText.text = isGliding
-            ? "【A / D】旋回　【W】ダイブ　【S】フレア　【Space長押し】滑空"
-            : "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【ESC】設定";
+        _guideText.text = _isCurrentlyGlidingGuide
+            ? AdventureLocalizationManager.Get("guide_hud_gliding")
+            : AdventureLocalizationManager.Get("guide_hud_gameplay");
     }
 
     void BuildHud()

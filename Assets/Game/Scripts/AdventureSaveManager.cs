@@ -558,8 +558,10 @@ public class AdventureSaveManager : MonoBehaviour
             File.WriteAllText(SaveFilePath, json);
 
             // バナー表示＆サウンド再生
-            string subText = $"遺物パーツ: {scrapCount}個 ／ Rust常備油: {oil}個（Rustと絆を結びました）";
-            ShowSaveNotification(customMessage, subText);
+            string locTitle = AdventureLocalizationManager.Get(customMessage);
+            if (string.IsNullOrEmpty(locTitle)) locTitle = customMessage;
+            string subText = AdventureLocalizationManager.GetFormat("save_notification_sub", scrapCount, oil);
+            ShowSaveNotification(locTitle, subText);
             bool autoSaveChime = !string.IsNullOrEmpty(customMessage)
                                  && customMessage.IndexOf("オートセーブ", StringComparison.Ordinal) >= 0;
             PlaySaveSound(autoSaveChime ? SaveChimeVolumeAuto : SaveChimeVolumeManual);
@@ -831,13 +833,21 @@ public class AdventureSaveManager : MonoBehaviour
     public void ShowSaveNotification(string title, string subText = "")
     {
         _bannerTimer = 3.2f;
+        string locTitle = AdventureLocalizationManager.Get(title);
+        if (string.IsNullOrEmpty(locTitle)) locTitle = title;
+        string locSubText = AdventureLocalizationManager.Get(subText);
+        if (string.IsNullOrEmpty(locSubText)) locSubText = subText;
+
+        Font font = ResolveFont();
         if (_bannerTitleText != null)
         {
-            _bannerTitleText.text = $"✦ {title} ✦";
+            if (font != null) _bannerTitleText.font = font;
+            _bannerTitleText.text = $"✦ {locTitle} ✦";
         }
         if (_bannerSubText != null)
         {
-            _bannerSubText.text = subText;
+            if (font != null) _bannerSubText.font = font;
+            _bannerSubText.text = locSubText;
         }
     }
 }

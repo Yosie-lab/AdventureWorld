@@ -12,7 +12,21 @@ public class AdventureBeachDriftBox : MonoBehaviour
 {
     public int boxId = 1;
     public string boxTitle = "漂着防水ケース";
-    public string BoxDisplayName => string.IsNullOrEmpty(boxTitle) ? "漂着防水ケース" : boxTitle;
+    public string BoxDisplayName
+    {
+        get
+        {
+            if (boxId > 0)
+            {
+                string key = $"driftbox_{boxId}_title";
+                string loc = AdventureLocalizationManager.Get(key);
+                if (!string.IsNullOrEmpty(loc) && loc != key) return loc;
+            }
+            string fallback = string.IsNullOrEmpty(boxTitle) ? "漂着サバイバルケース" : boxTitle;
+            string locFallback = AdventureLocalizationManager.Get(fallback);
+            return (!string.IsNullOrEmpty(locFallback) && locFallback != fallback) ? locFallback : fallback;
+        }
+    }
     public string author = "記録メモ";
     [TextArea(3, 8)]
     public string message = "ここにメッセージが入ります。";

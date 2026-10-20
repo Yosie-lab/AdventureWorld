@@ -2629,5 +2629,205 @@ public static class AdventureLocalizationManager
             "光柱的方向我已经记住了。那就是我们的指路明灯！",
             "Recordaré la dirección del pilar de luz. ¡Es nuestro faro guía!"
         } }
+,
+
+        { "guide_hud_opening", new[] {
+            "【WASD / 矢印キー】移動　【マウス】視点　【Shift】走る　【Space長押し】滑空　【R】リセット",
+            "[WASD / Arrow Keys] Move  [Mouse] Look  [Shift] Sprint  [Hold Space] Glide  [R] Reset",
+            "【WASD / 方向键】移动　【鼠标】视角　【Shift】奔跑　【长按Space】滑翔　【R】重置",
+            "[WASD / Flechas] Moverse  [Ratón] Mirar  [Shift] Correr  [Mantener Espacio] Planear  [R] Reiniciar"
+        } },
+        { "guide_hud_gameplay", new[] {
+            "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【ESC】設定",
+            "[WASD] Move  [Mouse] Look  [Shift] Sprint  [Space] Glide  [ESC] Settings",
+            "【WASD】移动　【鼠标】视角　【Shift】奔跑　【Space】滑翔　【ESC】设置",
+            "[WASD] Moverse  [Ratón] Mirar  [Shift] Correr  [Espacio] Planear  [ESC] Ajustes"
+        } },
+        { "save_notification_title", new[] {
+            "SAVEしました",
+            "GAME SAVED",
+            "已保存游戏",
+            "PARTIDA GUARDADA"
+        } },
+        { "save_notification_sub", new[] {
+            "遺物パーツ: {0}個 ／ Rust常備油: {1}個（Rustと絆を結びました）",
+            "Relic Parts: {0} / Rust Oil: {1} (Bonded with Rust)",
+            "古代零件: {0}个 ／ Rust常备机油: {1}罐（与Rust建立深厚羁绊）",
+            "Piezas antiguas: {0} / Aceite de Rust: {1} (Vínculo forjado con Rust)"
+        } },
+        { "SAVEしました", new[] {
+            "SAVEしました",
+            "GAME SAVED",
+            "已保存游戏",
+            "PARTIDA GUARDADA"
+        } },
+        { "サバイバルケース", new[] {
+            "サバイバルケース",
+            "Survival Case",
+            "求生箱",
+            "Caja de Supervivencia"
+        } },
+        { "わあ！きれいなお花がたくさん咲いてる！いい香りだね、Float♪", new[] {
+            "わあ！きれいなお花がたくさん咲いてる！いい香りだね、Float♪",
+            "Whoa! So many beautiful flowers blooming! They smell wonderful, Float♪",
+            "哇啊！盛开了好多美丽的花朵！好香呀，Float♪",
+            "¡Uau! ¡Tantas flores hermosas floreciendo! Huelen genial, Float♪"
+        } },
+        { "ピピッ♪ お花畑だ！風に揺れてキラキラ光ってるよ！", new[] {
+            "ピピッ♪ お花畑だ！風に揺れてキラキラ光ってるよ！",
+            "Beep♪ A flower meadow! They're swaying in the breeze and sparkling!",
+            "哔哔♪ 是花田呀！在风中摇曳闪烁着微光呢！",
+            "¡Bip♪ Un campo de flores! ¡Se mecen con la brisa y brillan!"
+        } },
+        { "あたたかいね…Float、お花がとっても綺麗だよ♥", new[] {
+            "あたたかいね…Float、お花がとっても綺麗だよ♥",
+            "So warm and cozy... Float, the flowers are so lovely♥",
+            "好温暖呀…Float，花朵真漂亮呢♥",
+            "Qué calorcito... Float, las flores son preciosas♥"
+        } },
+        { "わあ…カピタがピアノを弾いてるよ！優しいメロディだね♪", new[] {
+            "わあ…カピタがピアノを弾いてるよ！優しいメロディだね♪",
+            "Whoa... Capyta is playing the piano! What a gentle melody♪",
+            "哇啊…卡皮塔在弹钢琴呢！旋律真温柔呀♪",
+            "¡Uau...! ¡Capyta está tocando el piano! Qué melodía tan dulce♪"
+        } },
+        { "ピロリン♪ 聴いてFloat！ピアノの音が風に乗って聴こえるよ…！", new[] {
+            "ピロリン♪ 聴いてFloat！ピアノの音が風に乗って聴こえるよ…！",
+            "Beep-chime♪ Listen, Float! The piano melody is drifting on the wind...!",
+            "哔噜噜♪ 快听Float！钢琴的声音乘着风飘过来了哦…！",
+            "¡Bip-chime♪ Escucha, Float! El sonido del piano flota en el viento...!"
+        } },
+        { "プヒヒ…カピタさん上手だね！Rustもこの曲大好きだよ♪", new[] {
+            "プヒヒ…カピタさん上手だね！Rustもこの曲大好きだよ♪",
+            "Puhehe... Capyta is so good! Rust loves this song too♪",
+            "噗嘻嘻…卡皮塔弹得真好！Rust也很喜欢这首曲子呢♪",
+            "Jijiji... ¡Capyta toca muy bien! A Rust también le encanta esta canción♪"
+        } },
+        { "……ギアが少し重い。油か手当てがあると助かるよ", new[] {
+            "……ギアが少し重い。油か手当てがあると助かるよ",
+            "...My gears feel a bit heavy. Some oil or care would really help.",
+            "……齿轮稍微有点沉重。如果能有点机油或保养就太好了。",
+            "...Los engranajes van algo pesados. Un poco de aceite o cuidado me ayudaría."
+        } },
+        { "ピロッ……調子が落ちてる。【E】で整備して", new[] {
+            "ピロッ……調子が落ちてる。【E】で整備して",
+            "Beep... My condition is dropping. Please service me with [E].",
+            "哔噜……机能有些下降了。请按【E键】为我保养。",
+            "Bip... Mi rendimiento está bajando. Hazme mantenimiento con [E]."
+        } },
+        { "油がほしいな。カピタのところか、地面の油でも", new[] {
+            "油がほしいな。カピタのところか、地面の油でも",
+            "I need some oil. Either from Capyta or from the ground pools.",
+            "想要机油呢。去卡皮塔那里或者地面上的油坑都可以。",
+            "Necesito aceite. Ya sea de Capyta o de los charcos del suelo."
+        } },
+        { "関節がきしむ……でも、Floatがそばなら平気", new[] {
+            "関節がきしむ……でも、Floatがそばなら平気",
+            "My joints are creaking... But as long as you're by my side, Float, I'm okay.",
+            "关节有些嘎吱作响……但只要Float在身边我就没事。",
+            "Me crujen las articulaciones... Pero si estás a mi lado, Float, estoy bien."
+        } },
+        { "古代の推進黄金ギア", new[] {
+            "古代の推進黄金ギア",
+            "Ancient Propulsion Gold Gear",
+            "古代推进黄金齿轮",
+            "Engranaje Dorado de Propulsión Antigua"
+        } },
+        { "古代の推進ギア", new[] {
+            "古代の推進ギア",
+            "Ancient Propulsion Gear",
+            "古代推进齿轮",
+            "Engranaje de Propulsión Antigua"
+        } },
+        { "耐熱スタビライザー", new[] {
+            "耐熱スタビライザー",
+            "Thermal Stabilizer",
+            "耐热稳定翼",
+            "Estabilizador Térmico"
+        } },
+        { "海風のエネルギーコア", new[] {
+            "海風のエネルギーコア",
+            "Sea Breeze Energy Core",
+            "海风能量核心",
+            "Núcleo de Energía de la Brisa Marina"
+        } },
+        { "潮騒のバランスリング", new[] {
+            "潮騒のバランスリング",
+            "Tide Balance Ring",
+            "潮汐平衡环",
+            "Anillo de Equilibrio de Mareas"
+        } },
+        { "反重力サスペンション", new[] {
+            "反重力サスペンション",
+            "Anti-Gravity Suspension",
+            "反重力悬挂",
+            "Suspensión Antigravedad"
+        } },
+        { "跳躍反重力コア", new[] {
+            "跳躍反重力コア",
+            "Leap Anti-Gravity Core",
+            "跳跃反重力核心",
+            "Núcleo Antigravedad de Salto"
+        } },
+        { "清流の共鳴プリズム", new[] {
+            "清流の共鳴プリズム",
+            "Clear Stream Resonance Prism",
+            "清流共鸣棱镜",
+            "Prisma de Resonancia del Arroyo"
+        } },
+        { "水冷コンデンサー", new[] {
+            "水冷コンデンサー",
+            "Water-Cooled Condenser",
+            "水冷冷凝器",
+            "Condensador Refrigerado por Agua"
+        } },
+        { "高周波ソナークリスタル", new[] {
+            "高周波ソナークリスタル",
+            "High-Frequency Sonar Crystal",
+            "高频声呐水晶",
+            "Cristal de Sónar de Alta Frecuencia"
+        } },
+        { "古代探知コア", new[] {
+            "古代探知コア",
+            "Ancient Detection Core",
+            "古代探测核心",
+            "Núcleo de Detección Antigua"
+        } },
+        { "高空ジェットスラスター", new[] {
+            "高空ジェットスラスター",
+            "High-Altitude Jet Thruster",
+            "高空喷气推进器",
+            "Propulsor a Chorro de Gran Altitud"
+        } },
+        { "天蓋開放マスターコア", new[] {
+            "天蓋開放マスターコア",
+            "Canopy Release Master Core",
+            "天穹开启主控核心",
+            "Núcleo Maestro de Apertura de la Cúpula"
+        } },
+        { "純白のこ巻貝", new[] {
+            "純白の小巻貝",
+            "Pure White Conch",
+            "纯白小卷贝",
+            "Caracola Blanca Pura"
+        } },
+        { "guide_hud_gliding", new[] {
+            "【A / D】旋回　【W】ダイブ　【S】フレア　【Space長押し】滑空",
+            "[A / D] Turn  [W] Dive  [S] Flare  [Hold Space] Glide",
+            "【A / D】转向　【W】俯冲　【S】仰起减速　【长按Space】滑翔",
+            "[A / D] Girar  [W] Picado  [S] Nivelar  [Mantener Espacio] Planear"
+        } },
+        { "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new[] {
+            "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。",
+            "Thank you, Rust...! Thanks to you, we made it this far.",
+            "谢谢你，Rust…！正是多亏了你，我们才能来到这里。",
+            "¡Gracias, Rust...! Gracias a ti pudimos llegar hasta aquí."
+        } },
+        { "Rust、待ってて！　今、集めた油を全部注ぐから……！", new[] {
+            "Rust、待ってて！　今、集めた油を全部注ぐから……！",
+            "Rust, hang on! I'm pouring all the oil we gathered right now...!",
+            "Rust，坚持住！我现在就把收集到的所有润滑油都注入进去……！",
+            "¡Rust, espera! ¡Voy a verter todo el aceite que reunimos ahora mismo...!"
+        } }
     };
 }

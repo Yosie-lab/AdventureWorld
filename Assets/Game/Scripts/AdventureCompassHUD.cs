@@ -613,7 +613,7 @@ public class AdventureCompassHUD : MonoBehaviour
                     // 未回収パーツを最優先でコンパスHUDに表示
                     _cachedTargetMode = TargetMode.Scrap;
                     _cachedTargetPos = nearest.transform.position;
-                    _cachedTargetName = nearest.itemName;
+                    _cachedTargetName = AdventureLocalizationManager.Get(nearest.itemName);
                     _cachedTargetColor = nearest.itemColor;
                     _cachedHasTarget = true;
                 }
