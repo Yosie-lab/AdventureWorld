@@ -130,7 +130,19 @@ public class AdventureBeachDriftBox : MonoBehaviour
     /// モーダルが実際に画面上に表示されているかどうか。
     /// staticフラグの残留等で操作が永久ブロックされるのを防ぐため、実オブジェクトのアクティブ状態も検証する。
     /// </summary>
-    public static bool IsModalOpen => _isModalOpen;
+    public static bool IsModalOpen
+    {
+        get
+        {
+            if (!_isModalOpen) return false;
+            if (!AdventureSceneCaption.IsVisible)
+            {
+                _isModalOpen = false;
+                return false;
+            }
+            return true;
+        }
+    }
 
     public static bool CanCloseModal =>
         _isModalOpen && Time.unscaledTime - _modalOpenTimestamp >= 0.12f;

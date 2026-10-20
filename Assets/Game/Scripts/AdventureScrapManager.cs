@@ -652,6 +652,7 @@ public class AdventureScrapManager : MonoBehaviour
     public void OnScrapCollected(AdventureScrapItem item)
     {
         Ensure();
+        AdventurePettingAction.Instance?.CancelPetting();
         // 1. 爽快なパーツ取得ファンファーレ音（シュピーン！ド・ミ・ソ・ド・ミ・ソ・ド〜〜〜ン♪）を再生！
         PlayScrapCollectFanfare();
 

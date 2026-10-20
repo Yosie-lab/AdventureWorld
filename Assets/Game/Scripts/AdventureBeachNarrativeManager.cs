@@ -29,7 +29,26 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
     // ── 読み物UI制御 ──
     bool _isShowingModal = false;
     float _ignoreCloseUntil;
-    public bool IsShowingModal => _isShowingModal;
+    public bool IsShowingModal
+    {
+        get
+        {
+            if (!_isShowingModal) return false;
+            if (!AdventureSceneCaption.IsVisible)
+            {
+                _isShowingModal = false;
+                return false;
+            }
+            return true;
+        }
+    }
+
+    /// <summary>字幕が消えたのにフラグだけ残っている場合の復旧（GameplayInputGate から呼ぶ）</summary>
+    public void SyncModalFlagWithCaption()
+    {
+        if (_isShowingModal && !AdventureSceneCaption.IsVisible)
+            _isShowingModal = false;
+    }
     string _modalTitle = "";
     string _modalSubTitle = "";
     string _modalBody = "";

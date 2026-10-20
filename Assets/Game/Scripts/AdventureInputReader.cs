@@ -81,42 +81,8 @@ public static class AdventureInputReader
         }
     }
 
-    /// <summary>移動入力が1つでもある</summary>
-    public static bool HasAnyMove
-    {
-        get
-        {
-            try
-            {
-                if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow))    return true;
-                if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow))  return true;
-                if (GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))  return true;
-                if (GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) return true;
-                if (Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f
-                    || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f) return true;
-            }
-            catch { }
-
-            var kb = Keyboard;
-            if (kb != null)
-            {
-                if (kb.wKey.isPressed || kb.upArrowKey.isPressed)    return true;
-                if (kb.sKey.isPressed || kb.downArrowKey.isPressed)  return true;
-                if (kb.aKey.isPressed || kb.leftArrowKey.isPressed)  return true;
-                if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) return true;
-            }
-
-            var gp = Gamepad.current;
-            if (gp != null)
-            {
-                if (gp.leftStick.ReadValue().sqrMagnitude > 0.04f) return true;
-                if (gp.dpad.up.isPressed || gp.dpad.down.isPressed
-                    || gp.dpad.left.isPressed || gp.dpad.right.isPressed) return true;
-            }
-
-            return false;
-        }
-    }
+    /// <summary>移動入力が1つでもある（MoveAxis と同じ判定）</summary>
+    public static bool HasAnyMove => MoveAxis.sqrMagnitude > 0.0001f;
 
     // ─── アクションキー ──────────────────────────────────────────────────
 

@@ -10,6 +10,10 @@ public class AdventureSceneCaption : MonoBehaviour
     static AdventureSceneCaption _instance;
     public static bool IsVisible => _instance != null && _instance._visible;
 
+    /// <summary>操作で閉じるまで表示中（Space 等をジャンプに使わない）</summary>
+    public static bool IsWaitingDismiss =>
+        _instance != null && _instance._visible && _instance._waitDismiss;
+
     CanvasGroup _cg;
     Text _titleText;
     Text _metaText;
@@ -118,6 +122,13 @@ public class AdventureSceneCaption : MonoBehaviour
         {
             Dismiss();
             return;
+        }
+
+        if (_instance._visible && _instance._onDismiss != null)
+        {
+            var prevDismiss = _instance._onDismiss;
+            _instance._onDismiss = null;
+            prevDismiss.Invoke();
         }
 
         Font f = ResolveFont();

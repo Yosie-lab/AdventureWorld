@@ -4,6 +4,16 @@ using System.Linq;
 
 public partial class AdventureRustDrone : MonoBehaviour
 {
+    static int _scrapSlowMoDepth;
+    static float _scrapSlowMoSavedScale = 1f;
+    public static int ScrapSlowMoDepth => _scrapSlowMoDepth;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetScrapSlowMoStatics()
+    {
+        _scrapSlowMoDepth = 0;
+        _scrapSlowMoSavedScale = 1f;
+    }
 
     public float hoverHeight = 1.35f;
     public float bobAmount = 0.1f;
@@ -2402,10 +2412,27 @@ public partial class AdventureRustDrone : MonoBehaviour
     /// <summary>パーツ取得の瞬間に一瞬だけ0.1秒スローモーション（ジューシーなインパクトと余韻）</summary>
     IEnumerator ScrapSlowMotionRoutine()
     {
-        float originalScale = Time.timeScale;
-        Time.timeScale = 0.20f;
+        BeginScrapSlowMo();
         yield return new WaitForSecondsRealtime(0.12f);
-        Time.timeScale = originalScale;
+        EndScrapSlowMo();
+    }
+
+    static void BeginScrapSlowMo()
+    {
+        if (_scrapSlowMoDepth == 0)
+            _scrapSlowMoSavedScale = Time.timeScale > 0.05f ? Time.timeScale : 1f;
+        _scrapSlowMoDepth++;
+        Time.timeScale = 0.20f;
+    }
+
+    static void EndScrapSlowMo()
+    {
+        _scrapSlowMoDepth = Mathf.Max(0, _scrapSlowMoDepth - 1);
+        if (_scrapSlowMoDepth > 0) return;
+        float restore = _scrapSlowMoSavedScale > 0.05f ? _scrapSlowMoSavedScale : 1f;
+        if (AdventurePauseMenu.IsOpen)
+            restore = 0f;
+        Time.timeScale = restore;
     }
 
     /// <summary>パーツ取得時にNikoの頭上でクルッと360度歓喜宙返りし、花火光粒を放つ</summary>

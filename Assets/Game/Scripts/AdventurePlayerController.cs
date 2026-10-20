@@ -152,6 +152,7 @@ public partial class AdventurePlayerController : MonoBehaviour
     public bool IsInAir      => !_grounded;
     public bool IsBoostActive => _glideBoostTimer > 0f;
     public bool IsAutoGliding => _autoGlide;
+    public bool IsSkybreakPillarLocked => _skybreakPillarLock;
     /// <summary>狭い足場やテラスへのピンポイント着地アシスト作動中</summary>
     public bool IsSoftLandingHover => _isSoftLandingHover;
     bool _isSoftLandingHover = false;
@@ -245,69 +246,27 @@ public partial class AdventurePlayerController : MonoBehaviour
 
     void Update()
     {
+        AdventureGameplayInputGate.TickRecovery();
+
         // CharacterController の自動復旧（万が一無効化されたまま残るのを防止）
         if (_cc != null && !_cc.enabled)
             _cc.enabled = true;
 
-
-        // オープニングボード表示中、または決定直後の入力ガード中（クリック・Space誤爆防止）は操作不可
-        var opening = AdventureRustFloatOpening.Instance;
-        if (opening != null && opening.IsModalBoardOpen())
+        if (AdventureGameplayInputGate.TryEarlyExitForTitleOrPrologue())
             return;
-
-        if (opening != null && AdventureRustFloatOpening.IsInputGuarded)
-        {
-            if (AdventureStoryFlow.ShouldSkipOpening)
-                opening.ForceDismissForGameplay();
-            else if (AdventureInputReader.HasAnyMove)
-            {
-                // 移動キーが押されたら入力ガードを即座に破棄して歩行開始
-                AdventureRustFloatOpening.DismissInputGuard();
-            }
-            else
-                return;
-        }
-
-        // プロローグの遭難目覚め演出中：キー入力やクリックがあれば演出を即座にスキップして起き上がる
-        var prologue = AdventurePrologueDrama.Instance;
-        if (prologue != null && prologue.IsAwakening)
-        {
-            if (AdventureInputReader.HasAnyMove || AdventureInputReader.DialogAdvanceDown)
-            {
-                prologue.SkipAwakening();
-            }
-            else
-            {
-                return;
-            }
-        }
 
         ReadInputFlags();
 
         if (TryHandleResetKey()) return;
         TryHandleSaveKey();
 
-        // ポーズメニュー表示中は操作を停止
-        if (AdventurePauseMenu.IsOpen)
-        {
+        var block = AdventureGameplayInputGate.GetLocomotionBlock(out bool skybreakJumpOnly);
+        if (block == AdventureGameplayInputGate.LocomotionBlock.PauseMenu)
             return;
-        }
 
-        // 漂着ボックス情報モーダル表示中は操作を一時停止（Spaceキー閉じる時の誤爆ジャンプ防止）
-        if (AdventureBeachDriftBox.IsModalOpen)
+        if (skybreakJumpOnly)
         {
-            return;
-        }
-
-        // 天蓋台本表示中は位置を固定（テラスから落下して物語が途切れるのを防ぐ）
-        var towerHold = AdventureSanctuaryTowerManager.Instance;
-        if (towerHold != null
-            && towerHold.IsSkybreakModalActive
-            && !towerHold.ClimaxCrisisStarted
-            && !_skybreakPillarLock
-            && !_autoGlide)
-        {
-            HandleJump(); // Space送りのみ
+            HandleJump();
             return;
         }
 
@@ -649,6 +608,9 @@ public partial class AdventurePlayerController : MonoBehaviour
     /// <summary>ジャンプ処理（湖脱出・砂浜サーマル・崖カタパルト・通常・二段ジャンプ）</summary>
     void HandleJump()
     {
+        if (AdventureGameplayInputGate.ShouldRouteJumpToCaptionDismiss)
+            return;
+
         // 天蓋レバー操作中／台本ボード表示中は Space をジャンプに使わず、台本送りへ回す
         var tower = AdventureSanctuaryTowerManager.Instance;
         if (tower != null)
