@@ -7,16 +7,25 @@ using UnityEngine;
 public static class AdventureExplorationHudSettings
 {
     public const string PrefShowCompass = "RustFloat_HudShowCompass";
-    public const string PrefShowPartsBoard = "RustFloat_HudShowPartsBoard";
+    public const string PrefShowPartsBoard = "RustFloat_HudShowPartsBoard"; // 詳細ナビ（Tab）の許可
     public const string PrefShowOilBoard = "RustFloat_HudShowOilBoard";
 
     public const float TopInset = 8f;
     public const float RibbonHeight = 34f;
     public const float HeadingRowHeight = 20f;
+    public const float GoalRowHeight = 20f;
     public const float NavRowHeight = 22f;
     public const float GuideRowHeight = 28f;
     public const float RowGap = 8f;
     public const float PartsBoardHeight = 58f;
+
+    /// <summary>上部コンパス＋目標行の背景プレート不透明度（低いほど透ける）</summary>
+    public const float CompassPlateAlpha = 0.54f;
+    public const float CompassBorderTopAlpha = 0.28f;
+    public const float CompassBorderBottomAlpha = 0.42f;
+    public const float CompassGoalLineTextAlpha = 0.78f;
+    public const float CompassHeadingTextAlpha = 0.76f;
+    public const float CompassDetailNavTextAlpha = 0.80f;
 
     public static event Action OnChanged;
 
@@ -26,10 +35,18 @@ public static class AdventureExplorationHudSettings
         set => SetBool(PrefShowCompass, value);
     }
 
-    public static bool ShowPartsBoard
+    /// <summary>Tab で詳細ナビ行を固定表示できるか（Q の 10 秒表示は別途常に有効）</summary>
+    public static bool ShowDetailNav
     {
         get => PlayerPrefs.GetInt(PrefShowPartsBoard, 1) != 0;
         set => SetBool(PrefShowPartsBoard, value);
+    }
+
+    [System.Obsolete("Use ShowDetailNav")]
+    public static bool ShowPartsBoard
+    {
+        get => ShowDetailNav;
+        set => ShowDetailNav = value;
     }
 
     public static bool ShowOilBoard
@@ -38,23 +55,30 @@ public static class AdventureExplorationHudSettings
         set => SetBool(PrefShowOilBoard, value);
     }
 
-    /// <summary>コンパス下の白文字ナビ行（パーツボード非表示時のみ）</summary>
-    public static float GetCompassStackHeight(bool showCenterNavLine)
+    /// <summary>画面上部スタック（常時: コンパス＋方角＋目標1行／任意: 詳細ナビ行）</summary>
+    public static float GetCompassStackHeight(bool showDetailNavLine)
     {
-        float h = TopInset + RibbonHeight + HeadingRowHeight;
-        if (showCenterNavLine)
+        float h = TopInset + RibbonHeight + HeadingRowHeight + RowGap * 0.35f + GoalRowHeight;
+        if (showDetailNavLine)
             h += RowGap * 0.5f + NavRowHeight;
         return h;
     }
 
-    public static float GetGuideRowY(bool showCenterNavLine)
-        => -(GetCompassStackHeight(showCenterNavLine) + RowGap);
+    /// <summary>詳細行を含めない高さ（油カウンター等の固定配置用）</summary>
+    public static float GetCompassStackHeightStable()
+        => GetCompassStackHeight(showDetailNavLine: false);
 
-    public static float GetPartsRowY(bool showCenterNavLine)
-        => GetGuideRowY(showCenterNavLine) - GuideRowHeight - RowGap;
+    public static float GetGuideRowY(bool showDetailNavLine)
+        => -(GetCompassStackHeight(showDetailNavLine) + RowGap);
 
-    public static float GetBannerRowY(bool showCenterNavLine)
-        => GetPartsRowY(showCenterNavLine) - PartsBoardHeight - RowGap;
+    public static float GetSideHudRowY()
+        => -(GetCompassStackHeightStable() + RowGap);
+
+    public static float GetPartsRowY(bool showDetailNavLine)
+        => GetSideHudRowY();
+
+    public static float GetBannerRowY(bool showDetailNavLine)
+        => GetSideHudRowY() - PartsBoardHeight - RowGap;
 
     static void SetBool(string key, bool value)
     {
@@ -69,21 +93,21 @@ public static class AdventureExplorationHudSettings
 
     public static void ApplyAll()
     {
-        bool showNav = AdventureScrapHUD.ComputeCenterNavVisible();
-        ApplyLayout(showNav);
+        bool showDetail = AdventureScrapHUD.ComputeDetailNavVisible();
+        ApplyLayout(showDetail);
         AdventureScrapHUD.Instance?.RefreshExplorationHudVisibility();
         AdventureCompassHUD.Instance?.RefreshExplorationHudVisibility();
-        AdventureRustFloatOpening.ApplyTopHudGuideLayout(showNav);
+        AdventureRustFloatOpening.ApplyTopHudGuideLayout(showDetail);
     }
 
-    public static void ApplyLayout(bool showCenterNavLine)
+    public static void ApplyLayout(bool showDetailNavLine)
     {
         var compass = AdventureCompassHUD.Instance
                       ?? UnityEngine.Object.FindAnyObjectByType<AdventureCompassHUD>(FindObjectsInactive.Include);
         if (compass != null)
-            compass.ApplyLayoutPosition(showCenterNavLine);
+            compass.ApplyLayoutPosition(showDetailNavLine);
 
-        AdventureScrapHUD.Instance?.ApplyLayoutPositions(showCenterNavLine);
-        AdventureRustFloatOpening.ApplyTopHudGuideLayout(showCenterNavLine);
+        AdventureScrapHUD.Instance?.ApplyLayoutPositions(showDetailNavLine);
+        AdventureRustFloatOpening.ApplyTopHudGuideLayout(showDetailNavLine);
     }
 }

@@ -209,7 +209,7 @@ public class AdventureBeachFlotsam : MonoBehaviour
         string locName = AdventureLocalizationManager.Get(itemName);
         string locEra = AdventureLocalizationManager.Get(eraLabel);
         string locDesc = AdventureLocalizationManager.Get(description);
-        AdventureBeachFlotsamManager.Instance?.ShowInspectHUD(locName, locEra, locDesc);
+        AdventureSceneCaption.Show(locName, locDesc, locEra, autoSeconds: 8f, waitDismiss: false);
     }
 
     static Font _cachedFlotsamFont;
@@ -246,6 +246,7 @@ public class AdventureBeachFlotsam : MonoBehaviour
     static GUIStyle _cachedFlotsamStyle;
     public void DrawPromptGUI()
     {
+        if (AdventureStoryFlow.HideWorldInteractPrompts) return;
         if (!_isPlayerNear || Camera.main == null || ShouldSuppressInteraction())
             return;
 

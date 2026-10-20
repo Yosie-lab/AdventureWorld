@@ -230,9 +230,10 @@ public partial class AdventureSanctuaryTowerManager
             PollScriptBoardAdvance();
 
         // 4. 自然な自動送り時間（放置シネマ：ClimaxBeats定義から直接取得）
-        float autoSec = (_climaxBeatIndex >= 0 && _climaxBeatIndex < ClimaxBeats.Length)
+        float rawAuto = (_climaxBeatIndex >= 0 && _climaxBeatIndex < ClimaxBeats.Length)
             ? ClimaxBeats[_climaxBeatIndex].AutoAdvanceSeconds
             : 4.5f;
+        float autoSec = AdventureSpeechBoardLayout.ScaleScriptAutoAdvance(rawAuto, this);
 
         if (openFor >= autoSec)
         {
@@ -279,11 +280,7 @@ public partial class AdventureSanctuaryTowerManager
         if (_scriptUiRoot != null)
             _scriptUiRoot.SetActive(false);
         else
-        {
-            var orphanBoard = GameObject.Find("EndingScriptBoardCanvas");
-            if (orphanBoard != null)
-                orphanBoard.SetActive(false);
-        }
+            DestroyOrphanEndingScriptBoardCanvas();
 
         if (_oilUiRoot != null && !IsClimaxOilPromptActive)
             _oilUiRoot.SetActive(false);

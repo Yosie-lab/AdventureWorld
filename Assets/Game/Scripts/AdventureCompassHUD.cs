@@ -14,8 +14,10 @@ public class AdventureCompassHUD : MonoBehaviour
 
     Camera _cam;
     Text _headingBadgeText;
+    Text _goalLineText;
     Text _scrapNavText;
     RectTransform _headingBadgeRt;
+    RectTransform _goalLineRt;
     RectTransform _scrapNavRt;
     RectTransform _ribbonContainer;
     RectTransform _scrapMarkerRt;
@@ -74,6 +76,15 @@ public class AdventureCompassHUD : MonoBehaviour
         _guidePingColor = color;
         _guidePingTimer = duration;
         _hasGuidePing = true;
+        AdventureExplorationHudDetail.PulseFromGuide(duration);
+    }
+
+    public void SetMissionGoalLine(string goalLine)
+    {
+        if (_goalLineText == null) return;
+        string t = goalLine ?? "";
+        if (_goalLineText.text != t)
+            _goalLineText.text = t;
     }
 
     [System.Serializable]
@@ -86,63 +97,67 @@ public class AdventureCompassHUD : MonoBehaviour
 
     [SerializeField] List<CompassElement> _elements = new List<CompassElement>();
 
+    static readonly string[] CardinalDirKeys =
+    {
+        "dir_n", "dir_ne", "dir_e", "dir_se", "dir_s", "dir_sw", "dir_w", "dir_nw"
+    };
+
+    static readonly string[] CardinalMarkKeys =
+    {
+        "compass_mark_n", "compass_mark_ne", "compass_mark_e", "compass_mark_se",
+        "compass_mark_s", "compass_mark_sw", "compass_mark_w", "compass_mark_nw"
+    };
+
+    static readonly string[] RibbonCardObjectIds = { "北", "北東", "東", "南東", "南", "南西", "西", "北西" };
+    static readonly int[] RibbonCardAngles = { 0, 45, 90, 135, 180, 225, 270, 315 };
+
     /// <summary>ドメインリロードや再コンパイル後でもコンパス目盛り要素を確実に復元・再バインドする</summary>
     void EnsureElementsReady()
     {
-        if (_elements.Count > 0 && _elements[0].Rt != null) return;
-
-        _elements.Clear();
         if (_ribbonContainer == null)
         {
             var rc = transform.Find("CompassRibbon");
             if (rc != null) _ribbonContainer = rc.GetComponent<RectTransform>();
         }
 
-        if (_ribbonContainer == null) return;
-
-        string[] cardinals = { "北", "北東", "東", "南東", "南", "南西", "西", "北西" };
-        int[] angles = { 0, 45, 90, 135, 180, 225, 270, 315 };
-
-        for (int i = 0; i < cardinals.Length; i++)
+        if (_elements.Count == 0 || _elements[0].Rt == null)
         {
-            var t = _ribbonContainer.Find("Card_" + cardinals[i]);
-            if (t != null)
+            _elements.Clear();
+            if (_ribbonContainer != null)
             {
-                var rt = t.GetComponent<RectTransform>();
-                var txt = t.GetComponent<Text>();
-                _elements.Add(new CompassElement { TargetAngle = angles[i], Rt = rt, Txt = txt });
-            }
-            for (int sub = 1; sub < 3; sub++)
-            {
-                float subAngle = (angles[i] + sub * 15f) % 360f;
-                var dt = _ribbonContainer.Find("Tick_" + subAngle);
-                if (dt != null)
+                for (int i = 0; i < RibbonCardObjectIds.Length; i++)
                 {
-                    var dRt = dt.GetComponent<RectTransform>();
-                    var dTxt = dt.GetComponent<Text>();
-                    _elements.Add(new CompassElement { TargetAngle = subAngle, Rt = dRt, Txt = dTxt });
+                    var t = _ribbonContainer.Find("Card_" + RibbonCardObjectIds[i]);
+                    if (t != null)
+                    {
+                        var rt = t.GetComponent<RectTransform>();
+                        var txt = t.GetComponent<Text>();
+                        _elements.Add(new CompassElement { TargetAngle = RibbonCardAngles[i], Rt = rt, Txt = txt });
+                    }
+                    for (int sub = 1; sub < 3; sub++)
+                    {
+                        float subAngle = (RibbonCardAngles[i] + sub * 15f) % 360f;
+                        var dt = _ribbonContainer.Find("Tick_" + subAngle);
+                        if (dt != null)
+                        {
+                            var dRt = dt.GetComponent<RectTransform>();
+                            var dTxt = dt.GetComponent<Text>();
+                            _elements.Add(new CompassElement { TargetAngle = subAngle, Rt = dRt, Txt = dTxt });
+                        }
+                    }
                 }
             }
+
+            if (_elements.Count == 0)
+                BuildUI(ResolveSafeFont());
         }
 
-        if (_elements.Count == 0)
-        {
-            BuildUI(ResolveSafeFont());
-        }
+        UpdateRibbonCardinals();
     }
-
-
 
     void UpdateRibbonCardinals()
     {
         if (_elements == null || _elements.Count == 0) return;
-        string[] currentCardinals = AdventureLocalizationManager.CurrentLanguage switch
-        {
-            AdventureLocalizationManager.GameLanguage.English => new[] { "N", "NE", "E", "SE", "S", "SW", "W", "NW" },
-            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => new[] { "北", "东北", "东", "东南", "南", "西南", "西", "西北" },
-            AdventureLocalizationManager.GameLanguage.Spanish => new[] { "N", "NE", "E", "SE", "S", "SO", "O", "NO" },
-            _ => new[] { "北", "北東", "東", "南東", "南", "南西", "西", "北西" }
-        };
 
         int cardIdx = 0;
         for (int i = 0; i < _elements.Count; i++)
@@ -150,13 +165,13 @@ public class AdventureCompassHUD : MonoBehaviour
             var elem = _elements[i];
             if (elem.Rt != null && elem.Rt.name.StartsWith("Card_"))
             {
-                if (cardIdx < currentCardinals.Length && elem.Txt != null)
-                {
-                    elem.Txt.text = currentCardinals[cardIdx];
-                }
+                if (cardIdx < CardinalMarkKeys.Length && elem.Txt != null)
+                    elem.Txt.text = AdventureLocalizationManager.Get(CardinalMarkKeys[cardIdx]);
                 cardIdx++;
             }
         }
+
+        _shownDeg = int.MinValue;
     }
 
     /// <summary>コンパスHUDがシーン内に確実に存在することを保証する</summary>
@@ -223,19 +238,22 @@ public class AdventureCompassHUD : MonoBehaviour
         return hud;
     }
 
-    public void ApplyLayoutPosition(bool showCenterNavLine)
+    public void ApplyLayoutPosition(bool showDetailNavLine)
     {
         var rootRt = GetComponent<RectTransform>();
         if (rootRt == null) return;
 
         float ribbon = AdventureExplorationHudSettings.RibbonHeight;
         float heading = AdventureExplorationHudSettings.HeadingRowHeight;
-        float nav = showCenterNavLine ? AdventureExplorationHudSettings.NavRowHeight : 0f;
-        float innerGap = showCenterNavLine ? AdventureExplorationHudSettings.RowGap * 0.5f : 0f;
-        float totalH = ribbon + heading + innerGap + nav;
+        float goal = AdventureExplorationHudSettings.GoalRowHeight;
+        float goalGap = AdventureExplorationHudSettings.RowGap * 0.35f;
+        float nav = showDetailNavLine ? AdventureExplorationHudSettings.NavRowHeight : 0f;
+        float innerGap = showDetailNavLine ? AdventureExplorationHudSettings.RowGap * 0.5f : 0f;
+        float totalH = ribbon + heading + goalGap + goal + innerGap + nav;
 
         rootRt.anchoredPosition = new Vector2(0f, -AdventureExplorationHudSettings.TopInset);
         rootRt.sizeDelta = new Vector2(420f, totalH);
+        ApplyCompassVisualStyle();
 
         if (_ribbonContainer != null)
         {
@@ -246,32 +264,50 @@ public class AdventureCompassHUD : MonoBehaviour
             _ribbonContainer.sizeDelta = new Vector2(360f, 28f);
         }
 
+        float yAfterHeading = ribbon + 2f;
+
         if (_headingBadgeRt != null)
         {
             _headingBadgeRt.anchorMin = new Vector2(0.5f, 1f);
             _headingBadgeRt.anchorMax = new Vector2(0.5f, 1f);
             _headingBadgeRt.pivot = new Vector2(0.5f, 1f);
-            _headingBadgeRt.anchoredPosition = new Vector2(0f, -(ribbon + 2f));
+            _headingBadgeRt.anchoredPosition = new Vector2(0f, -yAfterHeading);
             _headingBadgeRt.sizeDelta = new Vector2(160f, heading);
+        }
+
+        float yAfterGoal = yAfterHeading + heading + goalGap;
+
+        if (_goalLineRt != null)
+        {
+            _goalLineRt.anchorMin = new Vector2(0.5f, 1f);
+            _goalLineRt.anchorMax = new Vector2(0.5f, 1f);
+            _goalLineRt.pivot = new Vector2(0.5f, 1f);
+            _goalLineRt.anchoredPosition = new Vector2(0f, -yAfterGoal);
+            _goalLineRt.sizeDelta = new Vector2(580f, goal);
         }
 
         if (_scrapNavRt != null)
         {
-            _scrapNavRt.gameObject.SetActive(showCenterNavLine);
-            if (showCenterNavLine)
+            _scrapNavRt.gameObject.SetActive(showDetailNavLine);
+            if (showDetailNavLine)
             {
                 _scrapNavRt.anchorMin = new Vector2(0.5f, 1f);
                 _scrapNavRt.anchorMax = new Vector2(0.5f, 1f);
                 _scrapNavRt.pivot = new Vector2(0.5f, 1f);
-                _scrapNavRt.anchoredPosition = new Vector2(0f, -(ribbon + heading + innerGap + 2f));
+                _scrapNavRt.anchoredPosition = new Vector2(0f, -(yAfterGoal + goal + innerGap + 2f));
                 _scrapNavRt.sizeDelta = new Vector2(560f, nav);
             }
         }
     }
 
-    public void SetCenterNavVisible(bool visible)
+    public void SetDetailNavVisible(bool visible)
     {
         ApplyLayoutPosition(visible);
+    }
+
+    public void SetCenterNavVisible(bool visible)
+    {
+        SetDetailNavVisible(visible);
     }
 
     public void RefreshExplorationHudVisibility()
@@ -304,6 +340,7 @@ public class AdventureCompassHUD : MonoBehaviour
     {
         bool hide = AdventureStoryFlow.HidesExplorationHud;
         if (_headingBadgeText != null) _headingBadgeText.enabled = !hide;
+        if (_goalLineText != null) _goalLineText.enabled = !hide;
         if (_scrapNavText != null) _scrapNavText.enabled = !hide;
         if (_ribbonContainer != null) _ribbonContainer.gameObject.SetActive(!hide);
         if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(!hide);
@@ -322,7 +359,7 @@ public class AdventureCompassHUD : MonoBehaviour
 
         // 背景プレート（半透明の深藍ダークグラデーション）
         var bg = gameObject.AddComponent<Image>();
-        bg.color = new Color(0.03f, 0.06f, 0.11f, 0.88f);
+        bg.color = new Color(0.03f, 0.06f, 0.11f, AdventureExplorationHudSettings.CompassPlateAlpha);
         bg.raycastTarget = false;
 
         // 上部ライン（サイバーグロー）
@@ -335,7 +372,7 @@ public class AdventureCompassHUD : MonoBehaviour
         topRt.anchoredPosition = Vector2.zero;
         topRt.sizeDelta = new Vector2(0f, 1.2f);
         var topImg = borderTop.AddComponent<Image>();
-        topImg.color = new Color(0.35f, 0.85f, 1.0f, 0.45f);
+        topImg.color = new Color(0.35f, 0.85f, 1.0f, AdventureExplorationHudSettings.CompassBorderTopAlpha);
 
         // 下部ライン（爽やかなシアンの光彩）
         var borderBottom = new GameObject("BorderBottom", typeof(RectTransform));
@@ -347,7 +384,7 @@ public class AdventureCompassHUD : MonoBehaviour
         bRt.anchoredPosition = Vector2.zero;
         bRt.sizeDelta = new Vector2(0f, 1.8f);
         var bImg = borderBottom.AddComponent<Image>();
-        bImg.color = new Color(0.35f, 0.90f, 1.0f, 0.75f);
+        bImg.color = new Color(0.35f, 0.90f, 1.0f, AdventureExplorationHudSettings.CompassBorderBottomAlpha);
 
         // コンパステープ。端はマスクで切り、目盛りはポップせず流れる
         var ribbonGo = new GameObject("CompassRibbon", typeof(RectTransform));
@@ -501,14 +538,38 @@ public class AdventureCompassHUD : MonoBehaviour
         _headingBadgeText.fontSize = 12;
         _headingBadgeText.fontStyle = FontStyle.Bold;
         _headingBadgeText.alignment = TextAnchor.MiddleCenter;
-        _headingBadgeText.color = new Color(0.88f, 0.96f, 1.0f, 0.92f);
+        _headingBadgeText.color = new Color(0.88f, 0.96f, 1.0f, AdventureExplorationHudSettings.CompassHeadingTextAlpha);
         _headingBadgeText.text = "北  0°";
         _headingBadgeText.raycastTarget = false;
         var badgeOutline = badgeGo.AddComponent<Outline>();
         badgeOutline.effectColor = new Color(0f, 0f, 0f, 0.90f);
         badgeOutline.effectDistance = new Vector2(1f, -1f);
 
-        // 5. 最寄り漂着パーツ・ボックスの方向・距離ナビゲーションバッジ（デジタルバッジの下に配置）
+        // 5. 常時表示：メイン目標1行（詳細ナビとは別系統）
+        var goalGo = new GameObject("MissionGoalLine", typeof(RectTransform));
+        goalGo.transform.SetParent(transform, false);
+        _goalLineRt = goalGo.GetComponent<RectTransform>();
+        _goalLineRt.anchorMin = new Vector2(0.5f, 1f);
+        _goalLineRt.anchorMax = new Vector2(0.5f, 1f);
+        _goalLineRt.pivot = new Vector2(0.5f, 1f);
+        _goalLineRt.anchoredPosition = new Vector2(0f, -(AdventureExplorationHudSettings.RibbonHeight + AdventureExplorationHudSettings.HeadingRowHeight + 8f));
+        _goalLineRt.sizeDelta = new Vector2(580f, AdventureExplorationHudSettings.GoalRowHeight);
+
+        _goalLineText = goalGo.AddComponent<Text>();
+        _goalLineText.font = font;
+        _goalLineText.fontSize = 11;
+        _goalLineText.fontStyle = FontStyle.Bold;
+        _goalLineText.alignment = TextAnchor.MiddleCenter;
+        _goalLineText.color = new Color(0.92f, 0.97f, 1.0f, AdventureExplorationHudSettings.CompassGoalLineTextAlpha);
+        _goalLineText.text = "…";
+        _goalLineText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        _goalLineText.verticalOverflow = VerticalWrapMode.Truncate;
+        _goalLineText.raycastTarget = false;
+        var goalOutline = goalGo.AddComponent<Outline>();
+        goalOutline.effectColor = new Color(0f, 0f, 0f, 0.92f);
+        goalOutline.effectDistance = new Vector2(1f, -1f);
+
+        // 6. 詳細ナビ（Tab 固定 / Q 後10秒）：最寄り m・ボックス・塔
         var navGo = new GameObject("ScrapNavBadge", typeof(RectTransform));
         navGo.transform.SetParent(transform, false);
         _scrapNavRt = navGo.GetComponent<RectTransform>();
@@ -523,12 +584,48 @@ public class AdventureCompassHUD : MonoBehaviour
         _scrapNavText.fontSize = 12;
         _scrapNavText.fontStyle = FontStyle.Bold;
         _scrapNavText.alignment = TextAnchor.MiddleCenter;
-        _scrapNavText.color = new Color(1.0f, 0.88f, 0.28f, 0.98f);
+        _scrapNavText.color = new Color(1.0f, 0.88f, 0.28f, AdventureExplorationHudSettings.CompassDetailNavTextAlpha);
         _scrapNavText.text = "✦ 最寄りの漂着パーツを探知中…";
         _scrapNavText.raycastTarget = false;
         var navOutline = navGo.AddComponent<Outline>();
         navOutline.effectColor = new Color(0f, 0f, 0f, 0.95f);
         navOutline.effectDistance = new Vector2(1f, -1f);
+
+        UpdateRibbonCardinals();
+        if (_headingBadgeText != null)
+            _headingBadgeText.text = $"{GetCardinal(0f)}  0°";
+        ApplyCompassVisualStyle();
+    }
+
+    void ApplyCompassVisualStyle()
+    {
+        var bg = GetComponent<Image>();
+        if (bg != null)
+            bg.color = new Color(0.03f, 0.06f, 0.11f, AdventureExplorationHudSettings.CompassPlateAlpha);
+
+        var borderTop = transform.Find("BorderTop")?.GetComponent<Image>();
+        if (borderTop != null)
+            borderTop.color = new Color(0.35f, 0.85f, 1.0f, AdventureExplorationHudSettings.CompassBorderTopAlpha);
+        var borderBottom = transform.Find("BorderBottom")?.GetComponent<Image>();
+        if (borderBottom != null)
+            borderBottom.color = new Color(0.35f, 0.90f, 1.0f, AdventureExplorationHudSettings.CompassBorderBottomAlpha);
+
+        if (_headingBadgeText != null)
+        {
+            var c = _headingBadgeText.color;
+            _headingBadgeText.color = new Color(c.r, c.g, c.b, AdventureExplorationHudSettings.CompassHeadingTextAlpha);
+        }
+        if (_goalLineText != null)
+        {
+            var c = _goalLineText.color;
+            _goalLineText.color = new Color(c.r, c.g, c.b, AdventureExplorationHudSettings.CompassGoalLineTextAlpha);
+        }
+        if (_scrapNavText != null)
+        {
+            var c = _scrapNavText.color;
+            if (c.a > 0.5f)
+                _scrapNavText.color = new Color(c.r, c.g, c.b, AdventureExplorationHudSettings.CompassDetailNavTextAlpha);
+        }
     }
 
     Camera GetActiveCamera()
@@ -575,6 +672,7 @@ public class AdventureCompassHUD : MonoBehaviour
         if (AdventureStoryFlow.HidesExplorationHud)
         {
             if (_headingBadgeText != null) _headingBadgeText.enabled = false;
+            if (_goalLineText != null) _goalLineText.enabled = false;
             if (_scrapNavText != null) _scrapNavText.enabled = false;
             if (_ribbonContainer != null) _ribbonContainer.gameObject.SetActive(false);
             if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(false);
@@ -582,6 +680,7 @@ public class AdventureCompassHUD : MonoBehaviour
             return;
         }
         if (_headingBadgeText != null) _headingBadgeText.enabled = true;
+        if (_goalLineText != null) _goalLineText.enabled = true;
         if (_scrapNavText != null)
             _scrapNavText.enabled = _scrapNavText.gameObject.activeSelf;
         if (_ribbonContainer != null && !_ribbonContainer.gameObject.activeSelf)
@@ -858,8 +957,8 @@ public class AdventureCompassHUD : MonoBehaviour
                 }
             }
 
-            // ── ナビゲーションテキストの総合案内 ──
-            if (_scrapNavText != null)
+            // ── 詳細ナビ行（Tab / Q 時のみ GameObject が active） ──
+            if (_scrapNavText != null && _scrapNavText.gameObject.activeSelf)
             {
                 if (_hasGuidePing)
                 {
@@ -1164,26 +1263,20 @@ public class AdventureCompassHUD : MonoBehaviour
         return Mathf.Repeat(Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg, 360f);
     }
 
-    public static string GetCardinal(float yaw)
+    public static int GetCardinalIndex(float yaw)
     {
-        int index = 0;
-        if (yaw >= 337.5f || yaw < 22.5f) index = 0;
-        else if (yaw >= 22.5f && yaw < 67.5f) index = 1;
-        else if (yaw >= 67.5f && yaw < 112.5f) index = 2;
-        else if (yaw >= 112.5f && yaw < 157.5f) index = 3;
-        else if (yaw >= 157.5f && yaw < 202.5f) index = 4;
-        else if (yaw >= 202.5f && yaw < 247.5f) index = 5;
-        else if (yaw >= 247.5f && yaw < 292.5f) index = 6;
-        else index = 7;
-
-        return AdventureLocalizationManager.CurrentLanguage switch
-        {
-            AdventureLocalizationManager.GameLanguage.English => (new[] { "N", "NE", "E", "SE", "S", "SW", "W", "NW" })[index],
-            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => (new[] { "北", "东北", "东", "东南", "南", "西南", "西", "西北" })[index],
-            AdventureLocalizationManager.GameLanguage.Spanish => (new[] { "N", "NE", "E", "SE", "S", "SO", "O", "NO" })[index],
-            _ => (new[] { "北", "北東", "東", "南東", "南", "南西", "西", "北西" })[index]
-        };
+        if (yaw >= 337.5f || yaw < 22.5f) return 0;
+        if (yaw < 67.5f) return 1;
+        if (yaw < 112.5f) return 2;
+        if (yaw < 157.5f) return 3;
+        if (yaw < 202.5f) return 4;
+        if (yaw < 247.5f) return 5;
+        if (yaw < 292.5f) return 6;
+        return 7;
     }
+
+    public static string GetCardinal(float yaw)
+        => AdventureLocalizationManager.Get(CardinalDirKeys[GetCardinalIndex(yaw)]);
 
     public static Font ResolveSafeFont()
     {

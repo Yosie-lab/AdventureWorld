@@ -133,6 +133,7 @@ public class AdventureAncientWindVent : MonoBehaviour
 
     void OnGUI()
     {
+        if (AdventureStoryFlow.HideWorldInteractPrompts) return;
         if (!isActivated && !_isCharging && _isPlayerNear)
         {
             // プロンプトUI

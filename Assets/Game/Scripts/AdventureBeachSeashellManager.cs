@@ -117,17 +117,29 @@ public class AdventureBeachSeashellManager : MonoBehaviour
 
     public static void Ensure()
     {
-        if (Instance != null) return;
+        if (Instance != null)
+        {
+            Instance.EnsureReady();
+            return;
+        }
         var existing = Object.FindAnyObjectByType<AdventureBeachSeashellManager>();
         if (existing != null)
         {
             Instance = existing;
+            Instance.EnsureReady();
             return;
         }
 
         var go = new GameObject("AdventureBeachSeashellManager");
         DontDestroyOnLoad(go);
         Instance = go.AddComponent<AdventureBeachSeashellManager>();
+    }
+
+    void EnsureReady()
+    {
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
+        SetupAudio();
     }
 
     void Awake()
@@ -348,10 +360,8 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
-            if (_seAudioSource != null && _rustPipiClip != null)
-            {
-                _seAudioSource.PlayOneShot(_rustPipiClip, 0.45f);
-            }
+            float seVol = Mathf.Clamp01(PlayerPrefs.GetFloat("Adventure_SeVolume", 1.0f));
+            PlaySeAtListener(_rustPipiClip, 0.45f * seVol);
             drone.TriggerSeashellReaction(item.kind, item.itemName, item.rustReaction, newlyCraftable);
         }
 
@@ -522,14 +532,37 @@ public class AdventureBeachSeashellManager : MonoBehaviour
             _seAudioSource = GetComponent<AudioSource>();
             if (_seAudioSource == null)
                 _seAudioSource = gameObject.AddComponent<AudioSource>();
-            _seAudioSource.spatialBlend = 0f; // 2D音響で確実に届く
+            _seAudioSource.spatialBlend = 0f;
             _seAudioSource.playOnAwake = false;
+            _seAudioSource.volume = 1f;
+            _seAudioSource.priority = 0;
+            _seAudioSource.bypassListenerEffects = true;
+            _seAudioSource.bypassEffects = true;
+            _seAudioSource.ignoreListenerPause = true;
         }
 
         if (_chimeClip == null)
             _chimeClip = CreateCrystalChimeClip();
         if (_rustPipiClip == null)
             _rustPipiClip = CreateRustHappyPipiClip();
+    }
+
+    void PlaySeAtListener(AudioClip clip, float volume, float pitch = 1f)
+    {
+        if (clip == null || volume <= 0.001f) return;
+        EnsureReady();
+
+        if (_seAudioSource != null)
+        {
+            _seAudioSource.pitch = pitch;
+            _seAudioSource.PlayOneShot(clip, volume);
+        }
+
+        var listener = Object.FindAnyObjectByType<AudioListener>();
+        Vector3 pos = listener != null
+            ? listener.transform.position
+            : (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
+        AudioSource.PlayClipAtPoint(clip, pos, volume);
     }
 
     float _lastChimePlayTime = -1f;
@@ -541,16 +574,11 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         if (Time.unscaledTime - _lastChimePlayTime < 0.06f) return;
         _lastChimePlayTime = Time.unscaledTime;
 
-        if (_seAudioSource == null || _chimeClip == null || _rustPipiClip == null)
+        if (_chimeClip == null || _rustPipiClip == null)
             SetupAudio();
-        if (_seAudioSource != null && _chimeClip != null)
-        {
-            float seVol = PlayerPrefs.GetFloat("Adventure_SeVolume", 1.0f);
-            // 種類ごとに微小なピッチバリエーションで拾うたびに楽しい音
-            float pitch = 1.0f + ((int)kind * 0.035f);
-            _seAudioSource.pitch = pitch;
-            _seAudioSource.PlayOneShot(_chimeClip, 0.85f * seVol);
-        }
+        float seVol = Mathf.Clamp01(PlayerPrefs.GetFloat("Adventure_SeVolume", 1.0f));
+        float pitch = 1.0f + ((int)kind * 0.035f);
+        PlaySeAtListener(_chimeClip, 0.85f * seVol, pitch);
     }
 
     /// <summary>貝殻・シーグラス・琥珀採取時の、澄んだクリスタル・ジュエルチャイム音</summary>
@@ -611,15 +639,4 @@ public class AdventureBeachSeashellManager : MonoBehaviour
         return clip;
     }
 
-    void OnGUI()
-    {
-        for (int i = 0; i < _items.Count; i++)
-        {
-            var item = _items[i];
-            if (item != null && item.gameObject.activeInHierarchy)
-            {
-                item.DrawPromptGUI();
-            }
-        }
-    }
 }

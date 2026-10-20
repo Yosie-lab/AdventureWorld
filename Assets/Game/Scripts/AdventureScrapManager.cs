@@ -236,11 +236,16 @@ public class AdventureScrapManager : MonoBehaviour
 
     public static void Ensure()
     {
-        if (_instance != null) return;
+        if (_instance != null)
+        {
+            _instance.EnsureReady();
+            return;
+        }
         var existing = Object.FindAnyObjectByType<AdventureScrapManager>();
         if (existing != null)
         {
             _instance = existing;
+            _instance.EnsureReady();
             return;
         }
 
@@ -248,9 +253,26 @@ public class AdventureScrapManager : MonoBehaviour
         DontDestroyOnLoad(go);
         _instance = go.AddComponent<AdventureScrapManager>();
     }
+
+    void EnsureReady()
+    {
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
+        if (chimeVolume <= 0f)
+            chimeVolume = DefaultScrapChimeVolume;
+        SetupAudio();
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void AutoInit()
+    {
+        Ensure();
+    }
     #endregion
 
     #region Unity Lifecycle & Audio Setup
+
+    const float DefaultScrapChimeVolume = 0.34f;
 
     void Awake()
     {
@@ -261,9 +283,8 @@ public class AdventureScrapManager : MonoBehaviour
         }
         _instance = this;
 
-        // 音量を控えめで心地よい音量（0.02f）に調整
-        if (chimeVolume > 0.02f)
-            chimeVolume = 0.02f;
+        if (chimeVolume <= 0f)
+            chimeVolume = DefaultScrapChimeVolume;
 
         EnsureSpawnLayoutLoaded();
         RestoreIdsFromList();
@@ -300,6 +321,7 @@ public class AdventureScrapManager : MonoBehaviour
             _audioSource.priority = 0; // 最優先再生
             _audioSource.bypassEffects = true;
             _audioSource.bypassListenerEffects = true;
+            _audioSource.ignoreListenerPause = true;
         }
         if (_fanfareClip == null)
         {
@@ -308,7 +330,7 @@ public class AdventureScrapManager : MonoBehaviour
     }
 
     [Header("Audio")]
-    [Range(0f, 1f)] public float chimeVolume = 0.02f;
+    [Range(0f, 1f)] public float chimeVolume = DefaultScrapChimeVolume;
 
     void LoadChimeClip()
     {
@@ -316,31 +338,56 @@ public class AdventureScrapManager : MonoBehaviour
         _fanfareClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RustAndFloat/Audio/Ambience/brain_reflexo_chime.wav");
 #endif
         if (_fanfareClip == null)
+            _fanfareClip = Resources.Load<AudioClip>("brain_reflexo_chime");
+        if (_fanfareClip == null)
             _fanfareClip = SynthesizeBrainReflexoChime();
+    }
+
+    static float GetSeVolumeScale()
+    {
+        return Mathf.Clamp01(PlayerPrefs.GetFloat("Adventure_SeVolume", 1f));
+    }
+
+    float ApplySeVolume(float baseVolume)
+    {
+        return Mathf.Clamp01(baseVolume * GetSeVolumeScale());
     }
 
     /// <summary>パーツ取得時の快感チャイム音（心洗われるヒーリングトーンチャイム）を再生</summary>
     public void PlayScrapCollectFanfare()
     {
-        PlayChimeInternal(Mathf.Min(chimeVolume, 0.02f));
+        PlayChimeInternal(ApplySeVolume(chimeVolume > 0f ? chimeVolume : DefaultScrapChimeVolume));
     }
 
     /// <summary>クライマックス祝福など、意図的に聴かせるチャイム</summary>
     public void PlayCelebrationChime(float volume = 0.28f)
     {
-        PlayChimeInternal(Mathf.Clamp(volume, 0.05f, 1.0f));
+        PlayChimeInternal(ApplySeVolume(Mathf.Clamp(volume, 0.05f, 1.0f)));
     }
 
     void PlayChimeInternal(float vol)
     {
+        if (vol <= 0.001f)
+            return;
+
         if (_fanfareClip == null)
             LoadChimeClip();
+        if (_fanfareClip == null)
+            return;
 
-        if (_audioSource == null)
-            SetupAudio();
+        EnsureReady();
 
-        if (_audioSource != null && _fanfareClip != null)
+        if (_audioSource != null)
+        {
+            _audioSource.ignoreListenerPause = true;
             _audioSource.PlayOneShot(_fanfareClip, vol);
+        }
+
+        var listener = Object.FindAnyObjectByType<AudioListener>();
+        Vector3 playPos = listener != null
+            ? listener.transform.position
+            : (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
+        AudioSource.PlayClipAtPoint(_fanfareClip, playPos, vol);
     }
 
     /// <summary>『脳リフレクソ』の白泡破裂時チャイムを進化させた、極上のヒーリングトーンチャイム（Cメジャーペンタトニック＋ソフトアタック＋温かなオクターブ倍音＋雲海リバーブ）の合成</summary>
@@ -604,6 +651,7 @@ public class AdventureScrapManager : MonoBehaviour
 
     public void OnScrapCollected(AdventureScrapItem item)
     {
+        Ensure();
         // 1. 爽快なパーツ取得ファンファーレ音（シュピーン！ド・ミ・ソ・ド・ミ・ソ・ド〜〜〜ン♪）を再生！
         PlayScrapCollectFanfare();
 
@@ -882,42 +930,26 @@ public class AdventureScrapManager : MonoBehaviour
             // 3個: 黄金ギア完成（Shiftダッシュ強化 & 旋回強化）
             player.runSpeed = AdventurePlayerController.ActiveDashRunSpeed;
             player.turnSpeed = AdventurePlayerController.ActiveDashTurnSpeed;
-            NotifyLore(
-                "キーストーン I：手動の自由と手応え",
-                "AIに管理されていた頃、僕らはただ最短ルートを滑らされていた。\nでも今、指先が油で汚れ、歯車が噛み合うたびに、生きている実感が胸を打つ。",
-                "【ブースター修復】ダッシュ速度＆クイックターンが向上！"
-            );
+            NotifyLore("keystone_1_title", "keystone_1_body", "keystone_1_unlock");
         }
         else if (CollectedCount == 6)
         {
             // 6個: 反重力エネルギーコア脈動（二段ジャンプ完全解禁！）
             player.canDoubleJump = true;
-            NotifyLore(
-                "キーストーン II：脈打つ不確かさ",
-                "100%最適化された電力にはなかった、温かくて不規則な青い脈動。\n……心臓の鼓動と同じだ。傷つく自由があるからこそ、光は美しい。",
-                "【反重力ジャンプ覚醒】空中でSpaceを押すと二段ジャンプが可能に！"
-            );
+            NotifyLore("keystone_2_title", "keystone_2_body", "keystone_2_unlock");
         }
         else if (CollectedCount == 9)
         {
             // 9個: 探知ソナー／古いメモリ想起（遺物レーダー解禁）
             player.hasPetRadar = true;
-            NotifyLore(
-                "キーストーン III：失われた記憶の断片",
-                "Rustの古いメモリから、子供たちの笑い声と夏の波音が再生された。\n効率化のために根絶された“無駄な時間”の中にこそ、愛があったんだ。",
-                "【探知ソナー修復】Rustが近くのパーツをピピッとナビゲート！"
-            );
+            NotifyLore("keystone_3_title", "keystone_3_body", "keystone_3_unlock");
         }
         else if (CollectedCount == 12)
         {
             // 12個: 推進スタビライザー完成（全機能同期・スーパーグライダー完全解放）
             player.glideForwardSpeed = 11.5f;
             player.glideFallSpeed = -1.35f;
-            NotifyLore(
-                "キーストーン IV：風の重さと、未知の空へ",
-                "最適化都市では風すら消し去られていた。冷たい向かい風は、前へ進んでいる証拠だ。\nさあ行こう、Rust。島の頂、あの白亜のタワーへ！",
-                "【スーパーグライダー解放】大滑空滞空力＆前進推進力が最大化！"
-            );
+            NotifyLore("keystone_4_title", "keystone_4_body", "keystone_4_unlock");
         }
     }
 

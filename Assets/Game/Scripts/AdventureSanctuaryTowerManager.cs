@@ -323,7 +323,22 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _isCanopyBroken = PlayerPrefs.GetInt(PrefKeyCanopyBroken, 0) == 1;
         // Domain/Scene Reload 無効時に前プレイの台本・保留が残ると再生直後にエンディングへ突入する
         ResetEndingSequenceFlags(clearWorldProgress: false, teardownUiFully: false);
+        DestroyOrphanEndingScriptBoardCanvas();
         // 開放済みでもレバー再演できるように、ここでは _leverPulled を立てない
+    }
+
+    /// <summary>参照切れの EndingScriptBoardCanvas（860×420・中央・無文字）を破棄</summary>
+    static void DestroyOrphanEndingScriptBoardCanvas()
+    {
+        var orphans = Resources.FindObjectsOfTypeAll<Canvas>();
+        for (int i = 0; i < orphans.Length; i++)
+        {
+            var c = orphans[i];
+            if (c == null || c.gameObject == null) continue;
+            if (c.gameObject.name != "EndingScriptBoardCanvas") continue;
+            if (!Application.isPlaying) continue;
+            Object.Destroy(c.gameObject);
+        }
     }
 
     /// <summary>
@@ -817,10 +832,14 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             SetLeverPromptUI(true, _lastLeverPromptReady);
         }
+        if (_showGameClearModal)
+            RefreshClearModalLocalization();
     }
 
     void SetLeverPromptUI(bool show, bool ready)
     {
+        if (AdventureStoryFlow.HideWorldInteractPrompts)
+            show = false;
         _isLeverPromptShowing = show;
         _lastLeverPromptReady = ready;
 
@@ -1473,7 +1492,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     /// <summary>クリック／Space で台本を進める（AdventureInputReader 経由で Input System 専用環境でも安全）</summary>
     void PollScriptBoardAdvance()
     {
-        PollManualScriptAdvance(minShowSec: 0.30f, blockCanopyBeat0: true);
+        PollManualScriptAdvance(minShowSec: AdventureSpeechBoardLayout.ScriptManualMinShowSec, blockCanopyBeat0: true);
     }
 
     void EnsureScriptBoardUI()
@@ -1598,7 +1617,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _scriptHintUi.raycastTarget = false;
 
         _scriptUiRoot = canvasGo;
-        _scriptUiRoot.SetActive(true);
+        _scriptUiRoot.SetActive(_scriptBoardVisible);
     }
 
     void RequestScriptBoardAdvance()
@@ -1609,22 +1628,30 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     void ApplyScriptBoardUI()
     {
         if (_scriptUiRoot == null) return;
-        _scriptUiRoot.SetActive(true);
-
-        if (_scriptDimImg != null)
-            _scriptDimImg.color = new Color(0.01f, 0.02f, 0.05f, 0.28f);
-        if (_scriptPanelImg != null)
-            _scriptPanelImg.color = new Color(0.03f, 0.06f, 0.11f, 0.55f);
 
         bool hasTitle = !string.IsNullOrEmpty(_scriptBoardTitle);
         bool hasSpeaker = !string.IsNullOrEmpty(_scriptBoardSpeaker);
+        bool hasBody = !string.IsNullOrEmpty(_scriptBoardBody);
+        if (!hasTitle && !hasSpeaker && !hasBody)
+        {
+            _scriptUiRoot.SetActive(false);
+            return;
+        }
+
+        _scriptUiRoot.SetActive(true);
+
+        var metrics = AdventureSpeechBoardLayout.GetScriptBoardMetrics(this);
+        if (_scriptDimImg != null)
+            _scriptDimImg.color = new Color(0.01f, 0.02f, 0.05f, metrics.DimAlpha);
+        if (_scriptPanelImg != null)
+            _scriptPanelImg.color = new Color(0.03f, 0.06f, 0.11f, metrics.PanelAlpha);
+
         bool isDialogue = hasSpeaker; // Niko / Rust セリフ
         bool isNarration = !isDialogue; // タイトル説明・ナレ・操作説明
 
-        // セリフ／説明とも読みやすい中サイズ（旧セリフ34は大きすぎた）
-        int titleSize = isNarration ? 30 : 26;
-        int speakerSize = 20;
-        int bodySize = 28;
+        int titleSize = isNarration ? metrics.TitleSize : metrics.TitleSize - 2;
+        int speakerSize = metrics.SpeakerSize;
+        int bodySize = metrics.BodySize;
         Color bodyColor = isDialogue
             ? new Color(1f, 1f, 1f, 1f)
             : new Color(0.88f, 0.94f, 1f, 0.98f);
@@ -1647,13 +1674,28 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         float titleBlock = hasTitle ? titleSize + 10f : 0f;
         float speakerBlock = hasSpeaker ? speakerSize + 8f : 0f;
         float bodyBlock = Mathf.Max(bodySize * 1.35f * lineCount, bodySize + 8f) + 6f;
-        float btnBlock = 46f;
+        float btnBlock = metrics.HintSize + 28f;
         float boardH = padTop + titleBlock + speakerBlock + bodyBlock + btnBlock + padBottom;
-        boardH = Mathf.Clamp(boardH, 170f, 340f);
-        float boardW = isDialogue ? 780f : 760f;
+        boardH = Mathf.Clamp(boardH, metrics.BoardHeightMin, metrics.BoardHeightMax);
+        float boardW = metrics.BoardWidth;
 
         if (_scriptPanelImg != null)
-            _scriptPanelImg.rectTransform.sizeDelta = new Vector2(boardW, boardH);
+        {
+            var panelRt = _scriptPanelImg.rectTransform;
+            panelRt.sizeDelta = new Vector2(boardW, boardH);
+            bool cinematic = AdventureSpeechBoardLayout.IsCinematicEndingBoard(this);
+            if (cinematic)
+            {
+                panelRt.anchorMin = panelRt.anchorMax = panelRt.pivot = new Vector2(0.5f, 0.5f);
+                panelRt.anchoredPosition = Vector2.zero;
+            }
+            else
+            {
+                panelRt.anchorMin = panelRt.anchorMax = new Vector2(0.5f, 0f);
+                panelRt.pivot = new Vector2(0.5f, 0f);
+                panelRt.anchoredPosition = new Vector2(0f, 52f);
+            }
+        }
 
         float y = -padTop;
 
@@ -1738,9 +1780,9 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
                 : "";
             Font f = ResolveUiFont();
             _scriptHintUi.font = f;
-            PrepareFontForText(f, hint, 16, FontStyle.Bold);
+            PrepareFontForText(f, hint, metrics.HintSize, FontStyle.Bold);
             _scriptHintUi.text = hint;
-            _scriptHintUi.fontSize = 16;
+            _scriptHintUi.fontSize = metrics.HintSize;
             _scriptHintUi.color = new Color(1f, 0.96f, 0.88f, 1f);
         }
     }

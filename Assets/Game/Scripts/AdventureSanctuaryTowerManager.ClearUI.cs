@@ -203,6 +203,7 @@ public partial class AdventureSanctuaryTowerManager
                 _clearDiveBtn = _clearUiRoot.transform.Find("Panel/DiveBtn") as RectTransform;
             if (_clearCloseBtn == null)
                 _clearCloseBtn = _clearUiRoot.transform.Find("Panel/CloseBtn") as RectTransform;
+            RefreshClearModalLocalization();
             return;
         }
 

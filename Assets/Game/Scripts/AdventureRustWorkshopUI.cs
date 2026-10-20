@@ -221,25 +221,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
     void OnGUI()
     {
-        bool openingModal = AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen();
-        bool awakening = AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening;
-        bool pauseMenu = AdventurePauseMenu.IsOpen;
-
-        // 1. 工房が閉じている時：画面右上に常設の「👗 Rust工房 (B)」GUIボタン
-        if (!isVisible && !pauseMenu && !openingModal && !awakening && CanOpenWorkshopNow())
-        {
-            Rect btnRect = new Rect(Screen.width - 180, 56, 165, 34);
-            GUI.color = new Color(0.2f, 0.85f, 1f, 0.95f);
-            string hudText = AdventureLocalizationManager.Get("workshop_btn_hud");
-            if (GUI.Button(btnRect, hudText))
-            {
-                SetVisible(true);
-            }
-            GUI.color = Color.white;
-            return;
-        }
-
-        // 2. 工房が開いている時のクリック安全網
+        // 常時HUD（Rust Workshop [B]）は出さない。地上 [B] または作業台 [E] のみ。
         if (!isVisible) return;
         Event e = Event.current;
         if (e == null) return;
@@ -320,11 +302,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         bool isLookingAtBench = dist > 0.05f && Vector3.Dot(player.transform.forward, toBench.normalized) > 0.40f;
         bool isNear = dist <= 2.4f && isLookingAtBench && !isVisible && !AdventurePauseMenu.IsOpen;
 
-        // プロンプト表示フェード
         if (_promptCg != null)
-        {
-            _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, isNear ? 1.0f : 0.0f, Time.deltaTime * 6f);
-        }
+            _promptCg.alpha = 0f;
 
         if (isNear && CanOpenWorkshopNow())
         {

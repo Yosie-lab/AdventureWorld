@@ -64,11 +64,11 @@ public class AdventureRustSpeechUI : MonoBehaviour
         rt.anchorMin = new Vector2(0.5f, 0f);
         rt.anchorMax = new Vector2(0.5f, 0f);
         rt.pivot = new Vector2(0.5f, 0f);
-        rt.anchoredPosition = new Vector2(0f, 36f);
-        rt.sizeDelta = new Vector2(820f, 128f);
+        rt.anchoredPosition = new Vector2(0f, AdventureSpeechBoardLayout.RustSpeechBottomY);
+        rt.sizeDelta = new Vector2(AdventureSpeechBoardLayout.RustSpeechPanelW, AdventureSpeechBoardLayout.RustSpeechPanelH);
 
         _bg = panel.AddComponent<Image>();
-        _bg.color = new Color(0.02f, 0.05f, 0.10f, 0.94f);
+        _bg.color = new Color(0.02f, 0.05f, 0.10f, AdventureSpeechBoardLayout.RustSpeechBgAlpha);
         _bg.raycastTarget = false;
 
         var accentGo = new GameObject("Accent");
@@ -98,7 +98,7 @@ public class AdventureRustSpeechUI : MonoBehaviour
         nRt.sizeDelta = new Vector2(-30f, 30f);
         _speaker = nameGo.AddComponent<Text>();
         _speaker.font = _font;
-        _speaker.fontSize = 18;
+        _speaker.fontSize = AdventureSpeechBoardLayout.RustSpeechSpeakerSize;
         _speaker.fontStyle = FontStyle.Bold;
         _speaker.alignment = TextAnchor.MiddleLeft;
         _speaker.color = new Color(0.4f, 0.95f, 1f, 1f);
@@ -112,11 +112,11 @@ public class AdventureRustSpeechUI : MonoBehaviour
         var bRt = bodyGo.AddComponent<RectTransform>();
         bRt.anchorMin = Vector2.zero;
         bRt.anchorMax = Vector2.one;
-        bRt.offsetMin = new Vector2(20f, 12f);
-        bRt.offsetMax = new Vector2(-16f, -40f);
+        bRt.offsetMin = new Vector2(14f, 8f);
+        bRt.offsetMax = new Vector2(-12f, -30f);
         _body = bodyGo.AddComponent<Text>();
         _body.font = _font;
-        _body.fontSize = 22;
+        _body.fontSize = AdventureSpeechBoardLayout.RustSpeechBodySize;
         _body.alignment = TextAnchor.UpperLeft;
         _body.horizontalOverflow = HorizontalWrapMode.Wrap;
         _body.verticalOverflow = VerticalWrapMode.Overflow;
@@ -217,7 +217,7 @@ public class AdventureRustSpeechUI : MonoBehaviour
             if (hide)
                 _cg.alpha = 0f;
             else
-                _cg.alpha = Mathf.MoveTowards(_cg.alpha, 0f, Time.unscaledDeltaTime * 4f);
+                _cg.alpha = Mathf.MoveTowards(_cg.alpha, 0f, Time.unscaledDeltaTime * AdventureSpeechBoardLayout.RustSpeechFadeOutSpeed);
         }
     }
 
@@ -239,13 +239,13 @@ public class AdventureRustSpeechUI : MonoBehaviour
         };
         try
         {
-            _cachedSpeechFont = Font.CreateDynamicFontFromOSFont(fonts, 22);
+            _cachedSpeechFont = Font.CreateDynamicFontFromOSFont(fonts, AdventureSpeechBoardLayout.RustSpeechBodySize);
             if (_cachedSpeechFont != null) return _cachedSpeechFont;
         }
         catch { }
         foreach (var name in fonts)
         {
-            var f = Font.CreateDynamicFontFromOSFont(name, 22);
+            var f = Font.CreateDynamicFontFromOSFont(name, AdventureSpeechBoardLayout.RustSpeechBodySize);
             if (f != null) { _cachedSpeechFont = f; return f; }
         }
         return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")

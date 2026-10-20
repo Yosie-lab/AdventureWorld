@@ -986,11 +986,8 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         _collectAnimTimer = 0f;
         _startPos = transform.position;
 
-        // 澄んだクリスタル採取音（常駐Managerから2D音響で確実に途切れず再生！）
-        if (AdventureBeachSeashellManager.Instance != null)
-        {
-            AdventureBeachSeashellManager.Instance.PlayCollectChime(kind);
-        }
+        AdventureBeachSeashellManager.Ensure();
+        AdventureBeachSeashellManager.Instance?.PlayCollectChime(kind);
 
         // スパークルバースト
         if (_sparklePs != null)
@@ -1026,6 +1023,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     static GUIStyle _cachedSeashellStyle;
     public void DrawPromptGUI()
     {
+        if (AdventureStoryFlow.HideWorldInteractPrompts) return;
         if (_isCollected || _isCollecting || !_isPlayerNear || ShouldSuppressInteraction()) return;
 
         // 採取プロンプトHUD（画面内スクリーン座標に小さく「【E】拾う」）

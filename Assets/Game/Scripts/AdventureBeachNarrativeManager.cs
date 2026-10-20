@@ -604,33 +604,42 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         _modalSubTitle = subTitle;
         _modalBody = body;
         _modalRustComment = rustComment;
+
+        if (string.IsNullOrWhiteSpace(_modalTitle)
+            && string.IsNullOrWhiteSpace(_modalSubTitle)
+            && string.IsNullOrWhiteSpace(_modalBody))
+        {
+            Debug.LogWarning($"[BeachNarrative] 空モーダルをスキップ: id={id}");
+            return;
+        }
+
         _isShowingModal = true;
         _readLogIds.Add(id);
         _ignoreCloseUntil = Time.unscaledTime + 0.28f;
 
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
         if (_audio != null)
-        {
             _audio.PlayOneShot(MakePaperSound(), 0.8f);
-        }
 
         if (!string.IsNullOrEmpty(rustComment))
         {
             var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
             drone?.SpeakCustom(rustComment, 6.0f);
         }
+
+        AdventureSceneCaption.Show(
+            _modalTitle,
+            _modalBody,
+            _modalSubTitle,
+            autoSeconds: 12f,
+            waitDismiss: true,
+            onDismiss: CloseModal);
     }
 
     public void CloseModal()
     {
+        if (!_isShowingModal) return;
         _isShowingModal = false;
-        if (!AdventureStoryFlow.WantsFreeCursor)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+        AdventureSceneCaption.Dismiss(false);
     }
 
     static readonly List<AdventureBeachNarrativeSpot> _registeredSpots = new List<AdventureBeachNarrativeSpot>();
@@ -643,113 +652,6 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         if (spot != null) _registeredSpots.Remove(spot);
     }
 
-    void OnGUI()
-    {
-        for (int i = 0; i < _registeredSpots.Count; i++)
-        {
-            var s = _registeredSpots[i];
-            if (s != null && s.gameObject.activeInHierarchy)
-            {
-                s.DrawPromptGUI();
-            }
-        }
-
-        if (!_isShowingModal) return;
-
-        // 全画面の薄い半透明オーバーレイ
-        GUI.color = new Color(0.01f, 0.02f, 0.04f, 0.45f);
-        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-
-        // 中央の物語ボード（幅960px, 高さ520px）
-        float bw = Mathf.Min(960f, Screen.width * 0.94f);
-        float bh = Mathf.Min(530f, Screen.height * 0.88f);
-        float bx = (Screen.width - bw) * 0.5f;
-        float by = (Screen.height - bh) * 0.5f;
-
-        // 深藍色の半透明ダークガラス（透明度を上げて背後の景色を残す）
-        GUI.color = new Color(0.02f, 0.05f, 0.10f, 0.68f);
-        GUI.DrawTexture(new Rect(bx, by, bw, bh), Texture2D.whiteTexture);
-
-        // 黄金とエメラルドシアンのフレーム
-        GUI.color = new Color(0.35f, 0.90f, 0.98f, 0.95f);
-        GUI.DrawTexture(new Rect(bx, by, bw, 3.5f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(bx, by + bh - 3.5f, bw, 3.5f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(bx, by, 3.5f, bh), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(bx + bw - 3.5f, by, 3.5f, bh), Texture2D.whiteTexture);
-
-        Font modalFont = ResolveModalFont();
-
-        // 1. タイトル
-        var titleStyle = new GUIStyle(GUI.skin.label);
-        if (modalFont != null) titleStyle.font = modalFont;
-        titleStyle.fontSize = 32;
-        titleStyle.fontStyle = FontStyle.Bold;
-        titleStyle.alignment = TextAnchor.MiddleCenter;
-        DrawShadowed(new Rect(bx + 20f, by + 22f, bw - 40f, 42f), _modalTitle, titleStyle, new Color(1.0f, 0.88f, 0.40f), 1.5f);
-
-        // 2. サブタイトル（年代・出所）
-        var subStyle = new GUIStyle(GUI.skin.label);
-        if (modalFont != null) subStyle.font = modalFont;
-        subStyle.fontSize = 18;
-        subStyle.fontStyle = FontStyle.Normal;
-        subStyle.alignment = TextAnchor.MiddleCenter;
-        DrawShadowed(new Rect(bx + 20f, by + 66f, bw - 40f, 28f), "— " + _modalSubTitle + " —", subStyle, new Color(0.4f, 0.9f, 1.0f), 1.2f);
-
-        // 3. 本文
-        var bodyStyle = new GUIStyle(GUI.skin.label);
-        if (modalFont != null) bodyStyle.font = modalFont;
-        bodyStyle.fontSize = 22;
-        bodyStyle.fontStyle = FontStyle.Normal;
-        bodyStyle.wordWrap = true;
-        bodyStyle.alignment = TextAnchor.UpperLeft;
-        DrawShadowed(new Rect(bx + 45f, by + 105f, bw - 90f, bh - 200f), _modalBody, bodyStyle, new Color(0.95f, 0.98f, 1.0f), 1.5f);
-
-        // 4. 閉じるボタン
-        float btnW = 320f;
-        float btnH = 55f;
-        float btnX = (Screen.width - btnW) * 0.5f;
-        float btnY = by + bh - 72f;
-
-        GUI.color = new Color(0.12f, 0.40f, 0.75f, 0.90f);
-        GUI.DrawTexture(new Rect(btnX, btnY, btnW, btnH), Texture2D.whiteTexture);
-        GUI.color = new Color(1.0f, 0.85f, 0.40f, 1.0f);
-        GUI.DrawTexture(new Rect(btnX, btnY, btnW, 2.5f), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(btnX, btnY + btnH - 2.5f, btnW, 2.5f), Texture2D.whiteTexture);
-
-        var btnStyle = new GUIStyle(GUI.skin.button);
-        if (modalFont != null) btnStyle.font = modalFont;
-        btnStyle.fontSize = 22;
-        btnStyle.fontStyle = FontStyle.Bold;
-        btnStyle.alignment = TextAnchor.MiddleCenter;
-        btnStyle.normal.background = Texture2D.whiteTexture;
-
-        GUI.color = new Color(0f, 0f, 0f, 0.01f);
-        bool clicked = GUI.Button(new Rect(btnX, btnY, btnW, btnH), GUIContent.none, btnStyle);
-
-        var btnLbl = new GUIStyle(GUI.skin.label);
-        if (modalFont != null) btnLbl.font = modalFont;
-        btnLbl.fontSize = 22;
-        btnLbl.fontStyle = FontStyle.Bold;
-        btnLbl.alignment = TextAnchor.MiddleCenter;
-        string closeText = AdventureLocalizationManager.Get("narrative_btn_close");
-        if (string.IsNullOrEmpty(closeText) || closeText == "narrative_btn_close") closeText = "【E / Space / クリック】閉じる";
-        DrawShadowed(new Rect(btnX, btnY, btnW, btnH), closeText, btnLbl, new Color(1.0f, 0.95f, 0.8f), 1.5f);
-
-        if (Time.unscaledTime < _ignoreCloseUntil)
-        {
-            GUI.color = Color.white;
-            return;
-        }
-
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        bool closeKey = kb != null && (kb.spaceKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame);
-        var mouse = UnityEngine.InputSystem.Mouse.current;
-        bool pointer = mouse != null && mouse.leftButton.wasPressedThisFrame;
-        if (clicked || closeKey || pointer)
-            CloseModal();
-
-        GUI.color = Color.white;
-    }
 
     static void DrawShadowed(Rect rect, string text, GUIStyle style, Color textColor, float offset = 1.5f)
     {
@@ -802,16 +704,16 @@ public class AdventureBeachNarrativeSpot : MonoBehaviour
         if (player == null) return;
 
         float dist = Vector3.Distance(transform.position, player.transform.position);
-        _playerNearby = (dist < 4.2f) && !AdventureBeachDriftBox.IsModalOpen;
+        var narrative = AdventureBeachNarrativeManager.Instance;
+        bool blocked = AdventureBeachDriftBox.IsModalOpen
+                       || (narrative != null && narrative.IsShowingModal);
+        _playerNearby = (dist < 4.2f) && !blocked;
 
         if (_playerNearby)
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.eKey.wasPressedThisFrame)
-            {
-                if (!AdventureBeachDriftBox.IsModalOpen)
-                    AdventureBeachNarrativeManager.Instance?.OpenNarrativeModal(spotId, title, subTitle, bodyText, rustDialogue);
-            }
+                narrative?.OpenNarrativeModal(spotId, title, subTitle, bodyText, rustDialogue);
         }
     }
 
@@ -828,7 +730,9 @@ public class AdventureBeachNarrativeSpot : MonoBehaviour
     static GUIStyle _cachedNarrativePromptStyle;
     public void DrawPromptGUI()
     {
-        if (!_playerNearby || AdventureBeachDriftBox.IsModalOpen) return;
+        if (AdventureStoryFlow.HideWorldInteractPrompts) return;
+        var mgr = AdventureBeachNarrativeManager.Instance;
+        if (!_playerNearby || AdventureBeachDriftBox.IsModalOpen || (mgr != null && mgr.IsShowingModal)) return;
 
         // プレイヤー頭上に【Eキー】調べるHUDを表示
         Vector3 screenPos = Camera.main != null ? Camera.main.WorldToScreenPoint(transform.position + Vector3.up * 1.2f) : Vector3.zero;

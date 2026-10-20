@@ -595,6 +595,9 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
                 _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 0f, 5f * Time.deltaTime);
             }
         }
+
+        if (AdventureStoryFlow.HideWorldInteractPrompts && _promptCg != null)
+            _promptCg.alpha = 0f;
     }
 
     bool CheckChargeTriggerInput()

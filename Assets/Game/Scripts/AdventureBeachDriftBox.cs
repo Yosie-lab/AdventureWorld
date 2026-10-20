@@ -130,12 +130,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
     /// モーダルが実際に画面上に表示されているかどうか。
     /// staticフラグの残留等で操作が永久ブロックされるのを防ぐため、実オブジェクトのアクティブ状態も検証する。
     /// </summary>
-    public static bool IsModalOpen =>
-        _isModalOpen
-        && _modalCanvas != null
-        && _modalPanel != null
-        && _modalPanel.transform.parent != null
-        && _modalPanel.transform.parent.gameObject.activeInHierarchy;
+    public static bool IsModalOpen => _isModalOpen;
 
     public static bool CanCloseModal =>
         _isModalOpen && Time.unscaledTime - _modalOpenTimestamp >= 0.12f;
@@ -1154,7 +1149,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
         panelImg.color = new Color(0.12f, 0.15f, 0.20f, 0.96f); // 深いネイビーグレー
         panelImg.raycastTarget = true;
         var panelRt = _modalPanel.GetComponent<RectTransform>();
-        panelRt.sizeDelta = new Vector2(680, 420);
+        panelRt.sizeDelta = AdventureSpeechBoardLayout.DriftBoxPanelSize;
         panelRt.anchoredPosition = Vector2.zero;
         _modalPanel.AddComponent<DriftBoxPanelClickForwarder>();
 
@@ -1162,17 +1157,17 @@ public class AdventureBeachDriftBox : MonoBehaviour
         AddOutline(_modalPanel, new Color(0.85f, 0.72f, 0.40f, 0.85f), new Vector2(2, -2));
 
         // アイコン＆タイトル
-        _modalTitleText = CreateTextElement(_modalPanel.transform, "TitleText", defaultFont, 26,
+        _modalTitleText = CreateTextElement(_modalPanel.transform, "TitleText", defaultFont, AdventureSpeechBoardLayout.DriftBoxTitleSize,
             new Color(1.0f, 0.88f, 0.45f), FontStyle.Bold, TextAnchor.MiddleCenter,
             new Vector2(0, 160), new Vector2(600, 50));
 
         // 差出人／記録者
-        _modalAuthorText = CreateTextElement(_modalPanel.transform, "AuthorText", defaultFont, 17,
+        _modalAuthorText = CreateTextElement(_modalPanel.transform, "AuthorText", defaultFont, AdventureSpeechBoardLayout.DriftBoxAuthorSize,
             new Color(0.65f, 0.75f, 0.85f), FontStyle.Normal, TextAnchor.MiddleCenter,
             new Vector2(0, 120), new Vector2(600, 30));
 
         // 本文
-        _modalBodyText = CreateTextElement(_modalPanel.transform, "BodyText", defaultFont, 20,
+        _modalBodyText = CreateTextElement(_modalPanel.transform, "BodyText", defaultFont, AdventureSpeechBoardLayout.DriftBoxBodySize,
             new Color(0.95f, 0.96f, 0.98f), FontStyle.Normal, TextAnchor.UpperLeft,
             new Vector2(0, -10), new Vector2(580, 200), lineSpacing: 1.35f);
 
@@ -1263,13 +1258,6 @@ public class AdventureBeachDriftBox : MonoBehaviour
         _currentModalFallbackAuthor = fallbackAuthor ?? "";
         _currentModalFallbackBody = fallbackBody ?? "";
 
-        EnsureModalUI();
-        if (_modalCanvas == null || _modalPanel == null) return;
-        if (_modalCanvas.worldCamera == null || !_modalCanvas.worldCamera.isActiveAndEnabled)
-        {
-            _modalCanvas.worldCamera = Camera.main;
-        }
-
         if (!_locSubscribed)
         {
             _locSubscribed = true;
@@ -1277,14 +1265,50 @@ public class AdventureBeachDriftBox : MonoBehaviour
         }
 
         RefreshModalTexts();
+        PresentCaptionFromModalTexts();
+    }
 
-        _modalPanel.transform.parent.gameObject.SetActive(true);
+    static void PresentCaptionFromModalTexts()
+    {
+        string visibleTitle = _modalTitleText != null ? _modalTitleText.text : "";
+        string visibleAuthor = _modalAuthorText != null ? _modalAuthorText.text : "";
+        string visibleBody = _modalBodyText != null ? _modalBodyText.text : "";
+        if (string.IsNullOrWhiteSpace(visibleTitle) && string.IsNullOrWhiteSpace(visibleBody))
+            return;
+
+        visibleTitle = visibleTitle.Replace("📦 ", "").Trim();
+        visibleAuthor = visibleAuthor.Replace("── ", "").Replace(" ──", "").Trim();
+
         _isModalOpen = true;
         _modalOpenTimestamp = Time.unscaledTime;
 
-        // マウスカーソルを解放してクリックできるようにする
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        AdventureSceneCaption.Show(
+            visibleTitle,
+            visibleBody,
+            visibleAuthor,
+            autoSeconds: 11f,
+            waitDismiss: true,
+            onDismiss: HandleDriftCaptionClosed);
+    }
+
+    static void HandleDriftCaptionClosed()
+    {
+        if (!_isModalOpen) return;
+        _isModalOpen = false;
+
+        if (!AdventureStoryFlow.WantsFreeCursor)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
+        if (_pendingCampfireRemindOnModalClose)
+        {
+            _pendingCampfireRemindOnModalClose = false;
+            var scrap = AdventureScrapManager.Instance;
+            if (scrap != null)
+                scrap.RemindCampfireAndWorkshop(force: true);
+        }
     }
 
     private static void RefreshModalTexts()
@@ -1324,6 +1348,9 @@ public class AdventureBeachDriftBox : MonoBehaviour
             if (f != null) _modalCloseHintText.font = f;
             _modalCloseHintText.text = AdventureLocalizationManager.Get("modal_close_hint");
         }
+
+        if (_isModalOpen)
+            PresentCaptionFromModalTexts();
     }
 
     public static void CloseModal()
@@ -1337,28 +1364,10 @@ public class AdventureBeachDriftBox : MonoBehaviour
     public static void ForceCloseModal()
     {
         if (_modalPanel != null && _modalPanel.transform.parent != null)
-        {
             _modalPanel.transform.parent.gameObject.SetActive(false);
-        }
-        _isModalOpen = false;
 
-        // ゲームプレイ用にマウスカーソルを再度ロック（他のモーダルが開いていなければ）
-        if (!AdventureStoryFlow.WantsFreeCursor)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
-
-        // モーダルを閉じた直後のフォローアップ（10pt達成直後、または10pt以上で未点火の場合のリマインド）
-        if (_pendingCampfireRemindOnModalClose)
-        {
-            _pendingCampfireRemindOnModalClose = false;
-            var scrap = AdventureScrapManager.Instance;
-            if (scrap != null)
-            {
-                scrap.RemindCampfireAndWorkshop(force: true);
-            }
-        }
+        AdventureSceneCaption.Dismiss(false);
+        HandleDriftCaptionClosed();
     }
 
     // ═══════════════════════════════════════════════════════════════════

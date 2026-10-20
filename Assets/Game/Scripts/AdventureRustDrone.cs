@@ -91,11 +91,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         _isGuidingToTower = true;
         _nextTowerNotice = Time.time + 3.5f;
         _nearTowerNotified = false;
-        if (_audio != null && _happyBeepClip != null)
-        {
-            _audio.pitch = 1.35f;
-            _audio.PlayOneShot(_happyBeepClip, 0.85f);
-        }
+        PlayGuideBeepChime();
     }
 
     // 連携アクション（Qキー道案内・Fキー指示・遠隔回収・偵察・宙返り・撫でスキンシップ・焚き火チル・待機居眠り）
@@ -1214,6 +1210,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         Vector3 targetPos = Vector3.zero;
         string targetName = "";
         string dialogue = "";
+        bool guideDialogueIsKey = false;
         Color targetColor = Color.yellow;
         bool foundTarget = false;
 
@@ -1224,7 +1221,8 @@ public partial class AdventureRustDrone : MonoBehaviour
         {
             targetPos = new Vector3(512f, 63.2f, 501.5f);
             targetName = AdventureLocalizationManager.Get("target_name_tower_lever");
-            dialogue = AdventureLocalizationManager.Get("ピピッ！パーツが20個揃ったよ！中央の白亜タワーへ行こう！");
+            dialogue = "rust_guide_tower_20pt";
+            guideDialogueIsKey = true;
             targetColor = new Color(0.25f, 0.95f, 1.0f, 1f);
             foundTarget = true;
         }
@@ -1259,6 +1257,7 @@ public partial class AdventureRustDrone : MonoBehaviour
                 targetPos = nearestScrap.transform.position;
                 targetName = nearestScrap.ItemDisplayName;
                 dialogue = AdventureLocalizationManager.GetFormat("sonar_guide_scrap", targetName, Mathf.RoundToInt(scrapDist));
+                guideDialogueIsKey = false;
                 targetColor = nearestScrap.itemColor;
                 foundTarget = true;
             }
@@ -1267,14 +1266,16 @@ public partial class AdventureRustDrone : MonoBehaviour
                 targetPos = nearestBox.transform.position;
                 targetName = nearestBox.BoxDisplayName;
                 dialogue = AdventureLocalizationManager.Get("sonar_guide_box");
+                guideDialogueIsKey = false;
                 targetColor = new Color(0.35f, 1.0f, 0.65f, 1f);
                 foundTarget = true;
             }
             else if (nearestUnactivatedVent != null)
             {
                 targetPos = nearestUnactivatedVent.transform.position;
-                targetName = "古代の風脈クリスタル";
-                dialogue = "ピピッ！あっちに古代の風脈があるよ！送電チャージしに行こう！";
+                targetName = AdventureLocalizationManager.Get("target_name_wind_vent");
+                dialogue = "rust_guide_wind_vent";
+                guideDialogueIsKey = true;
                 targetColor = new Color(0.35f, 1.0f, 0.75f, 1f);
                 foundTarget = true;
             }
@@ -1285,9 +1286,10 @@ public partial class AdventureRustDrone : MonoBehaviour
                 targetName = AdventureSanctuaryTowerManager.IsGameCleared 
                     ? AdventureLocalizationManager.Get("target_name_skydive_pillar") 
                     : AdventureLocalizationManager.Get("target_name_sanctuary_tower");
-                dialogue = AdventureSanctuaryTowerManager.IsGameCleared 
-                    ? AdventureLocalizationManager.Get("ピピッ！あの大空の光の柱からダイブしよう！") 
-                    : AdventureLocalizationManager.Get("ピピッ！島の中心の白亜タワーがあっちだよ！");
+                dialogue = AdventureSanctuaryTowerManager.IsGameCleared
+                    ? "rust_guide_skydive_pillar"
+                    : "rust_guide_sanctuary_tower";
+                guideDialogueIsKey = true;
                 targetColor = new Color(0.35f, 0.95f, 1.0f, 1f);
                 foundTarget = true;
             }
@@ -1309,23 +1311,15 @@ public partial class AdventureRustDrone : MonoBehaviour
                 _guideTrail.Clear();
                 _guideTrail.enabled = true;
             }
-            SpeakCustom(dialogue, 4.5f);
+            if (guideDialogueIsKey)
+                SpeakCustom(dialogue, 4.5f);
+            else
+                SpeakCustomLocalized(dialogue, 4.5f);
 
-            if (_audio != null)
-            {
-                if (_happyBeepClip != null)
-                {
-                    _audio.pitch = 1.35f;
-                    _audio.PlayOneShot(_happyBeepClip, 0.85f);
-                }
-                if (_pipiChimeClip != null)
-                {
-                    _audio.PlayOneShot(_pipiChimeClip, 0.70f);
-                }
-            }
+            PlayGuideBeepChime();
 
             // コンパスHUDへもPing送信して即座にハイライト連動！
-            AdventureCompassHUD.Instance?.TriggerGuidePing(targetPos, targetName, targetColor, 12.0f);
+            AdventureCompassHUD.Instance?.TriggerGuidePing(targetPos, targetName, targetColor, AdventureExplorationHudDetail.GuidePulseSeconds);
         }
     }
 
@@ -1394,12 +1388,8 @@ public partial class AdventureRustDrone : MonoBehaviour
                 if (!_nearTowerNotified)
                 {
                     _nearTowerNotified = true;
-                    SetSpeech(AdventureLocalizationManager.Get("rust_near_tower"), 5.0f);
-                    if (_audio != null && _happyBeepClip != null)
-                    {
-                        _audio.pitch = 1.45f;
-                        _audio.PlayOneShot(_happyBeepClip, 0.75f);
-                    }
+                    SetSpeech("rust_near_tower", 5.0f);
+                    PlayGuideBeepOnly(0.75f, 1.45f);
                 }
             }
             else
@@ -1408,12 +1398,8 @@ public partial class AdventureRustDrone : MonoBehaviour
                 if (Time.time >= _nextTowerNotice)
                 {
                     _nextTowerNotice = Time.time + 14f;
-                    SetSpeech(AdventureLocalizationManager.Get("rust_guide_tower"), 4.0f);
-                    if (_audio != null && _happyBeepClip != null)
-                    {
-                        _audio.pitch = 1.35f;
-                        _audio.PlayOneShot(_happyBeepClip, 0.65f);
-                    }
+                    SetSpeech("rust_guide_tower_short", 4.0f);
+                    PlayGuideBeepChime(0.65f, 0.55f);
                 }
             }
             UpdateRadarVisuals();
@@ -2548,31 +2534,68 @@ public partial class AdventureRustDrone : MonoBehaviour
     }
 
     /// <summary>指定したテキストを特大ダイアログで発話（プレイヤーが次の行動を起こすまで消えずに維持）</summary>
-    public void SpeakCustom(string text, float duration = 4.5f)
+    public void SpeakCustom(string textOrKey, float duration = 2.8f)
     {
-        SpeakAs("✦ 相棒 Rust", new Color(0.35f, 0.92f, 0.98f, 1f), text, duration);
+        SpeakAs("✦ 相棒 Rust", new Color(0.35f, 0.92f, 0.98f, 1f), textOrKey, duration);
+    }
+
+    /// <summary>既にローカライズ済みの全文（GetFormat 結果など）をそのまま表示</summary>
+    public void SpeakCustomLocalized(string localizedText, float duration = 2.8f)
+    {
+        _speechSpeaker = "✦ 相棒 Rust";
+        _speechSpeakerColor = new Color(0.35f, 0.92f, 0.98f, 1f);
+        SetSpeechLocalized(localizedText, duration);
+    }
+
+    static float RustSeVolumeScale()
+    {
+        return Mathf.Clamp01(PlayerPrefs.GetFloat("Adventure_SeVolume", 1f));
+    }
+
+    void PlayGuideBeepOnly(float volume = 0.75f, float pitch = 1.35f)
+    {
+        if (_audio == null || _happyBeepClip == null) return;
+        _audio.pitch = pitch;
+        _audio.PlayOneShot(_happyBeepClip, volume * RustSeVolumeScale());
+    }
+
+    void PlayGuideBeepChime(float beepVol = 0.85f, float chimeVol = 0.70f)
+    {
+        if (_audio == null) return;
+        float se = RustSeVolumeScale();
+        if (_happyBeepClip != null)
+        {
+            _audio.pitch = 1.35f;
+            _audio.PlayOneShot(_happyBeepClip, beepVol * se);
+        }
+        if (_pipiChimeClip != null)
+            _audio.PlayOneShot(_pipiChimeClip, chimeVol * se);
     }
 
     /// <summary>Nikoのセリフを下部吹き出しで表示（ネームタグをNikoに切替）</summary>
-    public void SpeakAsNiko(string text, float duration = 4.5f)
+    public void SpeakAsNiko(string text, float duration = 2.8f)
     {
         SpeakAs("✦ Float", new Color(1f, 0.88f, 0.45f, 1f), text, duration);
     }
 
-    public void SpeakAs(string speaker, Color speakerColor, string text, float duration = 4.5f)
+    public void SpeakAs(string speaker, Color speakerColor, string textOrKey, float duration = 2.8f)
     {
         _speechSpeaker = speaker;
         _speechSpeakerColor = speakerColor;
         _velocity += Vector3.up * 0.8f;
-        SetSpeech(text, duration);
+        SetSpeech(textOrKey, duration);
     }
 
     /// <summary>セリフを表示し、プレイヤーが次の行動（WASD移動やジャンプなど）を起こすまで画面に維持</summary>
-    public void SetSpeech(string text, float duration = 4.5f)
+    public void SetSpeech(string key, float duration = 2.8f)
     {
-        string loc = AdventureLocalizationManager.Get(text);
-        _speechText = loc;
-        _speechTimer = duration;
+        SetSpeechLocalized(AdventureLocalizationManager.Get(key), duration);
+    }
+
+    void SetSpeechLocalized(string localizedText, float duration = 2.8f)
+    {
+        _speechText = localizedText ?? "";
+        _speechTimer = AdventureSpeechBoardLayout.ScaleExploreSpeechDuration(duration);
         _waitingForPlayerAction = true;
         _speechShowTime = 0f;
         var player = AdventurePlayerController.Instance;
@@ -2584,9 +2607,9 @@ public partial class AdventureRustDrone : MonoBehaviour
     {
         _speechSpeaker = "✦ 相棒 Rust";
         _speechSpeakerColor = new Color(0.35f, 0.92f, 0.98f, 1f);
-        string loc = AdventureLocalizationManager.Get(text);
-        _speechText = loc;
-        _speechTimer = duration;
+        _speechText = AdventureLocalizationManager.Get(text);
+        _speechTimer = AdventureSpeechBoardLayout.ScaleExploreSpeechDuration(
+            duration > 0f ? duration : AdventureSpeechBoardLayout.RustIdleChatDuration);
         _waitingForPlayerAction = false;
         _speechShowTime = 0f;
     }
@@ -2629,10 +2652,10 @@ public partial class AdventureRustDrone : MonoBehaviour
             {
                 _speechShowTime += Time.deltaTime;
                 // 発話直後の誤消去防止（最低1.2秒は確実に表示キープ）
-                if (_speechShowTime >= 1.2f && CheckPlayerActionInput())
+                if (_speechShowTime >= AdventureSpeechBoardLayout.RustSpeechMinHoldSec && CheckPlayerActionInput())
                 {
                     _waitingForPlayerAction = false;
-                    _speechTimer = Mathf.Min(_speechTimer, 2.5f); // 次の行動を起こした後は2.5秒の余韻でフェードアウト
+                    _speechTimer = Mathf.Min(_speechTimer, AdventureSpeechBoardLayout.RustSpeechAfterActionLinger);
                 }
             }
             else
@@ -2834,6 +2857,7 @@ public partial class AdventureRustDrone : MonoBehaviour
 
     void OnGUI()
     {
+        if (AdventureStoryFlow.HideWorldInteractPrompts) return;
         if (ShouldHideInteractionPrompt(AdventureSanctuaryTowerManager.Instance)) return;
         if (!AdventureRustFloatOpening.IsGameStarted) return;
         var opening = AdventureRustFloatOpening.Instance;
@@ -2870,18 +2894,22 @@ public partial class AdventureRustDrone : MonoBehaviour
     static GUIStyle _cachedPromptStyle;
     static void DrawCenterPrompt(float yFrac, string label)
     {
-        float w = 460f;
-        float h = 36f;
+        float w = 400f;
+        float h = 30f;
         float x = (Screen.width - w) * 0.5f;
         float y = Screen.height * yFrac;
         if (_cachedPromptStyle == null)
         {
             _cachedPromptStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 22,
+                fontSize = AdventureSpeechBoardLayout.RustCenterPromptFontSize,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
+        }
+        else
+        {
+            _cachedPromptStyle.fontSize = AdventureSpeechBoardLayout.RustCenterPromptFontSize;
         }
         _cachedPromptStyle.normal.textColor = Color.black;
         GUI.Label(new Rect(x + 1.5f, y + 1.5f, w, h), label, _cachedPromptStyle);
@@ -2914,13 +2942,8 @@ public partial class AdventureRustDrone : MonoBehaviour
         // 1. 黄金の光粒子スパークルをバースト放出
         SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 26);
 
-        string[] treatLines = {
-            "ありがとうFloat、身体が軽くなったよ",
-            "油を差してくれてありがとう。ギアが滑らかだ",
-            "ピピッ…！手当てありがとう。もうギシギシしないよ",
-            "整備完了。よし進もう"
-        };
-        SpeakCustom(treatLines[Random.Range(0, treatLines.Length)], 4.2f);
+        string[] treatKeys = { "rust_oil_treat_1", "rust_oil_treat_2", "rust_oil_treat_3", "rust_oil_treat_4" };
+        SpeakCustom(treatKeys[Random.Range(0, treatKeys.Length)], 4.2f);
 
         // 2. 宙返りアニメーション（嬉しそうに一回転）
         float elapsed = 0f;

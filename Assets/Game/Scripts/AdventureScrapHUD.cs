@@ -3,8 +3,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 『Rust & Float』現在のクエスト目標（MISSION TRACKER）および遺物カウンターHUD
-/// 画面左上に常に直感的で分かりやすいクエスト目標・進捗・最寄りパーツ方角を表示
-/// 【Tab】キーで詳細表示 ⇄ ミニマル表示をスムーズに切り替え可能
+/// 常時: コンパス上の目標1行＋右上潤滑油。詳細ナビ（m・箱・塔）はコンパス1系統のみ（Tab 固定 / Q 後10秒）。
 /// </summary>
 public class AdventureScrapHUD : MonoBehaviour
 {
@@ -38,9 +37,9 @@ public class AdventureScrapHUD : MonoBehaviour
     CanvasGroup _oilCg;
     Text _oilText;
 
-    bool _isHidden = false;
     float _radarUpdateTimer = 0f;
     int _lastKnownCount = 0;
+    bool _lastDetailNavVisible;
 
     public static void Ensure()
     {
@@ -61,6 +60,7 @@ public class AdventureScrapHUD : MonoBehaviour
     public void ResetForNewGame()
     {
         _lastKnownCount = 0;
+        AdventureExplorationHudDetail.ClearForNewGame();
         OnCollect("", 0, AdventureScrapManager.TotalScrapCount);
     }
 
@@ -82,6 +82,7 @@ public class AdventureScrapHUD : MonoBehaviour
         AdventureLocalizationManager.OnLanguageChanged += OnLanguageChanged;
         AdventureExplorationHudSettings.OnChanged += RefreshExplorationHudVisibility;
         RefreshExplorationHudVisibility();
+        _lastDetailNavVisible = ComputeDetailNavVisible();
     }
 
     void OnDisable()
@@ -188,7 +189,7 @@ public class AdventureScrapHUD : MonoBehaviour
         bannerRt.anchorMax = new Vector2(0.5f, 1.0f);
         bannerRt.pivot = new Vector2(0.5f, 1.0f);
         bannerRt.anchoredPosition = new Vector2(0f, AdventureExplorationHudSettings.GetBannerRowY(false));
-        bannerRt.sizeDelta = new Vector2(860f, 120f);
+        bannerRt.sizeDelta = new Vector2(AdventureSpeechBoardLayout.PoeticBannerW, AdventureSpeechBoardLayout.PoeticBannerH);
 
         var bannerBg = _bannerGo.AddComponent<Image>();
         bannerBg.color = new Color(0.02f, 0.05f, 0.10f, 0.62f);
@@ -211,7 +212,7 @@ public class AdventureScrapHUD : MonoBehaviour
 
         _bannerText = bTextGo.AddComponent<Text>();
         _bannerText.font = _font;
-        _bannerText.fontSize = 22; // 15ptから22ptへ大幅拡大！
+        _bannerText.fontSize = AdventureSpeechBoardLayout.PoeticBannerFontSize;
         _bannerText.lineSpacing = 1.30f;
         _bannerText.alignment = TextAnchor.MiddleCenter;
         _bannerText.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -225,49 +226,46 @@ public class AdventureScrapHUD : MonoBehaviour
 
         CreateOilCounter(canvasGo.transform);
 
-        ApplyLayoutPositions(ComputeCenterNavVisible());
+        ApplyLayoutPositions(ComputeDetailNavVisible());
         RefreshQuestDisplay();
         RefreshOilDisplay(force: true);
         RefreshExplorationHudVisibility();
     }
 
-    public static bool ComputeCenterNavVisible()
+    public static bool ComputeDetailNavVisible()
     {
-        if (AdventureStoryFlow.HidesExplorationHud)
-            return false;
         if (!AdventureExplorationHudSettings.ShowCompass)
             return false;
-        var hud = Instance;
-        if (hud == null)
-            return !AdventureExplorationHudSettings.ShowPartsBoard;
-        return !AdventureExplorationHudSettings.ShowPartsBoard || hud._isHidden;
+        return AdventureExplorationHudDetail.IsDetailNavVisible();
     }
 
-    public void ApplyLayoutPositions(bool showCenterNavLine)
+    public static bool ComputeCenterNavVisible() => ComputeDetailNavVisible();
+
+    public void ApplyLayoutPositions(bool showDetailNavLine)
     {
-        float rowY = AdventureExplorationHudSettings.GetPartsRowY(showCenterNavLine);
+        float rowY = AdventureExplorationHudSettings.GetSideHudRowY();
         if (_questPanelRt != null)
-            _questPanelRt.anchoredPosition = new Vector2(24f, rowY);
+            _questPanelRt.gameObject.SetActive(false);
         if (_oilPanelRt != null)
             _oilPanelRt.anchoredPosition = new Vector2(-24f, rowY);
         if (_bannerGo != null)
         {
             var bannerRt = _bannerGo.GetComponent<RectTransform>();
             if (bannerRt != null)
-                bannerRt.anchoredPosition = new Vector2(0f, AdventureExplorationHudSettings.GetBannerRowY(showCenterNavLine));
+                bannerRt.anchoredPosition = new Vector2(0f, AdventureExplorationHudSettings.GetBannerRowY(showDetailNavLine));
         }
     }
 
-    /// <summary>設定・Tab・シネマの優先度を反映して3ボードの表示を更新</summary>
+    /// <summary>設定・Tab・Q・シネマを反映（左上パーツ板は廃止、詳細はコンパス下1系統）</summary>
     public void RefreshExplorationHudVisibility()
     {
         bool cinematic = AdventureStoryFlow.HidesExplorationHud;
-        bool showParts = !cinematic && AdventureExplorationHudSettings.ShowPartsBoard && !_isHidden;
         bool showOil = !cinematic && AdventureExplorationHudSettings.ShowOilBoard;
         bool showCompass = !cinematic && AdventureExplorationHudSettings.ShowCompass;
+        bool showDetail = showCompass && ComputeDetailNavVisible();
 
         if (_questPanelRt != null)
-            _questPanelRt.gameObject.SetActive(showParts);
+            _questPanelRt.gameObject.SetActive(false);
         if (_oilPanelRt != null)
             _oilPanelRt.gameObject.SetActive(showOil);
 
@@ -277,17 +275,11 @@ public class AdventureScrapHUD : MonoBehaviour
         {
             if (compass.gameObject.activeSelf != showCompass)
                 compass.gameObject.SetActive(showCompass);
-            compass.SetCenterNavVisible(showCompass && !showParts);
+            compass.SetDetailNavVisible(showDetail);
         }
 
-        bool showNav = showCompass && !showParts;
-        ApplyLayoutPositions(showNav);
-        AdventureRustFloatOpening.ApplyTopHudGuideLayout(showNav);
-
-        if (!showParts && _questCg != null)
-            _questCg.alpha = 0f;
-        else if (showParts && _questCg != null)
-            _questCg.alpha = 0.98f;
+        ApplyLayoutPositions(showDetail);
+        AdventureRustFloatOpening.ApplyTopHudGuideLayout(showDetail);
     }
 
     void CreateOilCounter(Transform canvasRoot)
@@ -366,13 +358,10 @@ public class AdventureScrapHUD : MonoBehaviour
             return;
         }
 
-        // 【Tab】キーでパーツ回収ボード表示 ⇄ 非表示（設定でOFFのときは無効）
+        // 【Tab】詳細ナビ行（最寄り m 等）の固定表示 ON/OFF
         var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && kb.tabKey.wasPressedThisFrame && AdventureExplorationHudSettings.ShowPartsBoard)
-        {
-            _isHidden = !_isHidden;
-            RefreshExplorationHudVisibility();
-        }
+        if (kb != null && kb.tabKey.wasPressedThisFrame)
+            AdventureExplorationHudDetail.ToggleTabPin();
 
         // 右上潤滑油パネルの直接クリック検知（カーソル表示時／uGUI補完）
         var mouse = UnityEngine.InputSystem.Mouse.current;
@@ -387,17 +376,17 @@ public class AdventureScrapHUD : MonoBehaviour
 
         RefreshOilDisplay(force: false);
 
-        if (_isHidden)
+        bool detailNow = ComputeDetailNavVisible();
+        if (detailNow != _lastDetailNavVisible)
         {
-            TickBannerOnly();
-            return;
+            _lastDetailNavVisible = detailNow;
+            RefreshExplorationHudVisibility();
         }
 
-        // 定期的にクエスト進捗と最寄りパーツレーダーを更新
         _radarUpdateTimer -= Time.deltaTime;
         if (_radarUpdateTimer <= 0f)
         {
-            _radarUpdateTimer = 0.4f;
+            _radarUpdateTimer = 0.5f;
             RefreshQuestDisplay();
         }
 
@@ -490,11 +479,16 @@ public class AdventureScrapHUD : MonoBehaviour
 
     public void ShowUpgradeBanner(string text)
     {
-        if (_bannerText != null)
-        {
-            _bannerText.text = text;
-            _bannerTimer = 6.0f;
-        }
+        _bannerTimer = 0f;
+        if (_bannerCg != null) _bannerCg.alpha = 0f;
+
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        string loc = AdventureLocalizationManager.NormalizeLineBreaks(AdventureLocalizationManager.Get(text));
+        if (string.IsNullOrEmpty(loc)) loc = text;
+        AdventureSceneCaption.Show("", loc, null,
+            AdventureSpeechBoardLayout.ScrapUpgradeBannerSeconds, waitDismiss: false);
         RefreshQuestDisplay();
     }
 
@@ -506,44 +500,47 @@ public class AdventureScrapHUD : MonoBehaviour
         if (tower != null && tower.IsPlayerNearLever)
             return;
 
-        if (_bannerText != null)
+        string locTitle = AdventureLocalizationManager.NormalizeLineBreaks(AdventureLocalizationManager.Get(title));
+        if (string.IsNullOrEmpty(locTitle)) locTitle = title;
+        string locQuote = AdventureLocalizationManager.NormalizeLineBreaks(AdventureLocalizationManager.Get(loreQuote));
+        if (string.IsNullOrEmpty(locQuote)) locQuote = loreQuote;
+        string locEffect = AdventureLocalizationManager.NormalizeLineBreaks(AdventureLocalizationManager.Get(unlockEffect));
+        if (string.IsNullOrEmpty(locEffect)) locEffect = unlockEffect;
+
+        if (string.IsNullOrWhiteSpace(locTitle)
+            && string.IsNullOrWhiteSpace(locQuote)
+            && string.IsNullOrWhiteSpace(locEffect))
         {
-            Font f = ResolveFont();
-            if (f != null) _bannerText.font = f;
-
-            string locTitle = AdventureLocalizationManager.Get(title);
-            if (string.IsNullOrEmpty(locTitle)) locTitle = title;
-            string locQuote = AdventureLocalizationManager.Get(loreQuote);
-            if (string.IsNullOrEmpty(locQuote)) locQuote = loreQuote;
-            string locEffect = AdventureLocalizationManager.Get(unlockEffect);
-            if (string.IsNullOrEmpty(locEffect)) locEffect = unlockEffect;
-
-            string quoteL = AdventureLocalizationManager.CurrentLanguage switch
-            {
-                AdventureLocalizationManager.GameLanguage.English => "\"",
-                AdventureLocalizationManager.GameLanguage.Spanish => "«",
-                _ => "「"
-            };
-            string quoteR = AdventureLocalizationManager.CurrentLanguage switch
-            {
-                AdventureLocalizationManager.GameLanguage.English => "\"",
-                AdventureLocalizationManager.GameLanguage.Spanish => "»",
-                _ => "」"
-            };
-
-            _bannerText.text = $"<size=26><color=#FFE066><b>✦ {locTitle} ✦</b></color></size>\n" +
-                               $"<size=20><color=#F0F4F8>{quoteL}{locQuote}{quoteR}</color></size>\n" +
-                               $"<size=22><color=#5CE1E6><b>▶ {locEffect}</b></color></size>";
-            _bannerTimer = 11.0f; // 映画のようにじっくり味わえる11秒間表示
+            _bannerTimer = 0f;
+            if (_bannerCg != null) _bannerCg.alpha = 0f;
+            return;
         }
+
+        string quoteL = AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => "\"",
+            AdventureLocalizationManager.GameLanguage.Spanish => "«",
+            _ => "「"
+        };
+        string quoteR = AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => "\"",
+            AdventureLocalizationManager.GameLanguage.Spanish => "»",
+            _ => "」"
+        };
+
+        _bannerTimer = 0f;
+        if (_bannerCg != null) _bannerCg.alpha = 0f;
+
+        string body = $"{quoteL}{locQuote}{quoteR}\n▶ {locEffect}";
+        AdventureSceneCaption.Show(locTitle, body, null,
+            AdventureSpeechBoardLayout.PoeticBannerSeconds, waitDismiss: false);
         RefreshQuestDisplay();
     }
 
-    /// <summary>画面左上の独立カードに収まる、美しく整理された2行クエスト表示</summary>
+    /// <summary>常時: コンパス直下の目標1行のみ更新（詳細 m 等はコンパス詳細行）</summary>
     public void RefreshQuestDisplay()
     {
-        if (_tickerText == null) return;
-
         var scrapMgr = AdventureScrapManager.Instance;
         int count = scrapMgr != null ? scrapMgr.CollectedCount : _lastKnownCount;
         if (scrapMgr != null && scrapMgr.CollectedCount == 0)
@@ -561,160 +558,76 @@ public class AdventureScrapHUD : MonoBehaviour
             count = _lastKnownCount;
         }
 
-        var drone = AdventureRustDrone.Instance;
+        string goalText = BuildMissionGoalLine(scrapMgr, count);
+        Font questFont = ResolveFont();
+        PrepareHudText(questFont, goalText, 11);
+
+        var compass = AdventureCompassHUD.Instance ?? Object.FindAnyObjectByType<AdventureCompassHUD>(FindObjectsInactive.Include);
+        compass?.SetMissionGoalLine(goalText);
+    }
+
+    public static string BuildMissionGoalLine(AdventureScrapManager scrapMgr, int count)
+    {
         int totalPts = scrapMgr != null ? scrapMgr.TotalProgressPoints : 0;
         bool leverUnlocked = scrapMgr != null && scrapMgr.IsLeverUnlocked;
 
-        // 1行目：現在のメイン目標（多言語対応）
-        string goalText;
         if (AdventureSanctuaryTowerManager.IsGameCleared)
-            goalText = AdventureLocalizationManager.Get("hud_goal_cleared");
-        else if (AdventureSanctuaryTowerManager.IsCanopyBroken)
-            goalText = AdventureLocalizationManager.Get("hud_goal_canopy");
-        else if (leverUnlocked)
-            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_lever"), totalPts);
-        else if (count < 3)
-            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_3"), count, totalPts);
-        else if (count < 6)
-            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_6"), count, totalPts);
-        else if (count < 9)
-            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_9"), count, totalPts);
-        else if (count < 12)
-            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_12"), count, totalPts);
-        else
-            goalText = string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_more"), totalPts);
-
-        // 2行目：最寄りパーツ探知（方角と距離）またはレバー誘導（多言語対応）
-        string subInfo = "";
-        var player = AdventurePlayerController.Instance;
-        if (player != null && !leverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken)
-        {
-            float dist = 0f;
-            var nearest = scrapMgr != null ? scrapMgr.GetNearestScrapItem(player.transform.position, out dist) : null;
-            if (nearest != null)
-            {
-                Vector3 diff = nearest.transform.position - player.transform.position;
-                var (cardinal, hint) = GetDirectionParts(diff);
-                subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_nearest_scrap"), cardinal, hint, Mathf.RoundToInt(dist));
-            }
-            else
-            {
-                subInfo = AdventureLocalizationManager.Get("hud_sub_collect_hint");
-            }
-
-            AdventureRustCrystalPuzzle.Ensure();
-            var crystalPuzzle = AdventureRustCrystalPuzzle.Instance ?? Object.FindAnyObjectByType<AdventureRustCrystalPuzzle>();
-            if (crystalPuzzle != null && !crystalPuzzle.IsActivated)
-            {
-                Vector3 toCry = crystalPuzzle.crystalBasePos - player.transform.position;
-                var (cryCard, cryHint) = GetDirectionParts(toCry);
-                float cryDist = Vector3.Distance(player.transform.position, crystalPuzzle.crystalBasePos);
-                subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_crystal"), cryCard, cryHint, Mathf.RoundToInt(cryDist)) + subInfo;
-            }
-
-            var campfire = AdventureBeachCampfire.Instance;
-            if (totalPts >= 10 && campfire != null && !campfire.IsLit)
-            {
-                subInfo += AdventureLocalizationManager.Get("hud_sub_campfire_workshop");
-            }
-        }
-        else if (leverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken)
-        {
-            var tower = AdventureSanctuaryTowerManager.Instance;
-            if (tower != null && tower.IsPlayerNearLever)
-            {
-                subInfo = AdventureLocalizationManager.Get("hud_sub_pull_lever");
-            }
-            else if (player != null)
-            {
-                Vector3 towerCenter = new Vector3(512f, 63.2f, 512f);
-                Vector3 diff = towerCenter - player.transform.position;
-                var (cardinal, hint) = GetDirectionParts(diff);
-                float dist = Vector3.Distance(player.transform.position, towerCenter);
-                subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_lever_tower"), cardinal, Mathf.RoundToInt(dist));
-            }
-            else
-            {
-                subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_lever_tower"), "-", 0);
-            }
-        }
-        else if (count >= 12 && AdventureSanctuaryTowerManager.IsGameCleared)
-        {
-            Vector3 towerCenter = new Vector3(512f, 63.2f, 512f);
-            if (player != null)
-            {
-                float dist = Vector3.Distance(player.transform.position, towerCenter);
-                if (dist < 28f)
-                {
-                    subInfo = AdventureLocalizationManager.Get("hud_sub_light_pillar_near");
-                }
-                else
-                {
-                    Vector3 diff = towerCenter - player.transform.position;
-                    var (cardinal, hint) = GetDirectionParts(diff);
-                    subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_light_pillar_far"), cardinal, Mathf.RoundToInt(dist));
-                }
-            }
-            else
-            {
-                subInfo = AdventureLocalizationManager.Get("hud_sub_light_pillar_near");
-            }
-        }
-        else if (count >= 12)
-        {
-            Vector3 towerCenter = new Vector3(512f, 63.2f, 512f);
-            if (player != null)
-            {
-                float dist = Vector3.Distance(player.transform.position, towerCenter);
-                if (dist < 28f)
-                {
-                    subInfo = AdventureLocalizationManager.Get("hud_sub_light_pillar_near");
-                }
-                else
-                {
-                    Vector3 diff = towerCenter - player.transform.position;
-                    var (cardinal, hint) = GetDirectionParts(diff);
-                    subInfo = string.Format(AdventureLocalizationManager.Get("hud_sub_light_pillar_target"), cardinal, Mathf.RoundToInt(dist));
-                }
-            }
-            else
-            {
-                subInfo = AdventureLocalizationManager.Get("hud_sub_light_pillar_near");
-            }
-        }
-
-        _tickerText.text = $"{goalText}\n{subInfo}";
+            return AdventureLocalizationManager.Get("hud_goal_cleared");
+        if (AdventureSanctuaryTowerManager.IsCanopyBroken)
+            return AdventureLocalizationManager.Get("hud_goal_canopy");
+        if (leverUnlocked)
+            return string.Format(AdventureLocalizationManager.Get("hud_goal_lever"), totalPts);
+        if (count < 3)
+            return string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_3"), count, totalPts);
+        if (count < 6)
+            return string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_6"), count, totalPts);
+        if (count < 9)
+            return string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_9"), count, totalPts);
+        if (count < 12)
+            return string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_12"), count, totalPts);
+        return string.Format(AdventureLocalizationManager.Get("hud_goal_scrap_more"), totalPts);
     }
 
-    static (string cardinal, string hint) GetDirectionParts(Vector3 diff)
+    static void PrepareHudText(Font font, string text, int fontSize)
     {
-        float angle = Mathf.Atan2(diff.x, diff.z) * Mathf.Rad2Deg;
-        if (angle < 0f) angle += 360f;
-
-        if (angle >= 337.5f || angle < 22.5f) return (AdventureLocalizationManager.Get("dir_n"), AdventureLocalizationManager.Get("hint_highground"));
-        if (angle >= 22.5f && angle < 67.5f) return (AdventureLocalizationManager.Get("dir_ne"), AdventureLocalizationManager.Get("hint_hills"));
-        if (angle >= 67.5f && angle < 112.5f) return (AdventureLocalizationManager.Get("dir_e"), AdventureLocalizationManager.Get("hint_woods"));
-        if (angle >= 112.5f && angle < 157.5f) return (AdventureLocalizationManager.Get("dir_se"), AdventureLocalizationManager.Get("hint_cliff"));
-        if (angle >= 157.5f && angle < 202.5f) return (AdventureLocalizationManager.Get("dir_s"), AdventureLocalizationManager.Get("hint_beach"));
-        if (angle >= 202.5f && angle < 247.5f) return (AdventureLocalizationManager.Get("dir_sw"), AdventureLocalizationManager.Get("hint_shallows"));
-        if (angle >= 247.5f && angle < 292.5f) return (AdventureLocalizationManager.Get("dir_w"), AdventureLocalizationManager.Get("hint_sea_oasis"));
-        return (AdventureLocalizationManager.Get("dir_nw"), AdventureLocalizationManager.Get("hint_precipice"));
+        if (font == null || string.IsNullOrEmpty(text)) return;
+        font.RequestCharactersInTexture(text, fontSize, FontStyle.Normal);
+        font.RequestCharactersInTexture(text, fontSize, FontStyle.Bold);
     }
+
+    static Font _cachedHudFont;
 
     static Font ResolveFont()
     {
+        if (_cachedHudFont != null) return _cachedHudFont;
         string[] fonts = {
+            "PingFang SC",
+            "Hiragino Sans GB",
+            "Heiti SC",
             "Hiragino Sans",
             "Hiragino Kaku Gothic ProN",
+            "Microsoft YaHei",
             "Arial Unicode MS",
             "YuGothic",
+            "Apple SD Gothic Neo",
             "Arial"
         };
+        try
+        {
+            _cachedHudFont = Font.CreateDynamicFontFromOSFont(fonts, 18);
+            if (_cachedHudFont != null) return _cachedHudFont;
+        }
+        catch { }
         foreach (var name in fonts)
         {
             var f = Font.CreateDynamicFontFromOSFont(name, 18);
-            if (f != null) return f;
+            if (f != null)
+            {
+                _cachedHudFont = f;
+                return f;
+            }
         }
-        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+               ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
     }
 }

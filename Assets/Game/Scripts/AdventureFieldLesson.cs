@@ -101,20 +101,20 @@ public class AdventureFieldLesson : MonoBehaviour
         int pts = mgr != null ? mgr.TotalProgressPoints : 0;
         bool lever = mgr != null && mgr.IsLeverUnlocked;
         if (AdventureSanctuaryTowerManager.IsCanopyBroken)
-            return "天蓋は開いた。光の柱に乗って、Rustと空の上へ。";
+            return AdventureLocalizationManager.Get("field_next_canopy_open");
         if (lever)
-            return "ポイントは足りている。島の中央、白亜のタワーのレバーを引こう。";
+            return AdventureLocalizationManager.Get("field_next_pull_lever");
         if (scraps < 3)
-            return "古代ギアがあと" + (3 - scraps) + "個。3個でダッシュが戻る。届かない場所は正面を見てF、Rustが取りに行く。";
+            return AdventureLocalizationManager.GetFormat("field_next_scrap_3", 3 - scraps);
         if (scraps < 6)
-            return "ギアがあと" + (6 - scraps) + "個で二段ジャンプ。草地の魔法箱も能力になる。";
+            return AdventureLocalizationManager.GetFormat("field_next_scrap_6", 6 - scraps);
         if (scraps < 9)
-            return "ギアがあと" + (9 - scraps) + "個でソナー。東の深い森（おおよそ680, 530）に木漏れ日の標がある。";
+            return AdventureLocalizationManager.GetFormat("field_next_scrap_9", 9 - scraps);
         if (scraps < 12)
-            return "ギアがあと" + (12 - scraps) + "個で大滑空。そのあとポイント20でタワーの天蓋。";
+            return AdventureLocalizationManager.GetFormat("field_next_scrap_12", 12 - scraps);
         if (pts < AdventureScrapManager.RequiredPointsForCanopy)
-            return "ギアは揃った。漂着箱やピアノの遺物でポイントを20まで。今 " + pts + " / 20。";
-        return "中央タワーへ向かおう。";
+            return AdventureLocalizationManager.GetFormat("field_next_points_20", pts);
+        return AdventureLocalizationManager.Get("field_next_go_tower");
     }
 
     static void Load()
@@ -193,11 +193,7 @@ public class AdventureFieldLesson : MonoBehaviour
         var player = AdventurePlayerController.Instance;
         bool inRange = player != null && Vector3.Distance(transform.position, player.transform.position) <= 3.4f;
         if (_prompt != null)
-        {
-            _prompt.gameObject.SetActive(inRange);
-            if (inRange && _cam != null)
-                _prompt.transform.rotation = Quaternion.LookRotation(_prompt.transform.position - _cam.position);
-        }
+            _prompt.gameObject.SetActive(false);
 
         bool known = OwnsSkill();
         if (known != _promptKnown)
@@ -246,24 +242,29 @@ public class AdventureFieldLesson : MonoBehaviour
         {
             HasTideStep = true;
             PlayerPrefs.SetInt(KeyTide, 1);
-            title = first ? "潮目の標：潮足" : "潮目の標";
-            skillLine = "砂浜の足が軽くなる。海岸では、少し遠いパーツもFでRustに頼める。";
+            title = first ? "field_lesson_tide_title_first" : "field_lesson_tide_title";
+            skillLine = "field_lesson_tide_skill";
         }
         else
         {
             HasCanopyRead = true;
             PlayerPrefs.SetInt(KeyCanopy, 1);
-            title = first ? "木漏れ日の標：梢読み" : "木漏れ日の標";
-            skillLine = "深い森で滑空が落ちにくい。木の上や茂みの奥は、FでRustが取りに行く。";
+            title = first ? "field_lesson_canopy_title_first" : "field_lesson_canopy_title";
+            skillLine = "field_lesson_canopy_skill";
         }
         PlayerPrefs.Save();
         RefreshLearnedLook();
 
         string next = NextNeed();
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
-        drone?.SpeakCustom(first ? skillLine + " " + next : next, 6.2f);
+        drone?.SpeakCustom(first ? skillLine : next, 6.2f);
 
         if (AdventureScrapHUD.Instance != null)
-            AdventureScrapHUD.Instance.ShowPoeticLore(title, next, first ? skillLine : "手掛かりを更新した");
+        {
+            if (first)
+                AdventureScrapHUD.Instance.ShowPoeticLore(title, next, skillLine);
+            else
+                AdventureScrapHUD.Instance.ShowPoeticLore(title, next, "field_clue_updated");
+        }
     }
 }

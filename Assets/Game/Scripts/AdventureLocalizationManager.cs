@@ -130,9 +130,16 @@ public static class AdventureLocalizationManager
     }
 
     /// <summary>フォーマット引数付きのローカライズ文字列を取得</summary>
+    /// <summary>辞書内の \\n を実改行に（状況ボード・ロア表示用）</summary>
+    public static string NormalizeLineBreaks(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        return text.Replace("\\n", "\n");
+    }
+
     public static string GetFormat(string key, params object[] args)
     {
-        string pattern = Get(key);
+        string pattern = NormalizeLineBreaks(Get(key));
         try
         {
             return string.Format(pattern, args);
@@ -204,15 +211,15 @@ public static class AdventureLocalizationManager
         { "opt_resolution", new[] { "画面解像度", "Resolution", "分辨率预设", "Resolución" } },
         { "opt_hud_exploration", new[] { "探索HUD（画面上部）", "Exploration HUD (Top)", "探索HUD（画面上部）", "HUD de Exploración (Superior)" } },
         { "opt_hud_compass", new[] { "コンパス", "Compass", "罗盘", "Brújula" } },
-        { "opt_hud_parts", new[] { "パーツ回収", "Parts Tracker", "零件回收", "Piezas" } },
+        { "opt_hud_parts", new[] { "詳細ナビ（Tab）", "Detail nav (Tab)", "详细导航（Tab）", "Nav. detalle (Tab)" } },
         { "opt_hud_oil", new[] { "潤滑油", "Oil", "润滑油", "Aceite" } },
         { "opt_hud_show", new[] { "表示", "Show", "显示", "Mostrar" } },
         { "opt_hud_hide", new[] { "非表示", "Hide", "隐藏", "Ocultar" } },
         { "opt_hud_guide_hint", new[] {
-            "★ 画面上部のコンパス・パーツ回収・潤滑油は、ここの3ボタンで表示／非表示を切り替えます（Play中【Tab】でパーツボードのみ一時非表示）。",
-            "★ Toggle compass, parts tracker, and oil HUD at the top of the screen with the three buttons above ([Tab] hides the parts board temporarily in play).",
-            "★ 用上方三个按钮切换画面上部的罗盘、零件回收、润滑油显示（游戏中【Tab】可临时隐藏零件板）。",
-            "★ Usa los tres botones de arriba para mostrar u ocultar brújula, piezas y aceite ([Tab] oculta temporalmente el panel de piezas)."
+            "★ 常時HUDはコンパス＋目標1行＋潤滑油。詳細（距離・箱・塔）は【Tab】固定または【Q】案内後10秒（ここでTab詳細の許可を切替）。",
+            "★ Always: compass, one-line goal, oil. Details (distance, crates, tower): [Tab] pin or 10s after [Q] guide (toggle Tab detail here).",
+            "★ 常显：罗盘、一行目标、润滑油。详细（距离、箱、塔）：【Tab】固定或【Q】引路后10秒（此处切换Tab详细）。",
+            "★ Siempre: brújula, meta en 1 línea, aceite. Detalle (distancia, cajas, torre): [Tab] fijo o 10 s tras [Q] (activar Tab aquí)."
         } },
 
         // --- タイトルセーブ情報 ---
@@ -354,6 +361,15 @@ public static class AdventureLocalizationManager
         { "dir_sw", new[] { "南西", "Southwest", "西南", "Suroeste" } },
         { "dir_w", new[] { "西", "West", "西", "Oeste" } },
         { "dir_nw", new[] { "北西", "Northwest", "西北", "Noroeste" } },
+
+        { "compass_mark_n", new[] { "北", "N", "北", "N" } },
+        { "compass_mark_ne", new[] { "北東", "NE", "东北", "NE" } },
+        { "compass_mark_e", new[] { "東", "E", "东", "E" } },
+        { "compass_mark_se", new[] { "南東", "SE", "东南", "SE" } },
+        { "compass_mark_s", new[] { "南", "S", "南", "S" } },
+        { "compass_mark_sw", new[] { "南西", "SW", "西南", "SO" } },
+        { "compass_mark_w", new[] { "西", "W", "西", "O" } },
+        { "compass_mark_nw", new[] { "北西", "NW", "西北", "NO" } },
 
         { "hint_highground", new[] { "奥の高台", "High ground", "高台", "Terreno alto" } },
         { "hint_hills", new[] { "丘陵地帯", "Hills", "丘陵", "Colinas" } },
@@ -516,7 +532,7 @@ public static class AdventureLocalizationManager
             "<b>[Q] / [中クリック]</b>  <b>相棒Floatに道案内を頼む（最寄り目標へ先行フライト）</b>\n" +
             "<b>[F]</b>  遠隔パーツ回収 / 視線偵察指示\n" +
             "<b>[B]</b>  Rustの着せ替え工房を開く\n" +
-            "<b>[Tab]</b>  クエスト目標 ⇄ ミニマルHUD切替\n" +
+            "<b>[Tab]</b>  詳細ナビ（距離・箱・塔）固定 ON/OFF\n" +
             "<b>[F5] / [Cmd+S]</b>  クイックセーブ\n" +
             "<b>[ESC] / [Pad B]</b>  ポーズ ＆ 設定メニュー開閉\n\n" +
             "✦ コンパスHUDと相棒Floatが最寄りの風脈・パーツ・タワーを常時案内します。",
@@ -526,7 +542,7 @@ public static class AdventureLocalizationManager
             "<b>[Q] / [Middle Click]</b>  <b>Ask Float to Guide (Scout to nearest goal)</b>\n" +
             "<b>[F]</b>  Remote Scrap Retrieve / Scout Command\n" +
             "<b>[B]</b>  Open Rust Customization Workshop\n" +
-            "<b>[Tab]</b>  Toggle Quest Objectives / Minimal HUD\n" +
+            "<b>[Tab]</b>  Pin detail nav (distance, crates, tower) ON/OFF\n" +
             "<b>[F5] / [Cmd+S]</b>  Quick Save\n" +
             "<b>[ESC] / [Pad B]</b>  Pause & Settings Menu\n\n" +
             "✦ Compass HUD & Float always guide you to nearby currents and scrap.",
@@ -536,7 +552,7 @@ public static class AdventureLocalizationManager
             "<b>[Q] / [中键点击]</b>  <b>请求Float引路 (飞向最近目标)</b>\n" +
             "<b>[F]</b>  远程回收零件 / 视线侦察指令\n" +
             "<b>[B]</b>  打开Rust外观工坊\n" +
-            "<b>[Tab]</b>  切换任务目标 / 极简HUD\n" +
+            "<b>[Tab]</b>  固定/取消详细导航（距离·箱·塔）\n" +
             "<b>[F5] / [Cmd+S]</b>  快速存档\n" +
             "<b>[ESC] / [手柄 B]</b>  暂停与设置菜单\n\n" +
             "✦ 罗盘HUD与Float将时刻为您指引风脉、零件与圣域之塔。",
@@ -546,7 +562,7 @@ public static class AdventureLocalizationManager
             "<b>[Q] / [Clic Central]</b>  <b>Pedir guía a Float (Vuela al objetivo cercano)</b>\n" +
             "<b>[F]</b>  Recuperar pieza a distancia / Orden de exploración\n" +
             "<b>[B]</b>  Abrir taller de personalización de Rust\n" +
-            "<b>[Tab]</b>  Alternar HUD de misiones / Modo mínimo\n" +
+            "<b>[Tab]</b>  Fijar nav. detalle (distancia, cajas, torre) ON/OFF\n" +
             "<b>[F5] / [Cmd+S]</b>  Guardado rápido\n" +
             "<b>[ESC] / [Mando B]</b>  Pausa y menú de ajustes\n\n" +
             "✦ La brújula y Float te guiarán siempre hacia las corrientes y piezas."
@@ -806,6 +822,36 @@ public static class AdventureLocalizationManager
             "This way! The central tower is in this direction! Let's pull the lever!",
             "这边！中央高塔就在这个方向！一起去拉动机关吧！",
             "¡Por aquí! ¡La torre central está en esta dirección! ¡Vamos a activar la palanca!"
+        } },
+        { "rust_guide_tower_20pt", new[] {
+            "ピピッ！中央の白亜タワーへ行こう！レバーを引けるようになったよ！",
+            "Beep! Let's head to the central white tower! The lever is unlocked now!",
+            "哔哔！去中央白垩高塔吧！机关已经可以拉动啦！",
+            "¡Bip! ¡Vamos a la torre blanca central! ¡Ya puedes accionar la palanca!"
+        } },
+        { "rust_guide_tower_short", new[] {
+            "こっちだよ！",
+            "This way!",
+            "这边！",
+            "¡Por aquí!"
+        } },
+        { "rust_guide_wind_vent", new[] {
+            "ピピッ！あっちに古代の風脈があるよ！送電チャージしに行こう！",
+            "Beep! Ancient wind currents over there! Let's go charge up!",
+            "哔哔！那边有古代风脉！去充能吧！",
+            "¡Bip! ¡Hay una corriente de viento antigua por allí! ¡Vamos a cargar energía!"
+        } },
+        { "rust_guide_skydive_pillar", new[] {
+            "ピピッ！あの大空の光の柱からダイブしよう！",
+            "Beep! Let's dive from that great pillar of light into the sky!",
+            "哔哔！从那道天空光柱飞跃而下吧！",
+            "¡Bip! ¡Zambullámonos desde ese gran pilar de luz hacia el cielo!"
+        } },
+        { "rust_guide_sanctuary_tower", new[] {
+            "ピピッ！島の中心の白亜タワーがあっちだよ！",
+            "Beep! The white tower at the center of the island is that way!",
+            "哔哔！岛屿中央的白垩高塔就在那个方向哦！",
+            "¡Bip! ¡La torre blanca del centro de la isla está por allí!"
         } },
         { "rust_found_scrap", new[] {
             "ピピピッ！あそこにパーツ（{0}）の反応があるよ！",
@@ -2205,6 +2251,12 @@ public static class AdventureLocalizationManager
             "白垩高塔（巨型机关）",
             "Torre Blanca (Palanca gigante)"
         } },
+        { "target_name_wind_vent", new[] {
+            "古代の風脈クリスタル",
+            "Ancient Wind Vent Crystal",
+            "古代风脉水晶",
+            "Cristal de viento antiguo"
+        } },
 
         { "20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Float！！", new[] {
             "20ポイント達成だよ！中央タワーのレバーロックが解除された！タワーへ行こう、ボクが案内するよ、Float！！",
@@ -2650,10 +2702,10 @@ public static class AdventureLocalizationManager
             "[WASD / Flechas] Moverse  [Ratón] Mirar  [Shift] Correr  [Mantener Espacio] Planear  [R] Reiniciar"
         } },
         { "guide_hud_gameplay", new[] {
-            "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【ESC】設定→「📖操作ガイド」でHUD表示切替　【Tab】パーツボード一時非表示",
-            "[WASD] Move  [Mouse] Look  [Shift] Sprint  [Space] Glide  [ESC] Settings → Guide tab for HUD  [Tab] hide parts board",
-            "【WASD】移动　【鼠标】视角　【Shift】奔跑　【Space】滑翔　【ESC】设置→「📖操作ガイド」切换HUD　【Tab】临时隐藏零件板",
-            "[WASD] Moverse  [Ratón] Mirar  [Shift] Correr  [Espacio] Planear  [ESC] Ajustes → pestaña Guía para HUD  [Tab] ocultar piezas"
+            "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【ESC】設定→HUD表示　【Tab】詳細ナビ固定　【Q】案内＋10秒詳細",
+            "[WASD] Move  [Mouse] Look  [Shift] Sprint  [Space] Glide  [ESC] Settings → HUD  [Tab] pin detail nav  [Q] guide + 10s detail",
+            "【WASD】移动　【鼠标】视角　【Shift】奔跑　【Space】滑翔　【ESC】设置→HUD　【Tab】固定详细导航　【Q】引路+10秒详细",
+            "[WASD] Moverse  [Ratón] Mirar  [Shift] Correr  [Espacio] Planear  [ESC] Ajustes → HUD  [Tab] fijar detalle  [Q] guía + 10 s detalle"
         } },
         { "save_notification_title", new[] {
             "SAVEしました",
@@ -2666,6 +2718,30 @@ public static class AdventureLocalizationManager
             "Relic Parts: {0} / Rust Oil: {1} (Bonded with Rust)",
             "古代零件: {0}个 ／ Rust常备机油: {1}罐（与Rust建立深厚羁绊）",
             "Piezas antiguas: {0} / Aceite de Rust: {1} (Vínculo forjado con Rust)"
+        } },
+        { "save_load_restored_title", new[] {
+            "セーブデータを復元しました",
+            "Save data restored",
+            "已恢复存档",
+            "Partida restaurada"
+        } },
+        { "save_load_restored_sub", new[] {
+            "前回の冒険記録（パーツ: {0}個）を読み込みました",
+            "Loaded your last adventure (Parts: {0})",
+            "已读取上次冒险记录（零件: {0}个）",
+            "Se cargó tu última aventura (Piezas: {0})"
+        } },
+        { "save_new_adventure_title", new[] {
+            "新規冒険を開始しました",
+            "New adventure started",
+            "已开始新冒险",
+            "Nueva aventura iniciada"
+        } },
+        { "save_new_adventure_sub", new[] {
+            "時代背景ボードからスタート",
+            "Starting from the era backstory board",
+            "从时代背景板开始",
+            "Comienza desde el panel de contexto histórico"
         } },
         { "SAVEしました", new[] {
             "SAVEしました",
@@ -3130,6 +3206,198 @@ public static class AdventureLocalizationManager
             "[Super Glider Unlocked] Gliding hang-time and forward propulsion maximized!",
             "【超级滑翔翼解锁】大滑翔滞空时间与前进推进力达到最大化！",
             "[Superplaneador Desbloqueado] ¡Capacidad de planeo y propulsión maximizadas!"
+        } },
+
+        // 油手当て後のRust（CheerSpin）
+        { "rust_oil_treat_1", new[] {
+            "ありがとう Float、身体が軽くなったよ",
+            "Thanks, Float—my body feels light again!",
+            "谢谢 Float，身体变轻了！",
+            "¡Gracias, Float! ¡El cuerpo se siente ligero otra vez!"
+        } },
+        { "rust_oil_treat_2", new[] {
+            "油を差してくれてありがとう。ギアが滑らかだ",
+            "Thanks for the oil. My gears run smooth now.",
+            "谢谢你给我上油，齿轮顺畅多了。",
+            "Gracias por el aceite. Los engranajes van suaves."
+        } },
+        { "rust_oil_treat_3", new[] {
+            "ピピッ…！手当てありがとう。もうギシギシしないよ",
+            "Beep…! Thanks for the tune-up. No more grinding!",
+            "哔哔…！谢谢保养，不再嘎吱响了！",
+            "¡Pip…! Gracias por el arreglo. ¡Ya no rechinan!"
+        } },
+        { "rust_oil_treat_4", new[] {
+            "整備完了。よし進もう",
+            "Maintenance complete. Let's move on!",
+            "维护完成。好，继续前进吧！",
+            "Mantenimiento listo. ¡Sigamos!"
+        } },
+
+        // キーストーン状況ボード（3/6/9/12個）
+        { "keystone_1_title", new[] {
+            "キーストーン I：手動の自由と手応え",
+            "Keystone I: Manual Freedom & Feedback",
+            "基石 I：手动的自由与实感",
+            "Piedra angular I: Libertad manual y respuesta"
+        } },
+        { "keystone_1_body", new[] {
+            "AIに管理されていた頃、僕らはただ最短ルートを滑らされていた。\nでも今、指先が油で汚れ、歯車が噛み合うたびに、生きている実感が胸を打つ。",
+            "When AI managed everything, we were glided along the shortest routes.\nNow oily fingers and meshing gears remind us we're alive.",
+            "被AI管理时，我们只是在最短路线上滑行。\n如今指尖沾满机油、齿轮咬合的每一刻，都在胸口敲响活着的实感。",
+            "Cuando la IA lo gestionaba todo, solo nos deslizaban por la ruta más corta.\nAhora, dedos manchados de aceite y engranajes que encajan nos recuerdan que vivimos."
+        } },
+        { "keystone_1_unlock", new[] {
+            "【ブースター修復】ダッシュ速度＆クイックターンが向上！",
+            "[Booster Restored] Dash speed & quick turns improved!",
+            "【助推器修复】冲刺速度与快速转向提升！",
+            "[Impulsor reparado] ¡Velocidad de sprint y giros rápidos mejorados!"
+        } },
+        { "keystone_2_title", new[] {
+            "キーストーン II：脈打つ不確かさ",
+            "Keystone II: Pulsing Uncertainty",
+            "基石 II：跳动的未知",
+            "Piedra angular II: Incertidumbre palpitante"
+        } },
+        { "keystone_2_body", new[] {
+            "100%最適化された電力にはなかった、温かくて不規則な青い脈動。\n……心臓の鼓動と同じだ。傷つく自由があるからこそ、光は美しい。",
+            "A warm, irregular blue pulse never found in 100% optimized power.\n…Like a heartbeat. Light is beautiful because we're free to be hurt.",
+            "那是100%最优化电力中从未有过的、温暖而不规则的蓝色脉动。\n……就像心跳。正因拥有受伤的自由，光明才如此耀眼。",
+            "Un pulso azul cálido e irregular que no existía en la energía 100% optimizada.\n…Como un latido. La luz es bella porque podemos herirnos."
+        } },
+        { "keystone_2_unlock", new[] {
+            "【反重力ジャンプ覚醒】空中でSpaceを押すと二段ジャンプが可能に！",
+            "[Anti-Gravity Jump] Press Space mid-air to double jump!",
+            "【反重力跳跃觉醒】空中按Space可进行二段跳！",
+            "[Salto antigravedad] ¡Pulsa Espacio en el aire para doble salto!"
+        } },
+        { "keystone_3_title", new[] {
+            "キーストーン III：失われた記憶の断片",
+            "Keystone III: Fragments of Lost Memory",
+            "基石 III：遗失的记忆碎片",
+            "Piedra angular III: Fragmentos de memoria perdida"
+        } },
+        { "keystone_3_body", new[] {
+            "Rustの古いメモリから、子供たちの笑い声と夏の波音が再生された。\n効率化のために根絶された“無駄な時間”の中にこそ、愛があったんだ。",
+            "From Rust's old memory, children's laughter and summer waves returned.\nLove lived in the \"wasted time\" erased for efficiency.",
+            "从Rust古旧内存里，重现孩童笑声与夏日涛声。\n被效率抹去的“无用时光”里，才藏着爱。",
+            "De la memoria antigua de Rust volvieron risas de niños y olas de verano.\nEl amor habitaba el \"tiempo perdido\" borrado por la eficiencia."
+        } },
+        { "keystone_3_unlock", new[] {
+            "【探知ソナー修復】Rustが近くのパーツをピピッとナビゲート！",
+            "[Sonar Restored] Rust beeps and guides you to nearby parts!",
+            "【探测声呐修复】Rust哔哔导航附近零件！",
+            "[Sónar reparado] ¡Rust pita y te guía a piezas cercanas!"
+        } },
+        { "keystone_4_title", new[] {
+            "キーストーン IV：風の重さと、未知の空へ",
+            "Keystone IV: Weight of Wind, Into the Unknown Sky",
+            "基石 IV：风的重量，飞向未知的天空",
+            "Piedra angular IV: Peso del viento hacia el cielo desconocido"
+        } },
+        { "keystone_4_body", new[] {
+            "最適化都市では風すら消し去られていた。冷たい向かい風は、前へ進んでいる証拠だ。\nさあ行こう、Rust。島の頂、あの白亜のタワーへ！",
+            "Even wind was erased in the optimized city. A cold headwind proves you're moving forward.\nLet's go, Rust—to the white tower on the summit!",
+            "在最优化都市里，连风都被抹去。刺骨的逆风正是前行的证明。\n走吧Rust，去岛顶那座白垩高塔！",
+            "En la ciudad optimizada hasta el viento fue borrado. El viento en contra prueba que avanzas.\n¡Vamos, Rust, a la torre blanca en la cima!"
+        } },
+        { "keystone_4_unlock", new[] {
+            "【スーパーグライダー解放】大滑空滞空力＆前進推進力が最大化！",
+            "[Super Glider] Maximized hang-time and forward thrust!",
+            "【超级滑翔解锁】滞空与前进推力最大化！",
+            "[Superplaneador] ¡Planeo y empuje maximizados!"
+        } },
+
+        // フィールド標・状況ボード
+        { "field_lesson_tide_title_first", new[] {
+            "潮目の標：潮足",
+            "Tide Marker: Light Steps",
+            "潮目之标：潮足",
+            "Marca de marea: Pasos ligeros"
+        } },
+        { "field_lesson_tide_title", new[] {
+            "潮目の標",
+            "Tide Marker",
+            "潮目之标",
+            "Marca de marea"
+        } },
+        { "field_lesson_tide_skill", new[] {
+            "砂浜の足が軽くなる。海岸では、少し遠いパーツもFでRustに頼める。",
+            "Your steps lighten on the beach. On the coast, press F and Rust can fetch slightly farther parts.",
+            "沙滩上的脚步变轻。在海岸，稍远的零件也可按F让Rust去取。",
+            "Los pasos se aligeran en la playa. En la costa, pulsa F y Rust puede alcanzar piezas un poco lejanas."
+        } },
+        { "field_lesson_canopy_title_first", new[] {
+            "木漏れ日の標：梢読み",
+            "Sunbeam Marker: Canopy Reading",
+            "木漏日之标：读梢",
+            "Marca de sol: Lectura del follaje"
+        } },
+        { "field_lesson_canopy_title", new[] {
+            "木漏れ日の標",
+            "Sunbeam Marker",
+            "木漏日之标",
+            "Marca de sol filtrado"
+        } },
+        { "field_lesson_canopy_skill", new[] {
+            "深い森で滑空が落ちにくい。木の上や茂みの奥は、FでRustが取りに行く。",
+            "Gliding holds longer in deep forest. Press F for Rust to fetch parts in treetops and thickets.",
+            "深林里滑翔不易下坠。树顶与灌丛深处可按F让Rust去取。",
+            "Planeas mejor en el bosque profundo. Pulsa F para que Rust coja piezas en copas y matorrales."
+        } },
+        { "field_clue_updated", new[] {
+            "手掛かりを更新した",
+            "Clue updated",
+            "线索已更新",
+            "Pista actualizada"
+        } },
+        { "field_next_canopy_open", new[] {
+            "天蓋は開いた。光の柱に乗って、Rustと空の上へ。",
+            "The canopy is open. Ride the pillar of light with Rust into the sky.",
+            "天穹已开。乘光柱与Rust飞上天空。",
+            "La cúpula está abierta. Sube el pilar de luz con Rust hacia el cielo."
+        } },
+        { "field_next_pull_lever", new[] {
+            "ポイントは足りている。島の中央、白亜のタワーのレバーを引こう。",
+            "You have enough points. Pull the lever at the white tower in the island center.",
+            "积分已够。去岛中央的白垩高塔拉下杠杆。",
+            "Tienes puntos suficientes. Tira de la palanca en la torre blanca del centro."
+        } },
+        { "field_next_scrap_3", new[] {
+            "古代ギアがあと{0}個。3個でダッシュが戻る。届かない場所は正面を見てF、Rustが取りに行く。",
+            "{0} ancient gears left. At 3, dash returns. Face unreachable spots and press F—Rust will fetch.",
+            "古代齿轮还差{0}个。集满3个恢复冲刺。够不着时正对方向按F，Rust会去取。",
+            "Faltan {0} engranajes. Con 3 recuperas el sprint. Mira al objetivo y pulsa F—Rust irá."
+        } },
+        { "field_next_scrap_6", new[] {
+            "ギアがあと{0}個で二段ジャンプ。草地の魔法箱も能力になる。",
+            "{0} more gears for double jump. Meadow drift boxes also grant power.",
+            "还差{0}个齿轮即可二段跳。草原漂着箱也会带来能力。",
+            "Faltan {0} engranajes para doble salto. Las cajas del prado también dan poder."
+        } },
+        { "field_next_scrap_9", new[] {
+            "ギアがあと{0}個でソナー。東の深い森（おおよそ680, 530）に木漏れ日の標がある。",
+            "{0} gears until sonar. Sunbeam marker in deep east forest (~680, 530).",
+            "还差{0}个齿轮解锁声呐。东侧深林（约680,530）有木漏日之标。",
+            "Faltan {0} para el sónar. Marca solar en el bosque este (~680, 530)."
+        } },
+        { "field_next_scrap_12", new[] {
+            "ギアがあと{0}個で大滑空。そのあとポイント20でタワーの天蓋。",
+            "{0} gears until super glide. Then 20 points for the tower canopy.",
+            "还差{0}个齿轮即可大滑翔。之后20点积分解锁高塔天穹。",
+            "Faltan {0} para superplaneo. Luego 20 puntos para la cúpula."
+        } },
+        { "field_next_points_20", new[] {
+            "ギアは揃った。漂着箱やピアノの遺物でポイントを20まで。今 {0} / 20。",
+            "All gears collected. Reach 20 pts with drift boxes and the piano relic. Now {0} / 20.",
+            "齿轮已齐。用漂着箱与钢琴遗物凑满20点。当前 {0} / 20。",
+            "Engranajes completos. Llega a 20 pts con cajas y reliquia del piano. Ahora {0} / 20."
+        } },
+        { "field_next_go_tower", new[] {
+            "中央タワーへ向かおう。",
+            "Head for the central tower.",
+            "前往中央高塔。",
+            "Ve hacia la torre central."
         } }
     };
 }

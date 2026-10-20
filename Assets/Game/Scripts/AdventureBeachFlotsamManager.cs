@@ -228,13 +228,14 @@ public class AdventureBeachFlotsamManager : MonoBehaviour
 
     void OnGUI()
     {
+        if (AdventureStoryFlow.HideWorldInteractPrompts)
+            return;
+
         for (int i = 0; i < _spawnedFlotsams.Count; i++)
         {
             var f = _spawnedFlotsams[i];
             if (f != null && f.gameObject.activeInHierarchy)
-            {
                 f.DrawPromptGUI();
-            }
         }
 
         if (_inspectTimer <= 0f || string.IsNullOrEmpty(_inspectTitle))

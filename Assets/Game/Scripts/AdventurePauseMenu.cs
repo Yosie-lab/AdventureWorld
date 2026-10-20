@@ -201,6 +201,10 @@ public class AdventurePauseMenu : MonoBehaviour
         if (uiModule == null)
             uiModule = es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
 
+        var legacy = es.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+        if (legacy != null)
+            Object.Destroy(legacy);
+
         try
         {
             if (uiModule.actionsAsset == null)
@@ -394,9 +398,9 @@ public class AdventurePauseMenu : MonoBehaviour
             var kb = Keyboard.current;
             if (kb != null)
             {
-                if (kb.leftArrowKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame || kb.qKey.wasPressedThisFrame)
+                if (kb.leftArrowKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame)
                     OnPrevLanguageClicked();
-                else if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)
+                else if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame)
                     OnNextLanguageClicked();
             }
 
@@ -433,13 +437,7 @@ public class AdventurePauseMenu : MonoBehaviour
         }
 
         // 3. 各タブ内容
-        if (_currentTab == 0)
-        {
-            if (IsHit(_prevLangBtn, mousePos)) { OnPrevLanguageClicked(); return; }
-            if (IsHit(_nextLangBtn, mousePos)) { OnNextLanguageClicked(); return; }
-            if (IsHit(_langValueBtn, mousePos)) { OnNextLanguageClicked(); return; }
-        }
-        else if (_currentTab == 1)
+        if (_currentTab == 1)
         {
             if (IsHit(_fsBtn, mousePos)) { SetFullscreen(true); return; }
             if (IsHit(_winBtn, mousePos)) { SetFullscreen(false); return; }
@@ -497,6 +495,25 @@ public class AdventurePauseMenu : MonoBehaviour
 
     float _lastLangClickTime = -1f;
     int _lastLangClickFrame = -1;
+
+    void EnsureLanguageButtonListeners()
+    {
+        if (_prevLangBtn != null)
+        {
+            _prevLangBtn.onClick.RemoveListener(OnPrevLanguageClicked);
+            _prevLangBtn.onClick.AddListener(OnPrevLanguageClicked);
+        }
+        if (_nextLangBtn != null)
+        {
+            _nextLangBtn.onClick.RemoveListener(OnNextLanguageClicked);
+            _nextLangBtn.onClick.AddListener(OnNextLanguageClicked);
+        }
+        if (_langValueBtn != null)
+        {
+            _langValueBtn.onClick.RemoveListener(OnNextLanguageClicked);
+            _langValueBtn.onClick.AddListener(OnNextLanguageClicked);
+        }
+    }
 
     void OnPrevLanguageClicked()
     {
@@ -605,6 +622,7 @@ public class AdventurePauseMenu : MonoBehaviour
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
+            EnsureLanguageButtonListeners();
             LoadCurrentSettings();
             SwitchTab(_currentTab);
 
@@ -1187,7 +1205,7 @@ public class AdventurePauseMenu : MonoBehaviour
         pbImg.color = new Color(0.15f, 0.35f, 0.55f, 0.95f);
         pbImg.raycastTarget = true;
         _prevLangBtn = prevBtnGo.AddComponent<Button>();
-        // ※ onClick.AddListener は登録しない（TrySettingsDirectMouseClicks との二重発火による偶数スキップを防止）
+        _prevLangBtn.onClick.AddListener(OnPrevLanguageClicked);
         var pbColors = _prevLangBtn.colors;
         pbColors.highlightedColor = new Color(0.25f, 0.55f, 0.85f, 1f);
         pbColors.pressedColor = new Color(0.10f, 0.20f, 0.35f, 1f);
@@ -1211,7 +1229,7 @@ public class AdventurePauseMenu : MonoBehaviour
         ltBg.color = new Color(0.04f, 0.09f, 0.16f, 0.85f);
         ltBg.raycastTarget = true;
         _langValueBtn = langTextGo.AddComponent<Button>();
-        // ※ onClick.AddListener は登録しない（TrySettingsDirectMouseClicks との二重発火防止）
+        _langValueBtn.onClick.AddListener(OnNextLanguageClicked);
         var ltColors = _langValueBtn.colors;
         ltColors.highlightedColor = new Color(0.08f, 0.16f, 0.28f, 0.95f);
         ltColors.pressedColor = new Color(0.02f, 0.05f, 0.10f, 1f);
@@ -1239,7 +1257,7 @@ public class AdventurePauseMenu : MonoBehaviour
         nbImg.color = new Color(0.15f, 0.35f, 0.55f, 0.95f);
         nbImg.raycastTarget = true;
         _nextLangBtn = nextBtnGo.AddComponent<Button>();
-        // ※ onClick.AddListener は登録しない（TrySettingsDirectMouseClicks との二重発火防止）
+        _nextLangBtn.onClick.AddListener(OnNextLanguageClicked);
         var nbColors = _nextLangBtn.colors;
         nbColors.highlightedColor = new Color(0.25f, 0.55f, 0.85f, 1f);
         nbColors.pressedColor = new Color(0.10f, 0.20f, 0.35f, 1f);

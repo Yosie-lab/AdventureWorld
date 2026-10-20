@@ -479,7 +479,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
             return;
         }
 
-        _promptVisible = true;
+        _promptVisible = !AdventureStoryFlow.HideWorldInteractPrompts;
 
         bool ePressed = player.InteractPressed || AdventureInputReader.InteractDown;
 

@@ -358,12 +358,6 @@ public class AdventureScrapItem : MonoBehaviour
         if (_isCollected) return;
         _isCollected = true;
 
-        // 快感チャイム音の再生（ScrapManagerに一本化）
-        if (AdventureScrapManager.Instance != null)
-        {
-            AdventureScrapManager.Instance.PlayScrapCollectFanfare();
-        }
-
         // 弾けるスパークル演出
         SpawnCollectParticles();
 

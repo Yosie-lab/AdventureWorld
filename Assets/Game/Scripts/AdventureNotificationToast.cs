@@ -146,6 +146,12 @@ public class AdventureNotificationToast : MonoBehaviour
 
     void ShowInternal(string message, float duration)
     {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            _displayTimer = 0f;
+            if (_canvasGroup != null) _canvasGroup.alpha = 0f;
+            return;
+        }
         if (_messageText != null)
         {
             _messageText.text = message;

@@ -373,8 +373,13 @@ public class AdventurePrologueDrama : MonoBehaviour
         drone?.ClearSpeech();
         drone?.CelebratePrologueDashUnlock();
 
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        AdventureSceneCaption.Show(
+            AdventureLocalizationManager.Get("prologue_keystone_dash_title"),
+            AdventureLocalizationManager.Get("prologue_keystone_dash_body"),
+            AdventureLocalizationManager.Get("prologue_keystone_dash_hint"),
+            autoSeconds: 0f,
+            waitDismiss: true,
+            onDismiss: () => _dashBoardAdvance = true);
 
         while (!_dashBoardAdvance)
         {
@@ -383,8 +388,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         }
 
         _showDashBoard = false;
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        AdventureSceneCaption.Dismiss(false);
 
         if (drone != null)
         {
@@ -420,9 +424,7 @@ public class AdventurePrologueDrama : MonoBehaviour
 
     void OnGUI()
     {
-        // 油プロンプトボードは出さない（セリフ案内のみ）
-        if (_showDashBoard && _phase == Phase.DashCelebrate)
-            DrawDashBoard();
+        // キーストーン説明は AdventureSceneCaption（下部テキストのみ）
     }
 
     void DrawOilPrompt()
@@ -435,8 +437,8 @@ public class AdventurePrologueDrama : MonoBehaviour
         GUI.color = new Color(0.01f, 0.02f, 0.05f, 0.55f);
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
 
-        float w = Mathf.Min(980f, Screen.width * 0.9f);
-        float h = Mathf.Min(420f, Screen.height * 0.55f);
+        float w = Mathf.Min(AdventureSpeechBoardLayout.PrologueBoardMaxW, Screen.width * 0.82f);
+        float h = Mathf.Min(AdventureSpeechBoardLayout.PrologueBoardMaxH, Screen.height * 0.48f);
         float x = (Screen.width - w) * 0.5f;
         float y = (Screen.height - h) * 0.42f;
 
@@ -449,7 +451,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         Font customFont = ResolvePrologueFont();
         var title = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 34,
+            fontSize = AdventureSpeechBoardLayout.PrologueTitleSize,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             wordWrap = true
@@ -460,7 +462,7 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         var body = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 24,
+            fontSize = AdventureSpeechBoardLayout.PrologueBodySize,
             fontStyle = FontStyle.Normal,
             alignment = TextAnchor.MiddleCenter,
             wordWrap = true
@@ -473,7 +475,7 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         var hint = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 22,
+            fontSize = AdventureSpeechBoardLayout.PrologueHintSize,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };

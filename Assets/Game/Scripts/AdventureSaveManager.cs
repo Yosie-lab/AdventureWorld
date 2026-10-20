@@ -699,7 +699,9 @@ public class AdventureSaveManager : MonoBehaviour
             player.ForceGroundReset();
         }
 
-        ShowSaveNotification("セーブデータを復元しました", $"前回の冒険記録（パーツ: {data.collectedCount}個）を読み込みました");
+        ShowSaveNotification(
+            AdventureLocalizationManager.Get("save_load_restored_title"),
+            AdventureLocalizationManager.GetFormat("save_load_restored_sub", data.collectedCount));
         Debug.Log($"[AdventureSaveManager] ロード完了: パーツ{data.collectedCount}個, 位置{data.GetPosition()}");
 
         // 継続プレイ時は中央の時代背景ボードを出さない／残っていれば閉じる
@@ -817,7 +819,9 @@ public class AdventureSaveManager : MonoBehaviour
         AdventureScrapHUD.Ensure();
         AdventureScrapHUD.Instance?.ResetForNewGame();
 
-        ShowSaveNotification("新規冒険を開始しました", "時代背景ボードからスタート");
+        ShowSaveNotification(
+            AdventureLocalizationManager.Get("save_new_adventure_title"),
+            AdventureLocalizationManager.Get("save_new_adventure_sub"));
         Debug.Log("[AdventureSaveManager] ニューゲーム開始：全ポイント0・パーツ配置を再抽選しました。");
 
         if (returnToOpeningTitle)
@@ -832,11 +836,19 @@ public class AdventureSaveManager : MonoBehaviour
 
     public void ShowSaveNotification(string title, string subText = "")
     {
-        _bannerTimer = 3.2f;
         string locTitle = AdventureLocalizationManager.Get(title);
         if (string.IsNullOrEmpty(locTitle)) locTitle = title;
         string locSubText = AdventureLocalizationManager.Get(subText);
         if (string.IsNullOrEmpty(locSubText)) locSubText = subText;
+
+        if (string.IsNullOrWhiteSpace(locTitle) && string.IsNullOrWhiteSpace(locSubText))
+        {
+            _bannerTimer = 0f;
+            if (_bannerCg != null) _bannerCg.alpha = 0f;
+            return;
+        }
+
+        _bannerTimer = AdventureSpeechBoardLayout.SaveBannerSeconds;
 
         Font font = ResolveFont();
         if (_bannerTitleText != null)

@@ -221,6 +221,9 @@ public static class AdventureStoryFlow
         }
     }
 
+    /// <summary>【E】Inspect・会話案内・工房近接など近接プロンプト板を出さない（キー操作は有効）。</summary>
+    public static bool HideWorldInteractPrompts => true;
+
     /// <summary>カピタの贈り物プロンプト。</summary>
     public static bool HidesCapytaPrompt
     {

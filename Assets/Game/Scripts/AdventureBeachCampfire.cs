@@ -1122,6 +1122,7 @@ public class AdventureBeachCampfire : MonoBehaviour
 
     void OnGUI()
     {
+        if (AdventureStoryFlow.HideWorldInteractPrompts) return;
         var player = AdventurePlayerController.Instance;
         if (player == null) return;
 

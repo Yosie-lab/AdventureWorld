@@ -276,7 +276,7 @@ public partial class AdventureSanctuaryTowerManager
         if (_canopyBeat0VisibleStreak < 2)
             return;
 
-        float autoSec = CanopyBeats[0].AutoAdvanceSeconds;
+        float autoSec = AdventureSpeechBoardLayout.ScaleScriptAutoAdvance(CanopyBeats[0].AutoAdvanceSeconds, this);
         _canopyBeat0TimerArmed = true;
         _canopyBeat0LockUntil = Time.unscaledTime + autoSec;
         _scriptBoardOpenedAt = Time.unscaledTime;
@@ -343,9 +343,10 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2・3枚目5.2s／Float・Rust 4.2s／ダイブ6.0s）
-        float autoSec = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
+        float rawAuto = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
             : 3.5f;
+        float autoSec = AdventureSpeechBoardLayout.ScaleScriptAutoAdvance(rawAuto, this);
 
         // 第1幕：専用ロック時刻まで手動・自動・残留フラグすべて無効（PresentCanopyBeat 再入でもリセットされない）
         if (_canopyBeatIndex == 0)
@@ -359,7 +360,7 @@ public partial class AdventureSanctuaryTowerManager
         }
         else
         {
-            float minShow = 0.45f;
+            float minShow = AdventureSpeechBoardLayout.ScriptManualMinShowSec;
             if (openFor < minShow)
             {
                 _scriptBoardAdvance = false;
@@ -562,7 +563,7 @@ public partial class AdventureSanctuaryTowerManager
         if (_canopyBeatIndex == 0) return;
         if (_climaxCrisisStarted) return;
         if (_scriptBoardIsDive) return;
-        if (PollManualScriptAdvance(minShowSec: 0.45f, blockCanopyBeat0: true))
+        if (PollManualScriptAdvance(minShowSec: AdventureSpeechBoardLayout.ScriptManualMinShowSec, blockCanopyBeat0: true))
             Debug.Log("[RustAndFloat] 台本送り入力を受け付けました");
     }
 
