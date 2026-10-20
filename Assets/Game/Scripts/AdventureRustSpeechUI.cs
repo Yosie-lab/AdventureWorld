@@ -199,13 +199,16 @@ public class AdventureRustSpeechUI : MonoBehaviour
             string loc = AdventureLocalizationManager.Get(speechText);
             if (!string.IsNullOrEmpty(loc) && loc != speechText) speechText = loc;
 
+            bool alreadyQuoted = speechText.Contains("\n") || speechText.StartsWith("「") || speechText.StartsWith("\"") || speechText.StartsWith("«") || speechText.StartsWith("Capyta:") || speechText.StartsWith("カピタ「") || speechText.StartsWith("卡皮塔「");
+            string finalText = alreadyQuoted ? speechText : (quoteL + speechText + quoteR);
+
             if (_font != null)
             {
                 _font.RequestCharactersInTexture(speakerName, _speaker.fontSize, _speaker.fontStyle);
-                _font.RequestCharactersInTexture(quoteL + speechText + quoteR, _body.fontSize, _body.fontStyle);
+                _font.RequestCharactersInTexture(finalText, _body.fontSize, _body.fontStyle);
             }
 
-            _body.text = quoteL + speechText + quoteR;
+            _body.text = finalText;
             _cg.alpha = 1f; // 即座に表示（フェード待ちで見えない事故を防ぐ）
         }
         else
