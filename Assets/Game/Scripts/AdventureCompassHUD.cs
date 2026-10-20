@@ -15,6 +15,8 @@ public class AdventureCompassHUD : MonoBehaviour
     Camera _cam;
     Text _headingBadgeText;
     Text _scrapNavText;
+    RectTransform _headingBadgeRt;
+    RectTransform _scrapNavRt;
     RectTransform _ribbonContainer;
     RectTransform _scrapMarkerRt;
     Text _scrapMarkerText;
@@ -178,6 +180,7 @@ public class AdventureCompassHUD : MonoBehaviour
             _instance = keep;
             if (!keep.gameObject.activeSelf)
                 keep.gameObject.SetActive(true);
+            AdventureExplorationHudSettings.ApplyLayout(AdventureScrapHUD.ComputeCenterNavVisible());
             return _instance;
         }
 
@@ -216,7 +219,67 @@ public class AdventureCompassHUD : MonoBehaviour
         var hud = hudGo.AddComponent<AdventureCompassHUD>();
         hud.BuildUI(font);
         _instance = hud;
+        AdventureExplorationHudSettings.ApplyAll();
         return hud;
+    }
+
+    public void ApplyLayoutPosition(bool showCenterNavLine)
+    {
+        var rootRt = GetComponent<RectTransform>();
+        if (rootRt == null) return;
+
+        float ribbon = AdventureExplorationHudSettings.RibbonHeight;
+        float heading = AdventureExplorationHudSettings.HeadingRowHeight;
+        float nav = showCenterNavLine ? AdventureExplorationHudSettings.NavRowHeight : 0f;
+        float innerGap = showCenterNavLine ? AdventureExplorationHudSettings.RowGap * 0.5f : 0f;
+        float totalH = ribbon + heading + innerGap + nav;
+
+        rootRt.anchoredPosition = new Vector2(0f, -AdventureExplorationHudSettings.TopInset);
+        rootRt.sizeDelta = new Vector2(420f, totalH);
+
+        if (_ribbonContainer != null)
+        {
+            _ribbonContainer.anchorMin = new Vector2(0.5f, 1f);
+            _ribbonContainer.anchorMax = new Vector2(0.5f, 1f);
+            _ribbonContainer.pivot = new Vector2(0.5f, 1f);
+            _ribbonContainer.anchoredPosition = new Vector2(0f, -2f);
+            _ribbonContainer.sizeDelta = new Vector2(360f, 28f);
+        }
+
+        if (_headingBadgeRt != null)
+        {
+            _headingBadgeRt.anchorMin = new Vector2(0.5f, 1f);
+            _headingBadgeRt.anchorMax = new Vector2(0.5f, 1f);
+            _headingBadgeRt.pivot = new Vector2(0.5f, 1f);
+            _headingBadgeRt.anchoredPosition = new Vector2(0f, -(ribbon + 2f));
+            _headingBadgeRt.sizeDelta = new Vector2(160f, heading);
+        }
+
+        if (_scrapNavRt != null)
+        {
+            _scrapNavRt.gameObject.SetActive(showCenterNavLine);
+            if (showCenterNavLine)
+            {
+                _scrapNavRt.anchorMin = new Vector2(0.5f, 1f);
+                _scrapNavRt.anchorMax = new Vector2(0.5f, 1f);
+                _scrapNavRt.pivot = new Vector2(0.5f, 1f);
+                _scrapNavRt.anchoredPosition = new Vector2(0f, -(ribbon + heading + innerGap + 2f));
+                _scrapNavRt.sizeDelta = new Vector2(560f, nav);
+            }
+        }
+    }
+
+    public void SetCenterNavVisible(bool visible)
+    {
+        ApplyLayoutPosition(visible);
+    }
+
+    public void RefreshExplorationHudVisibility()
+    {
+        bool cinematic = AdventureStoryFlow.HidesExplorationHud;
+        bool showCompass = !cinematic && AdventureExplorationHudSettings.ShowCompass;
+        if (gameObject.activeSelf != showCompass)
+            gameObject.SetActive(showCompass);
     }
 
     void Awake()
@@ -254,8 +317,8 @@ public class AdventureCompassHUD : MonoBehaviour
         rootRt.anchorMin = new Vector2(0.5f, 1f);
         rootRt.anchorMax = new Vector2(0.5f, 1f);
         rootRt.pivot = new Vector2(0.5f, 1f);
-        rootRt.anchoredPosition = new Vector2(0f, -10f);
-        rootRt.sizeDelta = new Vector2(420f, 34f);
+        rootRt.anchoredPosition = new Vector2(0f, -AdventureExplorationHudSettings.TopInset);
+        rootRt.sizeDelta = new Vector2(420f, AdventureExplorationHudSettings.RibbonHeight + AdventureExplorationHudSettings.HeadingRowHeight);
 
         // 背景プレート（半透明の深藍ダークグラデーション）
         var bg = gameObject.AddComponent<Image>();
@@ -290,10 +353,10 @@ public class AdventureCompassHUD : MonoBehaviour
         var ribbonGo = new GameObject("CompassRibbon", typeof(RectTransform));
         ribbonGo.transform.SetParent(transform, false);
         _ribbonContainer = ribbonGo.GetComponent<RectTransform>();
-        _ribbonContainer.anchorMin = new Vector2(0.5f, 0.5f);
-        _ribbonContainer.anchorMax = new Vector2(0.5f, 0.5f);
-        _ribbonContainer.pivot = new Vector2(0.5f, 0.5f);
-        _ribbonContainer.anchoredPosition = Vector2.zero;
+        _ribbonContainer.anchorMin = new Vector2(0.5f, 1f);
+        _ribbonContainer.anchorMax = new Vector2(0.5f, 1f);
+        _ribbonContainer.pivot = new Vector2(0.5f, 1f);
+        _ribbonContainer.anchoredPosition = new Vector2(0f, -2f);
         _ribbonContainer.sizeDelta = new Vector2(360f, 28f);
         ribbonGo.AddComponent<RectMask2D>();
 
@@ -426,12 +489,12 @@ public class AdventureCompassHUD : MonoBehaviour
         // 4. 中央下部の方角・角度デジタルバッジ（例: "北  15°"）
         var badgeGo = new GameObject("HeadingBadge", typeof(RectTransform));
         badgeGo.transform.SetParent(transform, false);
-        var bBadgeRt = badgeGo.GetComponent<RectTransform>();
-        bBadgeRt.anchorMin = new Vector2(0.5f, 0f);
-        bBadgeRt.anchorMax = new Vector2(0.5f, 0f);
-        bBadgeRt.pivot = new Vector2(0.5f, 1f);
-        bBadgeRt.anchoredPosition = new Vector2(0f, -4f);
-        bBadgeRt.sizeDelta = new Vector2(160f, 18f);
+        _headingBadgeRt = badgeGo.GetComponent<RectTransform>();
+        _headingBadgeRt.anchorMin = new Vector2(0.5f, 1f);
+        _headingBadgeRt.anchorMax = new Vector2(0.5f, 1f);
+        _headingBadgeRt.pivot = new Vector2(0.5f, 1f);
+        _headingBadgeRt.anchoredPosition = new Vector2(0f, -(AdventureExplorationHudSettings.RibbonHeight + 2f));
+        _headingBadgeRt.sizeDelta = new Vector2(160f, AdventureExplorationHudSettings.HeadingRowHeight);
 
         _headingBadgeText = badgeGo.AddComponent<Text>();
         _headingBadgeText.font = font;
@@ -448,12 +511,12 @@ public class AdventureCompassHUD : MonoBehaviour
         // 5. 最寄り漂着パーツ・ボックスの方向・距離ナビゲーションバッジ（デジタルバッジの下に配置）
         var navGo = new GameObject("ScrapNavBadge", typeof(RectTransform));
         navGo.transform.SetParent(transform, false);
-        var navRt = navGo.GetComponent<RectTransform>();
-        navRt.anchorMin = new Vector2(0.5f, 0f);
-        navRt.anchorMax = new Vector2(0.5f, 0f);
-        navRt.pivot = new Vector2(0.5f, 1f);
-        navRt.anchoredPosition = new Vector2(0f, -24f);
-        navRt.sizeDelta = new Vector2(600f, 22f);
+        _scrapNavRt = navGo.GetComponent<RectTransform>();
+        _scrapNavRt.anchorMin = new Vector2(0.5f, 1f);
+        _scrapNavRt.anchorMax = new Vector2(0.5f, 1f);
+        _scrapNavRt.pivot = new Vector2(0.5f, 1f);
+        _scrapNavRt.anchoredPosition = new Vector2(0f, -(AdventureExplorationHudSettings.RibbonHeight + AdventureExplorationHudSettings.HeadingRowHeight + 6f));
+        _scrapNavRt.sizeDelta = new Vector2(560f, AdventureExplorationHudSettings.NavRowHeight);
 
         _scrapNavText = navGo.AddComponent<Text>();
         _scrapNavText.font = font;
@@ -519,7 +582,8 @@ public class AdventureCompassHUD : MonoBehaviour
             return;
         }
         if (_headingBadgeText != null) _headingBadgeText.enabled = true;
-        if (_scrapNavText != null) _scrapNavText.enabled = true;
+        if (_scrapNavText != null)
+            _scrapNavText.enabled = _scrapNavText.gameObject.activeSelf;
         if (_ribbonContainer != null && !_ribbonContainer.gameObject.activeSelf)
             _ribbonContainer.gameObject.SetActive(true);
 

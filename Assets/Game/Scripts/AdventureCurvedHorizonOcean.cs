@@ -127,6 +127,9 @@ public class AdventureCurvedHorizonOcean : MonoBehaviour
 
     private void EnsureMaterial()
     {
+        if (_oceanMaterial != null && IsBrokenShader(_oceanMaterial.shader))
+            _oceanMaterial = null;
+
         if (_oceanMaterial != null && _oceanMaterial.shader != null && _oceanMaterial.shader.name == ShaderName)
         {
             _meshRenderer.sharedMaterial = _oceanMaterial;
@@ -135,6 +138,8 @@ public class AdventureCurvedHorizonOcean : MonoBehaviour
 
 #if UNITY_EDITOR
         _oceanMaterial = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath);
+        if (_oceanMaterial != null && IsBrokenShader(_oceanMaterial.shader))
+            _oceanMaterial = null;
         if (_oceanMaterial == null)
         {
             var shader = Shader.Find(ShaderName);
@@ -146,6 +151,7 @@ public class AdventureCurvedHorizonOcean : MonoBehaviour
 
             _oceanMaterial = new Material(shader);
             _oceanMaterial.name = "ParadiseCurvedOcean";
+            ApplyDefaultOceanMaterialProperties(_oceanMaterial);
 
             // ノーマルマップの割り当て
             var n1 = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Idyllic Fantasy Nature/Textures/Water/Water_Normal_01.png");
@@ -153,31 +159,48 @@ public class AdventureCurvedHorizonOcean : MonoBehaviour
             if (n1 != null) _oceanMaterial.SetTexture("_NormalMap1", n1);
             if (n2 != null) _oceanMaterial.SetTexture("_NormalMap2", n2);
 
-            _oceanMaterial.SetColor("_ShallowColor", new Color(0.015f, 0.98f, 0.78f, 0.82f));
-            _oceanMaterial.SetColor("_MidColor", new Color(0.01f, 0.90f, 0.72f, 0.94f));
-            _oceanMaterial.SetColor("_DeepColor", new Color(0.005f, 0.62f, 0.55f, 0.99f));
-            _oceanMaterial.SetColor("_HorizonColor", new Color(0.22f, 0.90f, 0.84f, 1.0f));
-            _oceanMaterial.SetColor("_SunGlitterColor", new Color(1.0f, 0.98f, 0.88f, 1.0f));
-
-            _oceanMaterial.SetFloat("_NormalStrength", 1.25f);
-            _oceanMaterial.SetFloat("_SunGlitterIntensity", 5.2f);
-            _oceanMaterial.SetFloat("_SunGlitterExponent", 80f);
-            _oceanMaterial.SetFloat("_SparkleScale", 1.8f);
-            _oceanMaterial.SetFloat("_OverheadSparkleIntensity", 1.6f);
-            _oceanMaterial.SetFloat("_ShallowRadius", 360f);
-            _oceanMaterial.SetFloat("_DeepRadius", 800f);
-            _oceanMaterial.SetFloat("_HorizonRadius", MaxRadius);
-            _oceanMaterial.SetFloat("_CurvatureAmount", CurvatureDrop);
-
             AssetDatabase.CreateAsset(_oceanMaterial, MaterialPath);
             AssetDatabase.SaveAssets();
         }
 #endif
 
-        if (_oceanMaterial != null)
+        if (_oceanMaterial == null)
         {
-            _meshRenderer.sharedMaterial = _oceanMaterial;
+            var shader = Shader.Find(ShaderName);
+            if (shader != null)
+            {
+                _oceanMaterial = new Material(shader) { name = "ParadiseCurvedOcean_Runtime" };
+                ApplyDefaultOceanMaterialProperties(_oceanMaterial);
+            }
+            else
+                Debug.LogWarning("[AdventureCurvedHorizonOcean] Shader not found: " + ShaderName);
         }
+
+        if (_oceanMaterial != null)
+            _meshRenderer.sharedMaterial = _oceanMaterial;
+    }
+
+    static bool IsBrokenShader(Shader shader)
+    {
+        return shader == null || shader.name == "Hidden/InternalErrorShader";
+    }
+
+    static void ApplyDefaultOceanMaterialProperties(Material mat)
+    {
+        mat.SetColor("_ShallowColor", new Color(0.015f, 0.98f, 0.78f, 0.82f));
+        mat.SetColor("_MidColor", new Color(0.01f, 0.90f, 0.72f, 0.94f));
+        mat.SetColor("_DeepColor", new Color(0.005f, 0.62f, 0.55f, 0.99f));
+        mat.SetColor("_HorizonColor", new Color(0.22f, 0.90f, 0.84f, 1.0f));
+        mat.SetColor("_SunGlitterColor", new Color(1.0f, 0.98f, 0.88f, 1.0f));
+        mat.SetFloat("_NormalStrength", 1.25f);
+        mat.SetFloat("_SunGlitterIntensity", 5.2f);
+        mat.SetFloat("_SunGlitterExponent", 80f);
+        mat.SetFloat("_SparkleScale", 1.8f);
+        mat.SetFloat("_OverheadSparkleIntensity", 1.6f);
+        mat.SetFloat("_ShallowRadius", 360f);
+        mat.SetFloat("_DeepRadius", 800f);
+        mat.SetFloat("_HorizonRadius", MaxRadius);
+        mat.SetFloat("_CurvatureAmount", CurvatureDrop);
     }
 
     private void EnsureCurvedOceanMesh()

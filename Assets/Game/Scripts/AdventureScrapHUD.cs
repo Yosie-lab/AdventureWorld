@@ -80,6 +80,8 @@ public class AdventureScrapHUD : MonoBehaviour
         AdventureStoryFlow.OnPhaseChanged += OnStoryPhaseChanged;
         AdventureScrapManager.OnProgressChanged += OnScrapProgressUpdated;
         AdventureLocalizationManager.OnLanguageChanged += OnLanguageChanged;
+        AdventureExplorationHudSettings.OnChanged += RefreshExplorationHudVisibility;
+        RefreshExplorationHudVisibility();
     }
 
     void OnDisable()
@@ -87,6 +89,7 @@ public class AdventureScrapHUD : MonoBehaviour
         AdventureStoryFlow.OnPhaseChanged -= OnStoryPhaseChanged;
         AdventureScrapManager.OnProgressChanged -= OnScrapProgressUpdated;
         AdventureLocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        AdventureExplorationHudSettings.OnChanged -= RefreshExplorationHudVisibility;
     }
 
     void OnLanguageChanged()
@@ -133,8 +136,8 @@ public class AdventureScrapHUD : MonoBehaviour
         _questPanelRt.anchorMin = new Vector2(0f, 1f);
         _questPanelRt.anchorMax = new Vector2(0f, 1f);
         _questPanelRt.pivot = new Vector2(0f, 1f);
-        _questPanelRt.anchoredPosition = new Vector2(24f, -24f); // 画面左上にゆったり配置
-        _questPanelRt.sizeDelta = new Vector2(460f, 58f); // 20ptポイント表示にも対応したゆったりサイズ
+        _questPanelRt.anchoredPosition = new Vector2(24f, AdventureExplorationHudSettings.GetPartsRowY(false));
+        _questPanelRt.sizeDelta = new Vector2(420f, 58f);
 
         // どんな背景でもクッキリ読める半透明ダーク背景プレート
         var panelBg = panelGo.AddComponent<Image>();
@@ -184,7 +187,7 @@ public class AdventureScrapHUD : MonoBehaviour
         bannerRt.anchorMin = new Vector2(0.5f, 1.0f);
         bannerRt.anchorMax = new Vector2(0.5f, 1.0f);
         bannerRt.pivot = new Vector2(0.5f, 1.0f);
-        bannerRt.anchoredPosition = new Vector2(0f, -90f); // 画面上部、クエスト枠の下にスッキリ配置
+        bannerRt.anchoredPosition = new Vector2(0f, AdventureExplorationHudSettings.GetBannerRowY(false));
         bannerRt.sizeDelta = new Vector2(860f, 120f);
 
         var bannerBg = _bannerGo.AddComponent<Image>();
@@ -222,8 +225,69 @@ public class AdventureScrapHUD : MonoBehaviour
 
         CreateOilCounter(canvasGo.transform);
 
+        ApplyLayoutPositions(ComputeCenterNavVisible());
         RefreshQuestDisplay();
         RefreshOilDisplay(force: true);
+        RefreshExplorationHudVisibility();
+    }
+
+    public static bool ComputeCenterNavVisible()
+    {
+        if (AdventureStoryFlow.HidesExplorationHud)
+            return false;
+        if (!AdventureExplorationHudSettings.ShowCompass)
+            return false;
+        var hud = Instance;
+        if (hud == null)
+            return !AdventureExplorationHudSettings.ShowPartsBoard;
+        return !AdventureExplorationHudSettings.ShowPartsBoard || hud._isHidden;
+    }
+
+    public void ApplyLayoutPositions(bool showCenterNavLine)
+    {
+        float rowY = AdventureExplorationHudSettings.GetPartsRowY(showCenterNavLine);
+        if (_questPanelRt != null)
+            _questPanelRt.anchoredPosition = new Vector2(24f, rowY);
+        if (_oilPanelRt != null)
+            _oilPanelRt.anchoredPosition = new Vector2(-24f, rowY);
+        if (_bannerGo != null)
+        {
+            var bannerRt = _bannerGo.GetComponent<RectTransform>();
+            if (bannerRt != null)
+                bannerRt.anchoredPosition = new Vector2(0f, AdventureExplorationHudSettings.GetBannerRowY(showCenterNavLine));
+        }
+    }
+
+    /// <summary>設定・Tab・シネマの優先度を反映して3ボードの表示を更新</summary>
+    public void RefreshExplorationHudVisibility()
+    {
+        bool cinematic = AdventureStoryFlow.HidesExplorationHud;
+        bool showParts = !cinematic && AdventureExplorationHudSettings.ShowPartsBoard && !_isHidden;
+        bool showOil = !cinematic && AdventureExplorationHudSettings.ShowOilBoard;
+        bool showCompass = !cinematic && AdventureExplorationHudSettings.ShowCompass;
+
+        if (_questPanelRt != null)
+            _questPanelRt.gameObject.SetActive(showParts);
+        if (_oilPanelRt != null)
+            _oilPanelRt.gameObject.SetActive(showOil);
+
+        var compass = AdventureCompassHUD.Instance
+                      ?? Object.FindAnyObjectByType<AdventureCompassHUD>(FindObjectsInactive.Include);
+        if (compass != null)
+        {
+            if (compass.gameObject.activeSelf != showCompass)
+                compass.gameObject.SetActive(showCompass);
+            compass.SetCenterNavVisible(showCompass && !showParts);
+        }
+
+        bool showNav = showCompass && !showParts;
+        ApplyLayoutPositions(showNav);
+        AdventureRustFloatOpening.ApplyTopHudGuideLayout(showNav);
+
+        if (!showParts && _questCg != null)
+            _questCg.alpha = 0f;
+        else if (showParts && _questCg != null)
+            _questCg.alpha = 0.98f;
     }
 
     void CreateOilCounter(Transform canvasRoot)
@@ -234,7 +298,7 @@ public class AdventureScrapHUD : MonoBehaviour
         _oilPanelRt.anchorMin = new Vector2(1f, 1f);
         _oilPanelRt.anchorMax = new Vector2(1f, 1f);
         _oilPanelRt.pivot = new Vector2(1f, 1f);
-        _oilPanelRt.anchoredPosition = new Vector2(-20f, -20f);
+        _oilPanelRt.anchoredPosition = new Vector2(-24f, AdventureExplorationHudSettings.GetPartsRowY(false));
         _oilPanelRt.sizeDelta = new Vector2(245f, 48f);
 
         var panelBg = panelGo.AddComponent<Image>();
@@ -298,16 +362,16 @@ public class AdventureScrapHUD : MonoBehaviour
             if (_questCg != null) _questCg.alpha = 0f;
             if (_oilCg != null) _oilCg.alpha = 0f;
             if (_bannerCg != null) _bannerCg.alpha = 0f;
+            RefreshExplorationHudVisibility();
             return;
         }
 
-        // 【Tab】キーでクエスト表示 ⇄ 非表示（油カウンターは常時表示のまま）
+        // 【Tab】キーでパーツ回収ボード表示 ⇄ 非表示（設定でOFFのときは無効）
         var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && kb.tabKey.wasPressedThisFrame)
+        if (kb != null && kb.tabKey.wasPressedThisFrame && AdventureExplorationHudSettings.ShowPartsBoard)
         {
             _isHidden = !_isHidden;
-            if (_questCg != null)
-                _questCg.alpha = _isHidden ? 0f : 0.85f;
+            RefreshExplorationHudVisibility();
         }
 
         // 右上潤滑油パネルの直接クリック検知（カーソル表示時／uGUI補完）
@@ -371,9 +435,10 @@ public class AdventureScrapHUD : MonoBehaviour
         if (_oilText == null || _oilCg == null) return;
 
         bool cinematicHide = AdventureStoryFlow.HidesOilHud;
+        bool userHide = !AdventureExplorationHudSettings.ShowOilBoard;
 
-        _oilCg.alpha = cinematicHide ? 0f : 1f;
-        if (cinematicHide) return;
+        _oilCg.alpha = (cinematicHide || userHide) ? 0f : 1f;
+        if (cinematicHide || userHide) return;
 
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         int oil = drone != null ? Mathf.Max(0, drone.oilCount) : 0;

@@ -202,6 +202,18 @@ public static class AdventureLocalizationManager
         { "opt_vsync_on", new[] { "✓ 垂直同期 ON (安定)", "✓ VSync ON (Stable)", "✓ 垂直同步 开启 (稳定)", "✓ VSync ACTIVADO (Estable)" } },
         { "opt_vsync_off", new[] { "✕ 垂直同期 OFF (低遅延)", "✕ VSync OFF (Low Latency)", "✕ 垂直同步 关闭 (低延迟)", "✕ VSync DESACTIVADO (Baja latencia)" } },
         { "opt_resolution", new[] { "画面解像度", "Resolution", "分辨率预设", "Resolución" } },
+        { "opt_hud_exploration", new[] { "探索HUD（画面上部）", "Exploration HUD (Top)", "探索HUD（画面上部）", "HUD de Exploración (Superior)" } },
+        { "opt_hud_compass", new[] { "コンパス", "Compass", "罗盘", "Brújula" } },
+        { "opt_hud_parts", new[] { "パーツ回収", "Parts Tracker", "零件回收", "Piezas" } },
+        { "opt_hud_oil", new[] { "潤滑油", "Oil", "润滑油", "Aceite" } },
+        { "opt_hud_show", new[] { "表示", "Show", "显示", "Mostrar" } },
+        { "opt_hud_hide", new[] { "非表示", "Hide", "隐藏", "Ocultar" } },
+        { "opt_hud_guide_hint", new[] {
+            "★ 画面上部のコンパス・パーツ回収・潤滑油は、ここの3ボタンで表示／非表示を切り替えます（Play中【Tab】でパーツボードのみ一時非表示）。",
+            "★ Toggle compass, parts tracker, and oil HUD at the top of the screen with the three buttons above ([Tab] hides the parts board temporarily in play).",
+            "★ 用上方三个按钮切换画面上部的罗盘、零件回收、润滑油显示（游戏中【Tab】可临时隐藏零件板）。",
+            "★ Usa los tres botones de arriba para mostrar u ocultar brújula, piezas y aceite ([Tab] oculta temporalmente el panel de piezas)."
+        } },
 
         // --- タイトルセーブ情報 ---
         { "title_save_summary", new[] {
@@ -2638,10 +2650,10 @@ public static class AdventureLocalizationManager
             "[WASD / Flechas] Moverse  [Ratón] Mirar  [Shift] Correr  [Mantener Espacio] Planear  [R] Reiniciar"
         } },
         { "guide_hud_gameplay", new[] {
-            "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【ESC】設定",
-            "[WASD] Move  [Mouse] Look  [Shift] Sprint  [Space] Glide  [ESC] Settings",
-            "【WASD】移动　【鼠标】视角　【Shift】奔跑　【Space】滑翔　【ESC】设置",
-            "[WASD] Moverse  [Ratón] Mirar  [Shift] Correr  [Espacio] Planear  [ESC] Ajustes"
+            "【WASD】移動　【マウス】視点　【Shift】走る　【Space】滑空　【ESC】設定→「📖操作ガイド」でHUD表示切替　【Tab】パーツボード一時非表示",
+            "[WASD] Move  [Mouse] Look  [Shift] Sprint  [Space] Glide  [ESC] Settings → Guide tab for HUD  [Tab] hide parts board",
+            "【WASD】移动　【鼠标】视角　【Shift】奔跑　【Space】滑翔　【ESC】设置→「📖操作ガイド」切换HUD　【Tab】临时隐藏零件板",
+            "[WASD] Moverse  [Ratón] Mirar  [Shift] Correr  [Espacio] Planear  [ESC] Ajustes → pestaña Guía para HUD  [Tab] ocultar piezas"
         } },
         { "save_notification_title", new[] {
             "SAVEしました",

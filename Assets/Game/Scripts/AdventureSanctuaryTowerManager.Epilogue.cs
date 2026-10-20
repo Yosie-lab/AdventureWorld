@@ -373,6 +373,9 @@ public partial class AdventureSanctuaryTowerManager
         if (scrap != null)
             scrap.gameObject.SetActive(visible);
 
+        if (visible)
+            AdventureExplorationHudSettings.ApplyAll();
+
         if (_cachedGuideText == null)
         {
             var opening = AdventureRustFloatOpening.Instance;

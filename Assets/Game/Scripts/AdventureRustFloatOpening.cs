@@ -160,11 +160,28 @@ public class AdventureRustFloatOpening : MonoBehaviour
     void OnEnable()
     {
         AdventureLocalizationManager.OnLanguageChanged += ApplyLocalization;
+        AdventureExplorationHudSettings.OnChanged += SyncTopHudLayout;
+        SyncTopHudLayout();
     }
 
     void OnDisable()
     {
         AdventureLocalizationManager.OnLanguageChanged -= ApplyLocalization;
+        AdventureExplorationHudSettings.OnChanged -= SyncTopHudLayout;
+    }
+
+    void SyncTopHudLayout()
+    {
+        ApplyTopHudGuideLayout(AdventureScrapHUD.ComputeCenterNavVisible());
+    }
+
+    public static void ApplyTopHudGuideLayout(bool showCenterNavLine)
+    {
+        var opening = Instance;
+        if (opening == null || opening._guideText == null) return;
+        var guideRt = opening._guideText.rectTransform;
+        guideRt.anchoredPosition = new Vector2(0f, AdventureExplorationHudSettings.GetGuideRowY(showCenterNavLine));
+        guideRt.sizeDelta = new Vector2(980f, AdventureExplorationHudSettings.GuideRowHeight);
     }
 
     void ApplyLocalization()
@@ -687,8 +704,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         guideRt.anchorMin = new Vector2(0.5f, 1f);
         guideRt.anchorMax = new Vector2(0.5f, 1f);
         guideRt.pivot = new Vector2(0.5f, 1f);
-        guideRt.anchoredPosition = new Vector2(0f, -86f);
-        guideRt.sizeDelta = new Vector2(980f, 26f);
+        guideRt.anchoredPosition = new Vector2(0f, AdventureExplorationHudSettings.GetGuideRowY(false));
+        guideRt.sizeDelta = new Vector2(980f, AdventureExplorationHudSettings.GuideRowHeight);
         _guideText.horizontalOverflow = HorizontalWrapMode.Overflow;
         _guideText.verticalOverflow = VerticalWrapMode.Overflow;
         _guideText.color = new Color(0.9f, 0.95f, 1f, 0.75f);

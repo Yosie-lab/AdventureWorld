@@ -2835,26 +2835,16 @@ public partial class AdventureRustDrone : MonoBehaviour
     void OnGUI()
     {
         if (ShouldHideInteractionPrompt(AdventureSanctuaryTowerManager.Instance)) return;
+        if (!AdventureRustFloatOpening.IsGameStarted) return;
+        var opening = AdventureRustFloatOpening.Instance;
+        if (opening != null && opening.IsModalBoardOpen()) return;
+        if (AdventurePauseMenu.IsOpen) return;
 
         bool canCommand = CurrentState == RustState.Follow ||
                           CurrentState == RustState.Scouting ||
                           CurrentState == RustState.Guiding ||
                           CurrentState == RustState.Perching ||
                           CurrentState == RustState.Celebrating;
-
-        if (canCommand)
-        {
-            if (_aimedScrap != null)
-            {
-                DrawCenterPrompt(0.62f, AdventureLocalizationManager.Get("prompt_rust_fetch"));
-                return;
-            }
-            else if (_nearbyScrap != null)
-            {
-                DrawCenterPrompt(0.62f, AdventureLocalizationManager.Get("prompt_rust_pickup"));
-                return;
-            }
-        }
 
         if (canCommand && _distantScrap != null && _aimedScrap == null && _nearbyScrap == null)
         {

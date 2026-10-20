@@ -236,6 +236,7 @@ public class AdventureNikoFootsteps : MonoBehaviour
                          ?? Shader.Find("Universal Render Pipeline/Unlit") 
                          ?? Shader.Find("Mobile/Particles/Alpha Blended")
                          ?? Shader.Find("Particles/Standard Unlit");
+            if (shader == null) return null;
             _dustMat = new Material(shader) { name = "FootstepDust_Mat" };
             var tex = AdventureRustDrone.GetSoftSmokeTexture();
             _dustMat.SetTexture("_BaseMap", tex);
@@ -309,9 +310,10 @@ public class AdventureNikoFootsteps : MonoBehaviour
 
         var ps = fxGo.AddComponent<ParticleSystem>();
         var psr = fxGo.GetComponent<ParticleSystemRenderer>();
-        if (psr != null)
+        var dustMat = GetDustMaterial();
+        if (psr != null && dustMat != null)
         {
-            psr.sharedMaterial = GetDustMaterial();
+            psr.sharedMaterial = dustMat;
             psr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             psr.receiveShadows = false;
         }
@@ -365,6 +367,7 @@ public class AdventureNikoFootsteps : MonoBehaviour
                          ?? Shader.Find("Universal Render Pipeline/Unlit") 
                          ?? Shader.Find("Mobile/Particles/Additive")
                          ?? Shader.Find("Particles/Standard Unlit");
+            if (shader == null) return null;
             _splashMat = new Material(shader) { name = "FootstepSplash_Mat" };
             var tex = AdventureRustDrone.GetSoftSmokeTexture();
             _splashMat.SetTexture("_BaseMap", tex);
@@ -393,9 +396,10 @@ public class AdventureNikoFootsteps : MonoBehaviour
 
         var ps = fxGo.AddComponent<ParticleSystem>();
         var psr = fxGo.GetComponent<ParticleSystemRenderer>();
-        if (psr != null)
+        var splashMat = GetSplashMaterial();
+        if (psr != null && splashMat != null)
         {
-            psr.sharedMaterial = GetSplashMaterial();
+            psr.sharedMaterial = splashMat;
             psr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             psr.receiveShadows = false;
         }

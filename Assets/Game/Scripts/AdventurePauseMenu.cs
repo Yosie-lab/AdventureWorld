@@ -125,6 +125,17 @@ public class AdventurePauseMenu : MonoBehaviour
     Text _qualityRowLabel;
     Text _vsyncRowLabel;
     Text _resolutionRowLabel;
+    Text _hudExplorationRowLabel;
+    Button _hudCompassBtn;
+    Image _hudCompassBtnImg;
+    Text _hudCompassBtnText;
+    Button _hudPartsBtn;
+    Image _hudPartsBtnImg;
+    Text _hudPartsBtnText;
+    Button _hudOilBtn;
+    Image _hudOilBtnImg;
+    Text _hudOilBtnText;
+    Text _hudGuideHintText;
     Text _fullscreenBtnText;
     Text _windowedBtnText;
     Text _qUltraBtnText;
@@ -441,6 +452,12 @@ public class AdventurePauseMenu : MonoBehaviour
             if (IsHit(_res900Btn, mousePos)) { SetResolution(1600, 900); return; }
             if (IsHit(_res720Btn, mousePos)) { SetResolution(1280, 720); return; }
         }
+        else if (_currentTab == 2)
+        {
+            if (IsHit(_hudCompassBtn, mousePos)) { ToggleHudCompass(); return; }
+            if (IsHit(_hudPartsBtn, mousePos)) { ToggleHudPartsBoard(); return; }
+            if (IsHit(_hudOilBtn, mousePos)) { ToggleHudOilBoard(); return; }
+        }
     }
 
     bool IsHit(Button btn, Vector2 mousePos)
@@ -718,6 +735,8 @@ public class AdventurePauseMenu : MonoBehaviour
 
         if (tabIndex == 1)
             UpdateDisplayHighlights();
+        if (tabIndex == 2)
+            UpdateHudToggleHighlights();
     }
 
     void LoadCurrentSettings()
@@ -765,6 +784,8 @@ public class AdventurePauseMenu : MonoBehaviour
         if (_res1080BtnImg != null) _res1080BtnImg.color = (w >= 1900) ? activeCol : inactiveCol;
         if (_res900BtnImg != null) _res900BtnImg.color = (w >= 1500 && w < 1900) ? activeCol : inactiveCol;
         if (_res720BtnImg != null) _res720BtnImg.color = (w < 1500) ? activeCol : inactiveCol;
+
+        UpdateHudToggleHighlights();
 
         if (_displayStatusText != null)
         {
@@ -1269,6 +1290,49 @@ public class AdventurePauseMenu : MonoBehaviour
         _displayStatusText.alignment = TextAnchor.LowerLeft;
     }
 
+    void ToggleHudCompass()
+    {
+        AdventureExplorationHudSettings.ShowCompass = !AdventureExplorationHudSettings.ShowCompass;
+        UpdateHudToggleHighlights();
+    }
+
+    void ToggleHudPartsBoard()
+    {
+        AdventureExplorationHudSettings.ShowPartsBoard = !AdventureExplorationHudSettings.ShowPartsBoard;
+        UpdateHudToggleHighlights();
+    }
+
+    void ToggleHudOilBoard()
+    {
+        AdventureExplorationHudSettings.ShowOilBoard = !AdventureExplorationHudSettings.ShowOilBoard;
+        UpdateHudToggleHighlights();
+    }
+
+    void UpdateHudToggleHighlights()
+    {
+        Color hudOn = new Color(0.12f, 0.55f, 0.42f, 1f);
+        Color hudOff = new Color(0.22f, 0.12f, 0.12f, 0.85f);
+        if (_hudCompassBtnImg != null)
+            _hudCompassBtnImg.color = AdventureExplorationHudSettings.ShowCompass ? hudOn : hudOff;
+        if (_hudPartsBtnImg != null)
+            _hudPartsBtnImg.color = AdventureExplorationHudSettings.ShowPartsBoard ? hudOn : hudOff;
+        if (_hudOilBtnImg != null)
+            _hudOilBtnImg.color = AdventureExplorationHudSettings.ShowOilBoard ? hudOn : hudOff;
+        RefreshHudToggleLabels();
+    }
+
+    void RefreshHudToggleLabels()
+    {
+        string on = AdventureLocalizationManager.Get("opt_hud_show");
+        string off = AdventureLocalizationManager.Get("opt_hud_hide");
+        if (_hudCompassBtnText != null)
+            _hudCompassBtnText.text = $"{AdventureLocalizationManager.Get("opt_hud_compass")}: {(AdventureExplorationHudSettings.ShowCompass ? on : off)}";
+        if (_hudPartsBtnText != null)
+            _hudPartsBtnText.text = $"{AdventureLocalizationManager.Get("opt_hud_parts")}: {(AdventureExplorationHudSettings.ShowPartsBoard ? on : off)}";
+        if (_hudOilBtnText != null)
+            _hudOilBtnText.text = $"{AdventureLocalizationManager.Get("opt_hud_oil")}: {(AdventureExplorationHudSettings.ShowOilBoard ? on : off)}";
+    }
+
     void CreateDisplayRow(Transform parent, string title, float topY, float height, out Transform rowTransform, out Text titleText)
     {
         var rowGo = new GameObject(title + "_Row");
@@ -1336,13 +1400,23 @@ public class AdventurePauseMenu : MonoBehaviour
         var bg = _tabGuidePanel.AddComponent<Image>();
         bg.color = new Color(0.015f, 0.04f, 0.08f, 0.65f);
 
+        float hudRowH = 62f;
+        CreateDisplayRow(_tabGuidePanel.transform, AdventureLocalizationManager.Get("opt_hud_exploration"), -8f, hudRowH, out var hudRow, out _hudExplorationRowLabel);
+        _hudCompassBtn = CreateOptionButton(hudRow, "HudCompass", new Vector2(240f, 0f), new Vector2(200f, 38f), "", () => { }, out _hudCompassBtnImg, out _hudCompassBtnText);
+        _hudPartsBtn = CreateOptionButton(hudRow, "HudParts", new Vector2(460f, 0f), new Vector2(200f, 38f), "", () => { }, out _hudPartsBtnImg, out _hudPartsBtnText);
+        _hudOilBtn = CreateOptionButton(hudRow, "HudOil", new Vector2(680f, 0f), new Vector2(160f, 38f), "", () => { }, out _hudOilBtnImg, out _hudOilBtnText);
+        _hudGuideHintText = MakeLabel(_tabGuidePanel.transform, "HudGuideHint", new Vector2(20f, -78f), new Vector2(820f, 36f),
+            AdventureLocalizationManager.Get("opt_hud_guide_hint"), 12, new Color(1f, 0.88f, 0.45f, 0.95f));
+        _hudGuideHintText.alignment = TextAnchor.UpperLeft;
+        UpdateHudToggleHighlights();
+
         // 2カラムで操作ガイドを分かりやすく表示（多言語対応）
-        _guideLeftText = MakeLabel(_tabGuidePanel.transform, "LeftCol", new Vector2(25f, -15f), new Vector2(380f, 320f), "", 13, new Color(0.95f, 0.97f, 1f, 0.95f));
+        _guideLeftText = MakeLabel(_tabGuidePanel.transform, "LeftCol", new Vector2(25f, -118f), new Vector2(380f, 250f), "", 13, new Color(0.95f, 0.97f, 1f, 0.95f));
         _guideLeftText.lineSpacing = 1.35f;
         _guideLeftText.alignment = TextAnchor.UpperLeft;
         _guideLeftText.supportRichText = true;
 
-        _guideRightText = MakeLabel(_tabGuidePanel.transform, "RightCol", new Vector2(430f, -15f), new Vector2(380f, 320f), "", 13, new Color(0.95f, 0.97f, 1f, 0.95f));
+        _guideRightText = MakeLabel(_tabGuidePanel.transform, "RightCol", new Vector2(430f, -118f), new Vector2(380f, 250f), "", 13, new Color(0.95f, 0.97f, 1f, 0.95f));
         _guideRightText.lineSpacing = 1.35f;
         _guideRightText.alignment = TextAnchor.UpperLeft;
         _guideRightText.supportRichText = true;
@@ -1415,6 +1489,9 @@ public class AdventurePauseMenu : MonoBehaviour
         if (_qualityRowLabel != null) _qualityRowLabel.text = AdventureLocalizationManager.Get("opt_quality");
         if (_vsyncRowLabel != null) _vsyncRowLabel.text = AdventureLocalizationManager.Get("opt_vsync");
         if (_resolutionRowLabel != null) _resolutionRowLabel.text = AdventureLocalizationManager.Get("opt_resolution");
+        if (_hudExplorationRowLabel != null) _hudExplorationRowLabel.text = AdventureLocalizationManager.Get("opt_hud_exploration");
+        if (_hudGuideHintText != null) _hudGuideHintText.text = AdventureLocalizationManager.Get("opt_hud_guide_hint");
+        UpdateHudToggleHighlights();
         if (_fullscreenBtnText != null) _fullscreenBtnText.text = AdventureLocalizationManager.Get("opt_fullscreen");
         if (_windowedBtnText != null) _windowedBtnText.text = AdventureLocalizationManager.Get("opt_windowed");
         if (_qUltraBtnText != null) _qUltraBtnText.text = AdventureLocalizationManager.Get("opt_quality_ultra");
