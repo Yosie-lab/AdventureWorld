@@ -1257,16 +1257,16 @@ public partial class AdventureRustDrone : MonoBehaviour
             if (nearestScrap != null)
             {
                 targetPos = nearestScrap.transform.position;
-                targetName = nearestScrap.itemName;
-                dialogue = $"ピピッ！あっちから古代パーツ（{nearestScrap.itemName}、約{scrapDist:F0}m）の共鳴をキャッチしたよ！案内するね！";
+                targetName = nearestScrap.ItemDisplayName;
+                dialogue = AdventureLocalizationManager.GetFormat("sonar_guide_scrap", targetName, Mathf.RoundToInt(scrapDist));
                 targetColor = nearestScrap.itemColor;
                 foundTarget = true;
             }
             else if (nearestBox != null)
             {
                 targetPos = nearestBox.transform.position;
-                targetName = nearestBox.boxTitle;
-                dialogue = "ピピッ！あっちの砂浜に漂着ボックスがあるよ！行ってみよう！";
+                targetName = nearestBox.BoxDisplayName;
+                dialogue = AdventureLocalizationManager.Get("sonar_guide_box");
                 targetColor = new Color(0.35f, 1.0f, 0.65f, 1f);
                 foundTarget = true;
             }
@@ -2963,16 +2963,17 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (nearest != null && minDist < 95f)
         {
             Vector3 diff = nearest.transform.position - transform.position;
-            string dirName;
+            string rawDir;
             if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
-                dirName = diff.x > 0 ? "東（右奥）" : "西（海側）";
+                rawDir = diff.x > 0 ? "東（右奥）" : "西（海側）";
             else
-                dirName = diff.z > 0 ? "北（奥の高台）" : "南（浜辺側）";
+                rawDir = diff.z > 0 ? "北（奥の高台）" : "南（浜辺側）";
+            string dirName = AdventureLocalizationManager.Get(rawDir);
 
             if (_audio != null && _sonarBeepClip != null)
                 _audio.PlayOneShot(_sonarBeepClip, 0.7f);
 
-            SpeakCustom($"ピピッ！{dirName}の方角から、古代パーツの共鳴を感じるよ！", 5.0f);
+            SpeakCustom(AdventureLocalizationManager.GetFormat("sonar_detect_scrap", dirName), 5.0f);
         }
         else
         {
@@ -2981,17 +2982,18 @@ public partial class AdventureRustDrone : MonoBehaviour
             if (box != null && boxDist < 120f)
             {
                 Vector3 diff = box.transform.position - transform.position;
-                string dirName;
+                string rawDir;
                 if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
-                    dirName = diff.x > 0 ? "東（右奥）" : "西（海側）";
+                    rawDir = diff.x > 0 ? "東（右奥）" : "西（海側）";
                 else
-                    dirName = diff.z > 0 ? "北（奥の高台）" : "南（浜辺側）";
+                    rawDir = diff.z > 0 ? "北（奥の高台）" : "南（浜辺側）";
+                string dirName = AdventureLocalizationManager.Get(rawDir);
 
                 if (_audio != null && _sonarBeepClip != null)
                     _audio.PlayOneShot(_sonarBeepClip, 0.7f);
 
-                string boxLabel = string.IsNullOrEmpty(box.BoxDisplayName) ? "漂着ボックス" : box.BoxDisplayName;
-                SpeakCustom($"ピピッ！{dirName}の砂浜に『{boxLabel}』が漂着しているよ！", 5.0f);
+                string boxLabel = string.IsNullOrEmpty(box.BoxDisplayName) ? "漂着サバイバルケース" : box.BoxDisplayName;
+                SpeakCustom(AdventureLocalizationManager.GetFormat("sonar_detect_box", dirName, boxLabel), 5.0f);
             }
         }
     }

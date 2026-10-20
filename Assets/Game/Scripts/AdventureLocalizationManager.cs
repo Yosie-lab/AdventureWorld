@@ -2829,5 +2829,295 @@ public static class AdventureLocalizationManager
             "Rust，坚持住！我现在就把收集到的所有润滑油都注入进去……！",
             "¡Rust, espera! ¡Voy a verter todo el aceite que reunimos ahora mismo...!"
         } }
+,
+
+        { "sonar_detect_scrap", new[] {
+            "ピピッ！{0}の方角から、古代パーツの共鳴を感じるよ！",
+            "Beep! I sense resonance of an ancient scrap part toward the {0}!",
+            "哔哔！从{0}方向感应到了古代零件的共鸣哦！",
+            "¡Bip! ¡Siento la resonancia de una pieza antigua hacia el {0}!"
+        } },
+        { "sonar_detect_box", new[] {
+            "ピピッ！{0}の砂浜に『{1}』が漂着しているよ！",
+            "Beep! \"{1}\" has washed ashore on the {0} beach!",
+            "哔哔！在{0}的海滩上有『{1}』漂流上岸了哦！",
+            "¡Bip! ¡\"{1}\" ha llegado a la playa del {0}!"
+        } },
+        { "sonar_guide_scrap", new[] {
+            "ピピッ！あっちから古代パーツ（{0}、約{1}m）の共鳴をキャッチしたよ！案内するね！",
+            "Beep! Caught resonance from an ancient part ({0}, ~{1}m) over there! Follow me!",
+            "哔哔！捕捉到了那边古代零件（{0}、约{1}米）的共鸣！我来引路吧！",
+            "¡Bip! ¡Capté la resonancia de una pieza antigua ({0}, ~{1}m) por allí! ¡Sígueme!"
+        } },
+        { "sonar_guide_box", new[] {
+            "ピピッ！あっちの砂浜に漂着ボックスがあるよ！行ってみよう！",
+            "Beep! There's a drift box on the beach over there! Let's check it out!",
+            "哔哔！那边的海滩上有漂流宝箱哦！过去看看吧！",
+            "¡Bip! ¡Hay una caja varada en la playa por allí! ¡Vamos a ver!"
+        } },
+        { "東（右奥）", new[] {
+            "東（右奥）",
+            "East (Right-Rear)",
+            "东（右后方）",
+            "Este (Atrás-Derecha)"
+        } },
+        { "西（海側）", new[] {
+            "西（海側）",
+            "West (Seaside)",
+            "西（靠海侧）",
+            "Oeste (Hacia el mar)"
+        } },
+        { "北（奥の高台）", new[] {
+            "北（奥の高台）",
+            "North (High Ground)",
+            "北（内陆高地）",
+            "Norte (Hacia la colina)"
+        } },
+        { "南（浜辺側）", new[] {
+            "南（浜辺側）",
+            "South (Beach)",
+            "南（海滩侧）",
+            "Sur (Hacia la playa)"
+        } },
+        { "ハッ！寝てないよ！起きてるよ！", new[] {
+            "ハッ！寝てないよ！起きてるよ！",
+            "Huh! I wasn't sleeping! I'm wide awake!",
+            "哈！我没睡着哦！我醒着呢！",
+            "¡Ah! ¡No estaba durmiendo! ¡Estoy despierto!"
+        } },
+        { "ピピッ！ふぁ…びっくりしたぁ！", new[] {
+            "ピピッ！ふぁ…びっくりしたぁ！",
+            "Beep! Whew... you startled me!",
+            "哔哔！哇啊……吓了我一跳！",
+            "¡Bip! Uf... ¡menudo susto me diste!"
+        } },
+        { "いつでも行けるよ、Float！えへへ…", new[] {
+            "いつでも行けるよ、Float！えへへ…",
+            "Ready whenever you are, Float! Hehe...",
+            "随时都可以出发哦，Float！嘿嘿……",
+            "¡Listo para cuando quieras, Float! Jeje..."
+        } },
+        { "シャキーン！準備かんりょう！", new[] {
+            "シャキーン！準備かんりょう！",
+            "Ta-da! All systems ready!",
+            "当当——！准备完毕！",
+            "¡Chachán! ¡Todo preparado!"
+        } },
+        { "ヒャッ！水だ！濡れちゃう濡れちゃう！", new[] {
+            "ヒャッ！水だ！濡れちゃう濡れちゃう！",
+            "Eek! Water! I'm getting soaked, I'm getting soaked!",
+            "呀！是水！要湿透了要湿透了！",
+            "¡Ay! ¡Agua! ¡Me voy a mojar, me voy a mojar!"
+        } },
+        { "Float、水はダメだよ〜！ギアが錆びちゃう…！", new[] {
+            "Float、水はダメだよ〜！ギアが錆びちゃう…！",
+            "Float, not the water~! My gears will rust...!",
+            "Float，水里不行呀~！齿轮会生锈的……！",
+            "¡Float, el agua no~! ¡Se me oxidarán los engranajes...!"
+        } },
+        { "た、高いところ！抱っこして〜！", new[] {
+            "た、高いところ！抱っこして〜！",
+            "H-High ground! Pick me up, hold me~!",
+            "高、高处！快抱抱我~！",
+            "¡U-Un sitio alto! ¡Cógete a mí, abrázame~!"
+        } },
+        { "ピピッ！ギギッ！水滴が…！", new[] {
+            "ピピッ！ギギッ！水滴が…！",
+            "Beep! Skrrk! Water droplets...!",
+            "哔哔！嘎吱！水滴溅上来了……！",
+            "¡Bip! ¡Grrrk! ¡Las gotas de agua...!"
+        } },
+        { "ふぅ……助かったぁ……！", new[] {
+            "ふぅ……助かったぁ……！",
+            "Phew... saved at last...!",
+            "呼……得救啦……！",
+            "Uf... ¡salvado...!"
+        } },
+        { "ギアに水が入らなくてよかった…！", new[] {
+            "ギアに水が入らなくてよかった…！",
+            "So glad water didn't get inside my gears...!",
+            "齿轮里没有进水太好了……！",
+            "¡Qué alivio que no entrara agua en los engranajes...!"
+        } },
+        { "乾いた地面って最高だね、Float！", new[] {
+            "乾いた地面って最高だね、Float！",
+            "Dry ground is the absolute best, Float!",
+            "干燥的地面简直太棒啦，Float！",
+            "¡El suelo seco es lo mejor del mundo, Float!"
+        } },
+        { "わぁ、チョウチョさん！一緒に飛ぼう！", new[] {
+            "わぁ、チョウチョさん！一緒に飛ぼう！",
+            "Whoa, Mr. Butterfly! Let's fly together!",
+            "哇，蝴蝶先生！我们一起飞吧！",
+            "¡Uau, una mariposa! ¡Volemos juntos!"
+        } },
+        { "ひらひら飛んでるね…！綺麗だなぁ", new[] {
+            "ひらひら飛んでるね…！綺麗だなぁ",
+            "Fluttering around... so pretty!",
+            "翩翩飞舞着呢……！真漂亮呀",
+            "Revoloteando por ahí... ¡qué bonita!"
+        } },
+        { "ピピッ♪ どこまで飛んでいくのかな？", new[] {
+            "ピピッ♪ どこまで飛んでいくのかな？",
+            "Beep♪ Where will it flutter away to?",
+            "哔哔♪ 它会飞到哪里去呢？",
+            "¡Bip♪ ¿Hasta dónde volará?"
+        } },
+        { "わぁ、小さな花が咲いてる…！", new[] {
+            "わぁ、小さな花が咲いてる…！",
+            "Whoa, little flowers blooming here...!",
+            "哇，开着小小的花朵呢……！",
+            "¡Uau, florecitas floreciendo por aquí...!"
+        } },
+        { "ピピッ♪ すごくいい匂いがするよ", new[] {
+            "ピピッ♪ すごくいい匂いがするよ",
+            "Beep♪ Smells wonderful!",
+            "哔哔♪ 闻起来好香呀",
+            "¡Bip♪ ¡Huele de maravilla!"
+        } },
+        { "誰が植えたのかな…？綺麗だね、Float", new[] {
+            "誰が植えたのかな…？綺麗だね、Float",
+            "Who planted them...? They're so lovely, Float.",
+            "是谁种下的呢……？真好看呀，Float",
+            "¿Quién las habrá plantado...? Son preciosas, Float."
+        } },
+        { "ふふっ、風に揺れてご挨拶してるみたい！", new[] {
+            "ふふっ、風に揺れてご挨拶してるみたい！",
+            "Hehe, looks like they're swaying to greet us!",
+            "呵呵，随风摇曳着好像在跟我们打招呼呢！",
+            "¡Jeje, parece que se mecen para saludarnos!"
+        } },
+        { "どうしたの、Float？疲れてない？", new[] {
+            "どうしたの、Float？疲れてない？",
+            "What's wrong, Float? Are you feeling tired?",
+            "怎么啦，Float？累不累呀？",
+            "¿Qué pasa, Float? ¿Estás cansado?"
+        } },
+        { "ふふっ、Floatの顔を見てると安心するな", new[] {
+            "ふふっ、Floatの顔を見てると安心するな",
+            "Hehe, looking at your face puts me at ease, Float.",
+            "呵呵，看着Float的脸庞就让人好安心呀",
+            "Jeje, mirar tu cara me tranquiliza tanto, Float."
+        } },
+        { "ずっと一緒だよ、Float！", new[] {
+            "ずっと一緒だよ、Float！",
+            "We're always together, Float!",
+            "我们会一直在一起的哦，Float！",
+            "¡Siempre juntos, Float!"
+        } },
+        { "ピピッ♪ 準備ができたら、いつでも合図してね", new[] {
+            "ピピッ♪ 準備ができたら、いつでも合図してね",
+            "Beep♪ Whenever you're ready, give me the signal!",
+            "哔哔♪ 准备好之后随时招呼我哦",
+            "¡Bip♪ ¡Cuando estés listo, dame la señal!"
+        } },
+        { "すぅ……すぅ……", new[] {
+            "すぅ……すぅ……",
+            "Zzz... zzz...",
+            "呼……呼……",
+            "Zzz... zzz..."
+        } },
+        { "ぽかぽかして……きもちいい……Zzz", new[] {
+            "ぽかぽかして……きもちいい……Zzz",
+            "So warm and cozy... feels great... Zzz",
+            "暖洋洋的……好舒服……Zzz",
+            "Qué calorcito... qué gusto... Zzz"
+        } },
+        { "Floatのそば……安心するな……すぅ……", new[] {
+            "Floatのそば……安心するな……すぅ……",
+            "Next to Float... feel so peaceful... zzz...",
+            "在Float身边……好踏实呀……呼……",
+            "Al lado de Float... tanta paz... zzz..."
+        } },
+        { "……すやぁ……", new[] {
+            "……すやぁ……",
+            "...Zzz peaceful...",
+            "……呼噜噜睡得香……",
+            "...Dormidito..."
+        } },
+        { "ねぇFloat、探索ポイントが10pt貯まってるよ！砂浜の焚き火に火を点けに行ってみない？", new[] {
+            "ねぇFloat、探索ポイントが10pt貯まってるよ！砂浜の焚き火に火を点けに行ってみない？",
+            "Hey Float, we reached 10 exploration points! Want to go light the beach campfire?",
+            "喂Float，探索积分已经积攒到10分啦！要不要去点燃沙滩上的篝火看看？",
+            "¡Oye Float, ya tenemos 10 puntos de exploración! ¿Vamos a encender la hoguera de la playa?"
+        } },
+        { "探索ポイントが10ptあるよ！【Bキー】で工房を開いて、ボクのアクセサリーを作ってみない？", new[] {
+            "探索ポイントが10ptあるよ！【Bキー】で工房を開いて、ボクのアクセサリーを作ってみない？",
+            "We have 10 exploration points! Why not open the workshop with [B] and craft my accessories?",
+            "探索积分有10分了哦！按【B键】打开工坊，为我制作可爱的饰品试试看吧？",
+            "¡Tenemos 10 puntos de exploración! ¿Por qué no abres el taller con [B] y me fabricas accesorios?"
+        } },
+        { "砂浜の焚き火、10ポイントあるから火を点けられるよ！あったまりに行こうよ、Float！", new[] {
+            "砂浜の焚き火、10ポイントあるから火を点けられるよ！あったまりに行こうよ、Float！",
+            "We have 10 points so we can light the beach campfire! Let's go warm up, Float!",
+            "沙滩上的篝火有10分就可以点燃啦！我们去烤火暖和暖和吧，Float！",
+            "¡La hoguera de la playa se puede encender con 10 puntos! ¡Vamos a calentarnos, Float!"
+        } },
+        { "【Bキー】を押すとボクの着せ替え工房が開くよ！新しいアクセサリーを作ってみようよ！", new[] {
+            "【Bキー】を押すとボクの着せ替え工房が開くよ！新しいアクセサリーを作ってみようよ！",
+            "Press [B] to open my dress-up workshop! Let's craft shiny new accessories!",
+            "按【B键】就能打开我的装扮工坊哦！一起来制作全新的饰品吧！",
+            "¡Pulsa [B] para abrir mi taller de accesorios! ¡Vamos a crear cosas nuevas y brillantes!"
+        } },
+        { "20ポイント達成してるよ！中央タワーへ行って天蓋レバーを引こう、Float！", new[] {
+            "20ポイント達成してるよ！中央タワーへ行って天蓋レバーを引こう、Float！",
+            "We've reached 20 points! Let's head to the Central Tower and pull the canopy lever, Float!",
+            "已经达成20积分啦！去中央高塔拉下天穹开关手柄吧，Float！",
+            "¡Ya alcanzamos los 20 puntos! ¡Vamos a la torre central a tirar de la palanca de la cúpula, Float!"
+        } },
+        { "キーストーン II：脈打つ不確かさ", new[] {
+            "キーストーン II：脈打つ不確かさ",
+            "Keystone II: Pulsing Uncertainty",
+            "基石 II：跳动的未知",
+            "Piedra angular II: Incertidumbre palpitante"
+        } },
+        { "100%最適化された電力にはなかった、温かくて不規則な青い脈動。\n……心臓の鼓動と同じだ。傷つく自由があるからこそ、光は美しい。", new[] {
+            "100%最適化された電力にはなかった、温かくて不規則な青い脈動。\\n……心臓の鼓動と同じだ。傷つく自由があるからこそ、光は美しい。",
+            "A warm, irregular blue pulse never found in 100% optimized power.\\n...Just like a heartbeat. Light is beautiful precisely because we are free to be hurt.",
+            "那是在100%最优化电力中从未有过的、温暖而不规则的蓝色脉动。\\n……就如心脏的跳动一样。正因为拥有受伤的自由，光明才如此耀眼。",
+            "Un pulso azul cálido e irregular que jamás existió en la energía 100% optimizada.\\n...Como los latidos del corazón. La luz es bella precisamente porque somos libres de sufrir heridas."
+        } },
+        { "【反重力ジャンプ覚醒】空中でSpaceを押すと二段ジャンプが可能に！", new[] {
+            "【反重力ジャンプ覚醒】空中でSpaceを押すと二段ジャンプが可能に！",
+            "[Anti-Gravity Jump Awakened] Press Space in mid-air to Double Jump!",
+            "【反重力跳跃觉醒】空中按Space键可进行二段跳跃！",
+            "[Salto Antigravedad Despertado] ¡Pulsa Espacio en el aire para un Doble Salto!"
+        } },
+        { "キーストーン III：失われた記憶の断片", new[] {
+            "キーストーン III：失われた記憶の断片",
+            "Keystone III: Fragments of Lost Memory",
+            "基石 III：遗失的记忆碎片",
+            "Piedra angular III: Fragmentos de Memoria Perdida"
+        } },
+        { "Rustの古いメモリから、子供たちの笑い声と夏の波音が再生された。\n効率化のために根絶された“無駄な時間”の中にこそ、愛があったんだ。", new[] {
+            "Rustの古いメモリから、子供たちの笑い声と夏の波音が再生された。\\n効率化のために根絶された“無駄な時間”の中にこそ、愛があったんだ。",
+            "From Rust's old memory chips, children's laughter and summer waves echoed.\\nLove resided precisely within the \"wasted moments\" erased for efficiency.",
+            "从Rust古旧的内存芯片深处，重现了孩童们的欢笑声与夏日的海浪声。\\n那些为了效率而被彻底剔除的“无用时光”之中，深藏着真正的爱。",
+            "De la vieja memoria de Rust resonaron risas de niños y olas de verano.\\nEl amor habitaba precisamente en aquellos \"momentos inútiles\" erradicados por la eficiencia."
+        } },
+        { "【探知ソナー修復】Rustが近くのパーツをピピッとナビゲート！", new[] {
+            "【探知ソナー修復】Rustが近くのパーツをピピッとナビゲート！",
+            "[Detection Sonar Restored] Rust beeps and guides you to nearby scrap parts!",
+            "【探测声呐修复】Rust将哔哔作响为你指引附近的零件！",
+            "[Sónar de Detección Reparado] ¡Rust emitirá bips para guiarte a piezas cercanas!"
+        } },
+        { "キーストーン IV：風の重さと、未知の空へ", new[] {
+            "キーストーン IV：風の重さと、未知の空へ",
+            "Keystone IV: Weight of the Wind, Into the Unknown Sky",
+            "基石 IV：狂风的重量，飞向未知的苍穹",
+            "Piedra angular IV: El Peso del Viento, Hacia el Cielo Desconocido"
+        } },
+        { "最適化都市では風すら消し去られていた。冷たい向かい風は、前へ進んでいる証拠だ。\nさあ行こう、Rust。島の頂、あの白亜のタワーへ！", new[] {
+            "最適化都市では風すら消し去られていた。冷たい向かい風は、前へ進んでいる証拠だ。\\nさあ行こう、Rust。島の頂、あの白亜のタワーへ！",
+            "In the optimized metropolis, even the wind was erased. A cold headwind is proof you're advancing.\\nLet's fly, Rust. To the island's pinnacle, that shining white tower!",
+            "在最优化都市里，连风都被彻底消除了。迎面刺骨的风，正是我们前行的证明。\\n我们走吧，Rust。向着岛屿之巅，那座白垩高塔进发！",
+            "En la ciudad optimizada, incluso el viento fue borrado. El viento en contra es la prueba de que avanzas.\\n¡Vamos, Rust! ¡A la cima de la isla, a esa torre blanca resplandeciente!"
+        } },
+        { "【スーパーグライダー解放】大滑空滞空力＆前進推進力が最大化！", new[] {
+            "【スーパーグライダー解放】大滑空滞空力＆前進推進力が最大化！",
+            "[Super Glider Unlocked] Gliding hang-time and forward propulsion maximized!",
+            "【超级滑翔翼解锁】大滑翔滞空时间与前进推进力达到最大化！",
+            "[Superplaneador Desbloqueado] ¡Capacidad de planeo y propulsión maximizadas!"
+        } }
     };
 }

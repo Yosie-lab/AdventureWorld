@@ -443,9 +443,32 @@ public class AdventureScrapHUD : MonoBehaviour
 
         if (_bannerText != null)
         {
-            _bannerText.text = $"<size=26><color=#FFE066><b>✦ {title} ✦</b></color></size>\n" +
-                               $"<size=20><color=#F0F4F8>「{loreQuote}」</color></size>\n" +
-                               $"<size=22><color=#5CE1E6><b>▶ {unlockEffect}</b></color></size>";
+            Font f = ResolveFont();
+            if (f != null) _bannerText.font = f;
+
+            string locTitle = AdventureLocalizationManager.Get(title);
+            if (string.IsNullOrEmpty(locTitle)) locTitle = title;
+            string locQuote = AdventureLocalizationManager.Get(loreQuote);
+            if (string.IsNullOrEmpty(locQuote)) locQuote = loreQuote;
+            string locEffect = AdventureLocalizationManager.Get(unlockEffect);
+            if (string.IsNullOrEmpty(locEffect)) locEffect = unlockEffect;
+
+            string quoteL = AdventureLocalizationManager.CurrentLanguage switch
+            {
+                AdventureLocalizationManager.GameLanguage.English => "\"",
+                AdventureLocalizationManager.GameLanguage.Spanish => "«",
+                _ => "「"
+            };
+            string quoteR = AdventureLocalizationManager.CurrentLanguage switch
+            {
+                AdventureLocalizationManager.GameLanguage.English => "\"",
+                AdventureLocalizationManager.GameLanguage.Spanish => "»",
+                _ => "」"
+            };
+
+            _bannerText.text = $"<size=26><color=#FFE066><b>✦ {locTitle} ✦</b></color></size>\n" +
+                               $"<size=20><color=#F0F4F8>{quoteL}{locQuote}{quoteR}</color></size>\n" +
+                               $"<size=22><color=#5CE1E6><b>▶ {locEffect}</b></color></size>";
             _bannerTimer = 11.0f; // 映画のようにじっくり味わえる11秒間表示
         }
         RefreshQuestDisplay();

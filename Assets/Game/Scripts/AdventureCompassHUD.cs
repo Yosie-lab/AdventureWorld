@@ -839,7 +839,7 @@ public class AdventureCompassHUD : MonoBehaviour
                     }
                     else if (hasBoxTarget && boxDist > 3.5f)
                     {
-                        string boxShortName = nearestBox.boxTitle.Replace("漂着", "");
+                        string boxShortName = nearestBox.BoxDisplayName.Replace("漂着", "");
                         string distLabel = AdventureLocalizationManager.CurrentLanguage == AdventureLocalizationManager.GameLanguage.English ? "~" : "約";
                         _scrapNavText.text = $"✦ {targetName} {distLabel}{Mathf.RoundToInt(dist)}m({targetCardinal}) [{arrow}]   |   📦 {boxShortName} {distLabel}{Mathf.RoundToInt(boxDist)}m({boxCardinal}) [{boxArrow}]";
                     }
@@ -894,12 +894,12 @@ public class AdventureCompassHUD : MonoBehaviour
                 else if (hasBoxTarget && boxDist > 3.5f)
                 {
                     // パーツ全回収済み、またはボックス優先表示
-                    _scrapNavText.text = FormatNavFar(nearestBox.boxTitle, Mathf.RoundToInt(boxDist), boxCardinal, boxArrow, "Q");
+                    _scrapNavText.text = FormatNavFar(nearestBox.BoxDisplayName, Mathf.RoundToInt(boxDist), boxCardinal, boxArrow, "Q");
                     _scrapNavText.color = new Color(0.35f, 1.0f, 0.65f, 1.0f);
                 }
                 else if (hasBoxTarget && boxDist <= 3.5f)
                 {
-                    _scrapNavText.text = FormatNavNear(nearestBox.boxTitle, "E");
+                    _scrapNavText.text = FormatNavNear(nearestBox.BoxDisplayName, "E");
                     _scrapNavText.color = new Color(0.35f, 1.0f, 0.65f, 1.0f);
                 }
                 else

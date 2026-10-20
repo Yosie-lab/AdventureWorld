@@ -9,6 +9,14 @@ public class AdventureScrapItem : MonoBehaviour
     // ── 基本設定 ──
     public int itemId;
     public string itemName = "古代のギア";
+    public string ItemDisplayName
+    {
+        get
+        {
+            string loc = AdventureLocalizationManager.Get(itemName);
+            return (!string.IsNullOrEmpty(loc) && loc != itemName) ? loc : itemName;
+        }
+    }
     public Color itemColor = new Color(1.0f, 0.78f, 0.28f); // 黄金に輝くギア
 
     // ── パラメータ定数 ──
