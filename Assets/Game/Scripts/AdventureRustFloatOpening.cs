@@ -41,15 +41,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         "……隣には、スクラップ寸前で連れ出した相棒ドローン、Rust。\n" +
         "島を巡って翼を直し、あの自由な蒼穹（そら）へ飛び立とう。";
 
-    const string PreStartCaptureAssetPath = "Assets/RustAndFloat/Textures/CurrentSceneCapture.png";
-    const string PreStartCaptureResourcesPath = "CurrentSceneCapture";
-
     GameObject _canvasGo;
     GameObject _overlayGo;
-    GameObject _preStartImageRoot;
-    RawImage _preStartImage;
-    RawImage _leftStoryImage;
-    Texture2D _preStartTexture;
     GameObject _modalBoard;
     CanvasGroup _modalCg;
     Text _guideText;
@@ -111,7 +104,6 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_overlayGo != null) _overlayGo.SetActive(false);
         if (_modalBoard != null) _modalBoard.SetActive(false);
         if (_modalCg != null) _modalCg.alpha = 0f;
-        SetPreStartImageVisible(false);
         if (_guideText != null) _guideText.gameObject.SetActive(true);
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -141,7 +133,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
             BuildHud();
 
         if (_overlayGo != null) _overlayGo.SetActive(true);
-        SetPreStartImageVisible(true);
+        EnsureTitleStoryTextVisible();
         if (_modalBoard != null)
         {
             _modalBoard.SetActive(true);
@@ -198,6 +190,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_subTitleText != null) _subTitleText.text = AdventureLocalizationManager.Get("title_subtitle");
         if (_storyHeaderText != null) _storyHeaderText.text = "📜 " + AdventureLocalizationManager.Get("title_story_head");
         if (_storyBodyText != null) _storyBodyText.text = AdventureLocalizationManager.Get("title_story_body");
+        EnsureTitleStoryTextVisible();
         if (_menuHeaderText != null)
         {
             _menuHeaderText.text = AdventureLocalizationManager.CurrentLanguage switch
@@ -296,7 +289,6 @@ public class AdventureRustFloatOpening : MonoBehaviour
         {
             if (_overlayGo != null) _overlayGo.SetActive(false);
             if (_modalBoard != null) _modalBoard.SetActive(false);
-            SetPreStartImageVisible(false);
             IsGameStarted = true;
             if (_guideText != null) _guideText.gameObject.SetActive(true);
             Cursor.lockState = CursorLockMode.Locked;
@@ -312,6 +304,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
             AdventureRustWorkshopUI.Instance.SetVisible(false);
         Time.timeScale = 1f;
         RestoreTitleUiInput();
+
+        EnsureTitleStoryTextVisible();
 
         // スタート前はマウスカーソルを表示・アンロック
         Cursor.lockState = CursorLockMode.None;
@@ -618,8 +612,6 @@ public class AdventureRustFloatOpening : MonoBehaviour
             _modalBoard.SetActive(false);
         if (_modalCg != null)
             _modalCg.alpha = 0f;
-        SetPreStartImageVisible(false);
-
         IsGameStarted = true;
         _isClosing = false;
         _inputGuardUntil = Mathf.Max(_inputGuardUntil, Time.unscaledTime + 0.40f);
@@ -681,7 +673,16 @@ public class AdventureRustFloatOpening : MonoBehaviour
     void BuildHud()
     {
         if (_canvasGo != null)
-            return;
+        {
+            Destroy(_canvasGo);
+            _canvasGo = null;
+            _overlayGo = null;
+            _modalBoard = null;
+            _modalCg = null;
+            _guideText = null;
+            _storyHeaderText = null;
+            _storyBodyText = null;
+        }
 
         // 孤児化した旧HUDがあれば掃除
         foreach (var orphanCanvas in FindObjectsByType<Canvas>(FindObjectsInactive.Include))
@@ -705,8 +706,6 @@ public class AdventureRustFloatOpening : MonoBehaviour
         _canvasGo.AddComponent<GraphicRaycaster>();
 
         Font font = ResolveFont();
-
-        CreatePreStartBackground();
 
         // 1. 画面最上部中央の水平リボンコンパスHUD
         AdventureCompassHUD.Create(_canvasGo.transform, font);
@@ -735,9 +734,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         overlayRt.anchorMax = Vector2.one;
         overlayRt.sizeDelta = Vector2.zero;
         var overlayImg = _overlayGo.AddComponent<Image>();
-        overlayImg.color = _preStartTexture != null
-            ? new Color(0.02f, 0.05f, 0.09f, 0.18f)
-            : new Color(0.02f, 0.05f, 0.09f, 0.45f);
+        overlayImg.color = new Color(0.02f, 0.05f, 0.09f, 0.38f);
         overlayImg.raycastTarget = false;
 
         // 4. メインタイトルボード（洗練されたグラスモーフィズムカード: 幅860, 高さ540）
@@ -828,19 +825,30 @@ public class AdventureRustFloatOpening : MonoBehaviour
         cRt.offsetMax = Vector2.zero;
 
         var cBg = cardGo.AddComponent<Image>();
-        cBg.color = new Color(0.015f, 0.04f, 0.08f, 0.55f);
+        cBg.color = new Color(0.015f, 0.04f, 0.08f, 0.92f);
         cBg.raycastTarget = false;
 
         var cOutline = cardGo.AddComponent<Outline>();
         cOutline.effectColor = new Color(0.20f, 0.50f, 0.75f, 0.35f);
         cOutline.effectDistance = new Vector2(1f, -1f);
 
-        _storyHeaderText = MakeText(cardGo.transform, "StoryHeader", new Vector2(18f, -16f), new Vector2(0f, 1f), new Vector2(360f, 24f), 14, TextAnchor.UpperLeft, font);
+        var textPanelGo = new GameObject("StoryTextPanel");
+        textPanelGo.transform.SetParent(cardGo.transform, false);
+        var textPanelRt = textPanelGo.AddComponent<RectTransform>();
+        textPanelRt.anchorMin = Vector2.zero;
+        textPanelRt.anchorMax = Vector2.one;
+        textPanelRt.offsetMin = new Vector2(8f, 8f);
+        textPanelRt.offsetMax = new Vector2(-8f, -8f);
+        var textPanelBg = textPanelGo.AddComponent<Image>();
+        textPanelBg.color = new Color(0.01f, 0.03f, 0.06f, 0.97f);
+        textPanelBg.raycastTarget = false;
+
+        _storyHeaderText = MakeText(textPanelGo.transform, "StoryHeader", new Vector2(10f, -8f), new Vector2(0f, 1f), new Vector2(360f, 24f), 14, TextAnchor.UpperLeft, font);
         _storyHeaderText.fontStyle = FontStyle.Bold;
         _storyHeaderText.color = new Color(0.40f, 0.88f, 1.0f, 1f);
         _storyHeaderText.text = "📜 時代背景と物語";
 
-        _storyBodyText = MakeText(cardGo.transform, "StoryBody", new Vector2(18f, -48f), new Vector2(0f, 1f), new Vector2(350f, 320f), 13, TextAnchor.UpperLeft, font);
+        _storyBodyText = MakeText(textPanelGo.transform, "StoryBody", new Vector2(10f, -40f), new Vector2(0f, 1f), new Vector2(350f, 320f), 13, TextAnchor.UpperLeft, font);
         _storyBodyText.fontStyle = FontStyle.Bold;
         _storyBodyText.lineSpacing = 1.35f;
         _storyBodyText.color = new Color(0.95f, 0.97f, 1.0f, 0.95f);
@@ -848,70 +856,33 @@ public class AdventureRustFloatOpening : MonoBehaviour
         bodyOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
         bodyOutline.effectDistance = new Vector2(1f, -1f);
         _storyBodyText.text = StoryText;
-
-        if (_preStartTexture != null)
-        {
-            var imgGo = new GameObject("PreStartPreview");
-            imgGo.transform.SetParent(cardGo.transform, false);
-            var imgRt = imgGo.AddComponent<RectTransform>();
-            imgRt.anchorMin = Vector2.zero;
-            imgRt.anchorMax = Vector2.one;
-            imgRt.offsetMin = new Vector2(10f, 10f);
-            imgRt.offsetMax = new Vector2(-10f, -36f);
-
-            _leftStoryImage = imgGo.AddComponent<RawImage>();
-            _leftStoryImage.texture = _preStartTexture;
-            _leftStoryImage.raycastTarget = false;
-            _leftStoryImage.color = Color.white;
-
-            var fitter = imgGo.AddComponent<AspectRatioFitter>();
-            fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            fitter.aspectRatio = (float)_preStartTexture.width / Mathf.Max(1, _preStartTexture.height);
-
-            _storyBodyText.gameObject.SetActive(false);
-        }
     }
 
-    void CreatePreStartBackground()
+    /// <summary>左カードは常に物語テキスト。旧 PreStartPreview / 全画面キャプチャを除去。</summary>
+    void EnsureTitleStoryTextVisible()
     {
-        _preStartTexture = LoadPreStartCaptureTexture();
-        if (_preStartTexture == null)
+        if (_storyHeaderText != null)
+            _storyHeaderText.gameObject.SetActive(true);
+        if (_storyBodyText != null)
+            _storyBodyText.gameObject.SetActive(true);
+
+        if (_canvasGo == null)
             return;
 
-        _preStartImageRoot = new GameObject("PreStartCaptureBackground");
-        _preStartImageRoot.transform.SetParent(_canvasGo.transform, false);
-        _preStartImageRoot.transform.SetAsFirstSibling();
+        var legacyBg = _canvasGo.transform.Find("PreStartCaptureBackground");
+        if (legacyBg != null)
+            Destroy(legacyBg.gameObject);
 
-        var rt = _preStartImageRoot.AddComponent<RectTransform>();
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
+        if (_modalBoard == null)
+            return;
 
-        _preStartImage = _preStartImageRoot.AddComponent<RawImage>();
-        _preStartImage.texture = _preStartTexture;
-        _preStartImage.raycastTarget = false;
-        _preStartImage.color = Color.white;
+        var left = _modalBoard.transform.Find("ContentColumns/LeftStoryCard");
+        if (left == null)
+            return;
 
-        var fitter = _preStartImageRoot.AddComponent<AspectRatioFitter>();
-        fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
-        fitter.aspectRatio = (float)_preStartTexture.width / Mathf.Max(1, _preStartTexture.height);
-    }
-
-    void SetPreStartImageVisible(bool visible)
-    {
-        if (_preStartImageRoot != null)
-            _preStartImageRoot.SetActive(visible);
-    }
-
-    static Texture2D LoadPreStartCaptureTexture()
-    {
-#if UNITY_EDITOR
-        var editorTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(PreStartCaptureAssetPath);
-        if (editorTex != null)
-            return editorTex;
-#endif
-        return Resources.Load<Texture2D>(PreStartCaptureResourcesPath);
+        var legacyPreview = left.Find("PreStartPreview");
+        if (legacyPreview != null)
+            Destroy(legacyPreview.gameObject);
     }
 
     void CreateRightMenuCard(Transform parent, Font font)

@@ -21,12 +21,12 @@ public class AdventureScrapItem : MonoBehaviour
 
     // ── パラメータ定数 ──
     const float SpawnGuardDuration = 0.6f;     // スポーン直後の誤取得ガード時間（秒）
-    const float CollectDirectDist = 0.95f;     // 即時取得判定距離（3D球状）
-    const float CollectHorizontalDist = 0.85f; // 即時取得の水平距離
-    const float CollectVerticalDiff = 1.3f;    // 即時取得の許容高低差
-    const float MagnetStartDist = 2.8f;        // マグネット吸い寄せ開始距離
-    const float MagnetSpeed = 6.5f;            // 吸い寄せ移動速度
-    const float InteractCollectDist = 2.5f;    // Eキー（インタラクト）取得許容距離
+    const float CollectDirectDist = 1.15f;     // 即時取得判定距離（3D球状）
+    const float CollectHorizontalDist = 1.05f; // 即時取得の水平距離
+    const float CollectVerticalDiff = 2.0f;    // 即時取得の許容高低差
+    const float MagnetStartDist = 4.2f;        // マグネット吸い寄せ開始距離
+    const float MagnetSpeed = 8.5f;            // 吸い寄せ移動速度
+    const float InteractCollectDist = 3.6f;    // E / クリック取得許容距離
     const float DestroyDelayAfterCollect = 0.8f; // 回収演出後のオブジェクト破棄遅延
 
     // ── 内部状態 ──
@@ -323,13 +323,15 @@ public class AdventureScrapItem : MonoBehaviour
             }
 
             // 2. ふわっと近づくマグネット吸い寄せ
-            if (dist < MagnetStartDist || (horizontalDist < 2.4f && verticalDiff < 2.0f))
+            if (dist < MagnetStartDist || (horizontalDist < 3.6f && verticalDiff < 2.6f))
             {
                 transform.position = Vector3.MoveTowards(transform.position, playerPos, Time.deltaTime * MagnetSpeed);
             }
 
-            // 3. インタラクトキーによる取得
-            if (_cachedPlayer.InteractPressed && dist < InteractCollectDist)
+            // 3. E / 左クリックによる取得（1フレーム入力＋近距離）
+            bool interactCollect = (_cachedPlayer.InteractPressed || AdventureInputReader.InteractDown)
+                && dist < InteractCollectDist;
+            if (interactCollect)
             {
                 Collect();
                 return;

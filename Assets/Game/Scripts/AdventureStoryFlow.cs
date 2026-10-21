@@ -221,8 +221,20 @@ public static class AdventureStoryFlow
         }
     }
 
-    /// <summary>【E】Inspect・会話案内・工房近接など近接プロンプト板を出さない（キー操作は有効）。</summary>
-    public static bool HideWorldInteractPrompts => true;
+    /// <summary>映画モード中だけ近接プロンプトを消す（探索中は【E】案内を表示）。</summary>
+    public static bool HideWorldInteractPrompts
+    {
+        get
+        {
+            var p = Current;
+            return p == Phase.Opening
+                || p == Phase.Prologue
+                || p == Phase.Skybreak
+                || p == Phase.Climax
+                || p == Phase.Epilogue
+                || p == Phase.Clear;
+        }
+    }
 
     /// <summary>カピタの贈り物プロンプト。</summary>
     public static bool HidesCapytaPrompt

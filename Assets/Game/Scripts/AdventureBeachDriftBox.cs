@@ -391,9 +391,10 @@ public class AdventureBeachDriftBox : MonoBehaviour
         if (player != null)
         {
             float dist = Vector3.Distance(transform.position, player.transform.position);
-            if (dist < VisualConfig.TriggerDistance)
+            bool inRange = dist < VisualConfig.TriggerDistance;
+            bool clickInRange = dist < VisualConfig.TriggerDistance + 1.2f && AdventureInputReader.InteractDown;
+            if (inRange || clickInRange)
             {
-                // 4.5m接近で自動開封、またはEキーでも即時開封
                 OpenBox();
             }
         }
