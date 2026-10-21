@@ -21,7 +21,7 @@ public partial class AdventureRustDrone : MonoBehaviour
     public static void RecoverScrapSlowMoIfStale()
     {
         if (_scrapSlowMoDepth <= 0) return;
-        if (Time.unscaledTime - _scrapSlowMoStartedAt < 0.4f) return;
+        if (Time.unscaledTime - _scrapSlowMoStartedAt < 0.25f) return;
         _scrapSlowMoDepth = 0;
         if (!AdventurePauseMenu.IsOpen)
             Time.timeScale = _scrapSlowMoSavedScale > 0.05f ? _scrapSlowMoSavedScale : 1f;
@@ -2148,6 +2148,8 @@ public partial class AdventureRustDrone : MonoBehaviour
 
         if (_isPlayerNear && ePressed && Time.time - _lastInteractTime > 0.35f)
         {
+            if (AdventureScrapManager.LastScrapCollectFrame == Time.frameCount)
+                return;
             _lastInteractTime = Time.time;
             InteractWithNiko();
         }
@@ -2161,6 +2163,9 @@ public partial class AdventureRustDrone : MonoBehaviour
     /// <summary>Nikoとの直接対話または手当て（常備油により絶対に0にならず、いつでも手当て・全回復可能）</summary>
     public void InteractWithNiko()
     {
+        if (AdventureScrapManager.LastScrapCollectFrame == Time.frameCount)
+            return;
+
         bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
 
         // 油所持は常に最低1個を保証（常備オイル）

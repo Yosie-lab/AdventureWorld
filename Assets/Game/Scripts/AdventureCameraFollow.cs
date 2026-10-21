@@ -345,7 +345,9 @@ public class AdventureCameraFollow : MonoBehaviour
         {
             _prevLockMode = Cursor.lockState;
             _hasPrevMousePos = false;
-            return;
+            // ロック解除直後だけ1フレーム飛ばす（中央ジャンプ防止）。ロック時はそのまま視点入力を受ける
+            if (Cursor.lockState != CursorLockMode.Locked)
+                return;
         }
 
         // ── マウス移動量の高信頼取得 ──

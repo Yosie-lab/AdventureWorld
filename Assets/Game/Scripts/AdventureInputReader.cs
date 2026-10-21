@@ -84,6 +84,25 @@ public static class AdventureInputReader
     /// <summary>移動入力が1つでもある（MoveAxis と同じ判定）</summary>
     public static bool HasAnyMove => MoveAxis.sqrMagnitude > 0.0001f;
 
+    /// <summary>マウスを動かして視点操作しようとしている（取得クリック直後のカーソル復帰用）</summary>
+    public static bool HasMouseLookIntent
+    {
+        get
+        {
+            var mouse = Mouse.current;
+            if (mouse == null) return false;
+            Vector2 delta = mouse.delta.ReadValue();
+            if (delta.sqrMagnitude > 0.04f) return true;
+            try
+            {
+                float mx = Input.GetAxisRaw("Mouse X");
+                float my = Input.GetAxisRaw("Mouse Y");
+                return mx * mx + my * my > 0.0004f;
+            }
+            catch { return false; }
+        }
+    }
+
     // ─── アクションキー ──────────────────────────────────────────────────
 
     /// <summary>Shiftキーが押されている（ダッシュ）</summary>

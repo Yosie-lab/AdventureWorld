@@ -228,16 +228,11 @@ public class AdventurePrologueDrama : MonoBehaviour
         drone.StartPrologueDistress();
 
         // ① 極寒・しがみつき → Nikoのいたわり → Rustの甘えお願い
-        yield return SpeakRust(drone,
-            "キキッ……Float……塩水で古いギアが……凍りついて動かない……", 4.8f);
-        yield return SpeakNiko(drone,
-            "大丈夫だよ、Rust。ここにいるから。ぎゅっとしてていいよ", 4.6f);
-        yield return SpeakRust(drone,
-            "……うぅ……もっとそばにいたい……手が……あったかいの……", 4.8f);
-        yield return SpeakNiko(drone,
-            "よしよし。怖かったね。油をさして、ゆっくり温めてあげる", 4.6f);
-        yield return SpeakRust(drone,
-            "……お願い……【E】で油をさして……Floatの手、必要……", 5.2f);
+        yield return SpeakRust(drone, "prologue_rust_distress1", 4.8f);
+        yield return SpeakNiko(drone, "prologue_float_distress1", 4.6f);
+        yield return SpeakRust(drone, "prologue_rust_distress2", 4.8f);
+        yield return SpeakNiko(drone, "prologue_float_distress2", 4.6f);
+        yield return SpeakRust(drone, "prologue_rust_distress3", 5.2f);
 
         _phase = Phase.WaitOil;
 
@@ -251,9 +246,9 @@ public class AdventurePrologueDrama : MonoBehaviour
             {
                 string[] reminds =
                 {
-                    "……うぅ……まだ冷たいよ……Floatの手、ほしい……【E】で……",
-                    "……そばにいて……油を……さして……お願い……ぎゅっ……",
-                    "Float　油さして",
+                    "prologue_rust_remind1",
+                    "prologue_rust_remind2",
+                    "rust_ask_oil",
                 };
                 drone.SpeakCustom(reminds[Random.Range(0, reminds.Length)], 4.2f);
                 nextRemind = 20f;

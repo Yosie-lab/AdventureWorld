@@ -88,7 +88,7 @@ public class AdventurePettingAction : MonoBehaviour
         // 3. 撫でている間の演出（胸元の触れ合い・ハートエフェクト）
         while (_petTimer < _petDuration)
         {
-            _petTimer += Time.deltaTime;
+            _petTimer += Time.unscaledDeltaTime;
             float progress = _petTimer / _petDuration;
 
             // 撫で始め（最初の約0.7秒間）にNikoをRustの方向へ向かせ、胸元到着後はブレないよう固定

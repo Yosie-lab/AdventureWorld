@@ -1286,6 +1286,30 @@ public static class AdventureLocalizationManager
             "……留在我身边……给我……上油……求你了……抱抱我……",
             "...Quédate a mi lado... ponme... aceite... por favor... abrázame..."
         } },
+        { "prologue_oil_word_stay", new[] {
+            "そばにいて",
+            "Stay with me",
+            "留在我身边",
+            "Quédate a mi lado"
+        } },
+        { "prologue_oil_word_oil", new[] {
+            "油をさして",
+            "Oil me",
+            "给我上油",
+            "Ponme aceite"
+        } },
+        { "prologue_oil_word_please", new[] {
+            "お願い",
+            "Please",
+            "拜托了",
+            "Por favor"
+        } },
+        { "prologue_oil_hint_compact", new[] {
+            "そばにいて　油をさして　お願い",
+            "Stay with me — oil me — please",
+            "留在我身边——给我上油——拜托",
+            "Quédate cerca — ponme aceite — por favor"
+        } },
         { "rust_ask_oil", new[] {
             "Float　油さして",
             "Float, oil me",
@@ -1598,6 +1622,18 @@ public static class AdventureLocalizationManager
             "...Please... oil me with [E]... I need your touch, Float...",
             "……拜托了……按【E】给我上油……我需要Float的手心……",
             "...Por favor... ponme aceite con [E]... necesito tus manos, Float..."
+        } },
+        { "……うぅ……まだ冷たいよ……Floatの手、ほしい……【E】で……", new[] {
+            "……うぅ……まだ冷たいよ……Floatの手、ほしい……【E】で……",
+            "...Ugh... still so cold... I need your hands, Float... with [E]...",
+            "……呜呜……身上还是好冷……想要Float的手心……按【E】……",
+            "...Uff... aún tengo frío... necesito tus manos, Float... con [E]..."
+        } },
+        { "……そばにいて……油を……さして……お願い……ぎゅっ……", new[] {
+            "……そばにいて……油を……さして……お願い……ぎゅっ……",
+            "...Stay with me... please oil my gears... hold me close...",
+            "……留在我身边……给我……上油……求你了……抱抱我……",
+            "...Quédate a mi lado... ponme... aceite... por favor... abrázame..."
         } },
         { "……あ……温かい……回路が戻ってきた……！ありがとう、Float……", new[] {
             "……あ……温かい……回路が戻ってきた……！ありがとう、Float……",

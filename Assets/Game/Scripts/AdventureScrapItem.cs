@@ -359,6 +359,7 @@ public class AdventureScrapItem : MonoBehaviour
     {
         if (_isCollected) return;
         _isCollected = true;
+        AdventureScrapManager.MarkScrapCollectedThisFrame();
 
         // 弾けるスパークル演出
         SpawnCollectParticles();

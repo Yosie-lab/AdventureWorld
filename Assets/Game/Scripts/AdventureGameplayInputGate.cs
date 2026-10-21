@@ -35,7 +35,7 @@ public static class AdventureGameplayInputGate
         if (AdventureRustFloatOpening.IsGameStarted
             && !AdventureStoryFlow.WantsFreeCursor
             && !AdventurePauseMenu.IsOpen
-            && AdventureInputReader.HasAnyMove
+            && (AdventureInputReader.HasAnyMove || AdventureInputReader.HasMouseLookIntent)
             && Cursor.lockState != CursorLockMode.Locked)
         {
             Cursor.lockState = CursorLockMode.Locked;

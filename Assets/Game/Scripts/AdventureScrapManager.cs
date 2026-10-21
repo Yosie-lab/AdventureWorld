@@ -8,6 +8,12 @@ public class AdventureScrapManager : MonoBehaviour
 {
     #region Singleton & Public Access
     static AdventureScrapManager _instance;
+
+    /// <summary>パーツ取得と E/クリック手当ての同一フレーム競合を防ぐ</summary>
+    public static int LastScrapCollectFrame { get; private set; } = -1;
+
+    public static void MarkScrapCollectedThisFrame() => LastScrapCollectFrame = Time.frameCount;
+
     public static AdventureScrapManager Instance
     {
         get
@@ -652,7 +658,9 @@ public class AdventureScrapManager : MonoBehaviour
     public void OnScrapCollected(AdventureScrapItem item)
     {
         Ensure();
+        MarkScrapCollectedThisFrame();
         AdventurePettingAction.Instance?.CancelPetting();
+        AdventureGameplayInputGate.TryLockCursorForGameplay();
         // 1. 爽快なパーツ取得ファンファーレ音（シュピーン！ド・ミ・ソ・ド・ミ・ソ・ド〜〜〜ン♪）を再生！
         PlayScrapCollectFanfare();
 
