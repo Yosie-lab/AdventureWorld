@@ -118,9 +118,8 @@ public partial class AdventureSanctuaryTowerManager
         // 天蓋崩壊中はウミネコ（カモメ）音声を小さい声も含めて完全に強制沈黙
         AdventureSoaringSeagullsManager.SilenceAllWorldSeagulls(true);
 
-        // 「空が割れた」直後から割れ目の向こうの空を見せる
-        SpawnWildernessPanorama(coldCrisis: true);
-        ApplySkybreakColdAtmosphere();
+        // レバー〜天蓋台本中は探索時と同じ青空（極寒ポストはクライマックス上空で BeginClimaxSequence）
+        SpawnWildernessPanorama(coldCrisis: false);
 
         EnsureCinematicLetterbox();
         if (_letterboxRoot != null)
@@ -138,7 +137,7 @@ public partial class AdventureSanctuaryTowerManager
         // ピアノが鳴っていたら2秒かけてフェードアウト＆ダッキング解除
         var piano = AdventureAncientPianoRelic.Instance ?? Object.FindAnyObjectByType<AdventureAncientPianoRelic>();
         if (piano != null)
-            piano.FadeOutPiano(2.0f);
+            piano.FadeOutPiano(0.6f);
 
         var drone = GetDrone();
         if (drone != null)
@@ -149,9 +148,7 @@ public partial class AdventureSanctuaryTowerManager
 
         _canopyBeatIndex = 0;
         _skyTearPlayed = false;
-        _canopyBeat0TimerArmed = false;
-        _canopyBeat0VisibleStreak = 0;
-        _canopyBeat0LockUntil = float.PositiveInfinity;
+        ArmCanopyBeat0AutoTimer();
         _scriptRequireInputRelease = true; // レバー引いた操作の余韻による即時スキップを完全防止
         PresentCanopyBeat(0);
         AdventureStoryFlow.InvalidateCache();
@@ -194,11 +191,7 @@ public partial class AdventureSanctuaryTowerManager
         _scriptBoardVisible = true;
         _scriptBoardOpenedAt = Time.unscaledTime;
         if (index == 0)
-        {
-            _canopyBeat0TimerArmed = false;
-            _canopyBeat0VisibleStreak = 0;
-            _canopyBeat0LockUntil = float.PositiveInfinity;
-        }
+            ArmCanopyBeat0AutoTimer();
         _scriptHoldTimer = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -261,26 +254,22 @@ public partial class AdventureSanctuaryTowerManager
         return _filmSubtitleUi.color.a >= 0.35f;
     }
 
+    void ArmCanopyBeat0AutoTimer()
+    {
+        float autoSec = AdventureSpeechBoardLayout.ScaleScriptAutoAdvance(CanopyBeats[0].AutoAdvanceSeconds, this);
+        _canopyBeat0TimerArmed = true;
+        _canopyBeat0VisibleStreak = 2;
+        _canopyBeat0LockUntil = Time.unscaledTime + autoSec;
+        _scriptBoardOpenedAt = Time.unscaledTime;
+    }
+
     void TryArmCanopyBeat0Timer()
     {
         if (_canopyBeatIndex != 0 || _canopyBeat0TimerArmed)
             return;
-
         if (!IsCanopyBeat0SubtitleVisible())
-        {
-            _canopyBeat0VisibleStreak = 0;
             return;
-        }
-
-        _canopyBeat0VisibleStreak++;
-        if (_canopyBeat0VisibleStreak < 2)
-            return;
-
-        float autoSec = AdventureSpeechBoardLayout.ScaleScriptAutoAdvance(CanopyBeats[0].AutoAdvanceSeconds, this);
-        _canopyBeat0TimerArmed = true;
-        _canopyBeat0LockUntil = Time.unscaledTime + autoSec;
-        _scriptBoardOpenedAt = Time.unscaledTime;
-        Debug.Log("[RustAndFloat] 第1幕タイマー開始（字幕表示確認後 " + autoSec.ToString("0.#") + " 秒）");
+        ArmCanopyBeat0AutoTimer();
     }
 
     void RefreshCanopyBeat0Subtitle()
@@ -315,10 +304,7 @@ public partial class AdventureSanctuaryTowerManager
                 Debug.LogWarning("[RustAndFloat] 台本インデックス喪失を検出 → 字幕のみ復旧（第1幕タイマーは維持）");
                 _canopyBeatIndex = 0;
                 if (!_canopyBeat0TimerArmed)
-                {
-                    _canopyBeat0VisibleStreak = 0;
-                    _canopyBeat0LockUntil = float.PositiveInfinity;
-                }
+                    ArmCanopyBeat0AutoTimer();
                 RefreshCanopyBeat0Subtitle();
             }
             return;
@@ -342,21 +328,24 @@ public partial class AdventureSanctuaryTowerManager
             }
         }
 
-        // 各ビートの定義データから自動送り秒数を取得（1枚目7.5s／2・3枚目5.2s／Float・Rust 4.2s／ダイブ6.0s）
+        // 各ビートの定義データから自動送り秒数を取得（1枚目3.8s／2・3枚目5.2s／Float・Rust 4.2s／ダイブ6.0s）
         float rawAuto = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
             : 3.5f;
         float autoSec = AdventureSpeechBoardLayout.ScaleScriptAutoAdvance(rawAuto, this);
 
-        // 第1幕：専用ロック時刻まで手動・自動・残留フラグすべて無効（PresentCanopyBeat 再入でもリセットされない）
         if (_canopyBeatIndex == 0)
         {
+            if (!_scriptRequireInputRelease)
+                PollScriptBoardAdvance();
+
             if (!_canopyBeat0TimerArmed || Time.unscaledTime < _canopyBeat0LockUntil)
             {
-                _scriptBoardAdvance = false;
-                return;
+                if (!_scriptBoardAdvance)
+                    return;
             }
-            _scriptBoardAdvance = true;
+            else if (!_scriptBoardAdvance)
+                _scriptBoardAdvance = true;
         }
         else
         {
@@ -405,13 +394,6 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         if (!_scriptBoardAdvance) return;
-
-        if (_canopyBeatIndex == 0
-            && (!_canopyBeat0TimerArmed || Time.unscaledTime < _canopyBeat0LockUntil))
-        {
-            _scriptBoardAdvance = false;
-            return;
-        }
 
         _scriptBoardAdvance = false;
         _scriptHoldTimer = 0f;

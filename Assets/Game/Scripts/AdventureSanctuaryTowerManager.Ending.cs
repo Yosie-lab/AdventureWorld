@@ -17,9 +17,15 @@ public partial class AdventureSanctuaryTowerManager
 
     void TickScriptAdvanceInputRelease()
     {
-        // 第1幕中はレバー／Space 等の余韻で離し待ちを解除しない（即スキップ防止）
         if (_canopyBeatIndex == 0)
+        {
+            // レバー余韻の短いガード後は第1幕もクリック送り可
+            if (_scriptRequireInputRelease
+                && Time.unscaledTime - _scriptBoardOpenedAt >= 0.35f
+                && IsEndingAdvanceInputReleased())
+                _scriptRequireInputRelease = false;
             return;
+        }
         if (_scriptRequireInputRelease && IsEndingAdvanceInputReleased())
             _scriptRequireInputRelease = false;
     }
@@ -35,11 +41,12 @@ public partial class AdventureSanctuaryTowerManager
     /// <summary>手動台本送り（1フレーム1回）。Canopy / Climax / Notify から共用</summary>
     bool PollManualScriptAdvance(float minShowSec, bool blockCanopyBeat0)
     {
-        if (!_scriptBoardVisible || _scriptBoardAdvance || _scriptRequireInputRelease)
+        if (!_scriptBoardVisible || _scriptBoardAdvance)
             return false;
-        if (_canopyBeatIndex == 0)
+        if (_scriptRequireInputRelease)
             return false;
-        if (Time.unscaledTime - _scriptBoardOpenedAt < minShowSec)
+        float min = _canopyBeatIndex == 0 ? 0.35f : minShowSec;
+        if (Time.unscaledTime - _scriptBoardOpenedAt < min)
             return false;
         if (!IsManualScriptAdvancePressed())
             return false;

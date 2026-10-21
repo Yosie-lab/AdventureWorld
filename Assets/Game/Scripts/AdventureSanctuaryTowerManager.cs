@@ -158,7 +158,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     }
     static readonly CanopyBeat[] CanopyBeats =
     {
-        new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 7.5f),
+        new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 3.8f),
         new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
         new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Float！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
         new CanopyBeat("", "✦ Float", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f), autoSec: 4.2f),
@@ -180,10 +180,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     // 注油プロンプト（uGUI専用・IMGUI禁止＝Gizmos文字化け防止）
     GameObject _oilUiRoot;
     Image _oilGaugeFill;
-    Text _oilTitleUi;
-    Text _oilPromptUi;
-    Text _oilHoldLabelUi;
-    Button _oilHoldBtn;
 
     // クリアモーダルも uGUI 専用（IMGUIだと空ボード＋「Gizmos」ボタンになる）
     GameObject _clearUiRoot;
@@ -459,10 +455,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
                 Destroy(_oilUiRoot);
                 _oilUiRoot = null;
                 _oilGaugeFill = null;
-                _oilTitleUi = null;
-                _oilPromptUi = null;
-                _oilHoldLabelUi = null;
-                _oilHoldBtn = null;
             }
         }
         else
@@ -1423,6 +1415,11 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         AdventureTreeFrogAmbience.Ensure();
         AdventureTreeFrogAmbience.Instance?.MuteForEndingSequence();
 
+        SuppressAllSpeechAndBanners();
+
+        // 字幕・レターボックス・BGMを最優先（VFX より先にシーケンスへ入る）
+        BeginCanopyScriptBeats();
+
         var player = AdventurePlayerController.Instance
                      ?? Object.FindAnyObjectByType<AdventurePlayerController>();
         if (player != null)
@@ -1433,19 +1430,15 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         StartCoroutine(AnimateLeverPullRoutine());
 
         SpawnLeverSparks(new Vector3(512f, 63.5f, 512f));
-        SuppressAllSpeechAndBanners();
         SpawnSkybreakCracks(new Vector3(512f, 150f, 512f));
 
         var cam = AdventureCameraFollow.InstanceOrFind();
         if (cam != null)
             cam.Shake(0.35f, 1.5f);
 
-        // 地上シーン中は上昇気流コライダーを作動させず、ダイブ入力（FinishCanopyScriptBeats）で起動する
         if (_hyperUpdraftGo != null)
             _hyperUpdraftGo.SetActive(false);
 
-        // 台本は Update 駆動（このコルーチンが止まっても進む）
-        BeginCanopyScriptBeats();
         yield break;
     }
 

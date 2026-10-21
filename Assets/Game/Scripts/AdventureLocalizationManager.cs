@@ -784,22 +784,22 @@ public static class AdventureLocalizationManager
             "¡Pip-pip! ...¡Gracias, Float! ¡Ahora nuestras alas jamás se romperán! ¡¡Vamos con todo hacia el más allá del cielo!!"
         } },
         { "climax_oil_title", new[] {
-            "✦ 限界高度：凍結危機 ✦",
-            "✦ Altitude Limit: Freezing Crisis ✦",
-            "✦ 极限高度：冻结危机 ✦",
-            "✦ Límite de Altitud: Crisis de Congelación ✦"
+            "限界高度 — Rustが凍結",
+            "Altitude limit — Rust is freezing",
+            "极限高度 — Rust正在冻结",
+            "Límite de altitud — Rust se congela"
         } },
         { "climax_oil_prompt", new[] {
-            "極寒の気流でRustのギアが凍りつく……！\n集めた常備油を心臓部へ注ぎ込め！\n【 E / Space / クリック長押し 】",
-            "Rust's gears are freezing in the icy gale...!\nPour your collected lubricant into the core!\n[ Hold E / Space / Click ]",
-            "极寒的气流让Rust的齿轮快要冻结了……！\n把收集到的润滑油注入核心！\n【长按 E / Space / 鼠标点击】",
-            "¡Los engranajes de Rust se congelan en el vendaval gélido...!\n¡Vierte el lubricante recolectado en su núcleo!\n[ Mantén presionado E / Espacio / Clic ]"
+            "常備油を心臓部へ — E / Space / 長押し",
+            "Pour oil into the core — hold E / Space / click",
+            "将润滑油注入核心 — 长按 E / Space / 点击",
+            "Vierte aceite al núcleo — mantén E / Espacio / clic"
         } },
         { "climax_oil_hold", new[] {
-            "【長押しで注油】Rustを温める",
-            "[Hold to Lubricate] Warm Rust Up",
-            "【长按注入润滑油】为Rust加温",
-            "[Mantén para Lubricar] Calentar a Rust"
+            "長押しで注油",
+            "Hold to pour",
+            "长按注油",
+            "Mantén para verter"
         } },
 
         // ==========================================
