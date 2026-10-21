@@ -191,6 +191,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_storyHeaderText != null) _storyHeaderText.text = "📜 " + AdventureLocalizationManager.Get("title_story_head");
         if (_storyBodyText != null) _storyBodyText.text = AdventureLocalizationManager.Get("title_story_body");
         EnsureTitleStoryTextVisible();
+        ApplyTitleStoryTextFit();
         if (_menuHeaderText != null)
         {
             _menuHeaderText.text = AdventureLocalizationManager.CurrentLanguage switch
@@ -842,20 +843,107 @@ public class AdventureRustFloatOpening : MonoBehaviour
         var textPanelBg = textPanelGo.AddComponent<Image>();
         textPanelBg.color = new Color(0.01f, 0.03f, 0.06f, 0.97f);
         textPanelBg.raycastTarget = false;
+        textPanelGo.AddComponent<RectMask2D>();
 
-        _storyHeaderText = MakeText(textPanelGo.transform, "StoryHeader", new Vector2(10f, -8f), new Vector2(0f, 1f), new Vector2(360f, 26f), AdventureSpeechBoardLayout.TitleMenuStoryHeaderSize, TextAnchor.UpperLeft, font);
+        _storyHeaderText = MakeText(textPanelGo.transform, "StoryHeader", Vector2.zero, new Vector2(0f, 1f), new Vector2(100f, 24f), AdventureSpeechBoardLayout.TitleMenuStoryHeaderSize, TextAnchor.UpperLeft, font);
         _storyHeaderText.fontStyle = FontStyle.Bold;
         _storyHeaderText.color = new Color(0.40f, 0.88f, 1.0f, 1f);
         _storyHeaderText.text = "📜 時代背景と物語";
 
-        _storyBodyText = MakeText(textPanelGo.transform, "StoryBody", new Vector2(10f, -40f), new Vector2(0f, 1f), new Vector2(350f, 320f), AdventureSpeechBoardLayout.TitleMenuStoryBodySize, TextAnchor.UpperLeft, font);
+        _storyBodyText = MakeText(textPanelGo.transform, "StoryBody", Vector2.zero, new Vector2(0f, 1f), new Vector2(100f, 100f), AdventureSpeechBoardLayout.TitleMenuStoryBodySize, TextAnchor.UpperLeft, font);
         _storyBodyText.fontStyle = FontStyle.Bold;
-        _storyBodyText.lineSpacing = 1.35f;
         _storyBodyText.color = new Color(0.95f, 0.97f, 1.0f, 0.95f);
         var bodyOutline = _storyBodyText.gameObject.AddComponent<Outline>();
         bodyOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
         bodyOutline.effectDistance = new Vector2(1f, -1f);
         _storyBodyText.text = StoryText;
+
+        EnsureTitleStoryPanelLayout(textPanelRt);
+    }
+
+    static void ConfigureTitleStoryHeader(Text text)
+    {
+        if (text == null) return;
+        var lang = AdventureLocalizationManager.CurrentLanguage;
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
+        text.verticalOverflow = VerticalWrapMode.Truncate;
+        if (lang == AdventureLocalizationManager.GameLanguage.Japanese)
+        {
+            text.resizeTextForBestFit = false;
+            text.fontSize = AdventureSpeechBoardLayout.TitleMenuStoryHeaderSize;
+            return;
+        }
+
+        text.resizeTextForBestFit = true;
+        text.resizeTextMinSize = AdventureSpeechBoardLayout.TitleMenuStoryHeaderMinSize;
+        text.resizeTextMaxSize = AdventureSpeechBoardLayout.TitleMenuStoryHeaderSize;
+    }
+
+    static void ConfigureTitleStoryBody(Text text)
+    {
+        if (text == null) return;
+        var lang = AdventureLocalizationManager.CurrentLanguage;
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
+        text.verticalOverflow = VerticalWrapMode.Truncate;
+        text.lineSpacing = AdventureSpeechBoardLayout.GetTitleMenuStoryLineSpacing(lang);
+
+        if (AdventureSpeechBoardLayout.TitleMenuStoryBodyUsesBestFit(lang))
+        {
+            int max = AdventureSpeechBoardLayout.GetTitleMenuStoryBodyMaxSize(lang);
+            text.resizeTextForBestFit = true;
+            text.fontSize = max;
+            text.resizeTextMinSize = AdventureSpeechBoardLayout.TitleMenuStoryBodyMinSize;
+            text.resizeTextMaxSize = max;
+            return;
+        }
+
+        text.resizeTextForBestFit = false;
+        text.fontSize = AdventureSpeechBoardLayout.GetTitleMenuStoryBodyFixedSize(lang);
+    }
+
+    static void LayoutTitleStoryPanel(RectTransform panel, Text header, Text body)
+    {
+        if (panel == null || header == null || body == null) return;
+
+        float pad = AdventureSpeechBoardLayout.TitleMenuStoryPanelPadding;
+        float headerBand = AdventureSpeechBoardLayout.TitleMenuStoryHeaderBandHeight;
+
+        var headerRt = header.rectTransform;
+        headerRt.anchorMin = new Vector2(0f, 1f);
+        headerRt.anchorMax = new Vector2(1f, 1f);
+        headerRt.pivot = new Vector2(0.5f, 1f);
+        headerRt.anchoredPosition = Vector2.zero;
+        headerRt.offsetMin = new Vector2(pad, -headerBand);
+        headerRt.offsetMax = new Vector2(-pad, -pad * 0.5f);
+
+        var bodyRt = body.rectTransform;
+        bodyRt.anchorMin = Vector2.zero;
+        bodyRt.anchorMax = Vector2.one;
+        bodyRt.pivot = new Vector2(0.5f, 1f);
+        bodyRt.anchoredPosition = Vector2.zero;
+        bodyRt.offsetMin = new Vector2(pad, pad);
+        bodyRt.offsetMax = new Vector2(-pad, -(headerBand + pad * 0.5f));
+    }
+
+    void EnsureTitleStoryPanelLayout(RectTransform textPanelRt)
+    {
+        if (_storyHeaderText == null || _storyBodyText == null) return;
+
+        if (textPanelRt != null && textPanelRt.GetComponent<RectMask2D>() == null)
+            textPanelRt.gameObject.AddComponent<RectMask2D>();
+
+        ConfigureTitleStoryHeader(_storyHeaderText);
+        ConfigureTitleStoryBody(_storyBodyText);
+        LayoutTitleStoryPanel(textPanelRt, _storyHeaderText, _storyBodyText);
+    }
+
+    void ApplyTitleStoryTextFit()
+    {
+        if (_storyBodyText == null) return;
+
+        var panel = _storyBodyText.transform.parent as RectTransform;
+        EnsureTitleStoryPanelLayout(panel);
+        Canvas.ForceUpdateCanvases();
     }
 
     /// <summary>左カードは常に物語テキスト。旧 PreStartPreview / 全画面キャプチャを除去。</summary>
@@ -883,6 +971,10 @@ public class AdventureRustFloatOpening : MonoBehaviour
         var legacyPreview = left.Find("PreStartPreview");
         if (legacyPreview != null)
             Destroy(legacyPreview.gameObject);
+
+        var storyPanel = left.Find("StoryTextPanel") as RectTransform;
+        if (storyPanel != null)
+            EnsureTitleStoryPanelLayout(storyPanel);
     }
 
     void CreateRightMenuCard(Transform parent, Font font)

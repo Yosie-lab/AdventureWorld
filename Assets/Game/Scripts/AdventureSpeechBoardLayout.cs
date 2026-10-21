@@ -114,7 +114,37 @@ public static class AdventureSpeechBoardLayout
 
     // --- タイトルメニュー（左物語・右メニュー） ---
     public const int TitleMenuStoryHeaderSize = 16;
+    public const int TitleMenuStoryHeaderMinSize = 10;
     public const int TitleMenuStoryBodySize = 16;
+    /// <summary>日本語は Best Fit で過度に縮むため固定表示（本文 16px）</summary>
+    public const int TitleMenuStoryBodySizeJapanese = 16;
+    public const int TitleMenuStoryBodyMinSize = 10;
+    public const float TitleMenuStoryLineSpacing = 1.22f;
+    public const float TitleMenuStoryLineSpacingJapanese = 1.16f;
+    public const float TitleMenuStoryHeaderBandHeight = 38f;
+    public const float TitleMenuStoryPanelPadding = 8f;
+
+    /// <summary>英語・スペイン語のみ枠内に Best Fit。日・中は固定サイズ</summary>
+    public static bool TitleMenuStoryBodyUsesBestFit(AdventureLocalizationManager.GameLanguage lang) =>
+        lang is AdventureLocalizationManager.GameLanguage.English
+            or AdventureLocalizationManager.GameLanguage.Spanish;
+
+    public static int GetTitleMenuStoryBodyFixedSize(AdventureLocalizationManager.GameLanguage lang) =>
+        lang == AdventureLocalizationManager.GameLanguage.Japanese
+            ? TitleMenuStoryBodySizeJapanese
+            : TitleMenuStoryBodySize;
+
+    public static float GetTitleMenuStoryLineSpacing(AdventureLocalizationManager.GameLanguage lang) =>
+        lang == AdventureLocalizationManager.GameLanguage.Japanese
+            ? TitleMenuStoryLineSpacingJapanese
+            : TitleMenuStoryLineSpacing;
+
+    /// <summary>英語・スペイン語は行長が長いため Best Fit の上限を少し下げる</summary>
+    public static int GetTitleMenuStoryBodyMaxSize(AdventureLocalizationManager.GameLanguage lang) =>
+        lang is AdventureLocalizationManager.GameLanguage.English
+            or AdventureLocalizationManager.GameLanguage.Spanish
+            ? 14
+            : TitleMenuStoryBodySize;
     public const int TitleMenuSectionHeaderSize = 16;
     public const int TitleMenuButtonPrimarySize = 18;
     public const int TitleMenuButtonSecondarySize = 17;
