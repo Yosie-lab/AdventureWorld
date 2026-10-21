@@ -568,7 +568,7 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
                         if (_rustGuideCooldown <= 0f)
                         {
                             _rustGuideCooldown = 28f;
-                            drone.SpeakCustom("ピピッ！ここ、光ってるクリスタルに送電できるよ！\n【E / F / クリック】で合図してね、Float！", 5.5f);
+                            drone.SpeakCustom(AdventureLocalizationManager.Get("rust_crystal_power_hint"), 5.5f);
                         }
                     }
                 }

@@ -480,6 +480,29 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         }
     }
 
+    static Font ResolveWorkshopFont()
+    {
+        string[] candidates =
+        {
+            "Hiragino Sans",
+            "PingFang SC",
+            "Hiragino Sans GB",
+            "YuGothic",
+            "Noto Sans CJK JP",
+            "Microsoft YaHei",
+            "Arial Unicode MS"
+        };
+        try
+        {
+            Font multi = Font.CreateDynamicFontFromOSFont(candidates, 20);
+            if (multi != null) return multi;
+        }
+        catch { }
+
+        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+               ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+    }
+
     static string GetKindName(AdventureBeachSeashellItem.ShellKind kind)
     {
         switch (kind)
@@ -588,7 +611,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         _canvasGroup.interactable = false;
         _canvasGroup.blocksRaycasts = false;
 
-        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        var font = ResolveWorkshopFont();
 
         // ── 半透明ダークバックドロップ ──
         var backdrop = new GameObject("Backdrop");
@@ -660,6 +683,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         ctText.fontSize = 20;
         ctText.alignment = TextAnchor.MiddleCenter;
         ctText.color = Color.white;
+        ctText.text = "×";
         cBtn.onClick.AddListener(() => SetVisible(false));
 
         // ── 2カラムコンテナ ──
@@ -1069,7 +1093,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         _promptCg = promptCanvasGo.AddComponent<CanvasGroup>();
         _promptCg.alpha = 0f;
 
-        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        var font = ResolveWorkshopFont();
         var textGo = new GameObject("PromptText");
         textGo.transform.SetParent(promptCanvasGo.transform, false);
         var tRect = textGo.AddComponent<RectTransform>();

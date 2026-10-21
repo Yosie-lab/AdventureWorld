@@ -484,7 +484,7 @@ public static class AdventureLocalizationManager
         { "prompt_rust_guide_talk", new[] { "【Q】パーツ案内  /  【E】Rustと話す", "[Q] Guide to Scrap / [E] Talk with Rust", "【Q】零件引路 / 【E】与Rust对话", "[Q] Guiar a la pieza / [E] Hablar con Rust" } },
         { "prompt_rust_guide_nearest", new[] { "【Q】相棒Rustに最寄りパーツを案内してもらう", "[Q] Ask Rust to guide to nearest scrap", "【Q】让Rust指引最近的零件", "[Q] Pedir a Rust que guíe a la pieza más cercana" } },
         { "prompt_rust_talk", new[] { "【E / クリック】Rustと話す", "[E / Click] Talk with Rust", "【E / 点击】与Rust对话", "[E / Clic] Hablar con Rust" } },
-        { "prompt_workbench", new[] { "<b>[E / クリック] Rustの着せ替え工房</b>\n<size=16><color=#DDEEFF>地上で [B] キーでも開ける</color></size>", "<b>[E / Click] Rust's Customization Workshop</b>\n<size=16><color=#DDEEFF>Press [B] on ground to open anytime</color></size>", "<b>[E / 点击] Rust的外观工坊</b>\n<size=16><color=#DDEEFF>在地面按 [B] 键也可随时开启</color></size>", "<b>[E / Clic] Taller de Rust</b>\n<size=16><color=#DDEEFF>Pulsa [B] en el suelo para abrir</color></size>" } },
+        { "prompt_workbench", new[] { "<b>[E / クリック] Rustクラフト工房</b>\n<size=16><color=#DDEEFF>地上で [B] キーでも開ける</color></size>", "<b>[E / Click] Rust Craft Workshop</b>\n<size=16><color=#DDEEFF>Press [B] on the ground to open</color></size>", "<b>[E / 点击] Rust工艺工坊</b>\n<size=16><color=#DDEEFF>在地面按 [B] 键也可打开</color></size>", "<b>[E / Clic] Taller de artesanía de Rust</b>\n<size=16><color=#DDEEFF>Pulsa [B] en el suelo para abrir</color></size>" } },
         { "modal_close_hint", new[] { "[ESC / クリック] 閉じる", "[ESC / Click] Close", "[ESC / 点击] 关闭", "[ESC / Clic] Cerrar" } },
 
         // --- 操作ガイド ---
@@ -529,9 +529,9 @@ public static class AdventureLocalizationManager
         { "guide_interact_body", new[] {
             "<b>[ インタラクト ＆ システム ]</b>\n\n" +
             "<b>[E] / [左クリック]</b>  調べる / 注油 / 撫でる\n" +
-            "<b>[Q] / [中クリック]</b>  <b>相棒Floatに道案内を頼む（最寄り目標へ先行フライト）</b>\n" +
+            "<b>[Q] / [中クリック]</b>  <b>相棒Rustに道案内を頼む（最寄り目標へ先行フライト）</b>\n" +
             "<b>[F]</b>  遠隔パーツ回収 / 視線偵察指示\n" +
-            "<b>[B]</b>  Rustの着せ替え工房を開く\n" +
+            "<b>[B]</b>  Rustクラフト工房を開く\n" +
             "<b>[Tab]</b>  詳細ナビ（距離・箱・塔）固定 ON/OFF\n" +
             "<b>[F5] / [Cmd+S]</b>  クイックセーブ\n" +
             "<b>[ESC] / [Pad B]</b>  ポーズ ＆ 設定メニュー開閉\n\n" +
@@ -539,9 +539,9 @@ public static class AdventureLocalizationManager
 
             "<b>[ Interactions & System ]</b>\n\n" +
             "<b>[E] / [Left Click]</b>  Inspect / Lubricate / Pet\n" +
-            "<b>[Q] / [Middle Click]</b>  <b>Ask Float to Guide (Scout to nearest goal)</b>\n" +
+            "<b>[Q] / [Middle Click]</b>  <b>Ask Rust to guide (scout to the nearest goal)</b>\n" +
             "<b>[F]</b>  Remote Scrap Retrieve / Scout Command\n" +
-            "<b>[B]</b>  Open Rust Customization Workshop\n" +
+            "<b>[B]</b>  Open Rust Craft Workshop\n" +
             "<b>[Tab]</b>  Pin detail nav (distance, crates, tower) ON/OFF\n" +
             "<b>[F5] / [Cmd+S]</b>  Quick Save\n" +
             "<b>[ESC] / [Pad B]</b>  Pause & Settings Menu\n\n" +
@@ -549,9 +549,9 @@ public static class AdventureLocalizationManager
 
             "<b>[ 互动与系统功能 ]</b>\n\n" +
             "<b>[E] / [左键点击]</b>  调查 / 注油 / 抚摸\n" +
-            "<b>[Q] / [中键点击]</b>  <b>请求Float引路 (飞向最近目标)</b>\n" +
+            "<b>[Q] / [中键点击]</b>  <b>请求Rust引路 (飞向最近目标)</b>\n" +
             "<b>[F]</b>  远程回收零件 / 视线侦察指令\n" +
-            "<b>[B]</b>  打开Rust外观工坊\n" +
+            "<b>[B]</b>  打开Rust工艺工坊\n" +
             "<b>[Tab]</b>  固定/取消详细导航（距离·箱·塔）\n" +
             "<b>[F5] / [Cmd+S]</b>  快速存档\n" +
             "<b>[ESC] / [手柄 B]</b>  暂停与设置菜单\n\n" +
@@ -559,9 +559,9 @@ public static class AdventureLocalizationManager
 
             "<b>[ Interacción y Sistema ]</b>\n\n" +
             "<b>[E] / [Clic Izquierdo]</b>  Examinar / Lubricar / Acariciar\n" +
-            "<b>[Q] / [Clic Central]</b>  <b>Pedir guía a Float (Vuela al objetivo cercano)</b>\n" +
+            "<b>[Q] / [Clic Central]</b>  <b>Pedir guía a Rust (vuela al objetivo cercano)</b>\n" +
             "<b>[F]</b>  Recuperar pieza a distancia / Orden de exploración\n" +
-            "<b>[B]</b>  Abrir taller de personalización de Rust\n" +
+            "<b>[B]</b>  Abrir el taller de artesanía de Rust\n" +
             "<b>[Tab]</b>  Fijar nav. detalle (distancia, cajas, torre) ON/OFF\n" +
             "<b>[F5] / [Cmd+S]</b>  Guardado rápido\n" +
             "<b>[ESC] / [Mando B]</b>  Pausa y menú de ajustes\n\n" +
@@ -840,6 +840,12 @@ public static class AdventureLocalizationManager
             "Beep! Ancient wind currents over there! Let's go charge up!",
             "哔哔！那边有古代风脉！去充能吧！",
             "¡Bip! ¡Hay una corriente de viento antigua por allí! ¡Vamos a cargar energía!"
+        } },
+        { "rust_crystal_power_hint", new[] {
+            "ピピッ！ここ、光ってるクリスタルに送電できるんだ！\n【E / F / クリック】で合図してね、Float！",
+            "Pip-pip! I can send power to this glowing crystal!\nSignal me with [E / F / Click], Float!",
+            "哔哔！我能给这块发光的水晶送电！\n用【E / F / 点击】给我信号吧，Float！",
+            "¡Pip-pip! ¡Puedo enviar energía a este cristal brillante!\n¡Dame la señal con [E / F / Clic], Float!"
         } },
         { "rust_guide_skydive_pillar", new[] {
             "ピピッ！あの大空の光の柱からダイブしよう！",
@@ -1288,6 +1294,18 @@ public static class AdventureLocalizationManager
             "...Stay with me... please oil my gears... hold me close...",
             "……留在我身边……给我……上油……求你了……抱抱我……",
             "...Quédate a mi lado... ponme... aceite... por favor... abrázame..."
+        } },
+        { "rust_ask_oil", new[] {
+            "Float　油さして",
+            "Float, oil me",
+            "Float，给我上油",
+            "Float, ponme aceite"
+        } },
+        { "Float　油さして", new[] {
+            "Float　油さして",
+            "Float, oil me",
+            "Float，给我上油",
+            "Float, ponme aceite"
         } },
         { "prologue_rust_remind3", new[] {
             "ピピッ……か、硬い……Float……手当て……して……",
@@ -1899,10 +1917,10 @@ public static class AdventureLocalizationManager
         // ワークショップUI＆アクセサリー（Craft Workshop & Cosmetics）
         // ==========================================
         { "workshop_title", new[] {
-            "✦ RUST CRAFT WORKSHOP ✦ 〜 相棒のドレスアップ工房 〜",
-            "✦ RUST CRAFT WORKSHOP ✦ — Companion Dress-Up Studio —",
-            "✦ RUST CRAFT WORKSHOP ✦ 〜 伙伴装扮工坊 〜",
-            "✦ TALLER DE ARTESANÍA DE RUST ✦ — Vestuario de tu compañero —"
+            "✦ Rustクラフト工房 ✦ 〜 相棒のドレスアップ 〜",
+            "✦ Rust Craft Workshop ✦ — Dress-Up Studio —",
+            "✦ Rust工艺工坊 ✦ 〜 伙伴装扮 〜",
+            "✦ Taller de artesanía de Rust ✦ — Vestuario —"
         } },
         { "workshop_pouch_title", new[] { "✦ 素材ポーチ", "✦ Material Pouch", "✦ 素材锦囊", "✦ Bolsa de materiales" } },
         { "workshop_pouch_sub", new[] { "浜辺の波打ち際で拾った宝物", "Treasures gathered along the waves", "在海滨浪花边拾得的宝物", "Tesoros recogidos en la orilla" } },

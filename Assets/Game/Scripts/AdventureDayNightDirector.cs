@@ -74,6 +74,18 @@ public class AdventureDayNightDirector : MonoBehaviour
 
     public static DayNightMode CurrentMode { get; private set; } = DayNightMode.ProgressBased;
 
+    /// <summary>F9 はパーツ満了で夜に飛ぶ。崩壊シーケンスの開始だけ昼に戻す。</summary>
+    public static void PinDaytimeForSequenceStart()
+    {
+        CurrentMode = DayNightMode.AlwaysDay;
+        NightFactor = 0f;
+        SunsetFactor = 0f;
+        DawnFactor = 0f;
+        var director = FindAnyObjectByType<AdventureDayNightDirector>();
+        if (director != null)
+            director.ForceUpdateDayPreview();
+    }
+
     /// <summary>夜の深さ（0.0=昼、1.0=完全な夜空）。星空や夜光虫、ランタンが連動。</summary>
     public static float NightFactor { get; private set; } = 0f;
 
