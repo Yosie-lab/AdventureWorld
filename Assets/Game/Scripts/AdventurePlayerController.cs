@@ -808,17 +808,11 @@ public partial class AdventurePlayerController : MonoBehaviour
             camRight.Normalize();
         }
 
-        // ペット中は移動禁止（ただし移動キーを入力した場合は撫で演出を即中断して歩行優先）
-        if (AdventurePettingAction.Instance != null && AdventurePettingAction.Instance.IsPetting)
+        // 撫で演出中は歩行を止めない（取得直後の操作不能を防ぐ）
+        if (AdventurePettingAction.Instance != null && AdventurePettingAction.Instance.IsPetting
+            && input.sqrMagnitude > 0.001f)
         {
-            if (input.sqrMagnitude > 0.001f)
-            {
-                AdventurePettingAction.Instance.CancelPetting();
-            }
-            else
-            {
-                input = Vector2.zero;
-            }
+            AdventurePettingAction.Instance.CancelPetting();
         }
 
         Vector3 wishWalk = input.sqrMagnitude > 0.0001f

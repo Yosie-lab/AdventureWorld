@@ -373,6 +373,8 @@ public class AdventureScrapItem : MonoBehaviour
             AdventureScrapManager.Instance.OnScrapCollected(this);
         }
 
+        AdventureGameplayInputGate.TryLockCursorForGameplay();
+
         // 歓喜・スローモ・セリフは OnScrapCollected → OnNikoFoundScrap に一本化（撫でロックで Float が止まるのを防ぐ）
 
         // オブジェクト破棄

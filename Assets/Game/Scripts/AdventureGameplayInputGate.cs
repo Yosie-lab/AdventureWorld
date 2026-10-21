@@ -22,12 +22,24 @@ public static class AdventureGameplayInputGate
         if (AdventureRustFloatOpening.IsGameStarted && AdventureRustFloatOpening.IsInputGuarded)
             AdventureRustFloatOpening.DismissInputGuard();
 
+        AdventureRustDrone.RecoverScrapSlowMoIfStale();
+
         if (!AdventurePauseMenu.IsOpen && AdventureRustDrone.ScrapSlowMoDepth == 0)
         {
             if (Time.timeScale > 0.05f && Time.timeScale < 0.5f)
                 Time.timeScale = 1f;
             else if (Time.timeScale <= 0.05f)
                 Time.timeScale = 1f;
+        }
+
+        if (AdventureRustFloatOpening.IsGameStarted
+            && !AdventureStoryFlow.WantsFreeCursor
+            && !AdventurePauseMenu.IsOpen
+            && AdventureInputReader.HasAnyMove
+            && Cursor.lockState != CursorLockMode.Locked)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
 
         var narrative = AdventureBeachNarrativeManager.Instance;
@@ -89,4 +101,13 @@ public static class AdventureGameplayInputGate
     /// <summary>Space/J を字幕の「閉じる」に使う場面（ジャンプに回さない）</summary>
     public static bool ShouldRouteJumpToCaptionDismiss =>
         AdventureSceneCaption.IsWaitingDismiss && AdventureSceneCaption.IsVisible;
+
+    /// <summary>クリック取得後など、探索中はカーソルをロックして WASD を即効かせる</summary>
+    public static void TryLockCursorForGameplay()
+    {
+        if (!AdventureRustFloatOpening.IsGameStarted) return;
+        if (AdventureStoryFlow.WantsFreeCursor || AdventurePauseMenu.IsOpen) return;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+    }
 }

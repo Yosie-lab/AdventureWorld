@@ -395,22 +395,30 @@ public class AdventurePauseMenu : MonoBehaviour
         // オーディオ＆言語タブ（タブ0）表示中の左右矢印・A/Dキー・ゲームパッド十字キーでの言語切り替え
         if (_currentTab == 0)
         {
+            bool prevLang = Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A);
+            bool nextLang = Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D);
+
             var kb = Keyboard.current;
             if (kb != null)
             {
                 if (kb.leftArrowKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame)
-                    OnPrevLanguageClicked();
-                else if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame)
-                    OnNextLanguageClicked();
+                    prevLang = true;
+                if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame)
+                    nextLang = true;
             }
 
             if (gp != null)
             {
                 if (gp.dpad.left.wasPressedThisFrame)
-                    OnPrevLanguageClicked();
-                else if (gp.dpad.right.wasPressedThisFrame)
-                    OnNextLanguageClicked();
+                    prevLang = true;
+                if (gp.dpad.right.wasPressedThisFrame)
+                    nextLang = true;
             }
+
+            if (prevLang && !nextLang)
+                OnPrevLanguageClicked();
+            else if (nextLang && !prevLang)
+                OnNextLanguageClicked();
         }
     }
 
@@ -449,6 +457,12 @@ public class AdventurePauseMenu : MonoBehaviour
             if (IsHit(_res1080Btn, mousePos)) { SetResolution(1920, 1080); return; }
             if (IsHit(_res900Btn, mousePos)) { SetResolution(1600, 900); return; }
             if (IsHit(_res720Btn, mousePos)) { SetResolution(1280, 720); return; }
+        }
+        else if (_currentTab == 0)
+        {
+            if (IsHit(_prevLangBtn, mousePos)) { OnPrevLanguageClicked(); return; }
+            if (IsHit(_nextLangBtn, mousePos)) { OnNextLanguageClicked(); return; }
+            if (IsHit(_langValueBtn, mousePos)) { OnNextLanguageClicked(); return; }
         }
         else if (_currentTab == 2)
         {
@@ -523,7 +537,7 @@ public class AdventurePauseMenu : MonoBehaviour
         _lastLangClickTime = Time.unscaledTime;
 
         PlayClickSound();
-        AdventureLocalizationManager.PrevLanguage();
+        AdventureLocalizationManager.CycleLanguage(-1);
         ApplyLocalization();
     }
 
@@ -535,7 +549,7 @@ public class AdventurePauseMenu : MonoBehaviour
         _lastLangClickTime = Time.unscaledTime;
 
         PlayClickSound();
-        AdventureLocalizationManager.NextLanguage();
+        AdventureLocalizationManager.CycleLanguage(1);
         ApplyLocalization();
     }
 
@@ -623,8 +637,13 @@ public class AdventurePauseMenu : MonoBehaviour
             Cursor.visible = true;
 
             EnsureLanguageButtonListeners();
+            if (_prevLangBtn != null) _prevLangBtn.interactable = true;
+            if (_nextLangBtn != null) _nextLangBtn.interactable = true;
+            if (_langValueBtn != null) _langValueBtn.interactable = true;
             LoadCurrentSettings();
             SwitchTab(_currentTab);
+            if (_langValueText != null)
+                _langValueText.text = AdventureLocalizationManager.LanguageNames[(int)AdventureLocalizationManager.CurrentLanguage];
 
             if (_confirmModalRoot != null) _confirmModalRoot.SetActive(false);
             if (_returnTitleConfirmModal != null) _returnTitleConfirmModal.SetActive(false);
@@ -712,21 +731,7 @@ public class AdventurePauseMenu : MonoBehaviour
 
     void OnGUI()
     {
-        if (!IsOpen) return;
-
-        Event e = Event.current;
-        if (e != null && e.type == EventType.KeyDown && e.keyCode == KeyCode.Escape)
-        {
-            SetMenuVisible(false);
-            e.Use();
-            return;
-        }
-
-        if (!_openedFromTitle && AdventureRustFloatOpening.IsGameStarted) return;
-
-        var closeRect = new Rect(Screen.width * 0.5f - 110f, Screen.height - 58f, 220f, 42f);
-        if (GUI.Button(closeRect, "閉じる [ESC]"))
-            SetMenuVisible(false);
+        // uGUI（EventSystem）に入力を任せる。IMGUI ボタンはタイトル設定で言語◀▶のクリックを奪っていた。
     }
 
     void SwitchTab(int tabIndex)

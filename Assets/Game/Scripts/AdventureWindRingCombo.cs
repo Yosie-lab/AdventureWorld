@@ -1,11 +1,11 @@
 using UnityEngine;
 
 /// <summary>
-/// 風リング（地上・空中共通）の連続通過コンボ。5秒以内の次リングで加算（最大3＝油量3倍まで）。
+/// 風リング（地上・空中共通）の連続通過コンボ。次リングまでの猶予内で加算（最大3＝油量3倍まで）。
 /// </summary>
 public static class AdventureWindRingCombo
 {
-    const float ComboWindowSeconds = 5f;
+    const float ComboWindowSeconds = 8.5f;
     const int MaxCombo = 3;
 
     static int _comboCount;

@@ -254,9 +254,9 @@ public class AdventureWindRing : MonoBehaviour
         Vector3 radialOffset = playerPos - onAxis;
         float radialDist = radialOffset.magnitude;
 
-        // 吸引ゾーン：リング手前・奥 16m、半径 9m の適正な気流ファネル
-        const float maxAxial = 16.0f;
-        const float maxRadial = 9.0f;
+        // 吸引ゾーン：リング手前・奥 18m、半径 10.5m の気流ファネル（連鎖しやすい余裕）
+        const float maxAxial = 18.0f;
+        const float maxRadial = 10.5f;
 
         if (Mathf.Abs(axialDist) > maxAxial || radialDist > maxRadial) return;
 
@@ -275,13 +275,13 @@ public class AdventureWindRing : MonoBehaviour
         if (radialDist > 0.15f)
         {
             Vector3 toAxis = -radialOffset.normalized;
-            float pullSpeed = inGate ? 4.0f : 12.0f;
+            float pullSpeed = inGate ? 4.5f : 13.5f;
             pullDelta += toAxis * (pullSpeed * urgency * dt);
         }
 
         // 2. リング開口部をくぐり抜ける進行方向への気流ガイド
         Vector3 through = ResolveBoostDirection(player);
-        float pushSpeed = inGate ? 3.0f : 8.0f;
+        float pushSpeed = inGate ? 3.5f : 9.0f;
         pullDelta += through * (pushSpeed * urgency * dt);
 
         if (pullDelta.sqrMagnitude > 0.000001f)
@@ -310,7 +310,7 @@ public class AdventureWindRing : MonoBehaviour
             Vector3 localPos = transform.InverseTransformPoint(samplePoints[i]);
             float radiusDist = Mathf.Sqrt(localPos.x * localPos.x + localPos.y * localPos.y);
             float zDist = Mathf.Abs(localPos.z);
-            if (radiusDist <= 5.2f && zDist <= 2.5f)
+            if (radiusDist <= 5.6f && zDist <= 2.85f)
                 return true;
         }
         return false;

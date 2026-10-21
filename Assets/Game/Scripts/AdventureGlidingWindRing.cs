@@ -15,12 +15,12 @@ public class AdventureGlidingWindRing : MonoBehaviour
     public Color normalColor = new Color(0.25f, 0.85f, 1.0f, 0.85f);
     public Color boostColor = new Color(1.0f, 0.95f, 0.40f, 1.0f);
     [Tooltip("この距離以内でリング中心へ吸引（半径の倍数）")]
-    public float magnetRadiusMultiplier = 5.0f;
-    public float magnetAxialHalfLength = 16f;
-    public float magnetPullSpeed = 28f;
-    public float magnetForwardPush = 18f;
+    public float magnetRadiusMultiplier = 5.8f;
+    public float magnetAxialHalfLength = 18f;
+    public float magnetPullSpeed = 30f;
+    public float magnetForwardPush = 20f;
     [Tooltip("リング開口の通過判定厚み（local Z）")]
-    public float gateHalfDepth = 0.95f;
+    public float gateHalfDepth = 1.12f;
 
     private MeshFilter _meshFilter;
     private MeshRenderer _meshRenderer;
@@ -146,7 +146,7 @@ public class AdventureGlidingWindRing : MonoBehaviour
 
     bool IsPlayerInsideGate(AdventurePlayerController player)
     {
-        float gateRadius = ringRadius * 1.02f;
+        float gateRadius = ringRadius * 1.10f;
         Vector3 p = player.transform.position;
         Vector3[] samples =
         {

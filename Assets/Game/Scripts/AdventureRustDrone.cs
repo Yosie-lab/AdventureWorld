@@ -6,6 +6,7 @@ public partial class AdventureRustDrone : MonoBehaviour
 {
     static int _scrapSlowMoDepth;
     static float _scrapSlowMoSavedScale = 1f;
+    static float _scrapSlowMoStartedAt = -10f;
     public static int ScrapSlowMoDepth => _scrapSlowMoDepth;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -13,6 +14,17 @@ public partial class AdventureRustDrone : MonoBehaviour
     {
         _scrapSlowMoDepth = 0;
         _scrapSlowMoSavedScale = 1f;
+        _scrapSlowMoStartedAt = -10f;
+    }
+
+    /// <summary>コルーチン中断等でスローが残ったときの復旧</summary>
+    public static void RecoverScrapSlowMoIfStale()
+    {
+        if (_scrapSlowMoDepth <= 0) return;
+        if (Time.unscaledTime - _scrapSlowMoStartedAt < 0.4f) return;
+        _scrapSlowMoDepth = 0;
+        if (!AdventurePauseMenu.IsOpen)
+            Time.timeScale = _scrapSlowMoSavedScale > 0.05f ? _scrapSlowMoSavedScale : 1f;
     }
 
     public float hoverHeight = 1.35f;
@@ -657,15 +669,8 @@ public partial class AdventureRustDrone : MonoBehaviour
                 }
                 CurrentState = RustState.Celebrating;
                 _stateTimer = 1.6f;
-
-                if (AdventurePettingAction.Instance != null)
-                {
-                    AdventurePettingAction.Instance.PetRust("すごいよRust！えらいえらい、ありがとう。よしよし", 2.4f);
-                }
-                else
-                {
-                    SpeakCustom("えへへ、お届け完了！", 3.0f);
-                }
+                // 歓喜・セリフは OnScrapCollected → OnNikoFoundScrap に任せる（撫でロックで歩行不能になるのを防ぐ）
+                SpeakCustom("えへへ、お届け完了！", 2.5f);
 
                 if (_audio != null && _happyBeepClip != null)
                 {
@@ -2422,6 +2427,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (_scrapSlowMoDepth == 0)
             _scrapSlowMoSavedScale = Time.timeScale > 0.05f ? Time.timeScale : 1f;
         _scrapSlowMoDepth++;
+        _scrapSlowMoStartedAt = Time.unscaledTime;
         Time.timeScale = 0.20f;
     }
 
