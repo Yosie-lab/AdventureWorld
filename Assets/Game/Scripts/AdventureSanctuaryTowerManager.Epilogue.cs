@@ -491,7 +491,7 @@ public partial class AdventureSanctuaryTowerManager
         rt.sizeDelta = new Vector2(0f, 108f);
         _filmSubtitleUi = go.AddComponent<Text>();
         _filmSubtitleUi.font = font;
-        _filmSubtitleUi.fontSize = 38; // 特大38ptの堂々たるシネマ字幕
+        _filmSubtitleUi.fontSize = AdventureSpeechBoardLayout.CinematicFilmSubtitleSize;
         _filmSubtitleUi.lineSpacing = 1.20f;
         _filmSubtitleUi.alignment = TextAnchor.MiddleCenter;
         _filmSubtitleUi.color = new Color(1f, 0.94f, 0.78f, 1f);

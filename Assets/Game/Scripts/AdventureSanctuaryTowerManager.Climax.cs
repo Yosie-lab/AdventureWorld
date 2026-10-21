@@ -210,34 +210,41 @@ public partial class AdventureSanctuaryTowerManager
             return;
 
         bool isRevivalBeat = (_climaxBeatIndex == ClimaxOilSlot); // beat 3: 「……あ……温かい油が……心臓部に……」
-        bool postOilBeat = _climaxBeatIndex >= ClimaxOilSlot;
         float openFor = Time.unscaledTime - _scriptBoardOpenedAt;
 
-        // 注油直後の蘇生セリフ（beat 3）は、注油ホールドの余韻がセリフを突き抜けないよう1.2秒間しっかり保護
-        // それ以外のセリフは0.35秒の切り替えデバウンス
-        float minHoldOpen = isRevivalBeat ? 1.20f : 0.35f;
-
-        // 最小表示時間に達するまでは外部入力や残留フラグによるスキップを完全遮断
-        if (openFor < minHoldOpen)
-        {
-            _scriptBoardAdvance = false;
-            return;
-        }
-
-        // 1. タップ・決定入力（クリック・Space・Enter・Eキー・Jキー・ゲームパッド等。離し待ち中は完全ガード）
-        if (!_scriptRequireInputRelease)
-            PollScriptBoardAdvance();
-
-        // 4. 自然な自動送り時間（放置シネマ：ClimaxBeats定義から直接取得）
         float rawAuto = (_climaxBeatIndex >= 0 && _climaxBeatIndex < ClimaxBeats.Length)
             ? ClimaxBeats[_climaxBeatIndex].AutoAdvanceSeconds
             : 4.5f;
-        float autoSec = AdventureSpeechBoardLayout.ScaleScriptAutoAdvance(rawAuto, this);
+        float autoSec = isRevivalBeat
+            ? ClimaxRevivalBeatHoldSec
+            : AdventureSpeechBoardLayout.ScaleScriptAutoAdvance(rawAuto, this);
 
-        if (openFor >= autoSec)
+        // 蘇生セリフは9秒フル表示（短縮倍率・手動送りなし）
+        if (isRevivalBeat)
         {
+            _scriptBoardAdvance = false;
+            if (openFor < autoSec)
+                return;
             _scriptBoardAdvance = true;
-            Debug.Log($"[RustAndFloat] クライマックス自動送り発動: beat={_climaxBeatIndex} (経過={openFor:F1}s)");
+            Debug.Log($"[RustAndFloat] クライマックス蘇生セリフ自動送り: {openFor:F1}s");
+        }
+        else
+        {
+            float minHoldOpen = 0.35f;
+            if (openFor < minHoldOpen)
+            {
+                _scriptBoardAdvance = false;
+                return;
+            }
+
+            if (!_scriptRequireInputRelease)
+                PollScriptBoardAdvance();
+
+            if (openFor >= autoSec)
+            {
+                _scriptBoardAdvance = true;
+                Debug.Log($"[RustAndFloat] クライマックス自動送り発動: beat={_climaxBeatIndex} (経過={openFor:F1}s)");
+            }
         }
 
         if (!_scriptBoardAdvance) return;
@@ -397,7 +404,6 @@ public partial class AdventureSanctuaryTowerManager
         Destroy(glowGo);
     }
 
-    const int ClimaxFilmSubtitleSize = 38;
 
     void RefreshClimaxOilFilmSubtitle()
     {
@@ -431,8 +437,8 @@ public partial class AdventureSanctuaryTowerManager
             $"<color=#{titleHex}><b>{title}</b></color>\n<color=#{promptHex}><b>{prompt}</b></color>";
 
         _filmSubtitleUi.supportRichText = true;
-        _filmSubtitleUi.fontSize = ClimaxFilmSubtitleSize;
-        PrepareFontForText(font, prompt, ClimaxFilmSubtitleSize, FontStyle.Bold);
+        _filmSubtitleUi.fontSize = AdventureSpeechBoardLayout.CinematicFilmSubtitleSize;
+        PrepareFontForText(font, prompt, AdventureSpeechBoardLayout.CinematicFilmSubtitleSize, FontStyle.Bold);
         _filmSubtitleUi.text = mainText;
         _filmSubtitleUi.color = Color.white;
         _filmSubtitleUi.transform.localScale = Vector3.one;

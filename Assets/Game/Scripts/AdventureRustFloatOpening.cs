@@ -843,12 +843,12 @@ public class AdventureRustFloatOpening : MonoBehaviour
         textPanelBg.color = new Color(0.01f, 0.03f, 0.06f, 0.97f);
         textPanelBg.raycastTarget = false;
 
-        _storyHeaderText = MakeText(textPanelGo.transform, "StoryHeader", new Vector2(10f, -8f), new Vector2(0f, 1f), new Vector2(360f, 24f), 14, TextAnchor.UpperLeft, font);
+        _storyHeaderText = MakeText(textPanelGo.transform, "StoryHeader", new Vector2(10f, -8f), new Vector2(0f, 1f), new Vector2(360f, 26f), AdventureSpeechBoardLayout.TitleMenuStoryHeaderSize, TextAnchor.UpperLeft, font);
         _storyHeaderText.fontStyle = FontStyle.Bold;
         _storyHeaderText.color = new Color(0.40f, 0.88f, 1.0f, 1f);
         _storyHeaderText.text = "📜 時代背景と物語";
 
-        _storyBodyText = MakeText(textPanelGo.transform, "StoryBody", new Vector2(10f, -40f), new Vector2(0f, 1f), new Vector2(350f, 320f), 13, TextAnchor.UpperLeft, font);
+        _storyBodyText = MakeText(textPanelGo.transform, "StoryBody", new Vector2(10f, -40f), new Vector2(0f, 1f), new Vector2(350f, 320f), AdventureSpeechBoardLayout.TitleMenuStoryBodySize, TextAnchor.UpperLeft, font);
         _storyBodyText.fontStyle = FontStyle.Bold;
         _storyBodyText.lineSpacing = 1.35f;
         _storyBodyText.color = new Color(0.95f, 0.97f, 1.0f, 0.95f);
@@ -903,7 +903,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         cOutline.effectColor = new Color(0.20f, 0.50f, 0.75f, 0.35f);
         cOutline.effectDistance = new Vector2(1f, -1f);
 
-        _menuHeaderText = MakeText(cardGo.transform, "MenuHeader", new Vector2(18f, -16f), new Vector2(0f, 1f), new Vector2(360f, 24f), 14, TextAnchor.UpperLeft, font);
+        _menuHeaderText = MakeText(cardGo.transform, "MenuHeader", new Vector2(18f, -16f), new Vector2(0f, 1f), new Vector2(360f, 26f), AdventureSpeechBoardLayout.TitleMenuSectionHeaderSize, TextAnchor.UpperLeft, font);
         _menuHeaderText.fontStyle = FontStyle.Bold;
         _menuHeaderText.color = new Color(0.40f, 0.88f, 1.0f, 1f);
         _menuHeaderText.text = "✦ メインメニュー";
@@ -914,7 +914,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         // 1. 【つづきから（Continue）】
         _continueBtn = CreateMenuButton(cardGo.transform, "ContinueBtn", new Vector2(0f, startY), new Vector2(btnW, 56f),
             new Color(0.12f, 0.58f, 0.72f, 0.96f), new Color(0.25f, 0.85f, 0.98f, 1f),
-            "▶  つづきから", 16, OnContinueClicked, font, out _continueBtnImg, out _continueBtnLabel);
+            "▶  つづきから", AdventureSpeechBoardLayout.TitleMenuButtonPrimarySize, OnContinueClicked, font, out _continueBtnImg, out _continueBtnLabel);
 
         // つづきから サブ情報テキスト
         _continueSubText = MakeText(_continueBtn.transform, "ContinueSub", new Vector2(0f, 8f), new Vector2(0.5f, 0f), new Vector2(btnW - 20f, 18f), 11, TextAnchor.MiddleCenter, font);
@@ -930,17 +930,17 @@ public class AdventureRustFloatOpening : MonoBehaviour
         // 2. 【はじめから（New Game）】
         _newGameBtn = CreateMenuButton(cardGo.transform, "NewGameBtn", new Vector2(0f, startY - 72f), new Vector2(btnW, 48f),
             new Color(0.15f, 0.60f, 0.52f, 0.96f), new Color(0.25f, 0.85f, 0.75f, 1f),
-            "✦  はじめから", 16, OnNewGameClicked, font, out _, out _newGameBtnLabel);
+            "✦  はじめから", AdventureSpeechBoardLayout.TitleMenuButtonPrimarySize, OnNewGameClicked, font, out _, out _newGameBtnLabel);
 
         // 3. 【設定（Settings）】
         _settingsBtn = CreateMenuButton(cardGo.transform, "SettingsBtn", new Vector2(0f, startY - 138f), new Vector2(btnW, 46f),
             new Color(0.18f, 0.32f, 0.50f, 0.96f), new Color(0.30f, 0.52f, 0.75f, 1f),
-            "⚙  環境設定", 15, OnSettingsClicked, font, out _, out _settingsBtnLabel);
+            "⚙  環境設定", AdventureSpeechBoardLayout.TitleMenuButtonSecondarySize, OnSettingsClicked, font, out _, out _settingsBtnLabel);
 
         // 4. 【ゲーム終了（Quit）】
         _quitBtn = CreateMenuButton(cardGo.transform, "QuitBtn", new Vector2(0f, startY - 200f), new Vector2(btnW, 44f),
             new Color(0.38f, 0.16f, 0.18f, 0.95f), new Color(0.60f, 0.22f, 0.25f, 1f),
-            "✖  ゲーム終了", 14, OnQuitClicked, font, out _, out _quitBtnLabel);
+            "✖  ゲーム終了", AdventureSpeechBoardLayout.TitleMenuButtonTertiarySize, OnQuitClicked, font, out _, out _quitBtnLabel);
     }
 
     Button CreateMenuButton(Transform parent, string name, Vector2 pos, Vector2 size, Color normalCol, Color highlightCol,

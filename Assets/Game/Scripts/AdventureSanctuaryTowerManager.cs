@@ -265,13 +265,15 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     // 注油前台本(0-2) → 注油 → 注油後台本(3-4)
     const string SkyLimitWarning = "✦ 限界高度：凍結危機 ✦";
     const int ClimaxOilSlot = 3; // next==3 のとき注油フェーズへ入る
+    /// <summary>注油後「温かい油が…」蘇生セリフの最低表示（秒）。手動送り・短縮倍率の対象外。</summary>
+    public const float ClimaxRevivalBeatHoldSec = 9f;
     static readonly CanopyBeat[] ClimaxBeats =
     {
         new CanopyBeat("限界高度", "", "天蓋の裂け目から、凍てつく突風が吹き荒れる——\nRustのギアが、悲鳴のようなきしみ音を上げていた。", new Color(0.85f, 0.92f, 1f, 1f), autoSec: 4.5f),
         new CanopyBeat("", "✦ 相棒 Rust", "ギギッ……！ Float……身体が……冷え切って動かないよ……！\nギアが……凍りついちゃう……！", new Color(0.45f, 0.92f, 1f, 1f), autoSec: 4.5f),
         new CanopyBeat("", "✦ Float", "Rust、待ってて！　今、集めた油を全部注ぐから……！", new Color(1f, 0.92f, 0.55f, 1f), autoSec: 4.5f),
         // ← ここで注油フェーズ
-        new CanopyBeat("", "✦ 相棒 Rust", "……あ……温かい油が……心臓部に……じわっと染み込んでいく……！", new Color(0.45f, 0.92f, 1f, 1f), autoSec: 9.5f),
+        new CanopyBeat("", "✦ 相棒 Rust", "……あ……温かい油が……心臓部に……じわっと染み込んでいく……！", new Color(0.45f, 0.92f, 1f, 1f), autoSec: ClimaxRevivalBeatHoldSec),
         new CanopyBeat("", "✦ 相棒 Rust", "ピピッ！……ありがとう、Float！これで僕たちの翼は折れることはないよ！　大空の向こうまで、全力で行こう！！", new Color(0.45f, 0.95f, 1f, 1f), autoSec: 7.5f),
     };
 

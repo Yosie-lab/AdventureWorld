@@ -57,9 +57,9 @@ public static class AdventureSpeechBoardLayout
     {
         if (IsCinematicEndingBoard(tower))
         {
-            return new ScriptBoardMetrics(30, 20, 28, 16, 780f, 170f, 340f, 0.28f, 0.55f);
+            return new ScriptBoardMetrics(34, 23, 32, 18, 820f, 190f, 380f, 0.28f, 0.55f);
         }
-        return new ScriptBoardMetrics(18, 13, 17, 12, 440f, 108f, 188f, 0.12f, 0.36f);
+        return new ScriptBoardMetrics(21, 16, 21, 14, 480f, 118f, 210f, 0.12f, 0.36f);
     }
 
     // --- 表示時間 ---
@@ -77,10 +77,10 @@ public static class AdventureSpeechBoardLayout
 
     // --- 探索中 Rust 吹き出し（uGUI） ---
     public const float RustSpeechPanelW = 480f;
-    public const float RustSpeechPanelH = 76f;
+    public const float RustSpeechPanelH = 84f;
     public const float RustSpeechBottomY = 22f;
-    public const int RustSpeechSpeakerSize = 12;
-    public const int RustSpeechBodySize = 15;
+    public const int RustSpeechSpeakerSize = 14;
+    public const int RustSpeechBodySize = 18;
     public const float RustSpeechBgAlpha = 0.72f;
     public const float RustSpeechFadeOutSpeed = 7f;
 
@@ -89,29 +89,45 @@ public static class AdventureSpeechBoardLayout
     public const float NarrativeBoardMaxW = 580f;
     public const float NarrativeBoardHeightFrac = 0.52f;
     public const float NarrativeBoardMaxH = 300f;
-    public const int NarrativeTitleSize = 20;
-    public const int NarrativeSubSize = 13;
-    public const int NarrativeBodySize = 15;
-    public const int NarrativeBtnSize = 14;
+    public const int NarrativeTitleSize = 23;
+    public const int NarrativeSubSize = 15;
+    public const int NarrativeBodySize = 18;
+    public const int NarrativeBtnSize = 16;
 
     // --- 漂着箱モーダル ---
     public static readonly Vector2 DriftBoxPanelSize = new Vector2(440f, 260f);
-    public const int DriftBoxTitleSize = 18;
-    public const int DriftBoxAuthorSize = 12;
-    public const int DriftBoxBodySize = 14;
+    public const int DriftBoxTitleSize = 21;
+    public const int DriftBoxAuthorSize = 14;
+    public const int DriftBoxBodySize = 17;
 
     // --- 詩的ロアバナー ---
     public const float PoeticBannerW = 520f;
     public const float PoeticBannerH = 72f;
-    public const int PoeticBannerFontSize = 14;
+    public const int PoeticBannerFontSize = 17;
 
     // --- プロローグ／ダッシュ祝福 ---
     public const float PrologueBoardMaxW = 580f;
     public const float PrologueBoardMaxH = 260f;
-    public const int PrologueTitleSize = 22;
-    public const int PrologueBodySize = 15;
-    public const int PrologueHintSize = 14;
+    public const int PrologueTitleSize = 25;
+    public const int PrologueBodySize = 18;
+    public const int PrologueHintSize = 16;
+
+    // --- タイトルメニュー（左物語・右メニュー） ---
+    public const int TitleMenuStoryHeaderSize = 16;
+    public const int TitleMenuStoryBodySize = 16;
+    public const int TitleMenuSectionHeaderSize = 16;
+    public const int TitleMenuButtonPrimarySize = 18;
+    public const int TitleMenuButtonSecondarySize = 17;
+    public const int TitleMenuButtonTertiarySize = 16;
+
+    // --- 下部シーン字幕 ---
+    public const int SceneCaptionTitleSize = 18;
+    public const int SceneCaptionMetaSize = 14;
+    public const int SceneCaptionBodySize = 18;
+
+    // --- レターボックス映画字幕（クライマックス注油・エピローグ） ---
+    public const int CinematicFilmSubtitleSize = 41;
 
     // --- Rust IMGUI プロンプト ---
-    public const int RustCenterPromptFontSize = 14;
+    public const int RustCenterPromptFontSize = 16;
 }

@@ -77,9 +77,9 @@ public class AdventureSceneCaption : MonoBehaviour
 
         Font font = ResolveFont();
 
-        _titleText = MakeLine(root.transform, "Title", new Vector2(0f, 88f), 16, FontStyle.Bold, new Color(1f, 0.88f, 0.42f, 1f), font);
-        _metaText = MakeLine(root.transform, "Meta", new Vector2(0f, 68f), 12, FontStyle.Italic, new Color(0.55f, 0.88f, 1f, 0.95f), font);
-        _bodyText = MakeLine(root.transform, "Body", new Vector2(0f, 8f), 15, FontStyle.Normal, new Color(0.96f, 0.98f, 1f, 0.98f), font);
+        _titleText = MakeLine(root.transform, "Title", new Vector2(0f, 88f), AdventureSpeechBoardLayout.SceneCaptionTitleSize, FontStyle.Bold, new Color(1f, 0.88f, 0.42f, 1f), font);
+        _metaText = MakeLine(root.transform, "Meta", new Vector2(0f, 68f), AdventureSpeechBoardLayout.SceneCaptionMetaSize, FontStyle.Italic, new Color(0.55f, 0.88f, 1f, 0.95f), font);
+        _bodyText = MakeLine(root.transform, "Body", new Vector2(0f, 8f), AdventureSpeechBoardLayout.SceneCaptionBodySize, FontStyle.Normal, new Color(0.96f, 0.98f, 1f, 0.98f), font);
         _bodyText.alignment = TextAnchor.LowerCenter;
         var bodyRt = _bodyText.rectTransform;
         bodyRt.sizeDelta = new Vector2(900f, 72f);
