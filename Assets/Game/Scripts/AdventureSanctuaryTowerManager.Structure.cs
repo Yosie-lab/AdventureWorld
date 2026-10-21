@@ -136,6 +136,20 @@ public partial class AdventureSanctuaryTowerManager
             bool onStairs = (pos.z <= 481.5f && Mathf.Abs(pos.x - 512f) <= 4.8f);
             if (!onStairs)
             {
+                // レバー台座に体が埋まっているときは、南側の操作位置へ出す
+                Vector3 lever = _mainLeverPos;
+                float ldx = pos.x - lever.x;
+                float ldz = pos.z - lever.z;
+                if (ldx * ldx + ldz * ldz < 3.3f * 3.3f && pos.y > lever.y - 1.4f && pos.y < lever.y + 1.6f)
+                {
+                    var buriedCc = player.GetComponent<CharacterController>();
+                    if (buriedCc != null) buriedCc.enabled = false;
+                    player.transform.position = new Vector3(lever.x, TerraceTopY + 0.12f, lever.z - 4.2f);
+                    if (buriedCc != null) buriedCc.enabled = true;
+                    player.ForceGroundReset();
+                    return;
+                }
+
                 // テラス床面(63.0m)よりわずかに下（62.80m〜62.98m）の床板・メッシュ隙間に挟まった時のみ救出。
                 // 62.80m未満（床下・崖下・下からのジャンプ突入）は絶対に上面へワープさせない（下抜け・突き抜け防止）！
                 if (pos.y < 62.98f && pos.y >= 62.80f)
@@ -291,8 +305,9 @@ public partial class AdventureSanctuaryTowerManager
         pedSolid.transform.localRotation = Quaternion.identity;
         pedSolid.transform.localScale = Vector3.one;
         var pedBox = pedSolid.AddComponent<BoxCollider>();
-        pedBox.center = Vector3.zero;
-        pedBox.size = new Vector3(6.2f, 3.2f, 6.2f);
+        // テラス床（足元）より上に出さない。高さ 3.2 だと体が台座に埋まって移動不能になる
+        pedBox.center = new Vector3(0f, 0.35f, 0f);
+        pedBox.size = new Vector3(6.0f, 0.7f, 6.0f);
         var pedMr = ped.GetComponent<MeshRenderer>();
         if (pedMr != null) pedMr.material = pedMat;
 
@@ -302,6 +317,7 @@ public partial class AdventureSanctuaryTowerManager
         housing.transform.SetParent(root.transform, false);
         housing.transform.localPosition = new Vector3(0f, 1.65f, 0f);
         housing.transform.localScale = new Vector3(2.4f, 1.05f, 1.9f);
+        Destroy(housing.GetComponent<Collider>());
         var hMr = housing.GetComponent<MeshRenderer>();
         if (hMr != null) hMr.material = hMat;
 
@@ -365,7 +381,8 @@ public partial class AdventureSanctuaryTowerManager
         rimSolid.transform.SetParent(root.transform, false);
         rimSolid.transform.localPosition = new Vector3(0f, -0.8f, 0f);
         var rimBox = rimSolid.AddComponent<BoxCollider>();
-        rimBox.size = new Vector3(7.0f, 2.4f, 7.0f);
+        rimBox.center = new Vector3(0f, 0.55f, 0f);
+        rimBox.size = new Vector3(7.0f, 0.5f, 7.0f);
         var rimMr = rim.GetComponent<MeshRenderer>();
         if (rimMr != null) rimMr.material = pedMat;
 

@@ -501,9 +501,11 @@ public partial class AdventureSanctuaryTowerManager
         if (_oilGaugeFill != null)
         {
             float ratio = Mathf.Clamp01(_oilHoldTimer / OilHoldRequired);
-            var parent = _oilGaugeFill.transform.parent as RectTransform;
-            float w = parent != null ? parent.sizeDelta.x : 520f;
-            _oilGaugeFill.rectTransform.sizeDelta = new Vector2(w * ratio, 0f);
+            var fillRt = _oilGaugeFill.rectTransform;
+            fillRt.anchorMin = Vector2.zero;
+            fillRt.anchorMax = new Vector2(ratio, 1f);
+            fillRt.offsetMin = Vector2.zero;
+            fillRt.offsetMax = Vector2.zero;
 
             Color coldColor = new Color(0.45f, 0.85f, 1f, 1f);
             Color warmColor = new Color(1f, 0.82f, 0.22f, 1f);

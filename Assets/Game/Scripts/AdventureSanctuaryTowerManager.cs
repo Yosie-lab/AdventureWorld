@@ -830,8 +830,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void SetLeverPromptUI(bool show, bool ready)
     {
-        if (AdventureStoryFlow.HideWorldInteractPrompts)
-            show = false;
         _isLeverPromptShowing = show;
         _lastLeverPromptReady = ready;
 
@@ -1178,6 +1176,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         }
         AdventureMusicDirector.Ensure();
         AdventureMusicDirector.Instance?.ResetSkybreakMusicState();
+        AdventureDayNightDirector.PinDaytimeForSequenceStart();
 
         foreach (var h in _allLeverHandles)
         {

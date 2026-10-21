@@ -253,7 +253,7 @@ public class AdventurePrologueDrama : MonoBehaviour
                 {
                     "……うぅ……まだ冷たいよ……Floatの手、ほしい……【E】で……",
                     "……そばにいて……油を……さして……お願い……ぎゅっ……",
-                    "ピピッ……か、硬い……Float……手当て……して……",
+                    "Float　油さして",
                 };
                 drone.SpeakCustom(reminds[Random.Range(0, reminds.Length)], 4.2f);
                 nextRemind = 20f;
