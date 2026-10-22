@@ -776,8 +776,8 @@ public partial class AdventurePlayerController : MonoBehaviour
         }
 
         var tower = AdventureSanctuaryTowerManager.Instance;
-        if (tower != null && tower.ClimaxCrisisStarted && !tower.IsClimaxOilPromptActive
-            && transform.position.y > 118f)
+        // 限界高度〜エピローグ前まで常に滑空（注油後の蘇生台本中も Space 不要）
+        if (tower != null && tower.NeedsClimaxSkyAltitude && transform.position.y > 60f)
         {
             _gliding = true;
             _grounded = false;
@@ -857,9 +857,26 @@ public partial class AdventurePlayerController : MonoBehaviour
                                && (_grounded || coyoteGround
                                    || (_hop <= 0.05f && nearFoot && _airborneTime < groundGrace));
 
+        if (ShouldUseClimaxSkyGlide())
+        {
+            _gliding = true;
+            _grounded = false;
+            return ComputeGlideHorizontal(input);
+        }
+
         if (forceGroundMove) return ComputeGroundHorizontal(wishWalk, running);
         if (_gliding)        return ComputeGlideHorizontal(input);
         return ComputeAirHorizontal(input);
+    }
+
+    /// <summary>クライマックス上空：注油前は地上扱いに落ちず滑空物理を強制</summary>
+    bool ShouldUseClimaxSkyGlide()
+    {
+        if (_climaxSkyHold) return true;
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        return tower != null
+               && tower.NeedsClimaxSkyAltitude
+               && transform.position.y > 60f;
     }
 
     /// <summary>地上移動量の計算（砂浜登坂アシスト・回転含む）</summary>
@@ -969,6 +986,8 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (_autoGlide)
             return ComputeAutoGlideHorizontal();
 
+        bool climaxHold = _climaxSkyHold || ShouldUseClimaxSkyGlide();
+
         // ボーストタイマーを進める
         if (_glideBoostTimer > 0f)
             _glideBoostTimer -= Time.deltaTime;
@@ -1045,6 +1064,11 @@ public partial class AdventurePlayerController : MonoBehaviour
         float targetFall = cruiseFall;
         targetFall = Mathf.Lerp(targetFall, diveFall, diveT);
         targetFall = Mathf.Lerp(targetFall, flareFall, flareT);
+        if (climaxHold)
+        {
+            diveT = 0f;
+            targetFall = Mathf.Max(targetFall, -0.25f);
+        }
         if (AdventureFieldLesson.HasCanopyRead && AdventureFieldLesson.IsInDeepForest(transform.position))
             targetFall = Mathf.Lerp(targetFall, Mathf.Max(targetFall, -0.35f), 0.65f);
 
@@ -1821,38 +1845,38 @@ public partial class AdventurePlayerController : MonoBehaviour
     {
         var tower = AdventureSanctuaryTowerManager.Instance;
         bool needHold = tower != null
-                        && tower.ClimaxCrisisStarted
-                        && tower.IsBeforeWarmOilSpeech
-                        && transform.position.y > 95f;
+                        && (tower.NeedsClimaxSkyAltitude
+                            || (tower.IsPendingClimax && transform.position.y > 118f && !_autoGlide));
         if (!needHold)
         {
             _climaxSkyHold = false;
             return;
         }
 
+        float floorY = 142f;
         if (!_climaxSkyHold)
-            ArmClimaxSkyHold(Mathf.Max(_climaxSkyHoldAltitude, transform.position.y, 148f));
+            ArmClimaxSkyHold(Mathf.Max(_climaxSkyHoldAltitude, transform.position.y, 154f));
+        _climaxSkyHoldAltitude = Mathf.Max(_climaxSkyHoldAltitude, 152f);
 
         _grounded = false;
         _gliding = true;
 
-        if (transform.position.y < 132f)
+        if (transform.position.y < floorY)
         {
-            _hop = Mathf.Max(_hop, 8f);
-            if (_cc != null && transform.position.y < 128f)
+            _hop = Mathf.Max(_hop, 10f);
+            if (_cc != null && transform.position.y < floorY - 2f)
             {
                 _cc.enabled = false;
                 transform.position = new Vector3(transform.position.x,
-                    Mathf.Max(transform.position.y, _climaxSkyHoldAltitude - 2f),
+                    Mathf.Max(_climaxSkyHoldAltitude - 1f, floorY),
                     transform.position.z);
                 _cc.enabled = true;
             }
-            return;
         }
 
         float dy = _climaxSkyHoldAltitude - transform.position.y;
-        float targetHop = Mathf.Clamp(dy * 1.55f, -0.8f, 3.6f);
-        _hop = Mathf.MoveTowards(_hop, targetHop, 7.5f * Time.deltaTime);
+        float targetHop = Mathf.Clamp(dy * 2.1f, -0.2f, 5.5f);
+        _hop = Mathf.MoveTowards(_hop, targetHop, 14f * Time.deltaTime);
     }
 
     /// <summary>エピローグ中のオートグライド（指定高度付近で水平旋回）。手を離しても墜落しない</summary>
@@ -1948,9 +1972,9 @@ public partial class AdventurePlayerController : MonoBehaviour
         _skybreakPillarDone = false;
         _skybreakPillarLock = true;
         _skybreakPillarLift = Mathf.Clamp(liftSpeed, 24f, 42f);
-        _skybreakPillarTargetY = Mathf.Clamp(releaseY, 148f, 155f);
+        _skybreakPillarTargetY = Mathf.Clamp(releaseY, 152f, 162f);
         _skybreakPillarCenter = new Vector3(pillarCenter.x, 0f, pillarCenter.z);
-        _skybreakPillarEndAt = Time.unscaledTime + 6.5f;
+        _skybreakPillarEndAt = Time.unscaledTime + 9.5f;
         _skybreakLastY = transform.position.y;
         _autoGlide = false;
         ApplyLaunchUpdraft(_skybreakPillarLift, _skybreakPillarLift);
@@ -1989,7 +2013,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         _updraftTimer = 1f;
         _updraftLift = 2f;
 
-        SetAutoGlideMode(true, Mathf.Clamp(y, 148f, 160f));
+        SetAutoGlideMode(true, Mathf.Clamp(y, 152f, 162f));
         AdventureSanctuaryTowerManager.Instance?.NotifyPillarAscendComplete();
     }
 
@@ -2014,6 +2038,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         _updraftLift = _skybreakPillarLift;
         _updraftTimer = 1f;
         _hop = _skybreakPillarLift;
+        EnforceSkybreakPillarHeight();
     }
 
     void EnforceSkybreakPillarHeight()
@@ -2044,7 +2069,7 @@ public partial class AdventurePlayerController : MonoBehaviour
 
         if (!_skybreakPillarLock)
         {
-            BeginSkybreakPillarAscend(pillarBase, liftSpeed, 150f);
+            BeginSkybreakPillarAscend(pillarBase, liftSpeed, 156f);
             return;
         }
 

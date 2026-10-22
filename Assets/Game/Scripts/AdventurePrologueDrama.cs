@@ -266,7 +266,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         // ② 蘇生 → 胸元で甘え寄り添い → 最初のギアへ
         _phase = Phase.Act2Revived;
         drone.EndPrologueDistress();
-        drone.CompletePrologueOil();
+        drone.CompletePrologueOil(playSound: false);
         drone.SetPettingState(true, 22f);
 
         yield return SpeakRust(drone,
@@ -298,16 +298,15 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         Vector3 diff = drone.transform.position - player.transform.position;
         float horizontal = new Vector2(diff.x, diff.z).magnitude;
-        if (horizontal > 6.5f) return;
+        float vertical = Mathf.Abs(diff.y);
+        if (horizontal > 6.5f || vertical > 5.5f) return;
 
-        bool pressed = AdventureInputReader.InteractEKeyDown
-                       || AdventureInputReader.InteractDown
-                       || player.InteractPressed;
+        bool pressed = AdventureInputReader.InteractDown || player.InteractPressed;
         if (!pressed) return;
+        if (AdventureScrapManager.ShouldSuppressRustCompanionInteract) return;
 
-        if (!AdventureScrapManager.ShouldSuppressRustCompanionInteract)
-            drone.InteractWithNiko();
-        drone.CompletePrologueOil();
+        drone.InteractWithNiko();
+        drone.CompletePrologueOil(playSound: false);
         NotifyOilApplied();
     }
 

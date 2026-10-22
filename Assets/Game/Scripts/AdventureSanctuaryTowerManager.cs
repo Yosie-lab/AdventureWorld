@@ -204,6 +204,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     float _oilHoldTimer = 0f;
     float _oilWaitOpenedAt = 0f;
     int _oilHoldFrame = -1;
+    bool _climaxOilPourCuePlayed;
     const float OilHoldRequired = 2.2f;
     /// <summary>注油長押しの持ち越しで次台本を即スキップしないよう、一度離すまで送り不可</summary>
     bool _scriptRequireInputRelease = false;
@@ -221,6 +222,10 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     public float EpilogueAlpha => _epilogueAlpha;
     public bool ShowGameClearModal => _showGameClearModal;
     public bool IsPendingClimax => _pendingClimaxAfterCanopy;
+
+    /// <summary>限界高度クライマックス中〜エピローグ前：大空高度を維持（注油後の蘇生台本含む）</summary>
+    public bool NeedsClimaxSkyAltitude =>
+        _climaxCrisisStarted && !_epilogueTriggered;
 
     /// <summary>天蓋崩壊シーケンス開始から、注油完了後の「あ 温かい油が 心臓部に…」が出るまでの緊迫フェーズ中判定</summary>
     public bool IsBeforeWarmOilSpeech
@@ -274,7 +279,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         new CanopyBeat("", "✦ Float", "Rust、待ってて！　今、集めた油を全部注ぐから……！", new Color(1f, 0.92f, 0.55f, 1f), autoSec: 4.5f),
         // ← ここで注油フェーズ
         new CanopyBeat("", "✦ 相棒 Rust", "……あ……温かい油が……心臓部に……じわっと染み込んでいく……！", new Color(0.45f, 0.92f, 1f, 1f), autoSec: ClimaxRevivalBeatHoldSec),
-        new CanopyBeat("", "✦ 相棒 Rust", "ピピッ！……ありがとう、Float！これで僕たちの翼は折れることはないよ！　大空の向こうまで、全力で行こう！！", new Color(0.45f, 0.95f, 1f, 1f), autoSec: 7.5f),
+        new CanopyBeat("", "✦ 相棒 Rust", "ピピッ！……ありがとう、Float！これで僕たちの翼は折れることはないよ！　大空の向こうまで、全力で行こう！！", new Color(0.45f, 0.95f, 1f, 1f), autoSec: 4f),
     };
 
     public static void Ensure()

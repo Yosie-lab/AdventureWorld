@@ -44,13 +44,14 @@ public partial class AdventureSanctuaryTowerManager
         if (player != null)
         {
             // 警告台本時点で必ず空中にいる
-            if (player.transform.position.y < 140f)
-                player.ForceSkybreakArrival(new Vector3(512f, 150f, 512f), 150f);
+            const float climaxSkyY = 156f;
+            if (player.transform.position.y < climaxSkyY - 2f)
+                player.ForceSkybreakArrival(new Vector3(512f, climaxSkyY, 512f), climaxSkyY);
             else
                 player.EndSkybreakPillarAscend();
-            // オートヨーは切るが、注油前まで高度は ArmClimaxSkyHold で維持（手動 WASD は有効）
+            // オートヨーは切るが、エピローグ前まで高度は ArmClimaxSkyHold で維持（手動 WASD は有効）
             player.SetAutoGlideMode(false);
-            float holdY = Mathf.Max(player.transform.position.y, 148f);
+            float holdY = Mathf.Max(player.transform.position.y, climaxSkyY);
             player.ArmClimaxSkyHold(holdY);
         }
 
@@ -173,12 +174,21 @@ public partial class AdventureSanctuaryTowerManager
         _climaxOilWaiting = true;
         _climaxOilInjected = false;
         _oilHoldTimer = 0f;
+        _climaxOilPourCuePlayed = false;
         _oilWaitOpenedAt = Time.unscaledTime;
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         SuppressAllSpeechAndBanners();
         EnsureOilPromptUI();
+
+        var oilPlayer = GetPlayer();
+        if (oilPlayer != null)
+        {
+            float holdY = Mathf.Max(oilPlayer.transform.position.y, 154f);
+            oilPlayer.ArmClimaxSkyHold(holdY);
+        }
+
         Debug.Log("[RustAndFloat] 注油フェーズ開始（E/Space/クリック長押し）");
     }
 
@@ -300,6 +310,11 @@ public partial class AdventureSanctuaryTowerManager
         bool holding = AdventureInputReader.OilHoldButtons;
         if (holding)
         {
+            if (!_climaxOilPourCuePlayed)
+            {
+                _climaxOilPourCuePlayed = true;
+                GetDrone()?.PlayOilAppliedSound(0.62f);
+            }
             if (_oilHoldFrame != Time.frameCount)
             {
                 _oilHoldFrame = Time.frameCount;
@@ -345,6 +360,10 @@ public partial class AdventureSanctuaryTowerManager
         var drone = GetDrone();
         if (drone != null)
             drone.StartClimaxPetAndOil();
+
+        var oilHoldPlayer = GetPlayer();
+        if (oilHoldPlayer != null)
+            oilHoldPlayer.ArmClimaxSkyHold(Mathf.Max(oilHoldPlayer.transform.position.y, 154f));
 
         var cam = AdventureCameraFollow.Instance;
         if (cam != null)

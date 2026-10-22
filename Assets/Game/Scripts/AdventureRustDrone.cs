@@ -313,10 +313,12 @@ public partial class AdventureRustDrone : MonoBehaviour
     }
 
     bool _prologueDistress;
+    bool _prologueOilFxDone;
 
     /// <summary>冒頭ドラマ：塩水で凍りつくRust</summary>
     public void StartPrologueDistress()
     {
+        _prologueOilFxDone = false;
         _prologueDistress = true;
         IsClimaxCrisis = false;
         IsClimaxOverdrive = false;
@@ -382,28 +384,32 @@ public partial class AdventureRustDrone : MonoBehaviour
     }
 
     /// <summary>冒頭ドラマ：注油で回路復活</summary>
-    public void CompletePrologueOil()
+    public void CompletePrologueOil(bool playSound = true)
     {
-        oilCount = Mathf.Max(oilCount, 8);
-        wellOiledUntil = Time.time + 120f;
-        _heat = 0f;
-        _heatUntil = 0f;
-        _hitchUntil = 0f;
-        _prologueDistress = false;
-        _climaxHealing = true;
-        SpawnGoldSparkles(transform.position + Vector3.up * 0.3f, 28);
-        SpawnClimaxHealAura();
-
-        if (_bodyMat != null)
+        if (!_prologueOilFxDone)
         {
-            _bodyMat.EnableKeyword("_EMISSION");
-            _bodyMat.SetColor("_EmissionColor", new Color(1.0f, 0.82f, 0.25f) * 2.4f);
+            _prologueOilFxDone = true;
+            oilCount = Mathf.Max(oilCount, 8);
+            wellOiledUntil = Time.time + 120f;
+            _heat = 0f;
+            _heatUntil = 0f;
+            _hitchUntil = 0f;
+            _prologueDistress = false;
+            _climaxHealing = true;
+            SpawnGoldSparkles(transform.position + Vector3.up * 0.3f, 28);
+            SpawnClimaxHealAura();
+
+            if (_bodyMat != null)
+            {
+                _bodyMat.EnableKeyword("_EMISSION");
+                _bodyMat.SetColor("_EmissionColor", new Color(1.0f, 0.82f, 0.25f) * 2.4f);
+            }
+            EnsureClimaxEyeLight(new Color(1f, 0.9f, 0.45f), 2.4f);
+            StartCoroutine(EndPrologueHealSoon());
         }
-        EnsureClimaxEyeLight(new Color(1f, 0.9f, 0.45f), 2.4f);
 
-        PlayOilAppliedSound();
-
-        StartCoroutine(EndPrologueHealSoon());
+        if (playSound)
+            PlayOilAppliedSound();
     }
 
     IEnumerator EndPrologueHealSoon()
@@ -1859,6 +1865,10 @@ public partial class AdventureRustDrone : MonoBehaviour
             _uiAudio.playOnAwake = false;
             _uiAudio.spatialBlend = 0f; // 2D UIオーディオ（距離減衰ゼロで確実に聞こえる）
             _uiAudio.volume = 0.95f;
+            _uiAudio.priority = 0;
+            _uiAudio.bypassEffects = true;
+            _uiAudio.bypassListenerEffects = true;
+            _uiAudio.ignoreListenerPause = true;
         }
         if (_oilPourClip == null)
         {
@@ -1918,21 +1928,29 @@ public partial class AdventureRustDrone : MonoBehaviour
     }
 
     /// <summary>油をさしたときの確実なSE再生（2D常設音源による距離減衰ゼロ・クリア再生）</summary>
-    public void PlayOilAppliedSound()
+    public void PlayOilAppliedSound(float volumeScale = 1f)
     {
         Ensure2DAudio();
+        if (_oilPourClip == null) return;
 
-        if (_uiAudio != null && _oilPourClip != null)
+        float vol = Mathf.Clamp01(0.95f * volumeScale * Mathf.Clamp01(PlayerPrefs.GetFloat("Adventure_SeVolume", 1f)));
+        if (vol <= 0.001f) return;
+
+        if (_uiAudio != null)
         {
             _uiAudio.pitch = Random.Range(0.98f, 1.04f);
-            _uiAudio.PlayOneShot(_oilPourClip, 0.95f);
+            _uiAudio.PlayOneShot(_oilPourClip, vol);
         }
+
+        var listener = Object.FindAnyObjectByType<AudioListener>();
+        Vector3 pos = listener != null
+            ? listener.transform.position
+            : (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
+        AudioSource.PlayClipAtPoint(_oilPourClip, pos, vol);
 
         // 3D側でも補助再生
         if (_audio != null && _happyBeepClip != null)
-        {
-            _audio.PlayOneShot(_happyBeepClip, 0.5f);
-        }
+            _audio.PlayOneShot(_happyBeepClip, 0.5f * volumeScale);
     }
 
     void SetupHeat()
@@ -2111,15 +2129,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         // クライマックス注油中は通常の手当てを止め、注油ゲージへ回す
         if (towerMgr != null && towerMgr.IsClimaxOilPromptActive)
         {
-            var kbOil = UnityEngine.InputSystem.Keyboard.current;
-            bool holding = kbOil != null && (kbOil.eKey.isPressed || kbOil.spaceKey.isPressed || kbOil.enterKey.isPressed);
-            try
-            {
-                if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.Return))
-                    holding = true;
-            }
-            catch { }
-            if (holding)
+            if (AdventureInputReader.OilHoldButtons)
                 towerMgr.NotifyOilHold(Time.unscaledDeltaTime);
             return;
         }
@@ -2131,7 +2141,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         var prologue = AdventurePrologueDrama.Instance;
         if (prologue != null && prologue.IsWaitingForOil)
         {
-            if (_isPlayerNear && AdventureInputReader.InteractEKeyDown
+            if (_isPlayerNear && AdventureInputReader.InteractDown
                 && !AdventureScrapManager.ShouldSuppressRustCompanionInteract
                 && Time.time - _lastInteractTime > 0.35f)
             {

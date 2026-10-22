@@ -477,7 +477,7 @@ public partial class AdventureSanctuaryTowerManager
             float startY = Mathf.Max(player.transform.position.y, TerraceTopY + 1f);
             player.transform.position = new Vector3(512f, startY + 2.5f, 512f);
             if (cc != null) cc.enabled = true;
-            player.BeginSkybreakPillarAscend(new Vector3(512f, 0f, 512f), 36f, 150f);
+            player.BeginSkybreakPillarAscend(new Vector3(512f, 0f, 512f), 38f, 156f);
         }
     }
 
@@ -502,8 +502,10 @@ public partial class AdventureSanctuaryTowerManager
         if (_climaxCrisisStarted || _epilogueTriggered) return;
         if (_canopyBeatIndex >= 0 || _endingSequenceActive) return;
 
+        // 光の柱上昇中は割れ目手前で止まったままクライマックスに入らない
         bool highEnough = player != null
-            && (player.transform.position.y >= 140f || player.IsAutoGliding);
+                          && !player.IsSkybreakPillarAscending
+                          && player.transform.position.y >= 147f;
         // deadline<=0 は「高さ待ちのみ」。0を即タイムアウト扱いすると地上リセット後にエンディングが再点火する
         bool timedOut = _pendingClimaxDeadline > 0f
                         && Time.unscaledTime >= _pendingClimaxDeadline;
@@ -515,9 +517,9 @@ public partial class AdventureSanctuaryTowerManager
         if (!_isCanopyBroken)
             IsCanopyBroken = true;
 
-        // タイムアウト時のみ高度を強制確保（通常は上昇演出の到達を活かす）
-        if (player != null && player.transform.position.y < 140f)
-            player.ForceSkybreakArrival(new Vector3(512f, 150f, 512f), 150f);
+        const float climaxSkyY = 156f;
+        if (player != null && player.transform.position.y < climaxSkyY - 2f)
+            player.ForceSkybreakArrival(new Vector3(512f, climaxSkyY, 512f), climaxSkyY);
 
         Debug.Log($"[RustAndFloat] クライマックス開始 high={highEnough} timeout={timedOut}");
         AdventureStoryFlow.InvalidateCache();
