@@ -9,18 +9,15 @@ public class AdventureScrapManager : MonoBehaviour
     #region Singleton & Public Access
     static AdventureScrapManager _instance;
 
-    /// <summary>パーツ／貝殻等の取得直後、Rust 手当て E/クリックと競合しない猶予</summary>
+    /// <summary>パーツ／貝殻等の取得フレーム（Rust 手当て E/クリックの同一フレーム誤爆防止）</summary>
     public static int LastScrapCollectFrame { get; private set; } = -1;
-    static float _pickupInputGraceUntil;
 
     public static bool ShouldSuppressRustCompanionInteract =>
-        Time.unscaledTime < _pickupInputGraceUntil
-        || AdventureRustWorkshopUI.IsOpen;
+        Time.frameCount == LastScrapCollectFrame;
 
     public static void ArmPickupInputGrace(float seconds = 0.75f)
     {
-        LastScrapCollectFrame = Time.frameCount;
-        _pickupInputGraceUntil = Mathf.Max(_pickupInputGraceUntil, Time.unscaledTime + seconds);
+        MarkScrapCollectedThisFrame();
     }
 
     public static void MarkScrapCollectedThisFrame() => ArmPickupInputGrace();

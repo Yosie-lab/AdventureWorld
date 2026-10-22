@@ -378,6 +378,12 @@ public static class AdventureLocalizationManager
         { "rust_water_skimming", new[] { "「水鳥みたいだね、Float！」", "\"Just like a seabird skimming the waves, Float!\"", "“像水鸟一样贴水飞翔呢，Float！”", "¡Como un ave marina rozando las olas, Float!" } },
         { "rust_scrap_found", new[] { "「Float、パーツを発見したよ！あそこだ！」", "\"Float, I found a scrap part! Over there!\"", "“Float，发现零件了！就在那边！”", "¡Float, encontré una pieza! ¡Por allí!" } },
         { "rust_touch_cheer", new[] { "ピピッ！（パーツ回収完了！）", "Chirp! (Scrap Collected!)", "哔哔！（零件回收完毕！）", "¡Bip bip! (¡Pieza recuperada!)" } },
+        { "rust_beach_vast_return", new[] {
+            "広大な砂浜だね！戻るときはSpaceキーで海風に乗るか、海沿いの上昇気流や木道を使ってね！",
+            "What a vast beach! To head back inland, hold Space to ride the sea breeze—or use the coastal thermals and boardwalks!",
+            "好广阔的沙滩啊！回去时按住Space键乘风，或者走海边的上升气流和木道吧！",
+            "¡Qué playa tan inmensa! Para volver al interior, mantén Space para surfear la brisa marina, o usa las térmicas costeras y las pasarelas."
+        } },
 
         // --- 実績 (Achievements) ---
         { "ach_first_glide_title", new[] { "大空への第一歩", "First Flight", "飞向长空的第一步", "Primer Vuelo" } },
@@ -2165,6 +2171,14 @@ public static class AdventureLocalizationManager
         { "prompt_shell_pickup", new[] { "【E】{0}を拾う", "[E] Pick up {0}", "【E】拾取 {0}", "[E] Recoger {0}" } },
         { "prompt_flotsam_inspect", new[] { "【E】調べる", "[E] Inspect", "【E】调查", "[E] Examinar" } },
 
+        // 砂浜漂流物 Rust セリフ
+        { "flotsam_2040_1_dialogue", new[] {
+            "心拍数を測るバンドだ…身につけていると息が詰まりそうだね、Float",
+            "A band that tracks your heartbeat… Wearing it feels like it would squeeze the breath out of you, Float.",
+            "测心率的腕带啊……戴着它好像会喘不过气呢，Float。",
+            "Una pulsera que mide el pulso… Llevarla puesta da la sensación de que te falta el aire, Float."
+        } },
+
         // 貝殻拾得トースト＆セリフ
         { "わぁ、花びらみたいな貝殻だね！", new[] {
             "わぁ、花びらみたいな貝殻だね！",
@@ -2277,6 +2291,30 @@ public static class AdventureLocalizationManager
             "✨ Ancient Piano Relic Recovered! (+3 pt) ✨\n✦ Explored Points: {0} / {1} pt",
             "✨ 已回收钢琴古代遗物！ (+3 pt) ✨\n✦ 探索点数: {0} / {1} pt",
             "✨ ¡Reliquia antigua de piano recuperada! (+3 pt) ✨\n✦ Puntos de exploración: {0} / {1} pt"
+        } },
+        { "piano_duet_rust_0", new[] {
+            "わぁ、素敵な連弾だね！カピタも嬉しそうに目を細めてるよ♪",
+            "Wow, what a lovely duet! Capyta's eyes are narrowed happily♪",
+            "哇啊，好美妙的合奏！卡皮塔也幸福地眯起了眼睛呢♪",
+            "¡Uau, qué dúo tan bonito! Capyta entrecierra los ojos, feliz♪"
+        } },
+        { "piano_duet_rust_1", new[] {
+            "ポロ〜ン…♪ 風に乗って、島のすみずみまで音が届いていくね",
+            "Plink~...♪ The sound rides the wind to every corner of the island",
+            "波噜〜…♪ 乐声乘着风，传到了岛的每个角落呢",
+            "Plin~...♪ La música viaja con el viento hasta el último rincón de la isla"
+        } },
+        { "piano_duet_rust_2", new[] {
+            "カピタ『ブヒヒ…♪（ご機嫌にリズムに合わせて鼻を鳴らした！）』",
+            "Capyta: \"Oink-hehe...♪ (happily honked along to the rhythm!)\"",
+            "卡皮塔『哼哧哧…♪（开心地跟着节奏哼起了鼻子！）』",
+            "Capyta: «¡Oink-jeje...♪ (resopló al ritmo, de muy buen humor!)»"
+        } },
+        { "piano_duet_rust_3", new[] {
+            "ふふっ、息ピッタリ！二人の音楽で島が優しさに包まれていくよ…！",
+            "Hehe, perfect sync! Our music is wrapping the whole island in warmth...!",
+            "呵呵，默契满分！两个人的音乐把整座岛都温柔包裹起来了…！",
+            "Jeje, ¡a la perfección! Nuestra música envuelve la isla en ternura...!"
         } },
         { "banner_fan_activated", new[] {
             "✦ 上昇気流ファン起動！ ✦\n💡 送風ファンに乗って、崖上の黄金テラスへ跳ぼう！",

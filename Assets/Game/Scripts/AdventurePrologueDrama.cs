@@ -300,9 +300,13 @@ public class AdventurePrologueDrama : MonoBehaviour
         float horizontal = new Vector2(diff.x, diff.z).magnitude;
         if (horizontal > 6.5f) return;
 
-        bool pressed = AdventureInputReader.InteractDown || player.InteractPressed;
+        bool pressed = AdventureInputReader.InteractEKeyDown
+                       || AdventureInputReader.InteractDown
+                       || player.InteractPressed;
         if (!pressed) return;
 
+        if (!AdventureScrapManager.ShouldSuppressRustCompanionInteract)
+            drone.InteractWithNiko();
         drone.CompletePrologueOil();
         NotifyOilApplied();
     }

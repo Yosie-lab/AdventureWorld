@@ -122,7 +122,7 @@ public class AdventureBeachEscapeManager : MonoBehaviour
             var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
             if (drone != null)
             {
-                drone.SpeakCustom("広大な砂浜だね！戻るときはSpaceキーで海風に乗るか、海沿いの上昇気流や木道を使ってね！", 5.0f);
+                drone.SpeakCustom(AdventureLocalizationManager.Get("rust_beach_vast_return"), 5.0f);
             }
         }
     }

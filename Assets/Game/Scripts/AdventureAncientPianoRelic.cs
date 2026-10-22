@@ -389,15 +389,15 @@ public class AdventureAncientPianoRelic : MonoBehaviour
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
         if (drone != null)
         {
-            string[] rustPraises = new string[]
+            string[] rustKeys =
             {
-                "わぁ、素敵な連弾だね！カピタも嬉しそうに目を細めてるよ♪",
-                "ポロ〜ン…♪ 風に乗って、島のすみずみまで音が届いていくね",
-                "カピタ『ブヒヒ…♪（ご機嫌にリズムに合わせて鼻を鳴らした！）』",
-                "ふふっ、息ピッタリ！二人の音楽で島が優しさに包まれていくよ…！"
+                "piano_duet_rust_0",
+                "piano_duet_rust_1",
+                "piano_duet_rust_2",
+                "piano_duet_rust_3",
             };
-            string line = rustPraises[(_interactionCount - 1) % rustPraises.Length];
-            drone.SpeakCustom(line, 4.5f);
+            string key = rustKeys[(_interactionCount - 1) % rustKeys.Length];
+            drone.SpeakCustom(AdventureLocalizationManager.Get(key), 4.5f);
         }
     }
 

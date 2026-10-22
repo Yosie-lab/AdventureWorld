@@ -2128,14 +2128,25 @@ public partial class AdventureRustDrone : MonoBehaviour
         if (ShouldHideInteractionPrompt(towerMgr))
             return;
 
-        // プロローグの注油・台詞中は E をドラマ側へ渡す（通常手当てが油とセリフを奪わない）
         var prologue = AdventurePrologueDrama.Instance;
+        if (prologue != null && prologue.IsWaitingForOil)
+        {
+            if (_isPlayerNear && AdventureInputReader.InteractEKeyDown
+                && !AdventureScrapManager.ShouldSuppressRustCompanionInteract
+                && Time.time - _lastInteractTime > 0.35f)
+            {
+                _lastInteractTime = Time.time;
+                InteractWithNiko();
+                prologue.NotifyOilApplied();
+            }
+            return;
+        }
+
+        // プロローグの台詞中は E をドラマ側へ渡す（WaitOil は上で処理済み）
         if (prologue != null && prologue.IsBlockingSpeech)
             return;
 
-        // 押しっぱなし連打を防ぐ（wasPressed のみ / AdventureInputReader 統合）
         bool ePressed = AdventureInputReader.InteractDown;
-        // PlayerController の InteractPressed は押しっぱなしでも立つため、ここでは使わない
 
         // レバーの近くにいる場合はレバー操作を最優先
         if (towerMgr != null && towerMgr.IsPlayerNearLever)

@@ -66,6 +66,9 @@ public class AdventureCameraFollow : MonoBehaviour
 
     bool _lookUpdatedThisFrame;
 
+    /// <summary>同一フレーム内で ApplyLookSmoothingForMove を二重実行しない</summary>
+    bool _lookSmoothedThisFrame;
+
     float _shakeIntensity;
     float _shakeUntil;
     float _shakeSeed;
@@ -269,6 +272,7 @@ public class AdventureCameraFollow : MonoBehaviour
     void Update()
     {
         _lookUpdatedThisFrame = false;
+        _lookSmoothedThisFrame = false;
         if (IsTitleModalBlocking()) return;
         EnsureTarget();
         if (target == null) return;
@@ -282,15 +286,15 @@ public class AdventureCameraFollow : MonoBehaviour
         EnsureTarget();
         if (target == null) return;
 
-        // Update を飛ばした場合の保険
+        // Update を飛ばしたフレームだけ入力＋ヨー/Pitch を再計算（SmoothDamp の二重適用はしない）
         if (!_lookUpdatedThisFrame)
-        {
             UpdateLookInputOnly();
+        if (!_lookSmoothedThisFrame)
             ApplyLookSmoothingForMove();
-        }
 
         ApplyCameraRig();
         _lookUpdatedThisFrame = false;
+        _lookSmoothedThisFrame = false;
     }
 
     Vector2 _prevMouseScreenPos;
@@ -446,13 +450,54 @@ public class AdventureCameraFollow : MonoBehaviour
         _lookUpdatedThisFrame = true;
     }
 
+    bool IsCursorLookActive()
+    {
+        if (AdventureStoryFlow.WantsFreeCursor) return false;
+        return Cursor.lockState == CursorLockMode.Locked;
+    }
+
+    void UpdateWalkGroundBlend(bool playerGrounded)
+    {
+        if (playerGrounded)
+            _walkGroundBlend = Mathf.MoveTowards(_walkGroundBlend, 1f, Time.deltaTime / 0.07f);
+        else
+            _walkGroundBlend = Mathf.MoveTowards(_walkGroundBlend, 0f, Time.deltaTime / 0.11f);
+    }
+
+    /// <summary>歩行カメラ判定（ApplyCameraRig と ApplyLookSmoothing で同一基準）</summary>
+    static bool QueryWalkGroundCamera(bool isGliding, bool isAutoGlide, float cine, bool playerMoving, float walkGroundBlend, out bool inAir)
+    {
+        inAir = !isGliding && !isAutoGlide && walkGroundBlend < 0.32f;
+        return !isGliding && !isAutoGlide && cine < 0.05f
+               && walkGroundBlend > (playerMoving ? 0.38f : 0.52f);
+    }
+
+    /// <summary>プレイヤー入力中は常に即時。スムーズはエピローグ自動滑空のドローンショットのみ。</summary>
+    bool ShouldUseInstantLook(bool isAutoGlide, float cine, bool walkingGround, bool cursorLook)
+    {
+        if (walkingGround || cine < 0.02f) return true;
+        if (cursorLook)
+        {
+            bool epilogueDrone = isAutoGlide && cine > 0.25f;
+            if (!epilogueDrone) return true;
+            if (Time.time - _lastMouseInputTime < 0.45f) return true;
+            return false;
+        }
+
+        return Time.time - _lastMouseInputTime < 0.35f;
+    }
+
     void ApplyLookSmoothingForMove()
     {
+        if (_lookSmoothedThisFrame) return;
+        _lookSmoothedThisFrame = true;
+
         var player = AdventurePlayerController.Instance;
         bool isGliding = player != null && player.IsGliding;
         bool isAutoGlide = player != null && player.IsAutoGliding;
         bool playerGrounded = player != null && player.IsGrounded;
         bool playerMoving = player != null && player.HasMoveInput;
+        bool cursorLook = IsCursorLookActive();
 
         if (playerGrounded && !isAutoGlide && _cinematic && !AdventureStoryFlow.HoldCinematicCamera)
             SetCinematicMode(false);
@@ -461,20 +506,21 @@ public class AdventureCameraFollow : MonoBehaviour
         _cinematicBlend = Mathf.MoveTowards(_cinematicBlend, blendTarget, CinematicBlendSpeed * Time.unscaledDeltaTime);
         float cine = _cinematicBlend;
 
+        UpdateWalkGroundBlend(playerGrounded);
+        bool walkingGround = QueryWalkGroundCamera(isGliding, isAutoGlide, cine, playerMoving, _walkGroundBlend, out _);
+
         float followIdle = cine > 0.2f || isAutoGlide ? 0.35f : 1.2f;
         float followRate = cine > 0.2f || isAutoGlide ? 55f : 36f;
-        bool walkingGround = !isGliding && !isAutoGlide && cine < 0.05f && (playerGrounded || playerMoving);
 
         bool hasGlideSteer = isGliding && Mathf.Abs(AdventureInputReader.MoveAxis.x) > 0.05f;
         float deltaToHeading = target != null ? Mathf.Abs(Mathf.DeltaAngle(_targetYaw, target.eulerAngles.y)) : 0f;
-        // マウス操作していない時の自動追従は、A/Dキー旋回中、または機首とカメラが15度以上乖離した時のみ作動させ、相互追従ループ共振を根絶
-        bool shouldAutoFollow = hasGlideSteer || (Time.time - _lastMouseInputTime > followIdle && deltaToHeading > 15f);
+        bool recentLookInput = Time.time - _lastMouseInputTime < followIdle + 0.35f;
+        bool shouldAutoFollow = !recentLookInput && (hasGlideSteer || deltaToHeading > 15f);
         if ((isGliding || isAutoGlide) && shouldAutoFollow)
         {
             float targetHeading = target.eulerAngles.y;
             float dt = Time.unscaledDeltaTime;
             float currentFollowRate = hasGlideSteer ? 85f : followRate;
-            // エピローグのシネマ中：映画的な斜めアングル＋微細ドリフト（ドローンショット）
             if (isAutoGlide && cine > 0.3f)
             {
                 float driftYaw = 14f + Mathf.Sin(Time.unscaledTime * 0.16f) * 8f;
@@ -489,17 +535,11 @@ public class AdventureCameraFollow : MonoBehaviour
                     _targetPitch = Mathf.MoveTowards(_targetPitch, WalkPitch, 24f * dt);
             }
         }
-        else if (walkingGround)
-        {
-            // プレイヤーが向けた上下アングル（ピッチ）を100%維持（勝手な引き戻しは一切行わない）
-        }
 
-        if (cine > 0.4f && !isAutoGlide)
+        if (cine > 0.4f && !isAutoGlide && !cursorLook)
             _targetPitch = Mathf.Clamp(_targetPitch, -6f, 22f);
 
-        // 手動操作時（マウス操作直後や歩行中）は SmoothDamp による遅延を完全排除し、ダイレクト即時反映
-        bool isManualAiming = (Time.time - _lastMouseInputTime < 0.25f);
-        if (walkingGround || isManualAiming || cine < 0.05f)
+        if (ShouldUseInstantLook(isAutoGlide, cine, walkingGround, cursorLook))
         {
             _yaw = _targetYaw;
             _pitch = _targetPitch;
@@ -508,7 +548,7 @@ public class AdventureCameraFollow : MonoBehaviour
         }
         else
         {
-            float lookSmooth = Mathf.Max(0.003f, lookSmoothTime);
+            float lookSmooth = Mathf.Max(0.04f, lookSmoothTime * 8f);
             _yaw = Mathf.SmoothDampAngle(_yaw, _targetYaw, ref _yawVel, lookSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
             _pitch = Mathf.SmoothDamp(_pitch, _targetPitch, ref _pitchVel, lookSmooth, Mathf.Infinity, Time.unscaledDeltaTime);
         }
@@ -524,19 +564,10 @@ public class AdventureCameraFollow : MonoBehaviour
         var player = AdventurePlayerController.InstanceOrFind();
         bool isGliding = player != null && player.IsGliding;
         bool isAutoGlide = player != null && player.IsAutoGliding;
-        bool playerGrounded = player != null && player.IsGrounded;
         bool playerMoving = player != null && player.HasMoveInput;
         float cine = _cinematicBlend;
 
-        if (playerGrounded)
-            _walkGroundBlend = Mathf.MoveTowards(_walkGroundBlend, 1f, Time.deltaTime / 0.07f);
-        else
-            _walkGroundBlend = Mathf.MoveTowards(_walkGroundBlend, 0f, Time.deltaTime / 0.11f);
-
-        bool inAir = !isGliding && !isAutoGlide && _walkGroundBlend < 0.32f;
-        // 斜面・凸凹で接地が揺れても、歩行カメラを維持（移動中はより寛容）
-        bool walkingGround = !isGliding && !isAutoGlide && cine < 0.05f
-                             && _walkGroundBlend > (playerMoving ? 0.38f : 0.52f);
+        bool walkingGround = QueryWalkGroundCamera(isGliding, isAutoGlide, cine, playerMoving, _walkGroundBlend, out bool inAir);
 
         Quaternion currentRot = Quaternion.Euler(_pitch, _yaw, 0f);
 

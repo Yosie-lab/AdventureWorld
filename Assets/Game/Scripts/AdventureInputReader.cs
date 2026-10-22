@@ -203,17 +203,26 @@ public static class AdventureInputReader
         }
     }
 
+    /// <summary>Eキー（＋ゲームパッド West）のみ。このフレームに押された</summary>
+    public static bool InteractEKeyDown
+    {
+        get
+        {
+            try { if (Input.GetKeyDown(KeyCode.E)) return true; } catch { }
+            var kb = Keyboard;
+            if (kb != null && kb.eKey.wasPressedThisFrame) return true;
+            var gp = Gamepad.current;
+            return gp != null && gp.buttonWest.wasPressedThisFrame;
+        }
+    }
+
     /// <summary>Eキーまたは左クリックがこのフレームに押された（インタラクト）</summary>
     public static bool InteractDown
     {
         get
         {
             if (MouseLeftDown) return true;
-            try { if (Input.GetKeyDown(KeyCode.E)) return true; } catch { }
-            var kb = Keyboard;
-            if (kb != null && kb.eKey.wasPressedThisFrame) return true;
-            var gp = Gamepad.current;
-            return gp != null && gp.buttonWest.wasPressedThisFrame;
+            return InteractEKeyDown;
         }
     }
 

@@ -9,6 +9,7 @@ using System.Collections.Generic;
 /// 【Bキー】または西側砂浜の座礁艇作業台で【Eキー】を押すと開き、
 /// 集めた貝殻・シーグラスを消費してRustのアクセサリー（花冠、発光アンテナ、小翼トレイル等）をクラフト・着せ替えできる。
 /// </summary>
+[DefaultExecutionOrder(480)]
 public class AdventureRustWorkshopUI : MonoBehaviour
 {
     public static AdventureRustWorkshopUI Instance { get; private set; }
@@ -21,6 +22,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
     // UIコンポーネント
     Canvas _canvas;
     CanvasGroup _canvasGroup;
+    GraphicRaycaster _uiRaycaster;
     GameObject _panelRoot;
 
     // 左カラム：素材ポーチ
@@ -109,13 +111,50 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
     void SetupAudio()
     {
-        _uiAudioSource = gameObject.AddComponent<AudioSource>();
+        EnsureUiAudioReady();
+    }
+
+    void EnsureUiAudioReady()
+    {
+        if (_uiAudioSource == null)
+        {
+            _uiAudioSource = GetComponent<AudioSource>();
+            if (_uiAudioSource == null)
+                _uiAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
         _uiAudioSource.spatialBlend = 0f;
         _uiAudioSource.playOnAwake = false;
+        _uiAudioSource.volume = 1f;
+        _uiAudioSource.priority = 0;
+        _uiAudioSource.bypassListenerEffects = true;
+        _uiAudioSource.bypassEffects = true;
+        _uiAudioSource.ignoreListenerPause = true;
 
-        _craftSuccessClip = CreateCraftSuccessClip();
-        _equipClip = CreateEquipClip();
-        _errorClip = CreateErrorClip();
+        if (_craftSuccessClip == null)
+            _craftSuccessClip = CreateCraftSuccessClip();
+        if (_equipClip == null)
+            _equipClip = CreateEquipClip();
+        if (_errorClip == null)
+            _errorClip = CreateErrorClip();
+    }
+
+    void PlayUiOneShot(AudioClip clip, float volume, float pitch = 1f)
+    {
+        if (clip == null || volume <= 0.001f) return;
+        EnsureUiAudioReady();
+
+        if (_uiAudioSource != null)
+        {
+            _uiAudioSource.pitch = pitch;
+            _uiAudioSource.PlayOneShot(clip, volume);
+        }
+
+        var listener = Object.FindAnyObjectByType<AudioListener>();
+        Vector3 pos = listener != null
+            ? listener.transform.position
+            : (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
+        AudioSource.PlayClipAtPoint(clip, pos, volume);
     }
 
     void OnEnable()
@@ -175,7 +214,10 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         }
 
         if (isVisible)
+        {
             HandleWorkshopKeyboardShortcuts();
+            ProcessWorkshopMouseInput();
+        }
 
         if (isVisible)
         {
@@ -192,7 +234,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
     {
         if (!isVisible) return;
         EnsureEventSystemForUi();
-        UpdateDirectMouseClicks();
+        Canvas.ForceUpdateCanvases();
+        ProcessWorkshopMouseInput();
     }
 
     void HandleWorkshopKeyboardShortcuts()
@@ -223,21 +266,104 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         return _canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : _canvas.worldCamera;
     }
 
+    static Vector2 GetScreenPointFromMouse()
+    {
+        var mouse = Mouse.current;
+        if (mouse != null)
+            return mouse.position.ReadValue();
+        return Input.mousePosition;
+    }
+
+    static bool IsWorkshopMouseClickThisFrame()
+    {
+        if (AdventureInputReader.MouseLeftDown) return true;
+        var mouse = Mouse.current;
+        if (mouse != null && mouse.leftButton.wasReleasedThisFrame) return true;
+        try { if (Input.GetMouseButtonUp(0)) return true; } catch { }
+        return false;
+    }
+
+    static IEnumerable<Vector2> MouseScreenPointCandidates(Vector2 basePoint)
+    {
+        yield return basePoint;
+        yield return basePoint * 2f;
+        yield return basePoint * 0.5f;
+        float dpiScale = Screen.dpi > 1f ? Screen.dpi / 96f : 1f;
+        if (Mathf.Abs(dpiScale - 1f) > 0.08f)
+        {
+            yield return basePoint * dpiScale;
+            yield return basePoint / dpiScale;
+        }
+    }
+
     bool TryGetCardAtScreenPoint(Vector2 screenPoint, out CosmeticCardUI card)
     {
         card = null;
+        foreach (var candidate in MouseScreenPointCandidates(screenPoint))
+        {
+            if (TryGetCardAtScreenPointSingle(candidate, out card))
+                return true;
+        }
+        return false;
+    }
+
+    bool TryGetCardAtScreenPointSingle(Vector2 screenPoint, out CosmeticCardUI card)
+    {
+        card = null;
+        if (_uiRaycaster != null && EventSystem.current != null)
+        {
+            var ped = new PointerEventData(EventSystem.current) { position = screenPoint };
+            var hits = new List<RaycastResult>(16);
+            _uiRaycaster.Raycast(ped, hits);
+            for (int h = 0; h < hits.Count; h++)
+            {
+                var go = hits[h].gameObject;
+                if (go == null) continue;
+                var relay = go.GetComponentInParent<RustWorkshopCardClickRelay>();
+                if (relay != null && relay.TryGetCardIndex(out int relayIdx)
+                    && relayIdx >= 0 && relayIdx < _cardUIs.Count)
+                {
+                    card = _cardUIs[relayIdx];
+                    return true;
+                }
+                var btn = go.GetComponent<Button>() ?? go.GetComponentInParent<Button>();
+                if (btn == null) continue;
+                for (int i = 0; i < _cardUIs.Count; i++)
+                {
+                    var c = _cardUIs[i];
+                    if (c?.actionBtn == btn)
+                    {
+                        card = c;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        Camera cam = GetUiRaycastCamera();
         for (int i = 0; i < _cardUIs.Count; i++)
         {
             var c = _cardUIs[i];
-            if (c?.actionBtn == null) continue;
+            if (c?.actionBtn == null || !c.actionBtn.gameObject.activeInHierarchy) continue;
             var rt = c.actionBtn.GetComponent<RectTransform>();
-            if (rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, screenPoint, GetUiRaycastCamera()))
+            if (rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, screenPoint, cam))
             {
                 card = c;
                 return true;
             }
         }
         return false;
+    }
+
+    internal void ProcessWorkshopMouseInput()
+    {
+        if (!isVisible) return;
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        if (!IsWorkshopMouseClickThisFrame()) return;
+
+        if (TryGetCardAtScreenPoint(GetScreenPointFromMouse(), out var card))
+            OnCardButtonClicked(card);
     }
 
     void TriggerCardByIndex(int index)
@@ -250,37 +376,6 @@ public class AdventureRustWorkshopUI : MonoBehaviour
                 OnCardButtonClicked(card);
             }
         }
-    }
-
-    void OnGUI()
-    {
-        // 常時HUD（Rust Workshop [B]）は出さない。地上 [B] または作業台 [E] のみ。
-        if (!isVisible) return;
-        Event e = Event.current;
-        if (e == null) return;
-
-        if (e.type == EventType.MouseDown && e.button == 0)
-        {
-            if (TryGetCardAtScreenPoint(e.mousePosition, out var card))
-            {
-                OnCardButtonClicked(card);
-                e.Use();
-            }
-        }
-    }
-
-    void UpdateDirectMouseClicks()
-    {
-        var mouse = UnityEngine.InputSystem.Mouse.current;
-        bool leftPressed = mouse != null && mouse.leftButton.wasPressedThisFrame;
-        try { if (Input.GetMouseButtonDown(0)) leftPressed = true; } catch { }
-
-        if (!leftPressed) return;
-
-        Vector2 mousePos = mouse != null ? mouse.position.ReadValue() : (Vector2)Input.mousePosition;
-
-        if (TryGetCardAtScreenPoint(mousePos, out var card))
-            OnCardButtonClicked(card);
     }
 
     void UpdateWorkbenchInteraction()
@@ -341,7 +436,9 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         if (_panelRoot != null)
         {
             var scroll = _panelRoot.transform.Find("BodyContainer/CatalogColumn/CatalogScroll");
-            if (scroll != null) return;
+            if (scroll != null && _cardUIs.Count > 0 && _cardUIs[0].actionBtn != null
+                && _cardUIs[0].actionBtn.GetComponent<RustWorkshopCardClickRelay>() != null)
+                return;
         }
 
         _cardUIs.Clear();
@@ -349,6 +446,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         if (_canvas != null)
             Destroy(_canvas.gameObject);
         _canvas = null;
+        _uiRaycaster = null;
         _panelRoot = null;
         _canvasGroup = null;
         CreateUI();
@@ -376,7 +474,10 @@ public class AdventureRustWorkshopUI : MonoBehaviour
             AdventureRustCosmetics.Ensure();
             EnsureEventSystemForUi();
             if (_canvas != null)
-                _canvas.sortingOrder = 3200;
+            {
+                _canvas.enabled = true;
+                _canvas.sortingOrder = 5800;
+            }
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
             RefreshUI();
@@ -532,15 +633,21 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         }
     }
 
+    public void NotifyCardClickByIndex(int index)
+    {
+        if (!isVisible) return;
+        TriggerCardByIndex(index);
+    }
+
     void OnCardButtonClicked(CosmeticCardUI card)
     {
+        if (card == null || card.def == null) return;
         if (Time.frameCount == _lastCardClickFrame) return;
         _lastCardClickFrame = Time.frameCount;
 
         AdventureBeachSeashellManager.Ensure();
         AdventureRustCosmetics.Ensure();
         var cosmetics = AdventureRustCosmetics.Instance;
-        if (card == null || card.def == null) return;
         if (cosmetics == null)
         {
             PlayErrorSound();
@@ -580,34 +687,11 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         }
     }
 
-    void PlayErrorSound()
-    {
-        if (_uiAudioSource != null && _errorClip != null)
-        {
-            _uiAudioSource.pitch = 0.95f;
-            _uiAudioSource.PlayOneShot(_errorClip, 0.60f);
-        }
-    }
+    void PlayErrorSound() => PlayUiOneShot(_errorClip, 0.72f, 0.95f);
 
+    void PlayCraftSuccessSound() => PlayUiOneShot(_craftSuccessClip, 0.88f, 1f);
 
-
-    void PlayCraftSuccessSound()
-    {
-        if (_uiAudioSource != null && _craftSuccessClip != null)
-        {
-            _uiAudioSource.pitch = 1.0f;
-            _uiAudioSource.PlayOneShot(_craftSuccessClip, 0.75f);
-        }
-    }
-
-    void PlayEquipSound()
-    {
-        if (_uiAudioSource != null && _equipClip != null)
-        {
-            _uiAudioSource.pitch = 1.05f;
-            _uiAudioSource.PlayOneShot(_equipClip, 0.65f);
-        }
-    }
+    void PlayEquipSound() => PlayUiOneShot(_equipClip, 0.78f, 1.05f);
 
     #region UI Construction
     void CreateUI()
@@ -617,18 +701,19 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
         _canvas = canvasGo.AddComponent<Canvas>();
         _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        _canvas.sortingOrder = 3200;
+        _canvas.sortingOrder = 5800;
 
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1280f, 720f);
         scaler.matchWidthOrHeight = 0.5f;
 
-        canvasGo.AddComponent<GraphicRaycaster>();
+        _uiRaycaster = canvasGo.AddComponent<GraphicRaycaster>();
         _canvasGroup = canvasGo.AddComponent<CanvasGroup>();
         _canvasGroup.alpha = 0f;
         _canvasGroup.interactable = false;
         _canvasGroup.blocksRaycasts = false;
+        canvasGo.AddComponent<RustWorkshopUiInputDriver>();
 
         var font = ResolveWorkshopFont();
 
@@ -653,6 +738,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
         var pImg = _panelRoot.AddComponent<Image>();
         pImg.color = new Color(0.10f, 0.14f, 0.22f, 0.95f);
+        pImg.raycastTarget = false;
 
         // ── ヘッダー（タイトル＆閉じるボタン） ──
         var header = new GameObject("Header");
@@ -818,6 +904,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         viewportRt.offsetMax = Vector2.zero;
         var viewportImg = viewportGo.AddComponent<Image>();
         viewportImg.color = new Color(0f, 0f, 0f, 0.01f);
+        viewportImg.raycastTarget = true;
         viewportGo.AddComponent<Mask>().showMaskGraphic = false;
 
         var contentGo = new GameObject("Content");
@@ -1025,6 +1112,15 @@ public class AdventureRustWorkshopUI : MonoBehaviour
             actionBtnImage = btnImg
         };
 
+        int cardIndex = _cardUIs.Count;
+        var clickRelay = btnGo.AddComponent<RustWorkshopCardClickRelay>();
+        clickRelay.Bind(this, cardIndex);
+        var rightHit = rightArea.AddComponent<Image>();
+        rightHit.color = new Color(1f, 1f, 1f, 0.001f);
+        rightHit.raycastTarget = true;
+        var rightRelay = rightArea.AddComponent<RustWorkshopCardClickRelay>();
+        rightRelay.Bind(this, cardIndex);
+
         btn.onClick.AddListener(() => OnCardButtonClicked(cardUI));
         return cardUI;
     }
@@ -1165,7 +1261,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
                 if (noteT >= 0f)
                 {
                     float env = Mathf.Exp(-noteT * 12f);
-                    sum += Mathf.Sin(2f * Mathf.PI * notes[n] * noteT) * env * 0.25f;
+                    sum += Mathf.Sin(2f * Mathf.PI * notes[n] * noteT) * env * 0.38f;
                 }
             }
             samples[i] = Mathf.Clamp(sum, -1f, 1f);
@@ -1219,4 +1315,43 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         return clip;
     }
     #endregion
+}
+
+/// <summary>EventSystem 経由のクリックを工房カードへ確実に渡す</summary>
+sealed class RustWorkshopCardClickRelay : MonoBehaviour, IPointerClickHandler
+{
+    AdventureRustWorkshopUI _owner;
+    int _cardIndex = -1;
+
+    public void Bind(AdventureRustWorkshopUI owner, int cardIndex)
+    {
+        _owner = owner;
+        _cardIndex = cardIndex;
+    }
+
+    public bool TryGetCardIndex(out int index)
+    {
+        index = _cardIndex;
+        return _cardIndex >= 0;
+    }
+
+    public void OnPointerClick(PointerEventData eventData) => Fire();
+
+    void Fire()
+    {
+        if (_owner == null || _cardIndex < 0) return;
+        _owner.NotifyCardClickByIndex(_cardIndex);
+    }
+}
+
+/// <summary>カーソル解放とマウス入力のウォッチドッグ（他スクリプトのロック競合対策）</summary>
+sealed class RustWorkshopUiInputDriver : MonoBehaviour
+{
+    void Update()
+    {
+        var ui = AdventureRustWorkshopUI.Instance;
+        if (ui == null || !ui.isVisible) return;
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+    }
 }
