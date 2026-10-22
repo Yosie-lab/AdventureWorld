@@ -459,8 +459,8 @@ public partial class AdventureSanctuaryTowerManager
         _ignoreSavedCanopyState = false;
         IsCanopyBroken = true;
 
-        // 上昇演出を優先。最大4.5秒でクライマックスへ必ず接続（後半途切れ防止）
-        ArmPendingClimax(failsafeSeconds: 4.5f);
+        // 柱上昇完了までクライマックス開始を待つ（短いタイムアウトは上昇演出を飛ばす）
+        ArmPendingClimax(failsafeSeconds: 0f);
 
         var drone = GetDrone();
         if (drone != null)
@@ -502,7 +502,13 @@ public partial class AdventureSanctuaryTowerManager
         if (_climaxCrisisStarted || _epilogueTriggered) return;
         if (_canopyBeatIndex >= 0 || _endingSequenceActive) return;
 
-        // 光の柱上昇中は割れ目手前で止まったままクライマックスに入らない
+        if (player != null && player.IsSkybreakPillarAscending)
+            return;
+
+        if (player != null && player.IsInPillarAscentGrace)
+            return;
+
+        // 光の柱上昇完了後、割れ目手前（147m）まで到達してからクライマックスへ
         bool highEnough = player != null
                           && !player.IsSkybreakPillarAscending
                           && player.transform.position.y >= 147f;

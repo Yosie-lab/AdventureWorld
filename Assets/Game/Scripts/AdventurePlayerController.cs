@@ -58,6 +58,7 @@ public partial class AdventurePlayerController : MonoBehaviour
     float   _skybreakPillarTargetY = 152f;
     Vector3 _skybreakPillarCenter = new Vector3(512f, 0f, 512f);
     float   _skybreakPillarEndAt;
+    float   _skybreakPillarReleaseAt = -100f;
     float   _skybreakLastY;
 
     CharacterController _cc;
@@ -1830,6 +1831,10 @@ public partial class AdventurePlayerController : MonoBehaviour
 
     void ApplyClimaxSkyHoldVertical()
     {
+        // 光の柱上昇中はここで高度スナップしない（上昇演出が一瞬で飛ぶのを防ぐ）
+        if (_skybreakPillarLock)
+            return;
+
         var tower = AdventureSanctuaryTowerManager.Instance;
         bool pendingCanopyToClimax = tower != null
                                      && tower.IsPendingClimax
@@ -1853,7 +1858,10 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (transform.position.y < floorY)
         {
             _hop = Mathf.Max(_hop, 10f);
-            if (_cc != null && transform.position.y < floorY - 2f)
+            // 天蓋→柱上昇前の待機中だけ落下防止（142m へのワープは柱上昇をスキップするので禁止）
+            if (!pendingCanopyToClimax
+                && _cc != null
+                && transform.position.y < floorY - 2f)
             {
                 _cc.enabled = false;
                 transform.position = new Vector3(transform.position.x,
@@ -1982,6 +1990,10 @@ public partial class AdventurePlayerController : MonoBehaviour
 
     public bool IsSkybreakPillarAscending => _skybreakPillarLock;
 
+    /// <summary>柱上昇完了直後、演出を見せるためクライマックス開始を少し遅らせる</summary>
+    public bool IsInPillarAscentGrace =>
+        _skybreakPillarReleaseAt > 0f && Time.unscaledTime - _skybreakPillarReleaseAt < 2.4f;
+
     void ReleaseSkybreakPillarLock(bool snapToTarget)
     {
         // 必ず目標高度へ載せ、自由落下させない
@@ -1995,6 +2007,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (_cc != null) _cc.enabled = true;
 
         _skybreakPillarLock = false;
+        _skybreakPillarReleaseAt = Time.unscaledTime;
         _gliding = true;
         _grounded = false;
         _hop = 4f;
