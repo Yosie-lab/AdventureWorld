@@ -1227,20 +1227,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         // 光の柱上昇：CharacterController.Move で物理補間を維持して滑らかに上昇（毎フレームのテレポート・ジッターを完全排除）
         if (_skybreakPillarLock)
         {
-            Vector3 pos = transform.position;
-            Vector3 toCenter = new Vector3(_skybreakPillarCenter.x - pos.x, 0f, _skybreakPillarCenter.z - pos.z);
-            Vector3 pull = toCenter * Mathf.Clamp01(5.0f * Time.deltaTime);
-
-            float targetY = Mathf.Min(pos.y + _skybreakPillarLift * Time.deltaTime, _skybreakPillarTargetY + 0.25f);
-            float deltaY = Mathf.Max(0f, targetY - pos.y);
-
-            Vector3 pillarMotion = new Vector3(pull.x, deltaY, pull.z);
-            _cc.Move(pillarMotion);
-
-            _hop = _skybreakPillarLift;
-            _grounded = false;
-            _gliding = true;
-            _skybreakLastY = transform.position.y;
+            ApplySkybreakPillarAscentStep();
             return;
         }
 
@@ -1844,9 +1831,11 @@ public partial class AdventurePlayerController : MonoBehaviour
     void ApplyClimaxSkyHoldVertical()
     {
         var tower = AdventureSanctuaryTowerManager.Instance;
+        bool pendingCanopyToClimax = tower != null
+                                     && tower.IsPendingClimax
+                                     && !tower.ClimaxCrisisStarted;
         bool needHold = tower != null
-                        && (tower.NeedsClimaxSkyAltitude
-                            || (tower.IsPendingClimax && transform.position.y > 118f && !_autoGlide));
+                        && (tower.NeedsClimaxSkyAltitude || pendingCanopyToClimax);
         if (!needHold)
         {
             _climaxSkyHold = false;
@@ -1974,7 +1963,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         _skybreakPillarLift = Mathf.Clamp(liftSpeed, 24f, 42f);
         _skybreakPillarTargetY = Mathf.Clamp(releaseY, 152f, 162f);
         _skybreakPillarCenter = new Vector3(pillarCenter.x, 0f, pillarCenter.z);
-        _skybreakPillarEndAt = Time.unscaledTime + 9.5f;
+        _skybreakPillarEndAt = Time.unscaledTime + 12f;
         _skybreakLastY = transform.position.y;
         _autoGlide = false;
         ApplyLaunchUpdraft(_skybreakPillarLift, _skybreakPillarLift);
@@ -1983,7 +1972,6 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (_cc != null) _cc.enabled = false;
         Vector3 p = transform.position;
         transform.position = new Vector3(pillarCenter.x, Mathf.Max(p.y, 64f), pillarCenter.z);
-        if (_cc != null) _cc.enabled = true;
     }
 
     public void EndSkybreakPillarAscend()
@@ -2038,25 +2026,26 @@ public partial class AdventurePlayerController : MonoBehaviour
         _updraftLift = _skybreakPillarLift;
         _updraftTimer = 1f;
         _hop = _skybreakPillarLift;
-        EnforceSkybreakPillarHeight();
     }
 
-    void EnforceSkybreakPillarHeight()
+    /// <summary>光の柱上昇（CC を無効化し unscaled 時間で単調上昇。タワーコライダーで Move が落ちるのを防ぐ）</summary>
+    void ApplySkybreakPillarAscentStep()
     {
         if (!_skybreakPillarLock) return;
         if (_cc == null) _cc = GetComponent<CharacterController>();
+        if (_cc != null && _cc.enabled) _cc.enabled = false;
 
+        float dt = Time.unscaledDeltaTime;
         Vector3 pos = transform.position;
-        float nextY = pos.y + _skybreakPillarLift * Time.deltaTime;
-        nextY = Mathf.Min(nextY, _skybreakPillarTargetY + 0.25f);
+        float nextY = Mathf.Min(pos.y + _skybreakPillarLift * dt, _skybreakPillarTargetY + 0.25f);
+        nextY = Mathf.Max(nextY, _skybreakLastY - 0.05f);
 
-        if (_cc != null) _cc.enabled = false;
         transform.position = new Vector3(_skybreakPillarCenter.x, nextY, _skybreakPillarCenter.z);
-        if (_cc != null) _cc.enabled = true;
 
         _hop = _skybreakPillarLift;
         _grounded = false;
         _gliding = true;
+        _airborneTime = Mathf.Max(_airborneTime, 1f);
         _skybreakLastY = nextY;
     }
 

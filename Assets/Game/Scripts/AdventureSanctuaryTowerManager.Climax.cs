@@ -43,13 +43,11 @@ public partial class AdventureSanctuaryTowerManager
 
         if (player != null)
         {
-            // 警告台本時点で必ず空中にいる
             const float climaxSkyY = 156f;
-            if (player.transform.position.y < climaxSkyY - 2f)
+            if (player.IsSkybreakPillarAscending || player.transform.position.y < climaxSkyY - 1f)
                 player.ForceSkybreakArrival(new Vector3(512f, climaxSkyY, 512f), climaxSkyY);
             else
                 player.EndSkybreakPillarAscend();
-            // オートヨーは切るが、エピローグ前まで高度は ArmClimaxSkyHold で維持（手動 WASD は有効）
             player.SetAutoGlideMode(false);
             float holdY = Mathf.Max(player.transform.position.y, climaxSkyY);
             player.ArmClimaxSkyHold(holdY);
