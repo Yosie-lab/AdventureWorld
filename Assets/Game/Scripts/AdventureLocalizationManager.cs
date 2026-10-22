@@ -787,10 +787,16 @@ public static class AdventureLocalizationManager
             "Límite de altitud — Rust se congela"
         } },
         { "climax_oil_prompt", new[] {
-            "常備油を心臓部へ — E / Space / 長押し",
-            "Pour oil into the core — hold E / Space / click",
-            "将润滑油注入核心 — 长按 E / Space / 点击",
-            "Vierte aceite al núcleo — mantén E / Espacio / clic"
+            "常備油を心臓部へ",
+            "Pour oil into the core",
+            "将润滑油注入核心",
+            "Vierte aceite al núcleo"
+        } },
+        { "climax_oil_prompt_keys", new[] {
+            "【E / Space / 長押し】",
+            "【 hold E / Space / click 】",
+            "【 长按 E / Space / 点击 】",
+            "【 mantén E / Espacio / clic 】"
         } },
         { "climax_oil_hold", new[] {
             "長押しで注油",

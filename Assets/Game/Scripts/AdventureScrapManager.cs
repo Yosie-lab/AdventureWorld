@@ -15,12 +15,14 @@ public class AdventureScrapManager : MonoBehaviour
     public static bool ShouldSuppressRustCompanionInteract =>
         Time.frameCount == LastScrapCollectFrame;
 
-    public static void ArmPickupInputGrace(float seconds = 0.75f)
+    /// <summary>取得フレームをマークする（同一フレームの Rust インタラクト誤爆防止）</summary>
+    public static void MarkScrapCollectedThisFrame()
     {
-        MarkScrapCollectedThisFrame();
+        LastScrapCollectFrame = Time.frameCount;
     }
 
-    public static void MarkScrapCollectedThisFrame() => ArmPickupInputGrace();
+    /// <summary>後方互換ラッパー。MarkScrapCollectedThisFrame を呼ぶだけで seconds は現在不使用。</summary>
+    public static void ArmPickupInputGrace(float seconds = 0.75f) => MarkScrapCollectedThisFrame();
 
     public static AdventureScrapManager Instance
     {

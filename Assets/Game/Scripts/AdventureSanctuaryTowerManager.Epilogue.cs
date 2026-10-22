@@ -402,7 +402,8 @@ public partial class AdventureSanctuaryTowerManager
         bool filmPlaying = _epilogueTriggered && !_showGameClearModal && _filmIndex >= 0 && _filmPhase > 0;
         bool canopyPlaying = (_endingSequenceActive || _canopyBeatIndex >= 0) && _scriptBoardVisible && !_showGameClearModal;
         bool climaxPlaying = _climaxCrisisStarted && _scriptBoardVisible && !_showGameClearModal && !_climaxOilWaiting;
-        bool want = filmPlaying || canopyPlaying || climaxPlaying || AdventureStoryFlow.IsPerformance;
+        bool climaxOilCaption = IsClimaxOilPromptActive && !_showGameClearModal;
+        bool want = filmPlaying || canopyPlaying || climaxPlaying || climaxOilCaption || AdventureStoryFlow.IsPerformance;
 
         _letterboxTargetAlpha = want ? 1f : 0f;
 
@@ -498,6 +499,7 @@ public partial class AdventureSanctuaryTowerManager
         _filmSubtitleUi.horizontalOverflow = HorizontalWrapMode.Wrap;
         _filmSubtitleUi.verticalOverflow = VerticalWrapMode.Overflow;
         _filmSubtitleUi.raycastTarget = false;
+        _filmSubtitleUi.supportRichText = true;
         if (_filmSubtitleUi.font == null)
             _filmSubtitleUi.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
 

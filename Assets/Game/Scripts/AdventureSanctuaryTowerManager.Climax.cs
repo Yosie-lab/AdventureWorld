@@ -427,18 +427,24 @@ public partial class AdventureSanctuaryTowerManager
         string title = AdventureLocalizationManager.Get("climax_oil_title");
         if (string.IsNullOrEmpty(title) || title == "climax_oil_title")
             title = SkyLimitWarning;
-        string prompt = AdventureLocalizationManager.Get("climax_oil_prompt");
-        if (string.IsNullOrEmpty(prompt) || prompt == "climax_oil_prompt")
-            prompt = "常備油を心臓部へ — E / Space / 長押し";
+        string promptLead = AdventureLocalizationManager.Get("climax_oil_prompt");
+        if (string.IsNullOrEmpty(promptLead) || promptLead == "climax_oil_prompt")
+            promptLead = "常備油を心臓部へ";
+        string promptKeys = AdventureLocalizationManager.Get("climax_oil_prompt_keys");
+        if (string.IsNullOrEmpty(promptKeys) || promptKeys == "climax_oil_prompt_keys")
+            promptKeys = "【E / Space / 長押し】";
 
-        string titleHex = ColorUtility.ToHtmlStringRGBA(new Color(1f, 0.88f, 0.42f));
-        string promptHex = ColorUtility.ToHtmlStringRGBA(new Color(1f, 0.93f, 0.58f));
+        const string whiteHex = "FFFFFF";
+        const string yellowHex = "FFD700";
         string mainText =
-            $"<color=#{titleHex}><b>{title}</b></color>\n<color=#{promptHex}><b>{prompt}</b></color>";
+            $"<color=#{whiteHex}><b>{title}</b></color>\n" +
+            $"<color=#{whiteHex}><b>{promptLead}</b></color> <color=#{yellowHex}><b>{promptKeys}</b></color>";
 
         _filmSubtitleUi.supportRichText = true;
         _filmSubtitleUi.fontSize = AdventureSpeechBoardLayout.CinematicFilmSubtitleSize;
-        PrepareFontForText(font, prompt, AdventureSpeechBoardLayout.CinematicFilmSubtitleSize, FontStyle.Bold);
+        PrepareFontForText(font, title + promptLead + promptKeys, AdventureSpeechBoardLayout.CinematicFilmSubtitleSize, FontStyle.Bold);
+        if (_filmSubtitleUi.gameObject != null && !_filmSubtitleUi.gameObject.activeSelf)
+            _filmSubtitleUi.gameObject.SetActive(true);
         _filmSubtitleUi.text = mainText;
         _filmSubtitleUi.color = Color.white;
         _filmSubtitleUi.transform.localScale = Vector3.one;
@@ -527,6 +533,7 @@ public partial class AdventureSanctuaryTowerManager
             Destroy(_oilUiRoot);
             _oilUiRoot = null;
         }
+        _oilGaugeFill = null;
     }
 
     void FinishClimaxSequence()
