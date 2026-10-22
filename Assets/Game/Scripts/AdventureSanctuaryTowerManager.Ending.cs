@@ -43,6 +43,8 @@ public partial class AdventureSanctuaryTowerManager
     {
         if (!_scriptBoardVisible || _scriptBoardAdvance)
             return false;
+        if (blockCanopyBeat0 && _canopyBeatIndex == 0)
+            return false;
         if (_scriptRequireInputRelease)
             return false;
         float min = _canopyBeatIndex == 0 ? 0.35f : minShowSec;

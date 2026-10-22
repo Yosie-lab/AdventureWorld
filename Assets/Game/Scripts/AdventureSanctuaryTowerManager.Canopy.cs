@@ -105,21 +105,9 @@ public partial class AdventureSanctuaryTowerManager
         _scriptHoldTimer = 0f;
         ClearPendingClimax();
 
-        var player = AdventurePlayerController.Instance
-                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
-        if (player != null && player.transform.position.y < 90f)
-            player.ForceGroundReset();
-
-        AdventureMusicDirector.Ensure();
-        // 天蓋崩壊に入ったら壮大な天空突破テーマBGMを1周目（神聖ブラス＋アルペジオ）から確実に開始
-        AdventureMusicDirector.Instance?.PlaySkybreakTheme(force: true);
-        StartSkybreakWindAmbience(); // 風の音は追加で流す
-
-        // 天蓋崩壊中はウミネコ（カモメ）音声を小さい声も含めて完全に強制沈黙
-        AdventureSoaringSeagullsManager.SilenceAllWorldSeagulls(true);
-
-        // レバー〜天蓋台本中は探索時と同じ青空（極寒ポストはクライマックス上空で BeginClimaxSequence）
-        SpawnWildernessPanorama(coldCrisis: false);
+        SetExplorationHudVisible(false);
+        if (_scriptUiRoot != null)
+            _scriptUiRoot.SetActive(false);
 
         EnsureCinematicLetterbox();
         if (_letterboxRoot != null)
@@ -128,13 +116,37 @@ public partial class AdventureSanctuaryTowerManager
             if (_letterboxCg != null) _letterboxCg.alpha = 1f;
         }
         _letterboxTargetAlpha = 1f;
-        SetExplorationHudVisible(false);
 
-        // 中央ボードは出さずに完全スクリーンスクリプト（シネマ字幕）で進行
-        if (_scriptUiRoot != null)
-            _scriptUiRoot.SetActive(false);
+        _canopyBeatIndex = 0;
+        _skyTearPlayed = false;
+        _canopyBeat0TimerArmed = false;
+        _canopyBeat0LockUntil = 0f;
+        _scriptRequireInputRelease = true; // レバー引いた操作の余韻による即時スキップを完全防止
+        PresentCanopyBeat(0);
+        AdventureStoryFlow.InvalidateCache();
+        Debug.Log("[RustAndFloat] 天蓋スクリーンスクリプト（シネマ字幕）を Update 駆動で開始（全" + CanopyBeats.Length + "枚）");
 
-        // ピアノが鳴っていたら2秒かけてフェードアウト＆ダッキング解除
+        StartCoroutine(DeferredCanopyEnvironmentRoutine());
+    }
+
+    /// <summary>字幕・レターボックス表示後に重い空／BGM／VFXを載せる（レバー操作の体感遅延を防ぐ）</summary>
+    IEnumerator DeferredCanopyEnvironmentRoutine()
+    {
+        yield return null;
+
+        var player = AdventurePlayerController.Instance
+                     ?? Object.FindAnyObjectByType<AdventurePlayerController>();
+        if (player != null && player.transform.position.y < 90f)
+            player.ForceGroundReset();
+
+        AdventureMusicDirector.Ensure();
+        AdventureMusicDirector.Instance?.PlaySkybreakTheme(force: true);
+        StartSkybreakWindAmbience();
+        AdventureSoaringSeagullsManager.SilenceAllWorldSeagulls(true);
+        SpawnWildernessPanorama(coldCrisis: true);
+        ApplySkybreakColdAtmosphere();
+        AdventureParticleSanitizer.SanitizeAllParticles();
+
         var piano = AdventureAncientPianoRelic.Instance ?? Object.FindAnyObjectByType<AdventureAncientPianoRelic>();
         if (piano != null)
             piano.FadeOutPiano(0.6f);
@@ -145,14 +157,6 @@ public partial class AdventureSanctuaryTowerManager
             drone.ClearSpeech();
             drone.StartSkybreakNestle();
         }
-
-        _canopyBeatIndex = 0;
-        _skyTearPlayed = false;
-        ArmCanopyBeat0AutoTimer();
-        _scriptRequireInputRelease = true; // レバー引いた操作の余韻による即時スキップを完全防止
-        PresentCanopyBeat(0);
-        AdventureStoryFlow.InvalidateCache();
-        Debug.Log("[RustAndFloat] 天蓋スクリーンスクリプト（シネマ字幕）を Update 駆動で開始（全" + CanopyBeats.Length + "枚）");
     }
 
     void GetLocalizedCanopyBeat(int index, out string title, out string speaker, out string body)
@@ -191,7 +195,10 @@ public partial class AdventureSanctuaryTowerManager
         _scriptBoardVisible = true;
         _scriptBoardOpenedAt = Time.unscaledTime;
         if (index == 0)
-            ArmCanopyBeat0AutoTimer();
+        {
+            _canopyBeat0TimerArmed = false;
+            _canopyBeat0LockUntil = 0f;
+        }
         _scriptHoldTimer = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -256,11 +263,10 @@ public partial class AdventureSanctuaryTowerManager
 
     void ArmCanopyBeat0AutoTimer()
     {
-        float autoSec = AdventureSpeechBoardLayout.ScaleScriptAutoAdvance(CanopyBeats[0].AutoAdvanceSeconds, this);
+        float autoSec = CanopyBeats[0].AutoAdvanceSeconds;
         _canopyBeat0TimerArmed = true;
         _canopyBeat0VisibleStreak = 2;
         _canopyBeat0LockUntil = Time.unscaledTime + autoSec;
-        _scriptBoardOpenedAt = Time.unscaledTime;
     }
 
     void TryArmCanopyBeat0Timer()
@@ -328,7 +334,7 @@ public partial class AdventureSanctuaryTowerManager
             }
         }
 
-        // 各ビートの定義データから自動送り秒数を取得（1枚目3.8s／2・3枚目5.2s／Float・Rust 4.2s／ダイブ6.0s）
+        // 各ビートの定義データから自動送り秒数を取得（1枚目2.0s／2・3枚目5.2s／Float・Rust 4.2s／ダイブ6.0s）
         float rawAuto = (_canopyBeatIndex >= 0 && _canopyBeatIndex < CanopyBeats.Length)
             ? CanopyBeats[_canopyBeatIndex].AutoAdvanceSeconds
             : 3.5f;
@@ -336,16 +342,19 @@ public partial class AdventureSanctuaryTowerManager
 
         if (_canopyBeatIndex == 0)
         {
-            if (!_scriptRequireInputRelease)
-                PollScriptBoardAdvance();
-
-            if (!_canopyBeat0TimerArmed || Time.unscaledTime < _canopyBeat0LockUntil)
+            if (!IsCanopyBeat0SubtitleVisible())
             {
-                if (!_scriptBoardAdvance)
-                    return;
+                RefreshCanopyBeat0Subtitle();
+                return;
             }
-            else if (!_scriptBoardAdvance)
-                _scriptBoardAdvance = true;
+
+            if (!_canopyBeat0TimerArmed)
+                ArmCanopyBeat0AutoTimer();
+
+            if (Time.unscaledTime < _canopyBeat0LockUntil)
+                return;
+
+            _scriptBoardAdvance = true;
         }
         else
         {

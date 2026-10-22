@@ -158,7 +158,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     }
     static readonly CanopyBeat[] CanopyBeats =
     {
-        new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 3.8f),
+        new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 2.0f),
         new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
         new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Float！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
         new CanopyBeat("", "✦ Float", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f), autoSec: 4.2f),
@@ -604,7 +604,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     }
 
     float _leverHoldTimer;
-    const float LeverHoldSeconds = 0.28f;
+    const float LeverHoldSeconds = 0.12f;
     float _leverPullLockUntil;
     GameObject _leverUiRoot;
     UnityEngine.UI.Text _leverUiLabel;
@@ -1005,7 +1005,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     bool CheckLeverInputTriggered()
     {
         // E / Enter / マウス（左右クリック）/ Gamepad West（AdventureInputReader統合）
-        return AdventureInputReader.InteractDown || AdventureInputReader.EnterDown || AdventureInputReader.MouseRightDown;
+        return AdventureInputReader.InteractDown || AdventureInputReader.EnterDown
+               || AdventureInputReader.MouseLeftDown || AdventureInputReader.MouseRightDown;
     }
 
     /// <summary>レバーから天蓋開放へ。forceRestart=true のときだけ再演（F9）。通常操作中の再入は台本を最初に戻さない。</summary>
@@ -1423,6 +1424,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         _leverPullLockUntil = Time.unscaledTime + 3600f;
         SetLeverPromptUI(false, false);
         Debug.Log("[RustAndFloat] レバー作動 → 天蓋開放シークエンス開始");
+        if (_audio != null)
+            _audio.PlayOneShot(MakeHeavyLeverSound(), 0.9f);
         StartCoroutine(SkybreakSequenceRoutine());
     }
 
@@ -1443,8 +1446,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         if (player != null)
             player.ForceGroundReset();
 
-        if (_audio != null)
-            _audio.PlayOneShot(MakeHeavyLeverSound(), 0.9f);
         StartCoroutine(AnimateLeverPullRoutine());
 
         SpawnLeverSparks(new Vector3(512f, 63.5f, 512f));

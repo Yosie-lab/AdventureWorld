@@ -29,6 +29,8 @@ public static class AdventureSpeechBoardLayout
     public static float ScaleScriptAutoAdvance(float seconds, AdventureSanctuaryTowerManager tower)
     {
         if (IsCinematicEndingBoard(tower)) return seconds;
+        // 天蓋〜クライマックス台本は映画扱い（短縮倍率をかけない）
+        if (tower != null && tower.EndingSequenceActive) return seconds;
         return Mathf.Max(ScriptAutoAdvanceMinSec, seconds * ScriptAutoAdvanceMul);
     }
 
