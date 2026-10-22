@@ -28,13 +28,19 @@ public static class AdventureGameplayInputGate
 
         AdventureRustDrone.RecoverScrapSlowMoIfStale();
 
-        if (!AdventurePauseMenu.IsOpen && AdventureRustDrone.ScrapSlowMoDepth == 0)
+        if (!AdventurePauseMenu.IsOpen && AdventureRustFloatOpening.IsGameStarted)
         {
-            if (Time.timeScale > 0.05f && Time.timeScale < 0.5f)
+            if (Time.timeScale <= 0.05f)
                 Time.timeScale = 1f;
-            else if (Time.timeScale <= 0.05f)
+            else if (AdventureRustDrone.ScrapSlowMoDepth == 0
+                     && Time.timeScale > 0.05f && Time.timeScale < 0.5f)
                 Time.timeScale = 1f;
         }
+
+        if (AdventureScrapManager.IsWithinPickupInputGrace
+            && !AdventureStoryFlow.WantsFreeCursor
+            && !AdventurePauseMenu.IsOpen)
+            TryLockCursorForGameplay();
 
         if (AdventureRustFloatOpening.IsGameStarted
             && !AdventureStoryFlow.WantsFreeCursor

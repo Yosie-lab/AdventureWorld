@@ -30,8 +30,8 @@ public partial class AdventureRustDrone : MonoBehaviour
     {
         if (_scrapSlowMoDepth <= 0) return;
         _scrapSlowMoDepth = 0;
-        if (!AdventurePauseMenu.IsOpen)
-            Time.timeScale = _scrapSlowMoSavedScale > 0.05f ? _scrapSlowMoSavedScale : 1f;
+        if (!AdventurePauseMenu.IsOpen && Time.timeScale <= 0.05f)
+            Time.timeScale = 1f;
     }
 
     public float hoverHeight = 1.35f;
@@ -2467,11 +2467,6 @@ public partial class AdventureRustDrone : MonoBehaviour
     static void EndScrapSlowMo()
     {
         _scrapSlowMoDepth = Mathf.Max(0, _scrapSlowMoDepth - 1);
-        if (_scrapSlowMoDepth > 0) return;
-        if (AdventurePauseMenu.IsOpen)
-            Time.timeScale = 0f;
-        else
-            Time.timeScale = _scrapSlowMoSavedScale > 0.05f ? _scrapSlowMoSavedScale : 1f;
     }
 
     /// <summary>パーツ取得時にNikoの頭上でクルッと360度歓喜宙返りし、花火光粒を放つ</summary>

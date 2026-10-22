@@ -402,7 +402,8 @@ public class AdventureCameraFollow : MonoBehaviour
         }
 
         // 系統3: レガシー Input フォールバック（適正スケール）
-        if (Mathf.Abs(mouseX) < 0.001f && Mathf.Abs(mouseY) < 0.001f)
+        bool pickupGrace = AdventureScrapManager.IsWithinPickupInputGrace;
+        if (pickupGrace || (Mathf.Abs(mouseX) < 0.001f && Mathf.Abs(mouseY) < 0.001f))
         {
             try
             {

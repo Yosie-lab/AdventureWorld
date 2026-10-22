@@ -364,20 +364,10 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         // インタラクション判定トリガー
         var trigger = boatGo.AddComponent<AdventureBeachNarrativeSpot>();
         trigger.spotId = "escape_boat";
-        trigger.title = "✦ 二人の漂着艇（木造手漕ぎボート） ✦";
-        trigger.subTitle = "外の管理都市コード704から海を渡ってきた小さな木の小舟";
-        trigger.bodyText =
-            "潮風と荒波に耐え抜いた、小さな木造の手漕ぎボート。\n\n" +
-            "【Floatの航海日誌】\n" +
-            "「2050年7月14日 深夜。\n" +
-            "『効率性欠如』としてスクラップ処分が決まったRustを整備ドックから連れ出し、夜の海へ漕ぎ出した。\n" +
-            "小さな木造ボートで真っ暗な外洋に出たときは、冷たい荒波が打ち寄せて死ぬほど怖かった。\n" +
-            "でも、暗闇の中でRustが小さな体で船首に座って、ランタンの灯りで前を照らし続けてくれたから、迷わずに漕ぎ続けられた。\n\n" +
-            "オールを握る手の豆がつぶれ、波に揺られてどれくらい経っただろう。\n" +
-            "気がつくとこの波の静かな美しい白砂ビーチに打ち上げられていた。\n" +
-            "見上げた空は眩しいほど青く、風に乗って蝉の声が聞こえて……\n" +
-            "二人で抱き合って、声を出して泣いた」";
-        trigger.rustDialogue = "「あの航海、怖かったね Float……でも、Floatが一生懸命オールを漕いで僕を守ってくれたから、僕の回路はショートしなかったんだよ」";
+        trigger.title = "narrative_boat_title";
+        trigger.subTitle = "narrative_boat_sub";
+        trigger.bodyText = "narrative_boat_body";
+        trigger.rustDialogue = "narrative_boat_rust";
 
         // 漂着艇のそばに回収可能な特殊サプライ（潤滑油缶）を配置
         var oilGo = new GameObject("PodSupplyOil");
@@ -595,6 +585,17 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
     }
 
+    /// <summary>spotId と辞書キー（narrative_*）のずれを吸収</summary>
+    static string NarrativeLocKeyBase(string spotId)
+    {
+        switch (spotId)
+        {
+            case "escape_boat": return "narrative_boat";
+            case "beach_camp": return "narrative_camp";
+            default: return "narrative_" + spotId;
+        }
+    }
+
     /// <summary>ナラティブモーダルを開く</summary>
     public void OpenNarrativeModal(string id, string title, string subTitle, string body, string rustComment)
     {
@@ -602,7 +603,7 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         if (AdventureBeachDriftBox.IsModalOpen)
             return;
 
-        string keyBase = "narrative_" + id;
+        string keyBase = NarrativeLocKeyBase(id);
         string locTitle = AdventureLocalizationManager.Get(keyBase + "_title");
         if (!string.IsNullOrEmpty(locTitle) && locTitle != keyBase + "_title") title = locTitle;
         else title = AdventureLocalizationManager.Get(title);

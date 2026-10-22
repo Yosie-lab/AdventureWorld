@@ -2094,7 +2094,7 @@ public static class AdventureLocalizationManager
 
         // 漂着艇
         { "narrative_boat_title", new[] { "✦ 二人の漂着艇（木造手漕ぎボート） ✦", "✦ Our Escape Rowboat ✦", "✦ 二人的漂流木舟 ✦", "✦ Nuestra barca de remos varada ✦" } },
-        { "narrative_boat_sub", new[] { "外の管理都市コード704から海を渡ってきた小さな木の小舟", "A tiny wooden boat that crossed the seas from exterior City Code 704", "从外界管制都市代号704漂洋过海而来的小小木船", "Un bote de madera que cruzó el mar desde la Ciudad Código 704" } },
+        { "narrative_boat_sub", new[] { "外の管理都市コード704から……", "From exterior Administration City Code 704…", "来自外界管制都市代号704……", "Desde la Ciudad Administrativa exterior, Código 704…" } },
         { "narrative_boat_body", new[] {
             "潮風と荒波に耐え抜いた、小さな木造の手漕ぎボート。\n\n【Floatの航海日誌】\n「2050年7月14日 深夜。\n『効率性欠如』としてスクラップ処分が決まったRustを整備ドックから連れ出し、夜の海へ漕ぎ出した。\n小さな木造ボートで真っ暗な外洋に出たときは、冷たい荒波が打ち寄せて死ぬほど怖かった。\nでも、暗闇の中でRustが小さな体で船首に座って、ランタンの灯りで前を照らし続けてくれたから、迷わずに漕ぎ続けられた。\n\nオールを握る手の豆がつぶれ、波に揺られてどれくらい経っただろう。\n気がつくとこの波の静かな美しい白砂ビーチに打ち上げられていた。\n見上げた空は眩しいほど青く、風に乗って蝉の声が聞こえて……\n二人で抱き合って、声を出して泣いた」",
             "A small wooden rowboat that weathered fierce tides and salt winds.\n\n[Float's Log]\n\"Late night, July 14, 2050.\nAfter Rust was marked for scrap due to 'efficiency deficits', I smuggled him out from the maintenance dock and rowed into the dark open sea.\nVenturing into the pitch-black exterior ocean in a wooden skiff was terrifying as freezing crests slammed against us.\nYet through the void, Rust sat curled on the bow, keeping his little lantern burning to light our way forward, guiding every stroke.\n\nBlisters tore across my palms, rocking endlessly on the swell.\nBefore I knew it, we washed ashore onto this serene white-sand beach.\nThe sky above was blindingly blue, sea breezes carried the chorus of cicadas...\nWe held each other tight, weeping aloud in relief.\"",
@@ -2102,11 +2102,23 @@ public static class AdventureLocalizationManager
             "Una pequeña barca de remos de madera que sobrevivió a duras olas y salitre.\n\n[Diario de Float]\n«Medianoche del 14 de julio de 2050.\nCuando Rust fue sentenciado al desguace por 'falta de eficiencia', lo saqué en secreto del taller y remé hacia el mar oscuro.\nSalir a mar abierto en una barca de madera fue aterrador mientras las olas heladas nos golpeaban.\nPero en la oscuridad, Rust se sentó en la proa, alumbrando sin parar con su linterna para guiar cada remada.\n\nSe me reventaron las ampollas de las manos de tanto remar mecido por las olas.\nAl despertar, habíamos varado en esta hermosa playa de arena blanca y aguas tranquilas.\nEl cielo era deslumbrantemente azul, la brisa traía el canto de las cigarras...\nNos abrazamos con fuerza y lloramos juntos.»"
         } },
         { "narrative_boat_rust", new[] {
-            "「あの航海、怖かったね Float……でも、Floatが一生懸命オールを漕いで僕を守ってくれたから、僕の回路はショートしなかったんだよ」",
-            "\"That voyage was terrifying, Float... But because you rowed with all your might to protect me, my circuits stayed safe and sound.\"",
-            "「那场航行真的好可怕呀，Float……但是，正因为Float拼命划桨保护了我，我的回路才没有烧坏短路呢。」",
-            "«Aquel viaje dio mucho miedo, Float... Pero como remaste con todas tus fuerzas para protegerme, mis circuitos no sufrieron nada.»"
+            "「あの航海、怖かったね、Float……でも、Floatが一生懸命オールを漕いで僕を守ってくれたから、僕の回路はショートしなかったんだよ」",
+            "«That voyage was scary, Float… But because you rowed with all your might to protect me, my circuits never shorted out.»",
+            "「那场航行好可怕呢，Float……但是，正因为Float拼命划桨保护我，我的回路才没有短路烧坏。」",
+            "«Aquel viaje dio miedo, Float… Pero como remaste con todas tus fuerzas para protegerme, mis circuitos no se quemaron.»"
         } },
+        // 漂着艇モーダル（ハードコード文字列のフォールバック用）
+        { "✦ 二人の漂着艇（木造手漕ぎボート） ✦", new[] { "✦ 二人の漂着艇（木造手漕ぎボート） ✦", "✦ Our Escape Rowboat ✦", "✦ 二人的漂流木舟 ✦", "✦ Nuestra barca de remos varada ✦" } },
+        { "外の管理都市コード704から海を渡ってきた小さな木の小舟", new[] { "外の管理都市コード704から……", "From exterior Administration City Code 704…", "来自外界管制都市代号704……", "Desde la Ciudad Administrativa exterior, Código 704…" } },
+        { "潮風と荒波に耐え抜いた、小さな木造の手漕ぎボート。", new[] {
+            "潮風と荒波に耐え抜いた、小さな木造の手漕ぎボート。",
+            "A small wooden rowboat that weathered fierce tides and salt winds.",
+            "经受住了咸湿海风与滔天巨浪的细小木制手划船。",
+            "Una pequeña barca de remos de madera que sobrevivió a duras olas y salitre."
+        } },
+        { "narrative_float_voyage_log", new[] { "【Floatの航海日誌】", "[Float's Log]", "【Float的航海日志】", "[Diario de Float]" } },
+        { "(古代の推進黄金ギア)", new[] { "(古代の推進黄金ギア)", "(Ancient Propulsion Gold Gear)", "(古代推进黄金齿轮)", "(Engranaje Dorado de Propulsión Antigua)" } },
+        { "(海風のエネルギーコア)", new[] { "(海風のエネルギーコア)", "(Sea Breeze Energy Core)", "(海风能量核心)", "(Núcleo de Energía de la Brisa Marina)" } },
 
         // ビーチキャンプ跡
         { "narrative_camp_title", new[] { "✦ 漂着初日のビーチキャンプ（追憶の焚き火） ✦", "✦ First Night Beach Camp (Campfire of Memories) ✦", "✦ 漂流首日的海滩营地（追忆的篝火） ✦", "✦ Campamento de la primera noche (Hoguera de recuerdos) ✦" } },

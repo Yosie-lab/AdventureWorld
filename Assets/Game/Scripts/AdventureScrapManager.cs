@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
@@ -12,13 +13,31 @@ public class AdventureScrapManager : MonoBehaviour
     /// <summary>パーツ／貝殻等の取得フレーム（Rust 手当て E/クリックの同一フレーム誤爆防止）</summary>
     public static int LastScrapCollectFrame { get; private set; } = -1;
 
+    const float PickupInputGraceSeconds = 0.45f;
+    const float PickupRustInteractSuppressSeconds = 0.14f;
+    static float _lastScrapCollectUnscaledTime = -100f;
+
+    /// <summary>取得直後（クリック／E 取得後の視点・移動復帰ウィンドウ）</summary>
+    public static bool IsWithinPickupInputGrace =>
+        Time.unscaledTime - _lastScrapCollectUnscaledTime < PickupInputGraceSeconds;
+
     public static bool ShouldSuppressRustCompanionInteract =>
-        Time.frameCount == LastScrapCollectFrame;
+        Time.unscaledTime - _lastScrapCollectUnscaledTime < PickupRustInteractSuppressSeconds;
 
     /// <summary>取得フレームをマークする（同一フレームの Rust インタラクト誤爆防止）</summary>
     public static void MarkScrapCollectedThisFrame()
     {
         LastScrapCollectFrame = Time.frameCount;
+        _lastScrapCollectUnscaledTime = Time.unscaledTime;
+    }
+
+    /// <summary>取得直後に移動・視点・timeScale を確実に復帰させる</summary>
+    public static void RecoverGameplayAfterPickup()
+    {
+        AdventureRustDrone.ForceEndScrapSlowMo();
+        AdventurePettingAction.Instance?.CancelPetting();
+        AdventureGameplayInputGate.TryLockCursorForGameplay();
+        AdventureCameraFollow.Instance?.RestoreGameplayLookLock();
     }
 
     /// <summary>後方互換ラッパー。MarkScrapCollectedThisFrame を呼ぶだけで seconds は現在不使用。</summary>
@@ -311,6 +330,14 @@ public class AdventureScrapManager : MonoBehaviour
     {
         if (_instance == null) _instance = this;
         RestoreIdsFromList();
+    }
+
+    IEnumerator PickupInputRecoveryCoroutine()
+    {
+        yield return null;
+        RecoverGameplayAfterPickup();
+        yield return new WaitForEndOfFrame();
+        RecoverGameplayAfterPickup();
     }
 
     void RestoreIdsFromList()
@@ -669,9 +696,9 @@ public class AdventureScrapManager : MonoBehaviour
     {
         Ensure();
         MarkScrapCollectedThisFrame();
-        AdventurePettingAction.Instance?.CancelPetting();
-        AdventureGameplayInputGate.TryLockCursorForGameplay();
-        AdventureCameraFollow.Instance?.RestoreGameplayLookLock();
+        RecoverGameplayAfterPickup();
+        if (_instance != null)
+            _instance.StartCoroutine(_instance.PickupInputRecoveryCoroutine());
         // 1. 爽快なパーツ取得ファンファーレ音（シュピーン！ド・ミ・ソ・ド・ミ・ソ・ド〜〜〜ン♪）を再生！
         PlayScrapCollectFanfare();
 
