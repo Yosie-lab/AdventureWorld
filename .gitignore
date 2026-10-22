@@ -26,3 +26,11 @@
 Assets/Screenshots*
 Assets/_Recovery*
 .cursor*
+
+# Local-only packs (keep on disk; do not commit)
+/Assets/Audio/
+/Assets/Audio.meta
+/Assets/Hawaii Beach House (PBR, HDRP)/
+/Assets/Hawaii Beach House (PBR, HDRP).meta
+/Assets/Scripts/
+/Assets/Scripts.meta
