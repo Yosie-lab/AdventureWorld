@@ -248,9 +248,19 @@ public partial class AdventurePlayerController : MonoBehaviour
     {
         AdventureGameplayInputGate.TickRecovery();
 
-        // CharacterController の自動復旧（万が一無効化されたまま残るのを防止）
+        var campfire = AdventureBeachCampfire.Instance;
+        if (campfire != null && campfire.IsSitting)
+        {
+            if (_cc != null && _cc.enabled)
+                _cc.enabled = false;
+            return;
+        }
+
+        // CharacterController の自動復旧（焚き火座り以外で無効のまま残った場合）
         if (_cc != null && !_cc.enabled)
             _cc.enabled = true;
+        if (!enabled)
+            enabled = true;
 
         if (AdventureGameplayInputGate.TryEarlyExitForTitleOrPrologue())
             return;

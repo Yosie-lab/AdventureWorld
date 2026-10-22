@@ -602,6 +602,7 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
 
     bool CheckChargeTriggerInput()
     {
+        if (AdventureRustWorkshopUI.IsOpen) return false;
         // Fキー、Eキー、マウス左クリックのいずれでも快活に反応
         var kb = Keyboard.current ?? AdventureInputReader.Keyboard;
         if (kb != null && (kb.fKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)) return true;
@@ -612,6 +613,7 @@ public class AdventureRustCrystalPuzzle : MonoBehaviour
 
     bool CheckInteractInput()
     {
+        if (AdventureRustWorkshopUI.IsOpen) return false;
         return AdventureInputReader.InteractDown || AdventureInputReader.MouseLeftDown;
     }
 

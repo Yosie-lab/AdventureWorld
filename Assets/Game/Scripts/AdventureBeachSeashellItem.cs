@@ -869,7 +869,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         // 採取アニメーション（Nikoの手元へフワリと吸い込まれる）
         if (_isCollecting)
         {
-            _collectAnimTimer += Time.deltaTime;
+            _collectAnimTimer += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(_collectAnimTimer / 0.32f);
 
             var player = AdventurePlayerController.Instance;
@@ -976,6 +976,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         if (AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen()) return true;
         if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening) return true;
         if (AdventurePauseMenu.IsOpen) return true;
+        if (AdventureRustWorkshopUI.IsOpen) return true;
         return false;
     }
 
@@ -1003,6 +1004,9 @@ public class AdventureBeachSeashellItem : MonoBehaviour
     {
         _isCollected = true;
         _isCollecting = false;
+
+        AdventureScrapManager.ArmPickupInputGrace(0.55f);
+        AdventureGameplayInputGate.TryLockCursorForGameplay();
 
         // 保存
         if (!string.IsNullOrEmpty(itemId))

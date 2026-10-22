@@ -329,7 +329,8 @@ public class AdventureScrapItem : MonoBehaviour
             }
 
             // 3. E / 左クリックによる取得（1フレーム入力＋近距離）
-            bool interactCollect = (_cachedPlayer.InteractPressed || AdventureInputReader.InteractDown)
+            bool interactCollect = !AdventureRustWorkshopUI.IsOpen
+                && (_cachedPlayer.InteractPressed || AdventureInputReader.InteractDown)
                 && dist < InteractCollectDist;
             if (interactCollect)
             {
@@ -359,7 +360,7 @@ public class AdventureScrapItem : MonoBehaviour
     {
         if (_isCollected) return;
         _isCollected = true;
-        AdventureScrapManager.MarkScrapCollectedThisFrame();
+        AdventureScrapManager.ArmPickupInputGrace();
 
         // 弾けるスパークル演出
         SpawnCollectParticles();

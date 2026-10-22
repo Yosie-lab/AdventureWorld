@@ -9,10 +9,21 @@ public class AdventureScrapManager : MonoBehaviour
     #region Singleton & Public Access
     static AdventureScrapManager _instance;
 
-    /// <summary>パーツ取得と E/クリック手当ての同一フレーム競合を防ぐ</summary>
+    /// <summary>パーツ／貝殻等の取得直後、Rust 手当て E/クリックと競合しない猶予</summary>
     public static int LastScrapCollectFrame { get; private set; } = -1;
+    static float _pickupInputGraceUntil;
 
-    public static void MarkScrapCollectedThisFrame() => LastScrapCollectFrame = Time.frameCount;
+    public static bool ShouldSuppressRustCompanionInteract =>
+        Time.unscaledTime < _pickupInputGraceUntil
+        || AdventureRustWorkshopUI.IsOpen;
+
+    public static void ArmPickupInputGrace(float seconds = 0.75f)
+    {
+        LastScrapCollectFrame = Time.frameCount;
+        _pickupInputGraceUntil = Mathf.Max(_pickupInputGraceUntil, Time.unscaledTime + seconds);
+    }
+
+    public static void MarkScrapCollectedThisFrame() => ArmPickupInputGrace();
 
     public static AdventureScrapManager Instance
     {
@@ -836,6 +847,7 @@ public class AdventureScrapManager : MonoBehaviour
     public void OnDriftBoxOpened(int boxId, string boxTitle, out bool unlockedCampfire, out bool unlockedLever)
     {
         InvalidateDriftBoxCache();
+        AdventureScrapManager.ArmPickupInputGrace(0.55f);
         PlayCelebrationChime(0.40f);
         unlockedCampfire = CheckPointsAndNotifyCampfireUnlock();
         unlockedLever = CheckPointsAndNotifyLeverUnlock();

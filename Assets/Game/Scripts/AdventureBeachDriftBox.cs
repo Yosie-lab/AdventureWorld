@@ -130,18 +130,13 @@ public class AdventureBeachDriftBox : MonoBehaviour
     /// モーダルが実際に画面上に表示されているかどうか。
     /// staticフラグの残留等で操作が永久ブロックされるのを防ぐため、実オブジェクトのアクティブ状態も検証する。
     /// </summary>
-    public static bool IsModalOpen
+    public static bool IsModalOpen => _isModalOpen && AdventureSceneCaption.IsVisible;
+
+    /// <summary>字幕が消えたのに漂着箱フラグだけ残ったときの復旧（GameplayInputGate から毎フレーム）</summary>
+    public static void SyncModalFlagWithCaption()
     {
-        get
-        {
-            if (!_isModalOpen) return false;
-            if (!AdventureSceneCaption.IsVisible)
-            {
-                _isModalOpen = false;
-                return false;
-            }
-            return true;
-        }
+        if (_isModalOpen && !AdventureSceneCaption.IsVisible)
+            HandleDriftCaptionClosed();
     }
 
     public static bool CanCloseModal =>
@@ -1306,14 +1301,14 @@ public class AdventureBeachDriftBox : MonoBehaviour
 
     static void HandleDriftCaptionClosed()
     {
-        if (!_isModalOpen) return;
-        _isModalOpen = false;
-
-        if (!AdventureStoryFlow.WantsFreeCursor)
+        if (!_isModalOpen && !AdventureSceneCaption.IsVisible)
         {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            AdventureGameplayInputGate.TryLockCursorForGameplay();
+            return;
         }
+
+        _isModalOpen = false;
+        AdventureGameplayInputGate.TryLockCursorForGameplay();
 
         if (_pendingCampfireRemindOnModalClose)
         {

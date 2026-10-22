@@ -64,7 +64,7 @@ public class AdventureAncientWindVent : MonoBehaviour
         _isPlayerNear = dist <= 5.2f;
 
         // 未起動かつプレイヤーが接近中なら、インタラクト（E / F / クリック）を検知
-        if (!isActivated && !_isCharging && _isPlayerNear)
+        if (!isActivated && !_isCharging && _isPlayerNear && !AdventureRustWorkshopUI.IsOpen)
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
             bool fPressed = kb != null && kb.fKey.wasPressedThisFrame;

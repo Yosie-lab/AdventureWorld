@@ -156,7 +156,7 @@ public static class AdventureSpeechBoardLayout
     public const int SceneCaptionBodySize = 18;
 
     // --- レターボックス映画字幕（クライマックス注油・エピローグ） ---
-    public const int CinematicFilmSubtitleSize = 41;
+    public const int CinematicFilmSubtitleSize = 38;
 
     // --- Rust IMGUI プロンプト ---
     public const int RustCenterPromptFontSize = 16;

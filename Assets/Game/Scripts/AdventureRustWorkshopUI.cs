@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 using System.Collections.Generic;
 
 /// <summary>
@@ -41,6 +42,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
     GameObject _workbenchWorldObj;
     Text _promptText;
     CanvasGroup _promptCg;
+
+    int _lastCardClickFrame = -1;
 
     // クラフトUI音響
     AudioSource _uiAudioSource;
@@ -171,30 +174,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
             SetVisible(false);
         }
 
-        // 工房が開いている時の数字キー【1】〜【5】ショートカット＆マウスクリック処理
         if (isVisible)
-        {
-            var curKb = Keyboard.current ?? AdventureInputReader.Keyboard;
-            if (curKb != null)
-            {
-                if (curKb.digit1Key.wasPressedThisFrame || curKb.numpad1Key.wasPressedThisFrame) TriggerCardByIndex(0);
-                if (curKb.digit2Key.wasPressedThisFrame || curKb.numpad2Key.wasPressedThisFrame) TriggerCardByIndex(1);
-                if (curKb.digit3Key.wasPressedThisFrame || curKb.numpad3Key.wasPressedThisFrame) TriggerCardByIndex(2);
-                if (curKb.digit4Key.wasPressedThisFrame || curKb.numpad4Key.wasPressedThisFrame) TriggerCardByIndex(3);
-                if (curKb.digit5Key.wasPressedThisFrame || curKb.numpad5Key.wasPressedThisFrame) TriggerCardByIndex(4);
-            }
-            try
-            {
-                if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) TriggerCardByIndex(0);
-                if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) TriggerCardByIndex(1);
-                if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)) TriggerCardByIndex(2);
-                if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)) TriggerCardByIndex(3);
-                if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5)) TriggerCardByIndex(4);
-            }
-            catch { }
-
-            UpdateDirectMouseClicks();
-        }
+            HandleWorkshopKeyboardShortcuts();
 
         if (isVisible)
         {
@@ -205,6 +186,58 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
         // 作業台への接近判定とEキー入力
         UpdateWorkbenchInteraction();
+    }
+
+    void LateUpdate()
+    {
+        if (!isVisible) return;
+        EnsureEventSystemForUi();
+        UpdateDirectMouseClicks();
+    }
+
+    void HandleWorkshopKeyboardShortcuts()
+    {
+        var curKb = Keyboard.current ?? AdventureInputReader.Keyboard;
+        if (curKb != null)
+        {
+            if (curKb.digit1Key.wasPressedThisFrame || curKb.numpad1Key.wasPressedThisFrame) TriggerCardByIndex(0);
+            if (curKb.digit2Key.wasPressedThisFrame || curKb.numpad2Key.wasPressedThisFrame) TriggerCardByIndex(1);
+            if (curKb.digit3Key.wasPressedThisFrame || curKb.numpad3Key.wasPressedThisFrame) TriggerCardByIndex(2);
+            if (curKb.digit4Key.wasPressedThisFrame || curKb.numpad4Key.wasPressedThisFrame) TriggerCardByIndex(3);
+            if (curKb.digit5Key.wasPressedThisFrame || curKb.numpad5Key.wasPressedThisFrame) TriggerCardByIndex(4);
+        }
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) TriggerCardByIndex(0);
+            if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) TriggerCardByIndex(1);
+            if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)) TriggerCardByIndex(2);
+            if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)) TriggerCardByIndex(3);
+            if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5)) TriggerCardByIndex(4);
+        }
+        catch { }
+    }
+
+    Camera GetUiRaycastCamera()
+    {
+        if (_canvas == null) return null;
+        return _canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : _canvas.worldCamera;
+    }
+
+    bool TryGetCardAtScreenPoint(Vector2 screenPoint, out CosmeticCardUI card)
+    {
+        card = null;
+        for (int i = 0; i < _cardUIs.Count; i++)
+        {
+            var c = _cardUIs[i];
+            if (c?.actionBtn == null) continue;
+            var rt = c.actionBtn.GetComponent<RectTransform>();
+            if (rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, screenPoint, GetUiRaycastCamera()))
+            {
+                card = c;
+                return true;
+            }
+        }
+        return false;
     }
 
     void TriggerCardByIndex(int index)
@@ -228,19 +261,10 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
         if (e.type == EventType.MouseDown && e.button == 0)
         {
-            Vector2 mouseScreen = new Vector2(e.mousePosition.x, Screen.height - e.mousePosition.y);
-            for (int i = 0; i < _cardUIs.Count; i++)
+            if (TryGetCardAtScreenPoint(e.mousePosition, out var card))
             {
-                var card = _cardUIs[i];
-                if (card == null) continue;
-
-                var rt = card.actionBtn != null ? card.actionBtn.GetComponent<RectTransform>() : null;
-                if (rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, mouseScreen, null))
-                {
-                    OnCardButtonClicked(card);
-                    e.Use();
-                    return;
-                }
+                OnCardButtonClicked(card);
+                e.Use();
             }
         }
     }
@@ -255,18 +279,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
         Vector2 mousePos = mouse != null ? mouse.position.ReadValue() : (Vector2)Input.mousePosition;
 
-        for (int i = 0; i < _cardUIs.Count; i++)
-        {
-            var card = _cardUIs[i];
-            if (card == null || card.actionBtn == null) continue;
-
-            var rt = card.actionBtn.GetComponent<RectTransform>();
-            if (rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos, null))
-            {
-                OnCardButtonClicked(card);
-                return;
-            }
-        }
+        if (TryGetCardAtScreenPoint(mousePos, out var card))
+            OnCardButtonClicked(card);
     }
 
     void UpdateWorkbenchInteraction()
@@ -361,6 +375,8 @@ public class AdventureRustWorkshopUI : MonoBehaviour
             AdventureBeachSeashellManager.Ensure();
             AdventureRustCosmetics.Ensure();
             EnsureEventSystemForUi();
+            if (_canvas != null)
+                _canvas.sortingOrder = 3200;
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
             RefreshUI();
@@ -518,6 +534,9 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
     void OnCardButtonClicked(CosmeticCardUI card)
     {
+        if (Time.frameCount == _lastCardClickFrame) return;
+        _lastCardClickFrame = Time.frameCount;
+
         AdventureBeachSeashellManager.Ensure();
         AdventureRustCosmetics.Ensure();
         var cosmetics = AdventureRustCosmetics.Instance;
@@ -598,7 +617,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
 
         _canvas = canvasGo.AddComponent<Canvas>();
         _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        _canvas.sortingOrder = 600; // 最前面に表示して他のHUDにクリックを阻害されないようにする
+        _canvas.sortingOrder = 3200;
 
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -622,7 +641,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         bdRect.sizeDelta = Vector2.zero;
         var bdImg = backdrop.AddComponent<Image>();
         bdImg.color = new Color(0.04f, 0.06f, 0.10f, 0.88f);
-        bdImg.raycastTarget = false;
+        bdImg.raycastTarget = true;
 
         // ── メインパネル（幅 960 × 高 580） ──
         _panelRoot = new GameObject("WorkshopPanel");
@@ -973,6 +992,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
         btnOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
         var btn = btnGo.AddComponent<Button>();
+        btn.targetGraphic = btnImg;
 
         var btnTextGo = new GameObject("BtnText");
         btnTextGo.transform.SetParent(btnGo.transform, false);

@@ -852,44 +852,54 @@ public class AdventureBeachCampfire : MonoBehaviour
         float yDistToBench = Mathf.Abs(pPos.y - _benchSeatNiko.y);
         bool inBenchZone = xzDistToBench < 3.8f && yDistToBench < 3.2f;
 
+        if (AdventureRustWorkshopUI.IsOpen)
+            return;
+
         bool interactPressed = CheckInteractInput();
 
         if (_isSitting)
         {
+            if (interactPressed && _chillTimer > 0.12f)
+            {
+                StandUp(player);
+                AdventureGameplayInputGate.TryLockCursorForGameplay();
+                return;
+            }
             UpdateSittingState(player);
         }
-        else
+        else if (interactPressed)
         {
-            // 未点火時：焚き火に近づいて【E】または左クリックで点火
+            AdventureGameplayInputGate.TryLockCursorForGameplay();
+            AdventureScrapManager.ArmPickupInputGrace(0.4f);
+
+            // 未点火：焚き火側の操作を最優先（ベンチ範囲と重なっても腰掛けにしない）
             if (!_isLit && inFireZone)
             {
-                if (interactPressed)
-                {
-                    if (CanLightCampfire)
-                    {
-                        IgniteCampfire();
-                    }
-                    else
-                    {
-                        // 10ポイント未満：まだ火を点けられない催促・案内
-                        var drone = AdventureRustDrone.Instance;
-                        if (drone != null)
-                        {
-                            int need = RequiredPointsToLight - CurrentProgressPoints;
-                            drone.SpeakCustom($"火を点けるには、探索ポイントがあと {need}pt 必要みたい！（現在: {CurrentProgressPoints}/{RequiredPointsToLight} pt）\nパーツ集めや漂流ボックスを開けてみよう！", 5.0f);
-                        }
-                    }
-                }
+                if (CanLightCampfire)
+                    IgniteCampfire();
+                else
+                    SpeakNeedPointsHint();
+                return;
             }
-            // 点火後（またはベンチ付近）：【E】または左クリックで腰掛ける
-            else if (inBenchZone)
+
+            if (inBenchZone)
             {
-                if (interactPressed)
-                {
+                if (_isLit || CanLightCampfire)
                     SitDown(player);
-                }
+                else
+                    SpeakNeedPointsHint();
             }
         }
+    }
+
+    void SpeakNeedPointsHint()
+    {
+        var drone = AdventureRustDrone.Instance;
+        if (drone == null) return;
+        int need = RequiredPointsToLight - CurrentProgressPoints;
+        drone.SpeakCustom(
+            $"火を点けるには、探索ポイントがあと {need}pt 必要みたい！（現在: {CurrentProgressPoints}/{RequiredPointsToLight} pt）\nパーツ集めや漂流ボックスを開けてみよう！",
+            5.0f);
     }
 
     /// <summary>Eキー、左クリック、ゲームパッドのアクションボタンを包括的に判定</summary>
@@ -991,8 +1001,6 @@ public class AdventureBeachCampfire : MonoBehaviour
             IgniteCampfire();
         }
 
-        // 1. Nikoを丸太の上に腰掛けさせる
-        player.enabled = false;
         var cc = player.GetComponent<CharacterController>();
         if (cc != null) cc.enabled = false;
 
@@ -1020,10 +1028,9 @@ public class AdventureBeachCampfire : MonoBehaviour
         if (!_isSitting) return;
         _isSitting = false;
 
-        // 1. Nikoの操作を復帰
         var cc = player.GetComponent<CharacterController>();
         if (cc != null) cc.enabled = true;
-        player.enabled = true;
+        AdventureGameplayInputGate.TryLockCursorForGameplay();
 
         // ベンチの前に少し進んだ位置に立たせる
         player.transform.position = _benchSeatNiko + _lookDirection * 0.85f;

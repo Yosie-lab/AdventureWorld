@@ -319,6 +319,9 @@ public static class AdventureStoryFlow
             if (AdventureBeachDriftBox.IsModalOpen)
                 return true;
 
+            if (AdventureSceneCaption.IsWaitingDismiss)
+                return true;
+
             // 海岸日誌・石碑ナラティブモーダル
             if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal)
                 return true;

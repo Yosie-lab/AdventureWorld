@@ -22,6 +22,13 @@ public partial class AdventureRustDrone : MonoBehaviour
     {
         if (_scrapSlowMoDepth <= 0) return;
         if (Time.unscaledTime - _scrapSlowMoStartedAt < 0.25f) return;
+        ForceEndScrapSlowMo();
+    }
+
+    /// <summary>取得演出の timeScale 残留を即解除（移動・視点入力時も TickRecovery から呼ぶ）</summary>
+    public static void ForceEndScrapSlowMo()
+    {
+        if (_scrapSlowMoDepth <= 0) return;
         _scrapSlowMoDepth = 0;
         if (!AdventurePauseMenu.IsOpen)
             Time.timeScale = _scrapSlowMoSavedScale > 0.05f ? _scrapSlowMoSavedScale : 1f;
@@ -2148,7 +2155,7 @@ public partial class AdventureRustDrone : MonoBehaviour
 
         if (_isPlayerNear && ePressed && Time.time - _lastInteractTime > 0.35f)
         {
-            if (AdventureScrapManager.LastScrapCollectFrame == Time.frameCount)
+            if (AdventureScrapManager.ShouldSuppressRustCompanionInteract)
                 return;
             _lastInteractTime = Time.time;
             InteractWithNiko();
@@ -2163,7 +2170,7 @@ public partial class AdventureRustDrone : MonoBehaviour
     /// <summary>Nikoとの直接対話または手当て（常備油により絶対に0にならず、いつでも手当て・全回復可能）</summary>
     public void InteractWithNiko()
     {
-        if (AdventureScrapManager.LastScrapCollectFrame == Time.frameCount)
+        if (AdventureScrapManager.ShouldSuppressRustCompanionInteract)
             return;
 
         bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
@@ -2410,7 +2417,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         string scrapKey = (count >= 1 && count <= 12) ? $"rust_scrap_{count}" : "rust_scrap_default";
         string scrapSpeech = AdventureLocalizationManager.Get(scrapKey);
         string oilSuffix = AdventureLocalizationManager.GetFormat("rust_oil_bonus_suffix", scrapOilBonus, oilCount);
-        SetSpeech($"{scrapSpeech} {oilSuffix}", 5.2f);
+        SetIdleChat($"{scrapSpeech} {oilSuffix}", 5.2f);
 
         // キーストーン節目（3, 6, 9, 12個）の特別アクション演出
         if (count == 3 || count == 6 || count == 9 || count == 12)
@@ -2433,17 +2440,17 @@ public partial class AdventureRustDrone : MonoBehaviour
             _scrapSlowMoSavedScale = Time.timeScale > 0.05f ? Time.timeScale : 1f;
         _scrapSlowMoDepth++;
         _scrapSlowMoStartedAt = Time.unscaledTime;
-        Time.timeScale = 0.20f;
+        // timeScale は変えない（近接取得後に歩行・視点が重くなるのを防ぐ）
     }
 
     static void EndScrapSlowMo()
     {
         _scrapSlowMoDepth = Mathf.Max(0, _scrapSlowMoDepth - 1);
         if (_scrapSlowMoDepth > 0) return;
-        float restore = _scrapSlowMoSavedScale > 0.05f ? _scrapSlowMoSavedScale : 1f;
         if (AdventurePauseMenu.IsOpen)
-            restore = 0f;
-        Time.timeScale = restore;
+            Time.timeScale = 0f;
+        else
+            Time.timeScale = _scrapSlowMoSavedScale > 0.05f ? _scrapSlowMoSavedScale : 1f;
     }
 
     /// <summary>パーツ取得時にNikoの頭上でクルッと360度歓喜宙返りし、花火光粒を放つ</summary>

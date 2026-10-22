@@ -169,13 +169,13 @@ public class AdventureSceneCaption : MonoBehaviour
     public static void Dismiss(bool invokeCallback = true)
     {
         if (_instance == null) return;
+        var cb = invokeCallback ? _instance._onDismiss : null;
+        _instance._onDismiss = null;
+        cb?.Invoke();
         _instance._visible = false;
         _instance._timer = -1f;
         _instance._waitDismiss = false;
         if (_instance._cg != null) _instance._cg.alpha = 0f;
-        var cb = invokeCallback ? _instance._onDismiss : null;
-        _instance._onDismiss = null;
-        cb?.Invoke();
     }
 
     void Update()

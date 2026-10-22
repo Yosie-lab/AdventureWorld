@@ -22,6 +22,10 @@ public static class AdventureGameplayInputGate
         if (AdventureRustFloatOpening.IsGameStarted && AdventureRustFloatOpening.IsInputGuarded)
             AdventureRustFloatOpening.DismissInputGuard();
 
+        if (AdventureRustDrone.ScrapSlowMoDepth > 0
+            && (AdventureInputReader.HasAnyMove || AdventureInputReader.HasMouseLookIntent))
+            AdventureRustDrone.ForceEndScrapSlowMo();
+
         AdventureRustDrone.RecoverScrapSlowMoIfStale();
 
         if (!AdventurePauseMenu.IsOpen && AdventureRustDrone.ScrapSlowMoDepth == 0)
@@ -45,6 +49,13 @@ public static class AdventureGameplayInputGate
         var narrative = AdventureBeachNarrativeManager.Instance;
         if (narrative != null)
             narrative.SyncModalFlagWithCaption();
+
+        AdventureBeachDriftBox.SyncModalFlagWithCaption();
+
+        var campfire = AdventureBeachCampfire.Instance;
+        var player = AdventurePlayerController.Instance;
+        if (campfire != null && player != null && !campfire.IsSitting && !player.enabled)
+            player.enabled = true;
     }
 
     /// <summary>オープニング／プロローグの入力ガードを処理。true ならこのフレーム以降の Update を打ち切る。</summary>
