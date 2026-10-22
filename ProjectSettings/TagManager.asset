@@ -51,11 +51,13 @@ TagManager:
     locked: 0
   m_RenderingLayers:
   - Default
-  - NoDecal
-  - Layer 2
-  - Layer 3
-  - Layer 4
-  - Layer 5
-  - Layer 6
-  - Layer 7
+  - NoDecal - Light Layer 1
+  - Layer 2 - Light Layer 2
+  - Layer 3 - Light Layer 3
+  - Layer 4 - Light Layer 4
+  - Layer 5 - Light Layer 5
+  - Layer 6 - Light Layer 6
+  - Layer 7 - Light Layer 7
   - Layer 8
+  m_MigratedRenderPipelines:
+  - UnityEngine.Rendering.Universal.UniversalRenderPipeline
