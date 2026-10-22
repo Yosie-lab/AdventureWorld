@@ -10,8 +10,8 @@ public static class AdventureRustFloatFeel
     public const float SeaLevel = 5.50f;
 
     // ── 地上移動 ──
-    public const float InitialWalkSpeed = 7.0f;       // スタート時（0ポイント）の歩行速度
-    public const float TargetWalkSpeed = 11.5f;       // 15ポイント到達時の目標歩行速度
+    public const float InitialWalkSpeed = 7.4f;       // スタート時（0ポイント）の歩行速度
+    public const float TargetWalkSpeed = 12.0f;       // 15ポイント到達時の目標歩行速度
     public const int SpeedProgressMaxPoints = 15;      // 歩行速度が最大に達するポイント数
     public const float WalkSpeed = TargetWalkSpeed;   // 後方互換用
     public const float RunSpeed = 16.0f;
@@ -19,7 +19,7 @@ public static class AdventureRustFloatFeel
     public const float TurnSpeed = 40f;
     public const float DashTurnSpeed = 48f;
 
-    /// <summary>探索ポイント数（0〜15pt）に応じたNikoの歩行速度を計算（15pt以上は最高速度11.5fを維持）</summary>
+    /// <summary>探索ポイント数（0〜15pt）に応じたNikoの歩行速度を計算（15pt以上は TargetWalkSpeed を維持）</summary>
     public static float GetProgressWalkSpeed(int totalPoints)
     {
         if (totalPoints >= SpeedProgressMaxPoints)
@@ -32,11 +32,17 @@ public static class AdventureRustFloatFeel
     }
 
     /// <summary>立ち止まり→歩き出しの一瞬ブースト</summary>
-    public const float StartupBoostMul = 1.55f;
-    public const float StartupBoostDur = 0.25f;
+    public const float StartupBoostMul = 1.42f;
+    public const float StartupBoostDur = 0.18f;
 
-    public const float StickSpeedMoving = 1.6f;
-    public const float StickSpeedIdle = 1.8f;
+    /// <summary>凸凹で一瞬離地しても地上歩行（即時速度）を維持する猶予（秒）</summary>
+    public const float GroundMoveAirborneGraceSec = 0.36f;
+
+    /// <summary>地上移動時の体の向き追従（度/秒）</summary>
+    public const float GroundBodyTurnRate = 960f;
+
+    public const float StickSpeedMoving = 1.35f;
+    public const float StickSpeedIdle = 1.55f;
 
     public const float AnimStartupNorm = 0.48f;
     public const float AnimSpeedMul = 1.4f;
@@ -81,6 +87,21 @@ public static class AdventureRustFloatFeel
 
     public static float GroundStickSpeed(bool moving)
         => moving ? StickSpeedMoving : StickSpeedIdle;
+
+    /// <summary>斜面投影で速度が削られたとき、歩行のキビキビ感を保つ</summary>
+    public static Vector3 PreserveSlopeWalkSpeed(Vector3 wishWalk, Vector3 projected)
+    {
+        if (wishWalk.sqrMagnitude < 0.0001f || projected.sqrMagnitude < 0.0001f)
+            return projected;
+        float wishMag = wishWalk.magnitude;
+        float projMag = projected.magnitude;
+        if (projMag >= wishMag * 0.92f)
+            return projected;
+        return projected.normalized * (wishMag * 0.92f);
+    }
+
+    public static bool ShouldUseCoyoteGround(bool nearFoot, float hop, float airborneTime)
+        => nearFoot && hop <= 0.08f && airborneTime < GroundMoveAirborneGraceSec;
 
     public static float LocomotionAnimStartNorm(bool fromIdleStartup, bool isIdleClip)
     {

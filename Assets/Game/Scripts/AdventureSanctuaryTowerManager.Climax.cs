@@ -47,10 +47,11 @@ public partial class AdventureSanctuaryTowerManager
             if (player.transform.position.y < 140f)
                 player.ForceSkybreakArrival(new Vector3(512f, 150f, 512f), 150f);
             else
-            {
                 player.EndSkybreakPillarAscend();
-                player.SetAutoGlideMode(true, Mathf.Clamp(player.transform.position.y, 140f, 160f));
-            }
+            // オートヨーは切るが、注油前まで高度は ArmClimaxSkyHold で維持（手動 WASD は有効）
+            player.SetAutoGlideMode(false);
+            float holdY = Mathf.Max(player.transform.position.y, 148f);
+            player.ArmClimaxSkyHold(holdY);
         }
 
         Time.timeScale = 1f;

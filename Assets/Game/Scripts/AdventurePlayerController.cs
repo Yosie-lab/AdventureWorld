@@ -85,6 +85,8 @@ public partial class AdventurePlayerController : MonoBehaviour
 
     bool    _autoGlide;
     float   _autoGlideAltitude = 120f;
+    bool    _climaxSkyHold;
+    float   _climaxSkyHoldAltitude = 150f;
     bool    _wasMoveInput;
     float   _startupBoostTimer;
     int     _rockStuckFrames;
@@ -270,15 +272,9 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (TryHandleResetKey()) return;
         TryHandleSaveKey();
 
-        var block = AdventureGameplayInputGate.GetLocomotionBlock(out bool skybreakJumpOnly);
+        var block = AdventureGameplayInputGate.GetLocomotionBlock(out _);
         if (block == AdventureGameplayInputGate.LocomotionBlock.PauseMenu)
             return;
-
-        if (skybreakJumpOnly)
-        {
-            HandleJump();
-            return;
-        }
 
         Vector2 input     = AdventureInputReader.MoveAxis;
         bool    sprinting = AdventureInputReader.ShiftHeld;
@@ -313,6 +309,7 @@ public partial class AdventurePlayerController : MonoBehaviour
 
         Vector3 horizontal = ComputeHorizontal(input, speed, running);
 
+        ApplyClimaxSkyHoldVertical();
         ApplyMotion(horizontal);
         if (!_skybreakPillarLock)
         {
@@ -608,8 +605,18 @@ public partial class AdventurePlayerController : MonoBehaviour
         }
         else
         {
-            _grounded = false;
-            _airborneTime += Time.deltaTime;
+            if (AdventureSceneContext.IsRustFloat
+                && AdventureRustFloatFeel.ShouldUseCoyoteGround(IsNearWalkableSurface(), _hop, _airborneTime))
+            {
+                _grounded = true;
+                _gliding = false;
+                _airborneTime = Mathf.Min(_airborneTime, AdventureRustFloatFeel.GroundMoveAirborneGraceSec * 0.45f);
+            }
+            else
+            {
+                _grounded = false;
+                _airborneTime += Time.deltaTime;
+            }
         }
     }
     #endregion
@@ -768,6 +775,16 @@ public partial class AdventurePlayerController : MonoBehaviour
             return;
         }
 
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null && tower.ClimaxCrisisStarted && !tower.IsClimaxOilPromptActive
+            && transform.position.y > 118f)
+        {
+            _gliding = true;
+            _grounded = false;
+            _airborneTime = Mathf.Max(_airborneTime, glideEnterDelay);
+            return;
+        }
+
         if (_glideBoostTimer > 0f)
         {
             _gliding  = true;
@@ -831,8 +848,14 @@ public partial class AdventurePlayerController : MonoBehaviour
 
         // 本当に接地（または足裏すぐ下）のときだけ地上移動。空中は重力付き空中操舵へ
         bool nearFoot = IsNearWalkableSurface();
+        float groundGrace = AdventureSceneContext.IsRustFloat
+            ? AdventureRustFloatFeel.GroundMoveAirborneGraceSec
+            : 0.18f;
+        bool coyoteGround = AdventureSceneContext.IsRustFloat
+            && AdventureRustFloatFeel.ShouldUseCoyoteGround(nearFoot, _hop, _airborneTime);
         bool forceGroundMove = !_gliding && !_autoGlide && !_skybreakPillarLock
-                               && (_grounded || (_hop <= 0.05f && nearFoot && _airborneTime < 0.18f));
+                               && (_grounded || coyoteGround
+                                   || (_hop <= 0.05f && nearFoot && _airborneTime < groundGrace));
 
         if (forceGroundMove) return ComputeGroundHorizontal(wishWalk, running);
         if (_gliding)        return ComputeGlideHorizontal(input);
@@ -880,6 +903,8 @@ public partial class AdventurePlayerController : MonoBehaviour
 
         // 斜面に沿って投影：CCが地面に食い込んで水平速度を削るのを防ぐ
         horizontal = ProjectHorizontalOntoGround(horizontal);
+        if (AdventureSceneContext.IsRustFloat)
+            horizontal = AdventureRustFloatFeel.PreserveSlopeWalkSpeed(wishWalk, horizontal);
 
         // 向き：
         // 移動中は押したキー（進行方向）へ自然に向き、立ち止まり時はカメラ正面を向く。
@@ -889,8 +914,11 @@ public partial class AdventurePlayerController : MonoBehaviour
             Vector3 face = horizontal.SetY(0f);
             if (face.sqrMagnitude > 0.001f)
             {
+                float turnRate = AdventureSceneContext.IsRustFloat
+                    ? AdventureRustFloatFeel.GroundBodyTurnRate
+                    : 720f;
                 Quaternion targetRot = Quaternion.LookRotation(face.normalized);
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, 720f * Time.deltaTime);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, turnRate * Time.deltaTime);
             }
         }
         else if (AdventureSceneContext.IsRustFloat)
@@ -1770,6 +1798,61 @@ public partial class AdventurePlayerController : MonoBehaviour
         _airborneTime = 1f;
 
         return _airMomentum;
+    }
+
+    /// <summary>限界高度〜注油完了まで：手動操縦を維持しつつ高度だけ補助（オートヨーによる操縦不能を避ける）</summary>
+    public void ArmClimaxSkyHold(float altitude = 150f)
+    {
+        _climaxSkyHold = true;
+        _climaxSkyHoldAltitude = Mathf.Clamp(altitude, 142f, 162f);
+        _grounded = false;
+        _gliding = true;
+        _airborneTime = Mathf.Max(_airborneTime, glideEnterDelay);
+        _hop = Mathf.Max(_hop, 2.5f);
+        Vector3 fwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+        if (fwd.sqrMagnitude < 0.01f)
+            fwd = Vector3.forward;
+        float cruise = Mathf.Max(_airMomentum.SetY(0f).magnitude, AutoGlideCruiseSpeed * 0.9f);
+        _airMomentum = fwd.normalized * cruise;
+        _glideSpeedCurrent = cruise;
+    }
+
+    void ApplyClimaxSkyHoldVertical()
+    {
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        bool needHold = tower != null
+                        && tower.ClimaxCrisisStarted
+                        && tower.IsBeforeWarmOilSpeech
+                        && transform.position.y > 95f;
+        if (!needHold)
+        {
+            _climaxSkyHold = false;
+            return;
+        }
+
+        if (!_climaxSkyHold)
+            ArmClimaxSkyHold(Mathf.Max(_climaxSkyHoldAltitude, transform.position.y, 148f));
+
+        _grounded = false;
+        _gliding = true;
+
+        if (transform.position.y < 132f)
+        {
+            _hop = Mathf.Max(_hop, 8f);
+            if (_cc != null && transform.position.y < 128f)
+            {
+                _cc.enabled = false;
+                transform.position = new Vector3(transform.position.x,
+                    Mathf.Max(transform.position.y, _climaxSkyHoldAltitude - 2f),
+                    transform.position.z);
+                _cc.enabled = true;
+            }
+            return;
+        }
+
+        float dy = _climaxSkyHoldAltitude - transform.position.y;
+        float targetHop = Mathf.Clamp(dy * 1.55f, -0.8f, 3.6f);
+        _hop = Mathf.MoveTowards(_hop, targetHop, 7.5f * Time.deltaTime);
     }
 
     /// <summary>エピローグ中のオートグライド（指定高度付近で水平旋回）。手を離しても墜落しない</summary>

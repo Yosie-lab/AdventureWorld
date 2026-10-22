@@ -249,6 +249,17 @@ public class AdventureCameraFollow : MonoBehaviour
         Cursor.visible = false;
     }
 
+    /// <summary>パーツ取得・UI復帰直後など、探索視点操作を即座に有効化する</summary>
+    public void RestoreGameplayLookLock()
+    {
+        if (AdventureStoryFlow.WantsFreeCursor || AdventurePauseMenu.IsOpen) return;
+        if (!AdventureRustFloatOpening.IsGameStarted) return;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+        _hasPrevMousePos = false;
+        _lastMouseInputTime = Time.time;
+    }
+
     void EnsureTarget()
     {
         if (target != null) return;
@@ -367,13 +378,15 @@ public class AdventureCameraFollow : MonoBehaviour
 
             // 系統2: カーソル解放中（非ロック時）のみスクリーン座標差分を補助利用
             // ※ロック中はOSがカーソルを画面中央へ引き戻すため、差分を見ると巨大な跳ね上がりが発生する
-            if (Cursor.lockState != CursorLockMode.Locked)
+            // 探索中は取得クリック直後など delta が 0 のままになることがあるため、差分を優先
+            if (Cursor.lockState != CursorLockMode.Locked && !AdventureStoryFlow.WantsFreeCursor)
             {
                 Vector2 curScreenPos = mouse.position.ReadValue();
-                if (_hasPrevMousePos && Mathf.Abs(mouseX) < 0.001f && Mathf.Abs(mouseY) < 0.001f)
+                if (_hasPrevMousePos)
                 {
                     Vector2 diff = curScreenPos - _prevMouseScreenPos;
-                    if (diff.sqrMagnitude < 25000f) // 150px以内
+                    if (diff.sqrMagnitude > 0.0001f && diff.sqrMagnitude < 25000f
+                        && Mathf.Abs(mouseX) < 0.15f && Mathf.Abs(mouseY) < 0.15f)
                     {
                         mouseX = diff.x;
                         mouseY = diff.y;
@@ -382,7 +395,7 @@ public class AdventureCameraFollow : MonoBehaviour
                 _prevMouseScreenPos = curScreenPos;
                 _hasPrevMousePos = true;
             }
-            else
+            else if (Cursor.lockState == CursorLockMode.Locked)
             {
                 _hasPrevMousePos = false;
             }
@@ -452,8 +465,8 @@ public class AdventureCameraFollow : MonoBehaviour
 
     bool IsCursorLookActive()
     {
-        if (AdventureStoryFlow.WantsFreeCursor) return false;
-        return Cursor.lockState == CursorLockMode.Locked;
+        // 探索中はカーソルロックが一瞬外れても即応視点（取得クリック直後の「動かない」防止）
+        return !AdventureStoryFlow.WantsFreeCursor;
     }
 
     void UpdateWalkGroundBlend(bool playerGrounded)

@@ -30,7 +30,9 @@ public static class AdventureSpeechBoardLayout
     {
         if (IsCinematicEndingBoard(tower)) return seconds;
         // 天蓋〜クライマックス台本は映画扱い（短縮倍率をかけない）
-        if (tower != null && tower.EndingSequenceActive) return seconds;
+        if (tower != null
+            && (tower.EndingSequenceActive || tower.ClimaxCrisisStarted || tower.IsCanopyToEpilogueSequence))
+            return seconds;
         return Mathf.Max(ScriptAutoAdvanceMinSec, seconds * ScriptAutoAdvanceMul);
     }
 

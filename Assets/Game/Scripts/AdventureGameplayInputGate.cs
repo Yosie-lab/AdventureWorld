@@ -94,18 +94,7 @@ public static class AdventureGameplayInputGate
         if (AdventurePauseMenu.IsOpen)
             return LocomotionBlock.PauseMenu;
 
-        var tower = AdventureSanctuaryTowerManager.Instance;
-        if (tower != null
-            && tower.IsSkybreakModalActive
-            && !tower.ClimaxCrisisStarted
-            && AdventurePlayerController.Instance != null
-            && !AdventurePlayerController.Instance.IsSkybreakPillarLocked
-            && !AdventurePlayerController.Instance.IsAutoGliding)
-        {
-            skybreakJumpOnly = true;
-            return LocomotionBlock.SkybreakScriptHold;
-        }
-
+        // 天蓋台本中も歩行・空中操縦・滑空は維持（Space/クリックは HandleJump 側で台本送りへ回す）
         return LocomotionBlock.None;
     }
 

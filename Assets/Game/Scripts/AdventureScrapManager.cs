@@ -671,6 +671,7 @@ public class AdventureScrapManager : MonoBehaviour
         MarkScrapCollectedThisFrame();
         AdventurePettingAction.Instance?.CancelPetting();
         AdventureGameplayInputGate.TryLockCursorForGameplay();
+        AdventureCameraFollow.Instance?.RestoreGameplayLookLock();
         // 1. 爽快なパーツ取得ファンファーレ音（シュピーン！ド・ミ・ソ・ド・ミ・ソ・ド〜〜〜ン♪）を再生！
         PlayScrapCollectFanfare();
 
