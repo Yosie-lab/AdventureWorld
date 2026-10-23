@@ -485,14 +485,15 @@ public partial class AdventureSanctuaryTowerManager
     public void NotifyPillarAscendComplete()
     {
         if (_climaxCrisisStarted || _epilogueTriggered) return;
-        // 高度到達待ち。0秒＝無期限タイムアウトではなく「高さ条件のみ」
-        ArmPendingClimax(failsafeSeconds: 8f);
+        ArmPendingClimax(failsafeSeconds: 6f);
         _suppressClimax = false;
         _ignoreSavedCanopyState = false;
         if (!_isCanopyBroken)
             IsCanopyBroken = true;
 
         var player = GetPlayer();
+        if (player != null && player.transform.position.y < 154f)
+            player.ForceSkybreakArrival(new Vector3(512f, 156f, 512f), 156f);
         TryStartPendingClimax(player);
     }
 
@@ -503,9 +504,6 @@ public partial class AdventureSanctuaryTowerManager
         if (_canopyBeatIndex >= 0 || _endingSequenceActive) return;
 
         if (player != null && player.IsSkybreakPillarAscending)
-            return;
-
-        if (player != null && player.IsInPillarAscentGrace)
             return;
 
         // 光の柱上昇完了後、割れ目手前（147m）まで到達してからクライマックスへ

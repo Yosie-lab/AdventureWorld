@@ -176,6 +176,7 @@ public class AdventureSceneCaption : MonoBehaviour
         _instance._timer = -1f;
         _instance._waitDismiss = false;
         if (_instance._cg != null) _instance._cg.alpha = 0f;
+        AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
     }
 
     void Update()

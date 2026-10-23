@@ -483,15 +483,7 @@ public class AdventureRustWorkshopUI : MonoBehaviour
             RefreshUI();
         }
         else
-        {
-            bool titleBoard = AdventureRustFloatOpening.Instance != null
-                              && AdventureRustFloatOpening.Instance.IsModalBoardOpen();
-            if (!AdventureStoryFlow.WantsFreeCursor && !titleBoard)
-            {
-                Cursor.visible = false;
-                Cursor.lockState = CursorLockMode.Locked;
-            }
-        }
+            AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
     }
 
     public void RefreshUI()

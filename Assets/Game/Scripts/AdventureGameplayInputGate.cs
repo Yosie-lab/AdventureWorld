@@ -47,10 +47,7 @@ public static class AdventureGameplayInputGate
             && !AdventurePauseMenu.IsOpen
             && (AdventureInputReader.HasAnyMove || AdventureInputReader.HasMouseLookIntent)
             && Cursor.lockState != CursorLockMode.Locked)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+            TryRestoreExplorationLookIfReady();
 
         var narrative = AdventureBeachNarrativeManager.Instance;
         if (narrative != null)
@@ -115,5 +112,27 @@ public static class AdventureGameplayInputGate
         if (AdventureStoryFlow.WantsFreeCursor || AdventurePauseMenu.IsOpen) return;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+    }
+
+    /// <summary>UI／字幕終了後など、探索操作に戻れるならカーソルロックと視点入力を復帰</summary>
+    public static void TryRestoreExplorationLookIfReady()
+    {
+        if (!AdventureRustFloatOpening.IsGameStarted) return;
+        if (AdventurePauseMenu.IsOpen || AdventureStoryFlow.WantsFreeCursor) return;
+        if (AdventureRustWorkshopUI.IsOpen || AdventureBeachDriftBox.IsModalOpen) return;
+
+        var narrative = AdventureBeachNarrativeManager.Instance;
+        if (narrative != null && narrative.IsShowingModal) return;
+
+        var opening = AdventureRustFloatOpening.Instance;
+        if (opening != null && opening.IsModalBoardOpen()) return;
+
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null
+            && (tower.IsSkybreakModalActive || tower.ShowGameClearModal || tower.IsClimaxOilPromptActive))
+            return;
+
+        TryLockCursorForGameplay();
+        AdventureCameraFollow.Instance?.RestoreGameplayLookLock();
     }
 }

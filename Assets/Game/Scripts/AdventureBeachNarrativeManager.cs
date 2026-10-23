@@ -660,6 +660,7 @@ public class AdventureBeachNarrativeManager : MonoBehaviour
         if (!_isShowingModal) return;
         _isShowingModal = false;
         AdventureSceneCaption.Dismiss(false);
+        AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
     }
 
     static readonly List<AdventureBeachNarrativeSpot> _registeredSpots = new List<AdventureBeachNarrativeSpot>();

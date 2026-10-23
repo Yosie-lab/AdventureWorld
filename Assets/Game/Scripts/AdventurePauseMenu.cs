@@ -702,11 +702,8 @@ public class AdventurePauseMenu : MonoBehaviour
 
             Time.timeScale = wasFromTitle ? 1f : (_prevTimeScale > 0.05f ? _prevTimeScale : 1f);
 
-            if (!AdventureStoryFlow.WantsFreeCursor && !wasFromTitle && AdventureRustFloatOpening.IsGameStarted)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            if (!wasFromTitle && AdventureRustFloatOpening.IsGameStarted)
+                AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
             else
             {
                 Cursor.lockState = CursorLockMode.None;

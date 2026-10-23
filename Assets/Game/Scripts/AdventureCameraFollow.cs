@@ -324,16 +324,23 @@ public class AdventureCameraFollow : MonoBehaviour
             return;
         }
 
-        // 画面クリックで即座にカーソルをロックしてゲーム視点操作に復帰
-        if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
+        bool isPointerOverUi = mouse != null
+            && UnityEngine.EventSystems.EventSystem.current != null
+            && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+        bool canExploreLook = !AdventureStoryFlow.WantsFreeCursor && !IsTitleModalBlocking();
+
+        // 探索中：クリック／マウス移動でカーソルをロック（解除残留で視点が効かない問題を防ぐ）
+        if (mouse != null && canExploreLook && Cursor.lockState != CursorLockMode.Locked)
         {
-            bool isPointerOverUi = UnityEngine.EventSystems.EventSystem.current != null &&
-                                   UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
-            if (!isPointerOverUi && !AdventureStoryFlow.WantsFreeCursor && !IsTitleModalBlocking())
+            Vector2 preDelta = mouse.delta.ReadValue();
+            bool pointerDown = mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame;
+            bool moved = preDelta.sqrMagnitude > 0.001f;
+            if (!isPointerOverUi && (pointerDown || moved))
             {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
+                LockCursor();
                 AdventureRustFloatOpening.IsGameStarted = true;
+                _hasPrevMousePos = false;
+                _lastMouseInputTime = Time.time;
             }
         }
 

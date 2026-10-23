@@ -875,9 +875,13 @@ public partial class AdventurePlayerController : MonoBehaviour
     {
         if (_climaxSkyHold) return true;
         var tower = AdventureSanctuaryTowerManager.Instance;
-        return tower != null
-               && tower.NeedsClimaxSkyAltitude
-               && transform.position.y > 60f;
+        if (tower == null) return false;
+        if (tower.NeedsClimaxSkyAltitude && transform.position.y > 60f)
+            return true;
+        // 柱上昇完了〜クライマックス開始前（空の割れ目手前）も滑空＋高度補助
+        return tower.IsPendingClimax
+               && !tower.ClimaxCrisisStarted
+               && transform.position.y > 90f;
     }
 
     /// <summary>地上移動量の計算（砂浜登坂アシスト・回転含む）</summary>
@@ -984,7 +988,7 @@ public partial class AdventurePlayerController : MonoBehaviour
     /// <summary>滑空中の移動量計算（ヨー・バンク・ピッチ・サーマル）</summary>
     Vector3 ComputeGlideHorizontal(Vector2 input)
     {
-        if (_autoGlide)
+        if (_autoGlide && !_climaxSkyHold)
             return ComputeAutoGlideHorizontal();
 
         bool climaxHold = _climaxSkyHold || ShouldUseClimaxSkyGlide();
@@ -1069,6 +1073,10 @@ public partial class AdventurePlayerController : MonoBehaviour
         {
             diveT = 0f;
             targetFall = Mathf.Max(targetFall, -0.25f);
+            var towerHold = AdventureSanctuaryTowerManager.Instance;
+            if (towerHold != null && towerHold.IsPendingClimax && !towerHold.ClimaxCrisisStarted
+                && transform.position.y >= 145f)
+                targetFall = Mathf.Max(targetFall, 0.15f);
         }
         if (AdventureFieldLesson.HasCanopyRead && AdventureFieldLesson.IsInDeepForest(transform.position))
             targetFall = Mathf.Lerp(targetFall, Mathf.Max(targetFall, -0.35f), 0.65f);
@@ -1855,24 +1863,28 @@ public partial class AdventurePlayerController : MonoBehaviour
         _grounded = false;
         _gliding = true;
 
+        const float riftApproachY = 147f;
+        if (pendingCanopyToClimax && transform.position.y < riftApproachY)
+            _climaxSkyHoldAltitude = Mathf.Max(_climaxSkyHoldAltitude, 156f);
+
         if (transform.position.y < floorY)
         {
             _hop = Mathf.Max(_hop, 10f);
-            // 天蓋→柱上昇前の待機中だけ落下防止（142m へのワープは柱上昇をスキップするので禁止）
-            if (!pendingCanopyToClimax
-                && _cc != null
-                && transform.position.y < floorY - 2f)
+            if (_cc != null && transform.position.y < floorY - 2f)
             {
+                float rescueY = pendingCanopyToClimax
+                    ? Mathf.Max(_climaxSkyHoldAltitude, riftApproachY, floorY)
+                    : Mathf.Max(_climaxSkyHoldAltitude - 1f, floorY);
                 _cc.enabled = false;
-                transform.position = new Vector3(transform.position.x,
-                    Mathf.Max(_climaxSkyHoldAltitude - 1f, floorY),
-                    transform.position.z);
+                transform.position = new Vector3(transform.position.x, rescueY, transform.position.z);
                 _cc.enabled = true;
             }
         }
 
         float dy = _climaxSkyHoldAltitude - transform.position.y;
         float targetHop = Mathf.Clamp(dy * 2.1f, -0.2f, 5.5f);
+        if (pendingCanopyToClimax && transform.position.y >= 147f)
+            targetHop = Mathf.Max(targetHop, 0.8f);
         _hop = Mathf.MoveTowards(_hop, targetHop, 14f * Time.deltaTime);
     }
 
@@ -2014,7 +2026,8 @@ public partial class AdventurePlayerController : MonoBehaviour
         _updraftTimer = 1f;
         _updraftLift = 2f;
 
-        SetAutoGlideMode(true, Mathf.Clamp(y, 152f, 162f));
+        _autoGlide = false;
+        ArmClimaxSkyHold(Mathf.Clamp(y, 152f, 162f));
         AdventureSanctuaryTowerManager.Instance?.NotifyPillarAscendComplete();
     }
 
