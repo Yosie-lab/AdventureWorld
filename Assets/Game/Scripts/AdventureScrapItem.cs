@@ -351,8 +351,11 @@ public class AdventureScrapItem : MonoBehaviour
                 transform.position = Vector3.MoveTowards(transform.position, playerPos, Time.deltaTime * MagnetSpeed);
             }
 
-            // 3. E / 左クリックによる取得（1フレーム入力＋近距離）
-            bool interactCollect = !AdventureRustWorkshopUI.IsOpen
+            // 3. E / 左クリックによる取得（注油待ち中は Rust に譲る）
+            bool oilWait = AdventurePrologueDrama.Instance != null
+                && AdventurePrologueDrama.Instance.IsWaitingForOil;
+            bool interactCollect = !oilWait
+                && !AdventureRustWorkshopUI.IsOpen
                 && (_cachedPlayer.InteractPressed || AdventureInputReader.InteractDown)
                 && dist < InteractCollectDist;
             if (interactCollect)

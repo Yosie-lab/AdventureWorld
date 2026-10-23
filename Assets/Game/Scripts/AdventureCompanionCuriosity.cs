@@ -221,9 +221,9 @@ public class AdventureCompanionCuriosity : MonoBehaviour
             // Rustのセリフ発話
             string[] pianoLines = new string[]
             {
-                "わあ…カピタがピアノを弾いてるよ！優しいメロディだね♪",
+                "capyta_piano_playing",
                 "ピロリン♪ 聴いてFloat！ピアノの音が風に乗って聴こえるよ…！",
-                "プヒヒ…カピタさん上手だね！Rustもこの曲大好きだよ♪"
+                "capyta_piano_praise"
             };
             string line = pianoLines[Random.Range(0, pianoLines.Length)];
             _rustDrone.SpeakCustom(line, 4.2f);

@@ -315,6 +315,9 @@ public partial class AdventureRustDrone : MonoBehaviour
     bool _prologueDistress;
     bool _prologueOilFxDone;
 
+    /// <summary>冒頭ドラマ（極寒・注油待ち）中</summary>
+    public bool IsInPrologueDistress => _prologueDistress;
+
     /// <summary>冒頭ドラマ：塩水で凍りつくRust</summary>
     public void StartPrologueDistress()
     {
@@ -2130,14 +2133,17 @@ public partial class AdventureRustDrone : MonoBehaviour
         // プロローグ注油（漂着艇・木箱等より優先）
         if (prologue != null && prologue.IsWaitingForOil)
         {
-            if (_isPlayerNear
-                && (AdventureInputReader.InteractEKeyDown || AdventureInputReader.InteractDown || AdventureInputReader.SpaceDown)
-                && !AdventureScrapManager.ShouldSuppressRustCompanionInteract
-                && Time.time - _lastInteractTime > 0.35f)
+            bool prologueOilPressed = AdventureInputReader.InteractEKeyDown
+                || AdventureInputReader.InteractDown
+                || AdventureInputReader.MouseLeftDown
+                || AdventureInputReader.SpaceDown;
+            bool inPrologueOilRange = _prologueDistress || _isPlayerNear;
+            if (inPrologueOilRange
+                && prologueOilPressed
+                && !AdventureScrapManager.ShouldSuppressRustCompanionInteract)
             {
                 _lastInteractTime = Time.time;
-                InteractWithNiko();
-                prologue.NotifyOilApplied();
+                prologue.TryApplyPrologueOil(this);
             }
             return;
         }
@@ -2194,7 +2200,11 @@ public partial class AdventureRustDrone : MonoBehaviour
     public void InteractWithNiko()
     {
         if (AdventureScrapManager.ShouldSuppressRustCompanionInteract)
-            return;
+        {
+            var oilWait = AdventurePrologueDrama.Instance;
+            if (oilWait == null || !oilWait.IsWaitingForOil)
+                return;
+        }
 
         bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
 

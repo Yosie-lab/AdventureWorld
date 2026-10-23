@@ -103,10 +103,11 @@ public class AdventureBeachDriftBoxManager : MonoBehaviour
         {
             var data = boxes[i];
             Vector3 pos = data.position;
-            if (land != null)
-            {
-                pos.y = land.SampleHeight(pos) + land.transform.position.y - 0.08f;
-            }
+            Vector3 rayOrigin = new Vector3(pos.x, 420f, pos.z);
+            if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit groundHit, 500f, ~0, QueryTriggerInteraction.Ignore))
+                pos.y = groundHit.point.y + 0.02f;
+            else if (land != null)
+                pos.y = land.SampleHeight(pos) + land.transform.position.y + 0.02f;
 
             BuildSingleDriftBox(root.transform, data, pos, woodMat, metalMat, lampMat);
         }

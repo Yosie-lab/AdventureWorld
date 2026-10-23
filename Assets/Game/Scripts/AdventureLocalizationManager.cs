@@ -842,12 +842,36 @@ public static class AdventureLocalizationManager
             "¡Por aquí! ¡La torre central está en esta dirección! ¡Vamos a activar la palanca!"
         } },
         { "rust_guide_tower_20pt", new[] {
-            "ピピッ！中央の白亜タワーへ行こう！レバーを引けるようになったよ！",
-            "Beep! Let's head to the central white tower! The lever is unlocked now!",
-            "哔哔！去中央白垩高塔吧！机关已经可以拉动啦！",
-            "¡Bip! ¡Vamos a la torre blanca central! ¡Ya puedes accionar la palanca!"
+            "ピピッ。中央の白亜タワーのところへ行こう。レバーが引けるようになったよ。",
+            "Beep. Let's head to the white tower in the center. The lever can be pulled now.",
+            "哔哔。去中央的白垩高塔那边吧。拉杆已经可以拉动了。",
+            "Bip. Vamos hacia la torre blanca del centro. Ya se puede accionar la palanca."
+        } },
+        { "ピピッ　中央の白亜タワーのところへ行こう。　レバーが引けるようになったよ。", new[] {
+            "ピピッ。中央の白亜タワーのところへ行こう。レバーが引けるようになったよ。",
+            "Beep. Let's head to the white tower in the center. The lever can be pulled now.",
+            "哔哔。去中央的白垩高塔那边吧。拉杆已经可以拉动了。",
+            "Bip. Vamos hacia la torre blanca del centro. Ya se puede accionar la palanca."
         } },
         { "rust_guide_tower_short", new[] {
+            "こっちだよ！",
+            "This way!",
+            "这边！",
+            "¡Por aquí!"
+        } },
+        { "capyta_this_way", new[] {
+            "こっちだよ！",
+            "This way!",
+            "这边！",
+            "¡Por aquí!"
+        } },
+        { "こっちだよ!", new[] {
+            "こっちだよ！",
+            "This way!",
+            "这边！",
+            "¡Por aquí!"
+        } },
+        { "こっちだよ！", new[] {
             "こっちだよ！",
             "This way!",
             "这边！",
@@ -1941,11 +1965,23 @@ public static class AdventureLocalizationManager
             "¡Oink-oink! ¡Gracias por la bonita concha!"
         } },
 
+        { "capyta_shell_trade_hint", new[] {
+            "ブヒ…？　砂浜に落ちている綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ！",
+            "Oink...? If you bring me the pretty shells and sea glass lying on the beach, I'll trade them for treasure!",
+            "呼噜…？要是把沙滩上掉着的漂亮贝壳和海玻璃带给我，我就用宝物跟你交换！",
+            "¿Oink...? Si me traes las bonitas conchas y cristales de mar que hay en la playa, ¡los cambio por tesoros!"
+        } },
         { "カピタ「ブヒ…？ 砂浜に落ちてる綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ！」", new[] {
-            "カピタ「ブヒ…？ 砂浜に落ちてる綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ！」",
-            "Capyta: \"Oink...? Bring me pretty seashells and sea glass along the beach, and I'll trade treasures with you!\"",
-            "卡皮塔「呼噜…？要是把沙滩上漂亮的贝壳或海玻璃带给我，我可以用宝物跟你物物交换哦！」",
-            "Capyta: «¿Oink...? ¡Si me traes bonitas conchas y cristales marinos de la playa, los cambiaré por tesoros!»"
+            "ブヒ…？　砂浜に落ちている綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ！",
+            "Oink...? If you bring me the pretty shells and sea glass lying on the beach, I'll trade them for treasure!",
+            "呼噜…？要是把沙滩上掉着的漂亮贝壳和海玻璃带给我，我就用宝物跟你交换！",
+            "¿Oink...? Si me traes las bonitas conchas y cristales de mar que hay en la playa, ¡los cambio por tesoros!"
+        } },
+        { "ブヒ…?　砂浜に落ちている綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ!", new[] {
+            "ブヒ…？　砂浜に落ちている綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ！",
+            "Oink...? If you bring me the pretty shells and sea glass lying on the beach, I'll trade them for treasure!",
+            "呼噜…？要是把沙滩上掉着的漂亮贝壳和海玻璃带给我，我就用宝物跟你交换！",
+            "¿Oink...? Si me traes las bonitas conchas y cristales de mar que hay en la playa, ¡los cambio por tesoros!"
         } },
 
         { "prompt_capyta_trade", new[] {
@@ -2890,11 +2926,23 @@ public static class AdventureLocalizationManager
             "好温暖呀…Float，花朵真漂亮呢♥",
             "Qué calorcito... Float, las flores son preciosas♥"
         } },
+        { "capyta_piano_playing", new[] {
+            "わぁ、カピタがピアノを弾いているよ。美しいメロディーだね！",
+            "Whoa, Capyta is playing the piano. What a beautiful melody!",
+            "哇，卡皮塔正在弹钢琴。旋律真美！",
+            "¡Vaya, Capyta está tocando el piano! ¡Qué melodía tan hermosa!"
+        } },
         { "わあ…カピタがピアノを弾いてるよ！優しいメロディだね♪", new[] {
-            "わあ…カピタがピアノを弾いてるよ！優しいメロディだね♪",
-            "Whoa... Capyta is playing the piano! What a gentle melody♪",
-            "哇啊…卡皮塔在弹钢琴呢！旋律真温柔呀♪",
-            "¡Uau...! ¡Capyta está tocando el piano! Qué melodía tan dulce♪"
+            "わぁ、カピタがピアノを弾いているよ。美しいメロディーだね！",
+            "Whoa, Capyta is playing the piano. What a beautiful melody!",
+            "哇，卡皮塔正在弹钢琴。旋律真美！",
+            "¡Vaya, Capyta está tocando el piano! ¡Qué melodía tan hermosa!"
+        } },
+        { "わぁ、カピタがピアノを弾いているよ　美しいメロディーだね!", new[] {
+            "わぁ、カピタがピアノを弾いているよ。美しいメロディーだね！",
+            "Whoa, Capyta is playing the piano. What a beautiful melody!",
+            "哇，卡皮塔正在弹钢琴。旋律真美！",
+            "¡Vaya, Capyta está tocando el piano! ¡Qué melodía tan hermosa!"
         } },
         { "ピロリン♪ 聴いてFloat！ピアノの音が風に乗って聴こえるよ…！", new[] {
             "ピロリン♪ 聴いてFloat！ピアノの音が風に乗って聴こえるよ…！",
@@ -2902,11 +2950,23 @@ public static class AdventureLocalizationManager
             "哔噜噜♪ 快听Float！钢琴的声音乘着风飘过来了哦…！",
             "¡Bip-chime♪ Escucha, Float! El sonido del piano flota en el viento...!"
         } },
+        { "capyta_piano_praise", new[] {
+            "カピタさん上手だね。Floatもこの曲大好きだよ。",
+            "You're wonderful, Capyta. Float loves this song too.",
+            "卡皮塔弹得真好。Float也很喜欢这首曲子。",
+            "Qué bien tocas, Capyta. A Float también le encanta esta canción."
+        } },
         { "プヒヒ…カピタさん上手だね！Rustもこの曲大好きだよ♪", new[] {
-            "プヒヒ…カピタさん上手だね！Rustもこの曲大好きだよ♪",
-            "Puhehe... Capyta is so good! Rust loves this song too♪",
-            "噗嘻嘻…卡皮塔弹得真好！Rust也很喜欢这首曲子呢♪",
-            "Jijiji... ¡Capyta toca muy bien! A Rust también le encanta esta canción♪"
+            "カピタさん上手だね。Floatもこの曲大好きだよ。",
+            "You're wonderful, Capyta. Float loves this song too.",
+            "卡皮塔弹得真好。Float也很喜欢这首曲子。",
+            "Qué bien tocas, Capyta. A Float también le encanta esta canción."
+        } },
+        { "カピタさん上手だね。Floatもこの曲大好きだよ。", new[] {
+            "カピタさん上手だね。Floatもこの曲大好きだよ。",
+            "You're wonderful, Capyta. Float loves this song too.",
+            "卡皮塔弹得真好。Float也很喜欢这首曲子。",
+            "Qué bien tocas, Capyta. A Float también le encanta esta canción."
         } },
         { "……ギアが少し重い。油か手当てがあると助かるよ", new[] {
             "……ギアが少し重い。油か手当てがあると助かるよ",

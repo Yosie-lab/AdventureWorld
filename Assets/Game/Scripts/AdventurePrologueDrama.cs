@@ -120,6 +120,13 @@ public class AdventurePrologueDrama : MonoBehaviour
         PollOilInput(AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>());
     }
 
+    /// <summary>Rust 側インタラクトからも同じ経路で注油（FX・フラグを一元化）</summary>
+    public void TryApplyPrologueOil(AdventureRustDrone drone)
+    {
+        if (_phase != Phase.WaitOil || _oilReceived) return;
+        ApplyPrologueOilSuccess(drone);
+    }
+
     /// <summary>セリフ送り入力（クリック・Space・Enter・Eキー・WASD移動・ゲームパッドなど）</summary>
     bool CheckAdvanceInput()
     {
@@ -208,7 +215,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (drone == null) yield break;
         string loc = AdventureLocalizationManager.Get(text);
         drone.SpeakCustom(loc, hold);
-        yield return new WaitForSeconds(hold);
+        yield return WaitDistressHoldOrOil(drone, hold);
     }
 
     IEnumerator SpeakNiko(AdventureRustDrone drone, string text, float hold)
@@ -216,7 +223,20 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (drone == null) yield break;
         string loc = AdventureLocalizationManager.Get(text);
         drone.SpeakAsNiko(loc, hold);
-        yield return new WaitForSeconds(hold);
+        yield return WaitDistressHoldOrOil(drone, hold);
+    }
+
+    /// <summary>台詞表示時間中も毎フレーム注油入力を拾う（WaitForSeconds 単独だと取りこぼす）</summary>
+    IEnumerator WaitDistressHoldOrOil(AdventureRustDrone drone, float hold)
+    {
+        float elapsed = 0f;
+        while (elapsed < hold && !_oilReceived)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            if (_phase == Phase.WaitOil)
+                PollOilInput(drone);
+            yield return null;
+        }
     }
 
     IEnumerator PrologueRoutine()
@@ -237,14 +257,20 @@ public class AdventurePrologueDrama : MonoBehaviour
         drone.ClearSpeech();
         drone.StartPrologueDistress();
 
-        // ① 極寒・しがみつき → Nikoのいたわり → Rustの甘えお願い
-        yield return SpeakRust(drone, "prologue_rust_distress1", 4.8f);
-        yield return SpeakNiko(drone, "prologue_float_distress1", 4.6f);
-        yield return SpeakRust(drone, "prologue_rust_distress2", 4.8f);
-        yield return SpeakNiko(drone, "prologue_float_distress2", 4.6f);
-        yield return SpeakRust(drone, "prologue_rust_distress3", 5.2f);
-
+        // 極寒シーン開始と同時に E／クリック注油を受け付ける
         _phase = Phase.WaitOil;
+
+        // ① 極寒・しがみつき → Nikoのいたわり → Rustの甘えお願い
+        if (!_oilReceived)
+            yield return SpeakRust(drone, "prologue_rust_distress1", 4.8f);
+        if (!_oilReceived)
+            yield return SpeakNiko(drone, "prologue_float_distress1", 4.6f);
+        if (!_oilReceived)
+            yield return SpeakRust(drone, "prologue_rust_distress2", 4.8f);
+        if (!_oilReceived)
+            yield return SpeakNiko(drone, "prologue_float_distress2", 4.6f);
+        if (!_oilReceived)
+            yield return SpeakRust(drone, "prologue_rust_distress3", 5.2f);
 
         float timeout = 90f;
         float nextRemind = 22f;
@@ -269,7 +295,7 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         if (!_oilReceived)
         {
-            drone.CompletePrologueOil();
+            ApplyPrologueOilSuccess(drone, skipInteract: true);
             _oilReceived = true;
         }
 
@@ -302,22 +328,39 @@ public class AdventurePrologueDrama : MonoBehaviour
 
     void PollOilInput(AdventureRustDrone drone)
     {
-        if (drone == null) return;
-        var player = AdventurePlayerController.Instance;
-        if (player == null) return;
+        if (drone == null || _phase != Phase.WaitOil || _oilReceived) return;
+        if (!IsPrologueOilInputPressed()) return;
+        if (!IsInPrologueOilRange(drone)) return;
+        ApplyPrologueOilSuccess(drone);
+    }
+
+    static bool IsPrologueOilInputPressed()
+    {
+        return AdventureInputReader.InteractEKeyDown
+               || AdventureInputReader.InteractDown
+               || AdventureInputReader.MouseLeftDown
+               || AdventureInputReader.SpaceDown;
+    }
+
+    static bool IsInPrologueOilRange(AdventureRustDrone drone)
+    {
+        if (drone == null) return false;
+        if (drone.IsInPrologueDistress) return true;
+
+        var player = AdventurePlayerController.InstanceOrFind();
+        if (player == null) return false;
 
         Vector3 diff = drone.transform.position - player.transform.position;
         float horizontal = new Vector2(diff.x, diff.z).magnitude;
         float vertical = Mathf.Abs(diff.y);
-        if (horizontal > 7.5f || vertical > 6.5f) return;
+        return horizontal <= 18f && vertical <= 14f;
+    }
 
-        bool pressed = AdventureInputReader.InteractEKeyDown
-            || AdventureInputReader.InteractDown
-            || AdventureInputReader.SpaceDown;
-        if (!pressed) return;
-        if (AdventureScrapManager.ShouldSuppressRustCompanionInteract) return;
-
-        drone.InteractWithNiko();
+    void ApplyPrologueOilSuccess(AdventureRustDrone drone, bool skipInteract = false)
+    {
+        if (drone == null || _phase != Phase.WaitOil || _oilReceived) return;
+        if (!skipInteract)
+            drone.InteractWithNiko();
         drone.CompletePrologueOil(playSound: false);
         NotifyOilApplied();
     }

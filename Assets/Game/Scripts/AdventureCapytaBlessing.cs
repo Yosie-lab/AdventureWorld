@@ -555,7 +555,7 @@ public class AdventureCapytaBlessing : MonoBehaviour
         {
             var drone = AdventureRustDrone.Instance;
             string capTitle = AdventureLocalizationManager.Get("capyta_speaker_title");
-            string noShellMsg = AdventureLocalizationManager.Get("カピタ「ブヒ…？ 砂浜に落ちてる綺麗な貝殻やシーグラスを持ってきてくれたら、お宝と物々交換するよ！」");
+            string noShellMsg = AdventureLocalizationManager.Get("capyta_shell_trade_hint");
             drone?.SpeakAs(capTitle, new Color(0.40f, 1f, 0.70f), noShellMsg, 4.5f);
             return;
         }

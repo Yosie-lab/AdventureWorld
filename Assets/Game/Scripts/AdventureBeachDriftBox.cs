@@ -219,6 +219,31 @@ public class AdventureBeachDriftBox : MonoBehaviour
             _setupComplete = true;
         }
         ApplyVisualState(isOpened, immediate: true);
+        EnsureWalkOverTrigger();
+    }
+
+    void EnsureWalkOverTrigger()
+    {
+        var col = GetComponent<SphereCollider>();
+        if (col == null) col = gameObject.AddComponent<SphereCollider>();
+        col.isTrigger = true;
+        col.radius = 2.6f;
+        col.center = new Vector3(0f, 1.1f, 0f);
+
+        var rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity = false;
+    }
+
+    void OnTriggerStay(Collider other)
+    {
+        if (other == null) return;
+        if (other.GetComponentInParent<AdventurePlayerController>() == null) return;
+        if (!isOpened)
+            OpenBox();
+        else
+            CheckReopenProximity();
     }
 
     void CacheHierarchyRefs()
@@ -304,7 +329,9 @@ public class AdventureBeachDriftBox : MonoBehaviour
         Vector3 p = player.transform.position;
         float horizontal = Vector2.Distance(new Vector2(box.x, box.z), new Vector2(p.x, p.z));
         float vertical = Mathf.Abs(box.y - p.y);
-        return horizontal < 3.2f && vertical < 3.5f;
+        // 真上に乗っている（岩・木道で箱より高い）場合も開く
+        if (horizontal < 2.4f && vertical < 14f) return true;
+        return horizontal < 4.6f && vertical < 6f;
     }
 
     private void CheckPlayerProximity()
@@ -390,25 +417,6 @@ public class AdventureBeachDriftBox : MonoBehaviour
         if (_verticalBeam != null)
         {
             _verticalBeam.transform.rotation = Quaternion.identity;
-        }
-    }
-
-    private void CheckPlayerProximity()
-    {
-        // ナラティブモーダル（二人の漂着艇等）やプロローグ目覚め・キーストーン演出中は自動開封しない
-        if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal)
-            return;
-        if (AdventurePrologueDrama.Instance != null && (AdventurePrologueDrama.Instance.IsAwakening
-            || AdventurePrologueDrama.Instance.IsShowingDashBoard
-            || AdventurePrologueDrama.Instance.IsWaitingForOil))
-            return;
-
-        var player = AdventurePlayerController.Instance;
-        if (player != null)
-        {
-            float dist = Vector3.Distance(transform.position, player.transform.position);
-            if (dist < VisualConfig.TriggerDistance)
-                OpenBox();
         }
     }
 
