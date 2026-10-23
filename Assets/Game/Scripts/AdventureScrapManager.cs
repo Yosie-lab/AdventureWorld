@@ -13,13 +13,18 @@ public class AdventureScrapManager : MonoBehaviour
     /// <summary>パーツ／貝殻等の取得フレーム（Rust 手当て E/クリックの同一フレーム誤爆防止）</summary>
     public static int LastScrapCollectFrame { get; private set; } = -1;
 
-    const float PickupInputGraceSeconds = 0.45f;
+    const float PickupInputGraceSeconds = 0.85f;
     const float PickupRustInteractSuppressSeconds = 0.14f;
     static float _lastScrapCollectUnscaledTime = -100f;
+    static bool _graceFromScrapCollect;
 
     /// <summary>取得直後（クリック／E 取得後の視点・移動復帰ウィンドウ）</summary>
     public static bool IsWithinPickupInputGrace =>
         Time.unscaledTime - _lastScrapCollectUnscaledTime < PickupInputGraceSeconds;
+
+    /// <summary>漂着パーツ取得由来の grace（貝殻等と区別）</summary>
+    public static bool IsScrapPickupGrace =>
+        _graceFromScrapCollect && IsWithinPickupInputGrace;
 
     public static bool ShouldSuppressRustCompanionInteract =>
         Time.unscaledTime - _lastScrapCollectUnscaledTime < PickupRustInteractSuppressSeconds;
@@ -29,6 +34,15 @@ public class AdventureScrapManager : MonoBehaviour
     {
         LastScrapCollectFrame = Time.frameCount;
         _lastScrapCollectUnscaledTime = Time.unscaledTime;
+        _graceFromScrapCollect = true;
+    }
+
+    /// <summary>貝殻・焚き火等（パーツ取得ではない）のインタラクト猶予</summary>
+    public static void ArmNonScrapInteractGrace()
+    {
+        LastScrapCollectFrame = Time.frameCount;
+        _lastScrapCollectUnscaledTime = Time.unscaledTime;
+        _graceFromScrapCollect = false;
     }
 
     /// <summary>取得直後に移動・視点・timeScale を確実に復帰させる</summary>
@@ -36,8 +50,7 @@ public class AdventureScrapManager : MonoBehaviour
     {
         AdventureRustDrone.ForceEndScrapSlowMo();
         AdventurePettingAction.Instance?.CancelPetting();
-        AdventureGameplayInputGate.TryLockCursorForGameplay();
-        AdventureCameraFollow.Instance?.RestoreGameplayLookLock();
+        AdventureGameplayInputGate.ForceExplorationControlAfterWorldPickup();
     }
 
     /// <summary>後方互換ラッパー。MarkScrapCollectedThisFrame を呼ぶだけで seconds は現在不使用。</summary>
@@ -334,10 +347,19 @@ public class AdventureScrapManager : MonoBehaviour
 
     IEnumerator PickupInputRecoveryCoroutine()
     {
-        yield return null;
+        for (int i = 0; i < 14; i++)
+        {
+            RecoverGameplayAfterPickup();
+            yield return null;
+        }
+        yield return new WaitForSecondsRealtime(0.15f);
         RecoverGameplayAfterPickup();
-        yield return new WaitForEndOfFrame();
-        RecoverGameplayAfterPickup();
+    }
+
+    void LateUpdate()
+    {
+        if (!IsWithinPickupInputGrace) return;
+        AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
     }
 
     void RestoreIdsFromList()

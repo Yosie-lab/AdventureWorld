@@ -6,6 +6,8 @@ using UnityEngine;
 /// </summary>
 public static class AdventureGameplayInputGate
 {
+    static bool _prevWantsFreeCursor;
+
     public enum LocomotionBlock
     {
         None = 0,
@@ -19,6 +21,8 @@ public static class AdventureGameplayInputGate
     /// <summary>毎フレーム先頭で呼ぶ。古いブロック状態を自動復旧する。</summary>
     public static void TickRecovery()
     {
+        AdventurePrologueDrama.Instance?.TryApplyOilFromInputGate();
+
         if (AdventureRustFloatOpening.IsGameStarted && AdventureRustFloatOpening.IsInputGuarded)
             AdventureRustFloatOpening.DismissInputGuard();
 
@@ -42,12 +46,16 @@ public static class AdventureGameplayInputGate
             && !AdventurePauseMenu.IsOpen)
             TryLockCursorForGameplay();
 
+        bool wantsFreeCursor = AdventureStoryFlow.WantsFreeCursor;
         if (AdventureRustFloatOpening.IsGameStarted
-            && !AdventureStoryFlow.WantsFreeCursor
+            && !wantsFreeCursor
             && !AdventurePauseMenu.IsOpen
-            && (AdventureInputReader.HasAnyMove || AdventureInputReader.HasMouseLookIntent)
             && Cursor.lockState != CursorLockMode.Locked)
             TryRestoreExplorationLookIfReady();
+
+        if (_prevWantsFreeCursor && !wantsFreeCursor && AdventureRustFloatOpening.IsGameStarted)
+            TryRestoreExplorationLookIfReady();
+        _prevWantsFreeCursor = wantsFreeCursor;
 
         var narrative = AdventureBeachNarrativeManager.Instance;
         if (narrative != null)
@@ -105,6 +113,19 @@ public static class AdventureGameplayInputGate
     public static bool ShouldRouteJumpToCaptionDismiss =>
         AdventureSceneCaption.IsWaitingDismiss && AdventureSceneCaption.IsVisible;
 
+    /// <summary>マグネット取得などクリックなし回収直後 — 木箱字幕・UI 奪取を解いて探索操作へ戻す</summary>
+    public static void ForceExplorationControlAfterWorldPickup()
+    {
+        if (!AdventureRustFloatOpening.IsGameStarted) return;
+
+        var es = UnityEngine.EventSystems.EventSystem.current;
+        if (es != null)
+            es.SetSelectedGameObject(null);
+
+        EnsurePlayerLocomotionReady();
+        TryRestoreExplorationLookIfReady();
+    }
+
     /// <summary>クリック取得後など、探索中はカーソルをロックして WASD を即効かせる</summary>
     public static void TryLockCursorForGameplay()
     {
@@ -119,7 +140,7 @@ public static class AdventureGameplayInputGate
     {
         if (!AdventureRustFloatOpening.IsGameStarted) return;
         if (AdventurePauseMenu.IsOpen || AdventureStoryFlow.WantsFreeCursor) return;
-        if (AdventureRustWorkshopUI.IsOpen || AdventureBeachDriftBox.IsModalOpen) return;
+        if (AdventureRustWorkshopUI.IsOpen) return;
 
         var narrative = AdventureBeachNarrativeManager.Instance;
         if (narrative != null && narrative.IsShowingModal) return;
@@ -132,7 +153,22 @@ public static class AdventureGameplayInputGate
             && (tower.IsSkybreakModalActive || tower.ShowGameClearModal || tower.IsClimaxOilPromptActive))
             return;
 
+        EnsurePlayerLocomotionReady();
         TryLockCursorForGameplay();
         AdventureCameraFollow.Instance?.RestoreGameplayLookLock();
+    }
+
+    static void EnsurePlayerLocomotionReady()
+    {
+        var player = AdventurePlayerController.Instance;
+        if (player == null) return;
+        if (!player.enabled)
+            player.enabled = true;
+
+        var cc = player.GetComponent<CharacterController>();
+        if (cc == null || cc.enabled) return;
+        var campfire = AdventureBeachCampfire.Instance;
+        if (campfire != null && campfire.IsSitting) return;
+        cc.enabled = true;
     }
 }

@@ -1005,7 +1005,7 @@ public class AdventureBeachSeashellItem : MonoBehaviour
         _isCollected = true;
         _isCollecting = false;
 
-        AdventureScrapManager.ArmPickupInputGrace(0.55f);
+        AdventureScrapManager.ArmNonScrapInteractGrace();
         AdventureGameplayInputGate.TryLockCursorForGameplay();
 
         // 保存

@@ -188,7 +188,8 @@ public class AdventureBeachFlotsam : MonoBehaviour
     static bool ShouldSuppressInteraction()
     {
         if (AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen()) return true;
-        if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening) return true;
+        if (AdventurePrologueDrama.Instance != null && (AdventurePrologueDrama.Instance.IsAwakening
+            || AdventurePrologueDrama.Instance.IsWaitingForOil)) return true;
         if (AdventurePauseMenu.IsOpen) return true;
         return false;
     }

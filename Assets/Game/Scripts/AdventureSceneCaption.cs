@@ -158,6 +158,10 @@ public class AdventureSceneCaption : MonoBehaviour
         _instance._ignoreDismissUntil = Time.unscaledTime + 0.35f;
         _instance._onDismiss = onDismiss;
         _instance._cg.alpha = 1f;
+
+        // 自動消滅字幕は操作を塞がない（取得直後も WASD／視点を維持）
+        if (!waitDismiss)
+            AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
     }
 
     public static void ShowRich(string richText, float autoSeconds = 6f, Action onDismiss = null)

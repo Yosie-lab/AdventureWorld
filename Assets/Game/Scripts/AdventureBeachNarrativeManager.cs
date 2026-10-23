@@ -726,12 +726,16 @@ public class AdventureBeachNarrativeSpot : MonoBehaviour
 
         float dist = Vector3.Distance(transform.position, player.transform.position);
         var narrative = AdventureBeachNarrativeManager.Instance;
+        var prologue = AdventurePrologueDrama.Instance;
         bool blocked = AdventureBeachDriftBox.IsModalOpen
-                       || (narrative != null && narrative.IsShowingModal);
+                       || (narrative != null && narrative.IsShowingModal)
+                       || (prologue != null && prologue.IsWaitingForOil);
         _playerNearby = (dist < 4.2f) && !blocked;
 
         if (_playerNearby)
         {
+            if (prologue != null && prologue.IsWaitingForOil)
+                return;
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.eKey.wasPressedThisFrame)
                 narrative?.OpenNarrativeModal(spotId, title, subTitle, bodyText, rustDialogue);

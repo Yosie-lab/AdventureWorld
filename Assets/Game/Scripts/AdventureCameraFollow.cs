@@ -287,6 +287,7 @@ public class AdventureCameraFollow : MonoBehaviour
         if (IsTitleModalBlocking()) return;
         EnsureTarget();
         if (target == null) return;
+        AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
         UpdateLookInputOnly();
         ApplyLookSmoothingForMove();
     }
@@ -296,6 +297,9 @@ public class AdventureCameraFollow : MonoBehaviour
         if (IsTitleModalBlocking()) return;
         EnsureTarget();
         if (target == null) return;
+
+        if (AdventureScrapManager.IsWithinPickupInputGrace)
+            AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
 
         // Update を飛ばしたフレームだけ入力＋ヨー/Pitch を再計算（SmoothDamp の二重適用はしない）
         if (!_lookUpdatedThisFrame)
@@ -323,6 +327,11 @@ public class AdventureCameraFollow : MonoBehaviour
             _hasPrevMousePos = false;
             return;
         }
+
+        if (AdventureScrapManager.IsWithinPickupInputGrace
+            && AdventureRustFloatOpening.IsGameStarted
+            && !AdventureStoryFlow.WantsFreeCursor)
+            LockCursor();
 
         bool isPointerOverUi = mouse != null
             && UnityEngine.EventSystems.EventSystem.current != null

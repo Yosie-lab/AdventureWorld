@@ -288,10 +288,29 @@ public class AdventureBeachDriftBox : MonoBehaviour
             CheckPlayerProximity();
         }
         else
-        {
-            // 開封済みでも近くでEキーを押せばいつでもメモを再読可能
             CheckReopenProximity();
-        }
+    }
+
+    bool IsPlayerInRange()
+    {
+        var player = AdventurePlayerController.Instance
+            ?? Object.FindAnyObjectByType<AdventurePlayerController>();
+        if (player == null) return false;
+
+        Vector3 box = transform.position;
+        var body = transform.Find("BoxBody");
+        if (body != null) box = body.position;
+
+        Vector3 p = player.transform.position;
+        float horizontal = Vector2.Distance(new Vector2(box.x, box.z), new Vector2(p.x, p.z));
+        float vertical = Mathf.Abs(box.y - p.y);
+        return horizontal < 3.2f && vertical < 3.5f;
+    }
+
+    private void CheckPlayerProximity()
+    {
+        if (!IsPlayerInRange()) return;
+        OpenBox();
     }
 
     private void CheckDebugResetKey()
@@ -379,28 +398,9 @@ public class AdventureBeachDriftBox : MonoBehaviour
         // ナラティブモーダル（二人の漂着艇等）やプロローグ目覚め・キーストーン演出中は自動開封しない
         if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal)
             return;
-        if (AdventurePrologueDrama.Instance != null && (AdventurePrologueDrama.Instance.IsAwakening || AdventurePrologueDrama.Instance.IsShowingDashBoard))
-            return;
-
-        var player = AdventurePlayerController.Instance;
-        if (player != null)
-        {
-            float dist = Vector3.Distance(transform.position, player.transform.position);
-            bool inRange = dist < VisualConfig.TriggerDistance;
-            bool clickInRange = dist < VisualConfig.TriggerDistance + 1.2f && AdventureInputReader.InteractDown;
-            if (inRange || clickInRange)
-            {
-                OpenBox();
-            }
-        }
-    }
-
-    private void CheckReopenProximity()
-    {
-        if (_isModalOpen) return;
-        if (AdventureBeachNarrativeManager.Instance != null && AdventureBeachNarrativeManager.Instance.IsShowingModal)
-            return;
-        if (AdventurePrologueDrama.Instance != null && (AdventurePrologueDrama.Instance.IsAwakening || AdventurePrologueDrama.Instance.IsShowingDashBoard))
+        if (AdventurePrologueDrama.Instance != null && (AdventurePrologueDrama.Instance.IsAwakening
+            || AdventurePrologueDrama.Instance.IsShowingDashBoard
+            || AdventurePrologueDrama.Instance.IsWaitingForOil))
             return;
 
         var player = AdventurePlayerController.Instance;
@@ -408,15 +408,23 @@ public class AdventureBeachDriftBox : MonoBehaviour
         {
             float dist = Vector3.Distance(transform.position, player.transform.position);
             if (dist < VisualConfig.TriggerDistance)
-            {
-                bool ePressed = AdventureInputReader.InteractDown;
-
-                if (ePressed)
-                {
-                    ShowModal(boxId, boxTitle, author, message);
-                }
-            }
+                OpenBox();
         }
+    }
+
+    bool _reopenLatched;
+
+    private void CheckReopenProximity()
+    {
+        if (_isModalOpen) return;
+        if (!IsPlayerInRange())
+        {
+            _reopenLatched = false;
+            return;
+        }
+        if (_reopenLatched) return;
+        _reopenLatched = true;
+        ShowModal(boxId, boxTitle, author, message);
     }
 
     #region 発光・視認性エフェクト構築
@@ -1281,6 +1289,27 @@ public class AdventureBeachDriftBox : MonoBehaviour
         string visibleTitle = _modalTitleText != null ? _modalTitleText.text : "";
         string visibleAuthor = _modalAuthorText != null ? _modalAuthorText.text : "";
         string visibleBody = _modalBodyText != null ? _modalBodyText.text : "";
+
+        if (string.IsNullOrWhiteSpace(visibleTitle))
+            visibleTitle = _currentModalFallbackTitle ?? "";
+        if (string.IsNullOrWhiteSpace(visibleBody))
+            visibleBody = _currentModalFallbackBody ?? "";
+        if (string.IsNullOrWhiteSpace(visibleAuthor))
+            visibleAuthor = _currentModalFallbackAuthor ?? "";
+
+        if (_currentModalBoxId > 0)
+        {
+            string locTitle = AdventureLocalizationManager.Get($"driftbox_{_currentModalBoxId}_title");
+            if (!string.IsNullOrEmpty(locTitle) && locTitle != $"driftbox_{_currentModalBoxId}_title")
+                visibleTitle = locTitle;
+            string locBody = AdventureLocalizationManager.Get($"driftbox_{_currentModalBoxId}_body");
+            if (!string.IsNullOrEmpty(locBody) && locBody != $"driftbox_{_currentModalBoxId}_body")
+                visibleBody = locBody;
+            string locAuthor = AdventureLocalizationManager.Get($"driftbox_{_currentModalBoxId}_author");
+            if (!string.IsNullOrEmpty(locAuthor) && locAuthor != $"driftbox_{_currentModalBoxId}_author")
+                visibleAuthor = locAuthor;
+        }
+
         if (string.IsNullOrWhiteSpace(visibleTitle) && string.IsNullOrWhiteSpace(visibleBody))
             return;
 
@@ -1295,7 +1324,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
             visibleBody,
             visibleAuthor,
             autoSeconds: 11f,
-            waitDismiss: true,
+            waitDismiss: false,
             onDismiss: HandleDriftCaptionClosed);
     }
 
@@ -1459,78 +1488,11 @@ public class DriftBoxModalInputHandler : MonoBehaviour, UnityEngine.EventSystems
     void Update()
     {
         if (!AdventureBeachDriftBox.IsModalOpen) return;
-
-        // モーダル表示中はマウスカーソルを確実に解放・可視化
-        if (Cursor.lockState != CursorLockMode.None)
-            Cursor.lockState = CursorLockMode.None;
-        if (!Cursor.visible)
-            Cursor.visible = true;
-
         if (!AdventureBeachDriftBox.CanCloseModal) return;
 
-        // キー入力でのクローズ（Space/Enter/Esc/E）
-        bool closeTriggered = AdventureInputReader.SpaceDown
-            || AdventureInputReader.EnterDown
-            || AdventureInputReader.EscapeDown
-            || AdventureInputReader.InteractDown;
-
-        // 新Input System：マウスの任意ボタン押下・解放を検出
-        var mouse = Mouse.current;
-        if (mouse != null)
-        {
-            if (mouse.leftButton.wasPressedThisFrame
-                || mouse.leftButton.wasReleasedThisFrame
-                || mouse.rightButton.wasPressedThisFrame
-                || mouse.rightButton.wasReleasedThisFrame)
-            {
-                closeTriggered = true;
-            }
-        }
-
-        // 旧Input System（利用可能な環境での追加網）
-        try
-        {
-            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonUp(0) || Input.GetMouseButtonDown(1))
-                closeTriggered = true;
-        }
-        catch { }
-
-        if (closeTriggered)
-        {
+        // Esc だけ早めに閉じる。全画面ボタンやカーソル解放は WASD／視点を止めるため使わない
+        if (AdventureInputReader.EscapeDown)
             AdventureBeachDriftBox.ForceCloseModal();
-        }
-    }
-
-    /// <summary>IMGUIレベルでのクリック検出（全画面透明ボタン＋イベント補足でUnity Editorのフォーカス獲得クリック等も100%確実にキャッチ）</summary>
-    void OnGUI()
-    {
-        if (!AdventureBeachDriftBox.IsModalOpen) return;
-        if (!AdventureBeachDriftBox.CanCloseModal) return;
-
-        // 全画面の不可視 GUI.Button：UnityのIMGUIパイプラインでどんなクリックも確実に拾う
-        Color origColor = GUI.color;
-        GUI.color = Color.clear;
-        if (GUI.Button(new Rect(0, 0, Screen.width, Screen.height), GUIContent.none, GUIStyle.none))
-        {
-            AdventureBeachDriftBox.ForceCloseModal();
-            GUI.color = origColor;
-            return;
-        }
-        GUI.color = origColor;
-
-        var ev = Event.current;
-        if (ev != null)
-        {
-            EventType t = ev.rawType;
-            if (t == EventType.MouseDown || t == EventType.MouseUp)
-            {
-                if (ev.button == 0 || ev.button == 1)
-                {
-                    AdventureBeachDriftBox.ForceCloseModal();
-                    ev.Use();
-                }
-            }
-        }
     }
 
     /// <summary>uGUI EventSystem経由でのポインタクリック補足</summary>

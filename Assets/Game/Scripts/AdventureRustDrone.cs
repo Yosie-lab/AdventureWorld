@@ -2125,6 +2125,22 @@ public partial class AdventureRustDrone : MonoBehaviour
         _isPlayerNear = (horizontalDist < 5.5f && verticalDist < 5.0f);
 
         var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        var prologue = AdventurePrologueDrama.Instance;
+
+        // プロローグ注油（漂着艇・木箱等より優先）
+        if (prologue != null && prologue.IsWaitingForOil)
+        {
+            if (_isPlayerNear
+                && (AdventureInputReader.InteractEKeyDown || AdventureInputReader.InteractDown || AdventureInputReader.SpaceDown)
+                && !AdventureScrapManager.ShouldSuppressRustCompanionInteract
+                && Time.time - _lastInteractTime > 0.35f)
+            {
+                _lastInteractTime = Time.time;
+                InteractWithNiko();
+                prologue.NotifyOilApplied();
+            }
+            return;
+        }
 
         // クライマックス注油中は通常の手当てを止め、注油ゲージへ回す
         if (towerMgr != null && towerMgr.IsClimaxOilPromptActive)
@@ -2137,20 +2153,6 @@ public partial class AdventureRustDrone : MonoBehaviour
         // シネマティック中は通常インタラクトを出さない
         if (ShouldHideInteractionPrompt(towerMgr))
             return;
-
-        var prologue = AdventurePrologueDrama.Instance;
-        if (prologue != null && prologue.IsWaitingForOil)
-        {
-            if (_isPlayerNear && AdventureInputReader.InteractDown
-                && !AdventureScrapManager.ShouldSuppressRustCompanionInteract
-                && Time.time - _lastInteractTime > 0.35f)
-            {
-                _lastInteractTime = Time.time;
-                InteractWithNiko();
-                prologue.NotifyOilApplied();
-            }
-            return;
-        }
 
         // プロローグの台詞中は E をドラマ側へ渡す（WaitOil は上で処理済み）
         if (prologue != null && prologue.IsBlockingSpeech)

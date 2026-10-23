@@ -108,6 +108,16 @@ public class AdventurePrologueDrama : MonoBehaviour
                 }
             }
         }
+
+        if (_phase == Phase.WaitOil && !_oilReceived)
+            PollOilInput(AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>());
+    }
+
+    /// <summary>GameplayInputGate から最優先で呼ぶ（他オブジェクトの E 取り合いより先）</summary>
+    public void TryApplyOilFromInputGate()
+    {
+        if (_phase != Phase.WaitOil || _oilReceived) return;
+        PollOilInput(AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>());
     }
 
     /// <summary>セリフ送り入力（クリック・Space・Enter・Eキー・WASD移動・ゲームパッドなど）</summary>
@@ -299,9 +309,11 @@ public class AdventurePrologueDrama : MonoBehaviour
         Vector3 diff = drone.transform.position - player.transform.position;
         float horizontal = new Vector2(diff.x, diff.z).magnitude;
         float vertical = Mathf.Abs(diff.y);
-        if (horizontal > 6.5f || vertical > 5.5f) return;
+        if (horizontal > 7.5f || vertical > 6.5f) return;
 
-        bool pressed = AdventureInputReader.InteractDown || player.InteractPressed;
+        bool pressed = AdventureInputReader.InteractEKeyDown
+            || AdventureInputReader.InteractDown
+            || AdventureInputReader.SpaceDown;
         if (!pressed) return;
         if (AdventureScrapManager.ShouldSuppressRustCompanionInteract) return;
 
@@ -331,6 +343,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         {
             yield return new WaitForSeconds(1f);
         }
+        AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
     }
 
     IEnumerator SecondGearBondRoutine()
@@ -350,6 +363,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         }
         if (_phase == Phase.SecondGearBond)
             _phase = Phase.WaitFirstScrap;
+        AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
     }
 
     IEnumerator DashCelebrateRoutine()
@@ -387,6 +401,7 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         _showDashBoard = false;
         AdventureSceneCaption.Dismiss(false);
+        AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
 
         if (drone != null)
         {
@@ -579,6 +594,7 @@ public class AdventurePrologueDrama : MonoBehaviour
                 camFollow.enabled = true;
                 camFollow.SnapBehindTarget();
             }
+            AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
             if (drone != null)
             {
                 Vector3 rustGoalPos = playerPos + playerForward * 1.2f + Vector3.up * 1.2f;
@@ -734,6 +750,7 @@ public class AdventurePrologueDrama : MonoBehaviour
             camFollow.enabled = true;
             camFollow.SnapBehindTarget();
         }
+        AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
 
         yield return WaitOrSkip(1.0f);
     }

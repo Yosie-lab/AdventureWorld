@@ -312,6 +312,7 @@ public partial class AdventurePlayerController : MonoBehaviour
 
         ApplyClimaxSkyHoldVertical();
         ApplyMotion(horizontal);
+
         if (!_skybreakPillarLock)
         {
             PreventGroundBurial();

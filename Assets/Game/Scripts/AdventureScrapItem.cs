@@ -21,10 +21,11 @@ public class AdventureScrapItem : MonoBehaviour
 
     // ── パラメータ定数 ──
     const float SpawnGuardDuration = 0.6f;     // スポーン直後の誤取得ガード時間（秒）
-    const float CollectDirectDist = 1.15f;     // 即時取得判定距離（3D球状）
-    const float CollectHorizontalDist = 1.05f; // 即時取得の水平距離
-    const float CollectVerticalDiff = 2.0f;    // 即時取得の許容高低差
-    const float MagnetStartDist = 4.2f;        // マグネット吸い寄せ開始距離
+    const float CollectDirectDist = 1.55f;     // 即時取得判定距離（3D球状）
+    const float CollectHorizontalDist = 1.45f; // 即時取得の水平距離
+    const float CollectVerticalDiff = 2.6f;    // 即時取得の許容高低差
+    const float MagnetStartDist = 5.5f;        // マグネット吸い寄せ開始距離
+    const float ProximityCollectSeconds = 0.28f; // 近接圏内に留まれば自動取得（クリック不要）
     const float MagnetSpeed = 8.5f;            // 吸い寄せ移動速度
     const float InteractCollectDist = 3.6f;    // E / クリック取得許容距離
     const float DestroyDelayAfterCollect = 0.8f; // 回収演出後のオブジェクト破棄遅延
@@ -37,6 +38,7 @@ public class AdventureScrapItem : MonoBehaviour
 
     float _hoverOffset;
     float _spawnTime;
+    float _proximityDwell;
     bool _isCollected = false;
     public bool IsCollected => _isCollected;
 
@@ -53,6 +55,13 @@ public class AdventureScrapItem : MonoBehaviour
         CreateModel();
         CreateBeacon();
         CreateIdleSparkles();
+
+        // CharacterController との Trigger 接触を安定させる
+        var rb = gameObject.GetComponent<Rigidbody>();
+        if (rb == null)
+            rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity = false;
     }
 
     void OnDestroy()
@@ -322,8 +331,22 @@ public class AdventureScrapItem : MonoBehaviour
                 return;
             }
 
+            // 1b. マグネット圏内に少し留まれば自動取得（1個目などクリック不要）
+            bool inProximityBand = horizontalDist < 2.85f && verticalDiff < CollectVerticalDiff;
+            if (inProximityBand)
+            {
+                _proximityDwell += Time.deltaTime;
+                if (_proximityDwell >= ProximityCollectSeconds)
+                {
+                    Collect();
+                    return;
+                }
+            }
+            else
+                _proximityDwell = 0f;
+
             // 2. ふわっと近づくマグネット吸い寄せ
-            if (dist < MagnetStartDist || (horizontalDist < 3.6f && verticalDiff < 2.6f))
+            if (dist < MagnetStartDist || (horizontalDist < 4.2f && verticalDiff < CollectVerticalDiff))
             {
                 transform.position = Vector3.MoveTowards(transform.position, playerPos, Time.deltaTime * MagnetSpeed);
             }

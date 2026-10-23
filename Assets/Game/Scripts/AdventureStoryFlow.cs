@@ -315,10 +315,6 @@ public static class AdventureStoryFlow
             if (AdventureRustWorkshopUI.IsOpen)
                 return true;
 
-            // 漂流物木箱の手記モーダル
-            if (AdventureBeachDriftBox.IsModalOpen)
-                return true;
-
             if (AdventureSceneCaption.IsWaitingDismiss)
                 return true;
 

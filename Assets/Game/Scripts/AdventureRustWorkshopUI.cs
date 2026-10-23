@@ -392,16 +392,12 @@ public class AdventureRustWorkshopUI : MonoBehaviour
             return;
         }
 
-        // 2. Rustが要手当て（WaitOil）状態で接近している時は注油・手当てを最優先
-        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
-        if (drone != null)
+        // 2. プロローグ注油待ち中は作業台が E を奪わない
+        var drama = AdventurePrologueDrama.Instance;
+        if (drama != null && drama.IsWaitingForOil)
         {
-            var drama = AdventurePrologueDrama.Instance;
-            if (drama != null && drama.IsWaitingForOil && drone.IsPlayerNear)
-            {
-                if (_promptCg != null) _promptCg.alpha = 0f;
-                return;
-            }
+            if (_promptCg != null) _promptCg.alpha = 0f;
+            return;
         }
 
         // 3. 作業台との水平距離および向き判定（正面から机を見た時のみ有効）

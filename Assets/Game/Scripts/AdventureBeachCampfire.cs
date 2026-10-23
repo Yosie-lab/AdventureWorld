@@ -870,7 +870,7 @@ public class AdventureBeachCampfire : MonoBehaviour
         else if (interactPressed)
         {
             AdventureGameplayInputGate.TryLockCursorForGameplay();
-            AdventureScrapManager.ArmPickupInputGrace(0.4f);
+            AdventureScrapManager.ArmNonScrapInteractGrace();
 
             // 未点火：焚き火側の操作を最優先（ベンチ範囲と重なっても腰掛けにしない）
             if (!_isLit && inFireZone)
