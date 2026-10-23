@@ -1460,7 +1460,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             if (_prevGuidedTreasureType != GuidedTreasureType.Scrap || Time.time >= _nextGuideNotice)
             {
                 _nextGuideNotice = Time.time + 12f;
-                SetSpeech(AdventureLocalizationManager.GetFormat("rust_found_scrap", nearestScrap.itemName), 3.8f);
+                SetSpeech(AdventureLocalizationManager.GetFormat("rust_found_scrap", nearestScrap.ItemDisplayName), 3.8f);
                 PlayRadarSonarSound();
             }
 
@@ -1561,7 +1561,7 @@ public partial class AdventureRustDrone : MonoBehaviour
                     };
                 }
 
-                SetSpeech(AdventureLocalizationManager.GetFormat("rust_sonar_ping", dirName, scrapDist, nearestScrap.itemName), 4.5f);
+                SetSpeech(AdventureLocalizationManager.GetFormat("rust_sonar_ping", dirName, scrapDist, nearestScrap.ItemDisplayName), 4.5f);
                 PlayRadarSonarSound();
             }
         }

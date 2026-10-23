@@ -141,6 +141,21 @@ public static class AdventureLocalizationManager
         }
     }
 
+    /// <summary>漂着パーツ表示名（scrap_part_N_name → 未登録時は itemName をそのまま Get）</summary>
+    public static string GetScrapPartName(int scrapId, string fallbackJapaneseName = null)
+    {
+        if (scrapId >= 1 && scrapId <= 12)
+        {
+            string key = "scrap_part_" + scrapId + "_name";
+            string loc = Get(key);
+            if (loc != key)
+                return loc;
+        }
+        return string.IsNullOrEmpty(fallbackJapaneseName)
+            ? Get("scrap_part_" + scrapId + "_name")
+            : Get(fallbackJapaneseName);
+    }
+
     // ==========================================
     // 辞書テーブル [0: 日本語, 1: 英語, 2: 簡体字中国語, 3: スペイン語]
     // ==========================================
@@ -2118,6 +2133,7 @@ public static class AdventureLocalizationManager
         } },
         { "narrative_float_voyage_log", new[] { "【Floatの航海日誌】", "[Float's Log]", "【Float的航海日志】", "[Diario de Float]" } },
         { "(古代の推進黄金ギア)", new[] { "(古代の推進黄金ギア)", "(Ancient Propulsion Gold Gear)", "(古代推进黄金齿轮)", "(Engranaje Dorado de Propulsión Antigua)" } },
+        { "(耐熱スタビライザー)", new[] { "(耐熱スタビライザー)", "(Heat-Resistant Stabilizer)", "(耐热稳定翼)", "(Estabilizador Térmico Resistente)" } },
         { "(海風のエネルギーコア)", new[] { "(海風のエネルギーコア)", "(Sea Breeze Energy Core)", "(海风能量核心)", "(Núcleo de Energía de la Brisa Marina)" } },
 
         // ビーチキャンプ跡
@@ -2928,11 +2944,24 @@ public static class AdventureLocalizationManager
             "古代推进齿轮",
             "Engranaje de Propulsión Antigua"
         } },
+        // 漂着パーツ表示名（コンパス・ソナー・HUD）
+        { "scrap_part_2_name", new[] {
+            "耐熱スタビライザー",
+            "Heat-Resistant Stabilizer",
+            "耐热稳定翼",
+            "Estabilizador Térmico Resistente"
+        } },
+        { "scrap_part_3_name", new[] {
+            "海風のエネルギーコア",
+            "Sea Breeze Energy Core",
+            "海风能量核心",
+            "Núcleo de Energía de la Brisa Marina"
+        } },
         { "耐熱スタビライザー", new[] {
             "耐熱スタビライザー",
-            "Thermal Stabilizer",
+            "Heat-Resistant Stabilizer",
             "耐热稳定翼",
-            "Estabilizador Térmico"
+            "Estabilizador Térmico Resistente"
         } },
         { "海風のエネルギーコア", new[] {
             "海風のエネルギーコア",
