@@ -562,6 +562,7 @@ public class AdventureCameraFollow : MonoBehaviour
     /// <summary>プレイヤー入力中は常に即時。スムーズはエピローグ自動滑空のドローンショットのみ。</summary>
     bool ShouldUseInstantLook(bool isAutoGlide, float cine, bool walkingGround, bool cursorLook)
     {
+        if (_islandOverview || _islandOverviewBlend > 0.01f) return false; // エピローグ概要遷移時は常に極上のスムーズ補間
         if (walkingGround || cine < 0.02f) return true;
         if (cursorLook)
         {
@@ -623,12 +624,12 @@ public class AdventureCameraFollow : MonoBehaviour
             }
         }
 
-        if (_islandOverviewBlend > 0.12f && target != null)
+        if (_islandOverviewBlend > 0.02f && target != null)
         {
             float playerYaw = target.eulerAngles.y;
             float sway = Mathf.Sin(Time.unscaledTime * 0.11f) * 4.5f;
-            // 正面反転(+180f)ではなく、後方斜め(+_skyWideSideBias)から前向きに雄大に飛ぶ二人を追従
-            _targetYaw = playerYaw + _skyWideSideBias + sway;
+            // 正面から二人を映すシネマティック構図（最短経路で滑らかに旋回）
+            _targetYaw = playerYaw + 180f + _skyWideSideBias + sway;
             _targetPitch = Mathf.Lerp(_targetPitch, 12f + Mathf.Sin(Time.unscaledTime * 0.08f) * 2.2f, _islandOverviewBlend);
         }
         else if (cine > 0.4f && !isAutoGlide && !cursorLook)
@@ -772,18 +773,22 @@ public class AdventureCameraFollow : MonoBehaviour
         if (_islandOverviewBlend > 0.02f && target != null)
         {
             float b = _islandOverviewBlend;
-            Vector3 pivot = target.position + Vector3.up * (2.0f + 2.4f * b);
-            _currentPivot = Vector3.Lerp(_currentPivot, pivot, 0.14f + 0.30f * b);
+            float smoothB = Mathf.SmoothStep(0f, 1f, b);
+            Vector3 pivot = target.position + Vector3.up * (2.0f + 2.4f * smoothB);
+            _currentPivot = Vector3.Lerp(_currentPivot, pivot, 0.14f + 0.30f * smoothB);
 
             float playerYaw = target.eulerAngles.y;
             float sway = Mathf.Sin(Time.unscaledTime * 0.11f) * 4.5f;
             float camYaw = playerYaw + 180f + _skyWideSideBias + sway;
-            float camPitch = Mathf.Lerp(6f, 14f, b);
-            float dist = Mathf.Lerp(10f, 17.5f, b);
+            float camPitch = Mathf.Lerp(6f, 14f, smoothB);
+            float dist = Mathf.Lerp(10f, 17.5f, smoothB);
 
-            currentRot = Quaternion.Slerp(currentRot, Quaternion.Euler(camPitch, camYaw, 0f), b);
-            targetPos = _currentPivot + Quaternion.Euler(camPitch, camYaw, 0f) * new Vector3(0f, 0.35f * b, -dist);
-            targetPos.y = Mathf.Max(targetPos.y, target.position.y + 3.5f + 5.5f * b);
+            // Slerpで滑らかに回転補間
+            currentRot = Quaternion.Slerp(currentRot, Quaternion.Euler(camPitch, camYaw, 0f), smoothB);
+
+            // 【完全同期】位置計算にもSlerp後のcurrentRotを適用し、位置と回転の脱臼・ねじれ・ガクつきを根絶！
+            targetPos = _currentPivot + currentRot * new Vector3(0f, 0.35f * smoothB, -dist);
+            targetPos.y = Mathf.Max(targetPos.y, target.position.y + 3.5f + 5.5f * smoothB);
             _currentDistance = dist;
         }
 

@@ -422,7 +422,11 @@ public partial class AdventureRustDrone
         {
             if (!_bonesCached) CacheNikoBones();
             Vector3 nest = GetOverdriveShoulderNestle();
-            transform.position = nest;
+            float dist = Vector3.Distance(transform.position, nest);
+            if (dist > 3.0f)
+            {
+                transform.position = nest;
+            }
             _lagTarget = nest;
             _velocity = Vector3.zero;
             Vector3 away = nest - GetNikoChestPosition();
