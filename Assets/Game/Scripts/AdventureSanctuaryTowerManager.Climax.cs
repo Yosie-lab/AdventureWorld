@@ -281,6 +281,12 @@ public partial class AdventureSanctuaryTowerManager
             return;
         }
 
+        // 「温かい油が心臓部に…」（Beat 3）から次のシーン（Beat 4：「ありがとう、Float！」）へ進んだ時、残っていたダイヤモンドダストを完全消去
+        if (next == ClimaxOilSlot + 1)
+        {
+            ClearSkybreakColdAtmosphere();
+        }
+
         _climaxBeatIndex = next;
         Debug.Log($"[RustAndFloat] クライマックス台本進行: beat={next}");
         PresentClimaxBeat(next);

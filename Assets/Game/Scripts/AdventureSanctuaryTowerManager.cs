@@ -274,8 +274,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     // 注油前台本(0-2) → 注油 → 注油後台本(3-4)
     const string SkyLimitWarning = "✦ 限界高度：凍結危機 ✦";
     const int ClimaxOilSlot = 3; // next==3 のとき注油フェーズへ入る
-    /// <summary>注油後「温かい油が…」蘇生セリフの最低表示（秒）。手動送り・短縮倍率の対象外。</summary>
-    public const float ClimaxRevivalBeatHoldSec = 9f;
+    /// <summary>注油後「温かい油が…」蘇生セリフの最低表示（秒）。手動送り・短縮倍率の対象外（9秒から1秒短縮して8秒へ）。</summary>
+    public const float ClimaxRevivalBeatHoldSec = 8f;
     static readonly CanopyBeat[] ClimaxBeats =
     {
         new CanopyBeat("限界高度", "", "天蓋の裂け目から、凍てつく突風が吹き荒れる——\nRustのギアが、悲鳴のようなきしみ音を上げていた。", new Color(0.85f, 0.92f, 1f, 1f), autoSec: 4.5f),

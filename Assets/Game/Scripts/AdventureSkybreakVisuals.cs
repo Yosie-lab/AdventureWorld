@@ -1033,12 +1033,16 @@ public static class AdventureSkybreakVisuals
         }
     }
 
-    public static void ClearColdAtmosphere()
+    public static void ClearColdAtmosphere(bool instant = false)
     {
-        if (!_coldAtmosphereActive && _savedSkybox == null) return;
-
         if (AdventureColdAtmosphereDriver.Instance != null)
         {
+            if (!instant)
+            {
+                // 次のシーン：残っていたダイヤモンドダストを滑らかに完全消去
+                AdventureColdAtmosphereDriver.Instance.StartFinalDustClear(1.2f);
+                return;
+            }
             Object.Destroy(AdventureColdAtmosphereDriver.Instance.gameObject);
         }
 
@@ -1092,6 +1096,10 @@ public static class AdventureSkybreakVisuals
         private bool _isThawing;
         private float _thawProgress;
         private float _thawDuration = 3.0f;
+
+        private bool _isFinalClearing;
+        private float _finalClearProgress;
+        private float _finalClearDuration = 1.2f;
 
         private Coroutine _lightningRoutine;
         private AudioSource _audio;
@@ -1239,9 +1247,28 @@ public static class AdventureSkybreakVisuals
 
                 if (_dustMat != null)
                 {
-                    // ダイヤモンドダストの輝度を滑らかにフェードアウト
-                    Color c = Color.Lerp(Color.white, Color.clear, smoothT);
+                    if (!_isFinalClearing)
+                    {
+                        // 「温かい油が…」シーン中：ダイヤモンドダストを一気に消さず、淡く美しい余韻（28%）として残す！
+                        Color c = Color.Lerp(Color.white, new Color(1f, 1f, 1f, 0.28f), smoothT);
+                        _dustMat.color = c;
+                    }
+                }
+
+                if (_isFinalClearing && _dustMat != null)
+                {
+                    // 次のシーン（「ありがとう、Float！」）：残っていたダイヤモンドダストを滑らかに完全消去
+                    _finalClearProgress += Time.deltaTime / _finalClearDuration;
+                    float fcT = Mathf.Clamp01(_finalClearProgress);
+                    Color c = Color.Lerp(new Color(1f, 1f, 1f, 0.28f), Color.clear, Mathf.SmoothStep(0f, 1f, fcT));
                     _dustMat.color = c;
+
+                    if (fcT >= 1f)
+                    {
+                        if (_dustTransform != null)
+                            Destroy(_dustTransform.gameObject);
+                        Destroy(this);
+                    }
                 }
 
                 if (SunLight != null)
@@ -1258,14 +1285,21 @@ public static class AdventureSkybreakVisuals
                 RenderSettings.fogColor = Color.Lerp(ColdFogColor, WarmFogColor, smoothT);
                 RenderSettings.fogDensity = Mathf.Lerp(0.0018f, 0.0006f, smoothT);
 
-                // 緑化コルーチンが完了するまでドライバーを破棄しない（途中で止まらないように）
-                if (t >= 1f && _foliageDone)
+                // 解凍完了時（まだ最終消去前であれば、ダイヤモンドダストを破棄せず淡い余韻をキープ）
+                if (t >= 1f && _foliageDone && !_isFinalClearing)
                 {
-                    if (_dustTransform != null)
-                        Destroy(_dustTransform.gameObject);
-                    Destroy(this);
+                    // ダイヤモンドダストは残し、ドライバー自体も最終消去指示を待つため維持
                 }
             }
+        }
+
+        /// <summary>次のシーンへ進んだ時に残りのダイヤモンドダストを完全消去</summary>
+        public void StartFinalDustClear(float duration = 1.2f)
+        {
+            if (_isFinalClearing) return;
+            _isFinalClearing = true;
+            _finalClearProgress = 0f;
+            _finalClearDuration = Mathf.Max(0.2f, duration);
         }
 
         public void StartThaw(float duration = 3.0f)
