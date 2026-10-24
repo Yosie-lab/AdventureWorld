@@ -18,10 +18,10 @@ public partial class AdventurePlayerController
     private AudioSource _slideAudioSource;
     private AudioClip _slideLoopClip;
 
-    private const float MinSlopeAngleForAutoSlide = 18f;
-    private const float MaxSlideSpeed = 16.5f;
-    private const float SlideAccel = 18f;
-    private const float SlideFriction = 6.5f;
+    private const float MinSlopeAngleForAutoSlide = 16f;
+    private const float MaxSlideSpeed = 19.5f;
+    private const float SlideAccel = 24f;
+    private const float SlideFriction = 5.5f;
 
     /// <summary>
     /// スライディング状態の更新（Updateから毎フレーム呼び出し）
@@ -91,12 +91,12 @@ public partial class AdventurePlayerController
         _slideDuration += Time.deltaTime;
 
         // 1. 斜面勾配に応じた加速と減速
-        float gravityAccel = Mathf.Sin(slopeAngle * Mathf.Deg2Rad) * 22f;
+        float gravityAccel = Mathf.Sin(slopeAngle * Mathf.Deg2Rad) * 28f;
         float dot = Vector3.Dot(_slideDir, slopeDown);
 
-        if (dot > 0.2f)
+        if (dot > 0.15f)
         {
-            // 下り坂：一気に加速
+            // 下り坂：一気に爽快加速
             _slideSpeed = Mathf.MoveTowards(_slideSpeed, MaxSlideSpeed, (gravityAccel * dot) * Time.deltaTime);
         }
         else
@@ -189,13 +189,13 @@ public partial class AdventurePlayerController
     {
         if (!_isSliding || _slideSpeed < 6.0f) return false;
 
-        _hop = Mathf.Sqrt(jumpPower * 1.35f * -2f * gravity);
+        _hop = Mathf.Sqrt(jumpPower * 1.55f * -2f * gravity);
         _grounded = false;
         _airborneTime = 0f;
-        _airMomentum = _slideDir * (_slideSpeed * 1.15f);
+        _airMomentum = _slideDir * (_slideSpeed * 1.25f);
 
         StopSliding();
-        AdventureInputHaptics.PlayPulse(0.40f, 0.65f, 0.16f);
+        AdventureInputHaptics.PlayPulse(0.45f, 0.70f, 0.18f);
         return true;
     }
 

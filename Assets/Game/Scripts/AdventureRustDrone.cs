@@ -2243,6 +2243,7 @@ public partial class AdventureRustDrone : MonoBehaviour
 
         // 油をさした瞬間に心地よい注油音＋快調回復チャイムを確実に再生
         PlayOilAppliedSound();
+        AdventureInputHaptics.PlayOilPour();
 
         // NikoがRustを胸元で愛おしく撫でて手当て
         if (AdventurePettingAction.Instance != null)

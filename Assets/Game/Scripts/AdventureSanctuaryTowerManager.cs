@@ -1414,6 +1414,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             }
             if (_audio != null)
                 _audio.PlayOneShot(MakeClankSound(), 0.6f);
+            AdventureInputHaptics.PlayPulse(0.35f, 0.20f, 0.12f);
             return;
         }
 
@@ -1435,6 +1436,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         Debug.Log("[RustAndFloat] レバー作動 → 天蓋開放シークエンス開始");
         if (_audio != null)
             _audio.PlayOneShot(MakeHeavyLeverSound(), 0.9f);
+        AdventureInputHaptics.PlayTowerLever();
         StartCoroutine(SkybreakSequenceRoutine());
     }
 

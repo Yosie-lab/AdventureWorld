@@ -723,10 +723,11 @@ public class AdventureCameraFollow : MonoBehaviour
             cineFov = Mathf.Lerp(cineFov, 88f, _islandOverviewBlend);
         float targetFov = Mathf.Lerp(isGliding ? glideBaseFov : walkBaseFov, cineFov, cine);
 
-        // 70mメガジャンプ・急上昇・高速滑空ブーストによるダイナミックFOV（最大82°までワイド化）
-        if (player != null && player.SpeedIntensity > 0.05f)
+        // 70mメガジャンプ・急上昇・高速滑空ブースト・急斜面スライディングによるダイナミックFOV（最大82°までワイド化）
+        if (player != null && (player.SpeedIntensity > 0.05f || player.IsSliding))
         {
-            float speedBoostFov = player.SpeedIntensity * (player.IsUpdraftAscending ? 15.0f : 10.0f);
+            float slideBoost = player.IsSliding ? Mathf.Lerp(2.0f, 6.5f, player.HorizontalSpeed / 18.0f) : 0f;
+            float speedBoostFov = player.SpeedIntensity * (player.IsUpdraftAscending ? 15.0f : 10.0f) + slideBoost;
             targetFov = Mathf.Min(82f, targetFov + speedBoostFov);
         }
 

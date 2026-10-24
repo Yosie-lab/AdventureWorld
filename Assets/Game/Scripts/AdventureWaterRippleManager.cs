@@ -81,6 +81,9 @@ public class AdventureWaterRippleManager : MonoBehaviour
             _playerRippleTimer = interval;
             SpawnRipple(new Vector3(pPos.x, waterY + 0.02f, pPos.z), Mathf.Lerp(0.6f, 1.25f, hSpeed / 9f));
 
+            // 水面を走る心地よい足踏みハプティクス
+            AdventureInputHaptics.PlayWaterWading();
+
             if (hSpeed > 3.0f)
             {
                 SpawnSplash(new Vector3(pPos.x, waterY + 0.05f, pPos.z), player.transform.forward, hSpeed);
@@ -148,6 +151,66 @@ public class AdventureWaterRippleManager : MonoBehaviour
         }
     }
 
+    private static Texture2D _ringTexture;
+    private static Texture2D _splashTexture;
+
+    private static Texture2D GetOrCreateRingTexture()
+    {
+        if (_ringTexture != null) return _ringTexture;
+        int size = 128;
+        _ringTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        _ringTexture.wrapMode = TextureWrapMode.Clamp;
+        _ringTexture.filterMode = FilterMode.Bilinear;
+
+        Vector2 center = new Vector2((size - 1) * 0.5f, (size - 1) * 0.5f);
+        float maxR = size * 0.5f;
+
+        Color[] pixels = new Color[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dist = Vector2.Distance(new Vector2(x, y), center) / maxR;
+                // 円環リング：半径 0.70 前後に滑らかなガウシアンリング
+                float ringDist = Mathf.Abs(dist - 0.70f);
+                float alpha = Mathf.Exp(-ringDist * ringDist / 0.018f);
+                // 中央の微かな水煙
+                float innerDot = Mathf.Exp(-dist * dist / 0.05f) * 0.18f;
+                float finalAlpha = Mathf.Clamp01(alpha + innerDot);
+                pixels[y * size + x] = new Color(1f, 1f, 1f, finalAlpha);
+            }
+        }
+        _ringTexture.SetPixels(pixels);
+        _ringTexture.Apply(false, true);
+        return _ringTexture;
+    }
+
+    private static Texture2D GetOrCreateSplashTexture()
+    {
+        if (_splashTexture != null) return _splashTexture;
+        int size = 64;
+        _splashTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        _splashTexture.wrapMode = TextureWrapMode.Clamp;
+        _splashTexture.filterMode = FilterMode.Bilinear;
+
+        Vector2 center = new Vector2((size - 1) * 0.5f, (size - 1) * 0.5f);
+        float maxR = size * 0.5f;
+
+        Color[] pixels = new Color[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dist = Vector2.Distance(new Vector2(x, y), center) / maxR;
+                float alpha = Mathf.Exp(-dist * dist / 0.12f);
+                pixels[y * size + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(alpha));
+            }
+        }
+        _splashTexture.SetPixels(pixels);
+        _splashTexture.Apply(false, true);
+        return _splashTexture;
+    }
+
     private void SetupParticleSystems()
     {
         // 1. 同心円リップル（波紋リング）パーティクル
@@ -189,9 +252,22 @@ public class AdventureWaterRippleManager : MonoBehaviour
 
         var rPsr = rGo.GetComponent<ParticleSystemRenderer>();
         rPsr.renderMode = ParticleSystemRenderMode.HorizontalBillboard; // 水平（水面にペタッと平らに広がる）
-        var pShader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit") ?? Shader.Find("Sprites/Default");
-        Material pMat = pShader != null ? new Material(pShader) : null;
-        if (pMat != null) rPsr.material = pMat;
+        
+        var pShader = Shader.Find("Universal Render Pipeline/Particles/Unlit") 
+                   ?? Shader.Find("Particles/Standard Unlit") 
+                   ?? Shader.Find("Sprites/Default");
+
+        if (pShader != null)
+        {
+            Material rMat = new Material(pShader);
+            var ringTex = GetOrCreateRingTexture();
+            rMat.SetTexture("_BaseMap", ringTex);
+            rMat.SetTexture("_MainTex", ringTex);
+            rMat.SetFloat("_Surface", 1f); // Transparent
+            rMat.SetFloat("_Blend", 0f); // Alpha blend
+            rMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 150;
+            rPsr.material = rMat;
+        }
 
         // 2. 水しぶきスプラッシュパーティクル
         var sGo = new GameObject("WaterSplash_Emitter");
@@ -211,6 +287,16 @@ public class AdventureWaterRippleManager : MonoBehaviour
 
         var sPsr = sGo.GetComponent<ParticleSystemRenderer>();
         sPsr.renderMode = ParticleSystemRenderMode.Billboard;
-        if (pMat != null) sPsr.material = pMat;
+        if (pShader != null)
+        {
+            Material sMat = new Material(pShader);
+            var splashTex = GetOrCreateSplashTexture();
+            sMat.SetTexture("_BaseMap", splashTex);
+            sMat.SetTexture("_MainTex", splashTex);
+            sMat.SetFloat("_Surface", 1f);
+            sMat.SetFloat("_Blend", 0f);
+            sMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 160;
+            sPsr.material = sMat;
+        }
     }
 }

@@ -152,6 +152,30 @@ public class AdventureInputHaptics : MonoBehaviour
         PlayPulse(0.40f, 0.85f, 0.30f);
     }
 
+    /// <summary>注油・給油パルス（トポトポと液体が満たされる心地よいリキッド手応え）</summary>
+    public static void PlayOilPour()
+    {
+        PlayPulse(0.25f, 0.60f, 0.22f);
+    }
+
+    /// <summary>漂流木箱オープン（バールでこじ開けるガコンッとした重厚な手応え）</summary>
+    public static void PlayDriftBoxOpen()
+    {
+        PlayPulse(0.55f, 0.75f, 0.25f);
+    }
+
+    /// <summary>タワー主電源レバー操作（ゴゴゴ…と機械が目覚める重厚な振動）</summary>
+    public static void PlayTowerLever()
+    {
+        PlayPulse(0.70f, 0.40f, 0.35f);
+    }
+
+    /// <summary>浅瀬・水たまりの足踏み水飛沫（パチャッという軽快な水圧手応え）</summary>
+    public static void PlayWaterWading()
+    {
+        PlayPulse(0.12f, 0.35f, 0.08f);
+    }
+
     /// <summary>高速滑空エアロランブル（速度に応じた微小な風圧高周波振動）</summary>
     public static void UpdateGlideAeroRumble(float speed, bool isGliding)
     {

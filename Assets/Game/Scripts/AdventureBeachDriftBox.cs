@@ -983,6 +983,7 @@ public class AdventureBeachDriftBox : MonoBehaviour
             _audioSource.pitch = 1.0f + Random.Range(-0.02f, 0.02f);
             _audioSource.PlayOneShot(_openClip, 0.95f);
         }
+        AdventureInputHaptics.PlayDriftBoxOpen();
 
         // 総合探索ポイント（+2 pt）加算とレバーロック解除チェック
         bool unlockedCampfire = false;
