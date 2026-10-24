@@ -16,7 +16,8 @@ public partial class AdventureRustDrone
         WaterShore,
         NikoEyeContact,
         SleepNap,
-        WaterPanic
+        WaterPanic,
+        BeckonGesture
     }
 
     [Header("Curiosity & Emotion")]
@@ -31,6 +32,10 @@ public partial class AdventureRustDrone
     float _nextTiltChange = 0f;
     Vector3 _prevPlayerPos = Vector3.zero;
     float _playerRestTime = 0f;
+
+    // 手招き＆呼びかけ（BeckonGesture）用
+    Vector3 _beckonTargetPos = Vector3.zero;
+    float _beckonStartTime = 0f;
 
     // うたた寝（SleepNap）用
     bool _isSleeping = false;
@@ -287,9 +292,13 @@ public partial class AdventureRustDrone
         return false;
     }
 
-    /// <summary>周囲の興味対象（うたた寝、蝶、花、見つめ合い、水辺）を探して自律アクションを開始</summary>
+    /// <summary>周囲の興味対象（手招き呼びかけ、うたた寝、蝶、花、見つめ合い、水辺）を探して自律アクションを開始</summary>
     void TryStartCuriosityInvestigation(Vector3 nikoPos)
     {
+        // 0. 手招き＆呼びかけジェスチャー（プレイヤーが迷って立ち止まっている時、または周囲に未回収物がある時）
+        if (TryStartBeckonGesture(nikoPos))
+            return;
+
         // A. Nikoが4.5秒以上じっと立ち止まっている場合：足元でうたた寝（寝息・Zzz）
         if (_playerRestTime >= 4.2f && Random.value < 0.65f)
         {
@@ -521,6 +530,21 @@ public partial class AdventureRustDrone
                 float contactBob = Mathf.Sin(Time.time * 2.8f) * 0.03f;
                 return contactPos + Vector3.up * contactBob;
 
+            case CuriosityKind.BeckonGesture:
+                // 前半（0〜1.5秒）：Floatの正面1.4mでアイコンタクト＆お辞儀バウンス
+                // 後半（1.5〜4.5秒）：目標方角へ2.2m進み出て「こっちだよ！」と手招きホバリング
+                float elapsed = Time.time - _beckonStartTime;
+                float leadBlend = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((elapsed - 1.2f) / 1.5f));
+                Vector3 frontPos = chestPos + _lookAt.forward * 1.45f + Vector3.up * 0.28f;
+                Vector3 toTargetFlat = _beckonTargetPos - nikoPos;
+                toTargetFlat.y = 0f;
+                Vector3 leadDir = toTargetFlat.sqrMagnitude > 0.01f ? toTargetFlat.normalized : _lookAt.forward;
+                Vector3 leadPos = chestPos + leadDir * 2.35f + Vector3.up * 0.35f;
+
+                Vector3 targetBeckonPos = Vector3.Lerp(frontPos, leadPos, leadBlend);
+                float beckonBounce = Mathf.Sin(Time.time * 5.5f) * (leadBlend > 0.5f ? 0.06f : 0.04f);
+                return targetBeckonPos + Vector3.up * beckonBounce;
+
             case CuriosityKind.WaterShore:
                 float waterBob = Mathf.Sin(Time.time * 2.4f) * 0.04f;
                 return _curiosityWorldPos + Vector3.up * (0.2f + waterBob);
@@ -552,6 +576,30 @@ public partial class AdventureRustDrone
             case CuriosityKind.NikoEyeContact:
                 // Nikoの顔を見上げる姿勢＋小首かしげ
                 return baseLook * Quaternion.Euler(-15f, 0f, _idleTiltAngle);
+
+            case CuriosityKind.BeckonGesture:
+                // 前半はFloatを見つめ、後半は目標方向へ顔を向けて「こっち！」と手招きチルト
+                float beckonElapsed = Time.time - _beckonStartTime;
+                if (beckonElapsed < 1.4f)
+                {
+                    // Floatの目をじっと見つめて呼びかけ（微小な縦うなずき）
+                    float nod = Mathf.Sin(Time.time * 6.5f) * 8f;
+                    return baseLook * Quaternion.Euler(-12f + nod, 0f, _idleTiltAngle * 0.5f);
+                }
+                else
+                {
+                    // 目標方向を向く
+                    Vector3 toTargetDir = _beckonTargetPos - transform.position;
+                    toTargetDir.y = 0f;
+                    if (toTargetDir.sqrMagnitude > 0.01f)
+                    {
+                        Quaternion lookTarget = Quaternion.LookRotation(toTargetDir.normalized, Vector3.up);
+                        // 時折Floatを振り返る愛らしい振り返りチルト
+                        float glanceFloat = Mathf.Sin(Time.time * 3.5f) * 16f;
+                        return lookTarget * Quaternion.Euler(6f, glanceFloat, Mathf.Sin(Time.time * 4f) * 8f);
+                    }
+                    return baseLook;
+                }
         }
 
         if (Mathf.Abs(_idleTiltAngle) > 0.05f)
@@ -568,6 +616,61 @@ public partial class AdventureRustDrone
             _audio.pitch = 1.38f + Random.Range(-0.05f, 0.08f);
             _audio.PlayOneShot(_happyBeepClip, 0.55f);
         }
+    }
+
+    void PlayBeckonChime()
+    {
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = 1.65f;
+            _audio.PlayOneShot(_happyBeepClip, 0.70f);
+        }
+    }
+
+    /// <summary>周囲の興味対象や進行ルートに向けて、Rustが手招き＆呼びかけを行うジェスチャー</summary>
+    bool TryStartBeckonGesture(Vector3 nikoPos)
+    {
+        if (Random.value > 0.65f) return false;
+
+        // 1. 周囲35m以内の未回収スクラップを探す
+        Vector3 targetPos = Vector3.zero;
+        string beckonLine = null;
+
+        if (_distantScrap != null)
+        {
+            targetPos = _distantScrap.transform.position;
+            beckonLine = "ピピッ！Float、あっちの方に何か光るものがあるよ！行ってみよう！";
+        }
+        else if (SanctuaryTowerCenter != Vector3.zero && Vector3.Distance(nikoPos, SanctuaryTowerCenter) > 40f)
+        {
+            targetPos = SanctuaryTowerCenter;
+            beckonLine = "見て、Float！中央の高いタワーがあんなにそびえ立ってるよ！あそこを目指してみない？";
+        }
+        else
+        {
+            // 前方の未知のエリア
+            targetPos = nikoPos + _lookAt.forward * 18f;
+            string[] generalLines = {
+                "ピロッ♪ Float、次はあっちの高い丘まで登ってみない？",
+                "あっちの空、すごく綺麗だよ！一緒に飛んでみようよ♪",
+                "準備はバッチリ？ Floatと一緒ならどこまでも行けるよ！",
+                "こっちこっち！風の通り道があるみたいだよ！"
+            };
+            beckonLine = generalLines[Random.Range(0, generalLines.Length)];
+        }
+
+        _curiosityKind = CuriosityKind.BeckonGesture;
+        _beckonTargetPos = targetPos;
+        _beckonStartTime = Time.time;
+        _curiosityEndTime = Time.time + Random.Range(4.2f, 5.5f);
+        _targetIdleTiltAngle = (Random.value < 0.5f ? -1f : 1f) * 18f;
+
+        SetExpression(FaceExpressionType.Smiling, 4.0f);
+        PlayBeckonChime();
+        SpeakCustom(beckonLine, 3.2f);
+
+        Debug.Log("[RustAndFloat] Rustの手招き＆呼びかけジェスチャー発動！");
+        return true;
     }
 
     void PlayPanicBeep()
