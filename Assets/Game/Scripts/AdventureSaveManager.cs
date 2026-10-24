@@ -704,8 +704,8 @@ public class AdventureSaveManager : MonoBehaviour
             AdventureLocalizationManager.GetFormat("save_load_restored_sub", data.collectedCount));
         Debug.Log($"[AdventureSaveManager] ロード完了: パーツ{data.collectedCount}個, 位置{data.GetPosition()}");
 
-        // 継続プレイ時は中央の時代背景ボードを出さない／残っていれば閉じる
-        if (data.collectedCount > 0)
+        // 継続プレイ時は中央の時代背景ボードを出さない／残っていれば閉じる（※タイトル表示中は勝手に閉じない）
+        if (data.collectedCount > 0 && AdventureRustFloatOpening.IsGameStarted)
         {
             var opening = AdventureRustFloatOpening.Instance ?? FindAnyObjectByType<AdventureRustFloatOpening>();
             opening?.DismissBecauseContinuingSave();

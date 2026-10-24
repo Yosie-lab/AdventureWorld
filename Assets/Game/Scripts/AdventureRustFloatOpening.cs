@@ -17,7 +17,14 @@ public class AdventureRustFloatOpening : MonoBehaviour
     public static bool IsGameStarted
     {
         get => _isGameStarted;
-        set => _isGameStarted = value;
+        set
+        {
+            if (_isGameStarted != value)
+            {
+                _isGameStarted = value;
+                Debug.Log($"<color=#ff00ff><b>[IsGameStarted]</b> Changed to {value}</color>\n{System.Environment.StackTrace}");
+            }
+        }
     }
     static bool _isGameStarted = false;
 
@@ -375,16 +382,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     void Update()
     {
-        // タイトルモーダルが非表示なのに未開始状態の場合（ドメインリロード時など）、自己修復してゲーム開始状態へ復帰
-        if (!IsGameStarted)
-        {
-            bool titleActive = (_modalBoard != null && _modalBoard.activeInHierarchy) || (_overlayGo != null && _overlayGo.activeInHierarchy);
-            if (!titleActive && _canvasGo != null)
-            {
-                IsGameStarted = true;
-                return;
-            }
-        }
+        // エンディング中にタイトルが勝手に復活したときだけ即消す（ShowTitleScreen 意図表示は除外）
 
         // エンディング中にタイトルが勝手に復活したときだけ即消す（ShowTitleScreen 意図表示は除外）
         if (!IsGameStarted && ShouldSkipOpeningBoard())
@@ -759,11 +757,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         var overlayRt = _overlayGo.AddComponent<RectTransform>();
         overlayRt.anchorMin = Vector2.zero;
         overlayRt.anchorMax = Vector2.one;
-        overlayRt.sizeDelta = Vector2.zero;
         var overlayImg = _overlayGo.AddComponent<Image>();
-        overlayImg.color = _preStartTexture != null
-            ? new Color(0.02f, 0.05f, 0.09f, 0.20f)
-            : new Color(0.02f, 0.05f, 0.09f, 0.38f);
+        overlayImg.color = new Color(0f, 0f, 0f, 0.05f); // 背景画像が明るくクリアに見える極薄アンビエント
         overlayImg.raycastTarget = false;
 
         // 4. メインタイトルボード（洗練されたグラスモーフィズムカード: 幅860, 高さ540）
@@ -780,9 +775,9 @@ public class AdventureRustFloatOpening : MonoBehaviour
         boardRt.anchoredPosition = new Vector2(0f, 0f);
         boardRt.sizeDelta = new Vector2(860f, 540f);
 
-        // ボード背景
+        // ボード背景（背景の美しい絶景が透けて見えるプレミアム半透明フロストガラス調）
         var boardImg = _modalBoard.AddComponent<Image>();
-        boardImg.color = new Color(0.025f, 0.065f, 0.12f, 0.88f);
+        boardImg.color = new Color(0.012f, 0.035f, 0.075f, 0.55f);
         boardImg.raycastTarget = false;
 
         // 外枠線アウトライン（サイバーエメラルド光彩）
@@ -1032,6 +1027,17 @@ public class AdventureRustFloatOpening : MonoBehaviour
 
     static Texture2D LoadPreStartCaptureTexture()
     {
+        string diskPath = System.IO.Path.GetFullPath(PreStartCaptureAssetPath);
+        if (System.IO.File.Exists(diskPath))
+        {
+            byte[] bytes = System.IO.File.ReadAllBytes(diskPath);
+            var tex = new Texture2D(2, 2, TextureFormat.RGB24, false);
+            if (tex.LoadImage(bytes))
+            {
+                tex.name = "CurrentSceneCapture_Disk";
+                return tex;
+            }
+        }
 #if UNITY_EDITOR
         var editorTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(PreStartCaptureAssetPath);
         if (editorTex != null)

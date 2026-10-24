@@ -394,7 +394,7 @@ public class AdventureCameraFollow : MonoBehaviour
         bool isPointerOverUi = mouse != null
             && UnityEngine.EventSystems.EventSystem.current != null
             && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
-        bool canExploreLook = !AdventureStoryFlow.WantsFreeCursor && !IsTitleModalBlocking();
+        bool canExploreLook = AdventureRustFloatOpening.IsGameStarted && !AdventureStoryFlow.WantsFreeCursor && !IsTitleModalBlocking();
 
         // 探索中：クリック／マウス移動でカーソルをロック（解除残留で視点が効かない問題を防ぐ）
         if (mouse != null && canExploreLook && Cursor.lockState != CursorLockMode.Locked)
@@ -405,7 +405,6 @@ public class AdventureCameraFollow : MonoBehaviour
             if (!isPointerOverUi && (pointerDown || moved))
             {
                 LockCursor();
-                AdventureRustFloatOpening.IsGameStarted = true;
                 _hasPrevMousePos = false;
                 _lastMouseInputTime = Time.time;
             }

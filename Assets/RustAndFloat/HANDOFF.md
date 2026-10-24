@@ -140,9 +140,16 @@ created: 2026-09-11
   4. **【+2点】Input System 設定の完全クリーン化（コンソール例外ゼロ保証）（`ProjectSettings.asset`）**:
      - `ProjectSettings/ProjectSettings.asset` の `activeInputHandler` を `2`（Both: 新旧Input完全両対応）に設定。
      - バックグラウンドで発生していた `InvalidOperationException` を根絶し、Unityコンソールエラー0件、例外0件を決定論的に保証。
-  5. **ゲーム起動時およびプロローグ開始前の全画面背景画像表示（`AdventureRustFloatOpening.cs`）**:
-     - エディタでキャプチャした最新の美麗シーン（`CurrentSceneCapture.png`）を、ゲーム起動時およびプロローグ開始前の全画面背景として常時表示。
-     - ゲーム開始（冒険を始める／つづきから）操作時に、タイトルUIカードとともに背景画像が美しくクロスフェードアウトし、3Dシーン・プロローグへ滑らかに接続。
+  5. **ゲーム起動時およびプロローグ開始前の全画面背景画像表示とタイトルスキップ問題の根本改修（2026-10-24 追記）**:
+     - **タイトルスキップの完全解決**:
+       - `AdventureSaveManager.cs`: 既存セーブデータがある場合に起動時自動ロードでタイトル画面を勝手に閉じていた（`DismissBecauseContinuingSave`）不具合を改修し、タイトル画面待機中は勝手に閉じないようガード。
+       - `AdventureCameraFollow.cs`: マウスの微細移動（0.001f）やUI外クリックで勝手に `AdventureRustFloatOpening.IsGameStarted = true` にしていた誤判定を撤廃。
+       - `AdventureRustFloatIsland.cs`: `AdventureRustFloatOpening` の生成を `Awake()` に前倒しし、起動時の初期化競合を解消。
+       - `AdventureRustFloatOpening.cs`: `Update()` 内でタイトルモーダル非表示時に誤って自己修復発火していたコードを削除。
+     - **全画面背景画像の高精細表示**:
+       - `CurrentSceneCapture.png` のテクスチャインポーターを非圧縮（`Uncompressed`）、NPOTスケールなし（`None`）、ミップマップ無効（`enableMipMap: false`）に設定し、1280x720 のオリジナル縦横比と超高画質を100%保持。
+       - ディスクからバイト配列を直接ロード（`tex.LoadImage`）することでキャッシュによる未ロードを完全に防止。
+       - タイトルUIカード（`StoryModalBoard`）を半透明フロストガラス調（α=0.55）に調律し、背後の絶景（FloatとRustが並ぶ花畑・大空パノラマ）が画面全体に美しく透けて見えるように演出。
 - **タワー横の崖スタック解消＆空中アンスタックエンジン（2026-10-19 追記）**:
   1. **タワー東側・南東側崖の岩コライダー（86個）の通行可能化（`AdventureSanctuaryTowerManager.Structure.cs`）**:
      - タワー中心(512,512)から半径55m以内・Y∈[28, 65]にあるすべての岩（`Rock_*`, `Stone_*`）を自動で通過可能（トリガー化／通過許可）にし、外壁と岩の狭隘挟まりトラップを根絶。
