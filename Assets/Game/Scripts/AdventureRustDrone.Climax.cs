@@ -51,17 +51,19 @@ public partial class AdventureRustDrone
         transform.rotation = Quaternion.Slerp(transform.rotation, tumble, 8f * Time.deltaTime);
     }
 
-    /// <summary>全力セリフ中：肩そばだが体に食い込まない（胸から外側＋カメラ手前）</summary>
+    /// <summary>全力セリフ中・エピローグ滑空中：翼に遮られず、カメラから一番見えやすい特等席（カメラ手前側＋右側）</summary>
     Vector3 GetOverdriveShoulderNestle()
     {
-        Vector3 nest = VisibleBesideNikoOnScreen(0.95f, 0.62f, 0.30f);
+        // towardCam: 1.25m（カメラ手前側へしっかり張り出し、Floatのグライダー翼に隠れるのを完全防止）
+        // side: 1.15f（Floatの右側で絶妙な並走感を演出）
+        // lift: 0.38f（胸〜肩の高さでバランスよく映る）
+        Vector3 nest = VisibleBesideNikoOnScreen(1.15f, 1.25f, 0.38f);
         if (_lookAt == null) return nest;
 
-        // 水平距離が足りないと本体メッシュが体に刺さるので下限を確保
         Vector3 chest = GetNikoChestPosition();
         Vector3 flat = nest - chest;
         flat.y = 0f;
-        const float minFlat = 1.05f;
+        const float minFlat = 1.15f;
         if (flat.sqrMagnitude < minFlat * minFlat)
         {
             Vector3 dir = flat.sqrMagnitude > 0.01f ? flat.normalized : _lookAt.right;
@@ -569,7 +571,10 @@ public partial class AdventureRustDrone
         Camera cam = Camera.main;
         if (cam == null) return;
 
-        Vector3 safe = IsClimaxOverdrive
+        var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        bool isEpilogueGliding = (towerMgr != null && (towerMgr.EpilogueTriggered || towerMgr.EndingSequenceActive)) || IsClimaxOverdrive;
+
+        Vector3 safe = isEpilogueGliding
             ? GetOverdriveShoulderNestle()
             : VisibleBesideNikoOnScreen(
                 _climaxHealing ? 0.75f : 0.55f,
@@ -771,7 +776,22 @@ public partial class AdventureRustDrone
 
     public void TickClimaxOverdriveBooster()
     {
-        // 激しい点滅は全廃し、穏やかで落ち着いた状態を維持
+        var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        bool isEpilogueGliding = (towerMgr != null && (towerMgr.EpilogueTriggered || towerMgr.EndingSequenceActive)) || IsClimaxOverdrive;
+        if (isEpilogueGliding)
+        {
+            // エピローグ滑空中：引きカメラでもRustのシルエット・表情がくっきり映えるよう、スケールを1.35倍にふっくらボリュームアップ
+            transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * 1.35f, 6f * Time.deltaTime);
+
+            // ゴールドの温かい光彩アイライト（光量3.6f）を照射して夜空・滑空中でも抜群の視認性を確保
+            EnsureClimaxEyeLight(new Color(1f, 0.92f, 0.62f), 3.6f);
+
+            // 表情は満面の笑顔（^ ▽ ^）をキープ
+            if (_currentExpression != FaceExpressionType.Smiling)
+            {
+                SetExpression(FaceExpressionType.Smiling, 999f);
+            }
+        }
     }
 
     static void ApplyAdditiveParticleMaterial(GameObject go, Color color, bool isStretched = false, float velocityScale = 0.07f, float lengthScale = 1.8f)

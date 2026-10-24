@@ -886,10 +886,20 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
         else if (CurrentState == RustState.Petting)
         {
-            Vector3 lookTarget = (_skybreakNestle || IsClimaxCrisis || _prologueDistress)
-                ? GetNikoChestPosition() + Vector3.up * 0.2f
-                : GetNikoChestPosition() + Vector3.up * 0.32f;
-            to = lookTarget - transform.position;
+            var towerMgr = AdventureSanctuaryTowerManager.Instance;
+            bool isEpilogueGliding = (towerMgr != null && (towerMgr.EpilogueTriggered || towerMgr.EndingSequenceActive)) || IsClimaxOverdrive;
+            if (isEpilogueGliding && _lookAt != null)
+            {
+                // エピローグ滑空時は胸元ではなく、Floatの進行方向（カメラ手前方向）を主体に向く！
+                to = _lookAt.forward;
+            }
+            else
+            {
+                Vector3 lookTarget = (_skybreakNestle || IsClimaxCrisis || _prologueDistress)
+                    ? GetNikoChestPosition() + Vector3.up * 0.2f
+                    : GetNikoChestPosition() + Vector3.up * 0.32f;
+                to = lookTarget - transform.position;
+            }
         }
         else if (CurrentState == RustState.CampfireChill)
         {
@@ -928,9 +938,11 @@ public partial class AdventureRustDrone : MonoBehaviour
             {
                 look *= Quaternion.Euler(-18f + Mathf.Sin(Time.unscaledTime * 2.5f) * 6f, 0f, 8f);
             }
-            else if (IsClimaxOverdrive)
+            else if (IsClimaxOverdrive || (AdventureSanctuaryTowerManager.Instance != null && (AdventureSanctuaryTowerManager.Instance.EpilogueTriggered || AdventureSanctuaryTowerManager.Instance.EndingSequenceActive)))
             {
-                look *= Quaternion.Euler(-22f, 0f, Mathf.Sin(Time.time * 6f) * 10f);
+                // カメラ側＆Floatの進行方向を向いて、時折Floatを見やる愛らしいチルト
+                float glanceFloat = Mathf.Sin(Time.time * 2.2f) * 8f;
+                look *= Quaternion.Euler(-12f, glanceFloat, Mathf.Sin(Time.time * 5f) * 6f);
             }
             else if (CurrentState == RustState.Petting)
             {
@@ -1667,8 +1679,10 @@ public partial class AdventureRustDrone : MonoBehaviour
             return VisibleBesideNikoOnScreen(0.55f, 0.42f, 0.38f);
         }
 
-        // オーバードライブ「ありがとうNiko！翼は…」：右肩のすぐ外側
-        if (IsClimaxOverdrive)
+        // オーバードライブ＆エピローグ滑空中：右肩のすぐ外側・カメラ手前側の特等席
+        var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        bool isEpilogueGliding = (towerMgr != null && (towerMgr.EpilogueTriggered || towerMgr.EndingSequenceActive)) || IsClimaxOverdrive;
+        if (isEpilogueGliding)
             return GetOverdriveShoulderNestle();
 
         // 20pt達成後：RustはNikoの前方2.4m（中央タワーに向かうベクトル）へ先行飛行して先導！
