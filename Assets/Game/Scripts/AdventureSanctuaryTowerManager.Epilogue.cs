@@ -87,6 +87,7 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         SetCinematicCamera(true);
+        SetIslandOverviewCamera(true);
         SetExplorationHudVisible(false);
         try
         {
@@ -528,7 +529,23 @@ public partial class AdventureSanctuaryTowerManager
     {
         var follow = AdventureCameraFollow.Instance;
         if (follow != null)
+        {
             follow.SetCinematicMode(enabled);
+            if (!enabled)
+                follow.SetIslandOverviewMode(false);
+        }
+
+        if (!enabled)
+        {
+            AdventureCloudDrift.SetFluffyCloudsVisible(true);
+            AdventureCloudDrift.EnsureCloudSystem();
+            AdventureSkybreakVisuals.ApplyLiberationOceanSparkle(false);
+        }
+    }
+
+    static void SetIslandOverviewCamera(bool enabled)
+    {
+        AdventureCameraFollow.Instance?.SetIslandOverviewMode(enabled);
     }
 
     void SpawnEpilogueRainbow()

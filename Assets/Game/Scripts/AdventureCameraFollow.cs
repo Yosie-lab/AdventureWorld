@@ -59,6 +59,9 @@ public class AdventureCameraFollow : MonoBehaviour
 
     bool _cinematic;
     float _cinematicBlend;
+    bool _islandOverview;
+    float _islandOverviewBlend;
+    float _skyWideSideBias;
     const float CinematicDistance = 7.4f;
     const float CinematicHeight = 1.8f;
     const float CinematicFov = 78f;
@@ -83,6 +86,16 @@ public class AdventureCameraFollow : MonoBehaviour
         _cinematic = enabled;
         if (!enabled)
             _cinematicBlend = 0f;
+    }
+
+    /// <summary>「全力で行こう!!」以降：Float・Rust・ウミネコと島・海が同時に入る広い大空ショット</summary>
+    public void SetIslandOverviewMode(bool enabled)
+    {
+        _islandOverview = enabled;
+        if (enabled && Mathf.Abs(_skyWideSideBias) < 0.01f)
+            _skyWideSideBias = Random.value > 0.5f ? 24f : -24f;
+        if (!enabled)
+            _islandOverviewBlend = 0f;
     }
 
     /// <summary>地面・衝撃用のカメラ揺れ（天蓋裂開など）。intensity はワールドメートル相当。</summary>
@@ -566,7 +579,14 @@ public class AdventureCameraFollow : MonoBehaviour
             }
         }
 
-        if (cine > 0.4f && !isAutoGlide && !cursorLook)
+        if (_islandOverviewBlend > 0.12f && target != null)
+        {
+            float playerYaw = target.eulerAngles.y;
+            float sway = Mathf.Sin(Time.unscaledTime * 0.11f) * 4.5f;
+            _targetYaw = playerYaw + 180f + _skyWideSideBias + sway;
+            _targetPitch = Mathf.Lerp(_targetPitch, 10f + Mathf.Sin(Time.unscaledTime * 0.08f) * 2.2f, _islandOverviewBlend);
+        }
+        else if (cine > 0.4f && !isAutoGlide && !cursorLook)
             _targetPitch = Mathf.Clamp(_targetPitch, -6f, 22f);
 
         if (ShouldUseInstantLook(isAutoGlide, cine, walkingGround, cursorLook))
@@ -591,6 +611,10 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void ApplyCameraRig()
     {
+        float overviewTarget = _islandOverview ? 1f : 0f;
+        _islandOverviewBlend = Mathf.MoveTowards(
+            _islandOverviewBlend, overviewTarget, Time.unscaledDeltaTime * 0.48f);
+
         var player = AdventurePlayerController.InstanceOrFind();
         bool isGliding = player != null && player.IsGliding;
         bool isAutoGlide = player != null && player.IsAutoGliding;
@@ -649,6 +673,8 @@ public class AdventureCameraFollow : MonoBehaviour
         float walkBaseFov = AdventureRustFloatFeel.IsActiveScene ? AdventureRustFloatFeel.WalkFov : 64f;
         float glideBaseFov = walkBaseFov + 4f;
         float cineFov = (isAutoGlide && cine > 0.3f) ? 78f : CinematicFov;
+        if (_islandOverviewBlend > 0.01f)
+            cineFov = Mathf.Lerp(cineFov, 88f, _islandOverviewBlend);
         float targetFov = Mathf.Lerp(isGliding ? glideBaseFov : walkBaseFov, cineFov, cine);
 
         // 70mメガジャンプ・急上昇・高速滑空ブーストによるダイナミックFOV（最大82°までワイド化）
@@ -665,6 +691,8 @@ public class AdventureCameraFollow : MonoBehaviour
         }
 
         float cineDist = (isAutoGlide && cine > 0.3f) ? 8.5f : CinematicDistance;
+        if (_islandOverviewBlend > 0.01f)
+            cineDist = Mathf.Lerp(cineDist, 16.5f, _islandOverviewBlend);
         float speedExtraDist = (player != null && player.IsUpdraftAscending) ? (player.SpeedIntensity * 1.6f) : 0f;
         float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.2f) : distance, cineDist, cine) + speedExtraDist;
         
@@ -696,7 +724,25 @@ public class AdventureCameraFollow : MonoBehaviour
         }
 
         Vector3 targetPos = _currentPivot + currentRot * new Vector3(0f, 0f, -_currentDistance);
-        if (!inAir)
+        if (_islandOverviewBlend > 0.02f && target != null)
+        {
+            float b = _islandOverviewBlend;
+            Vector3 pivot = target.position + Vector3.up * (2.0f + 2.4f * b);
+            _currentPivot = Vector3.Lerp(_currentPivot, pivot, 0.14f + 0.30f * b);
+
+            float playerYaw = target.eulerAngles.y;
+            float sway = Mathf.Sin(Time.unscaledTime * 0.11f) * 4.5f;
+            float camYaw = playerYaw + 180f + _skyWideSideBias + sway;
+            float camPitch = Mathf.Lerp(6f, 14f, b);
+            float dist = Mathf.Lerp(10f, 17.5f, b);
+
+            currentRot = Quaternion.Slerp(currentRot, Quaternion.Euler(camPitch, camYaw, 0f), b);
+            targetPos = _currentPivot + Quaternion.Euler(camPitch, camYaw, 0f) * new Vector3(0f, 0.35f * b, -dist);
+            targetPos.y = Mathf.Max(targetPos.y, target.position.y + 3.5f + 5.5f * b);
+            _currentDistance = dist;
+        }
+
+        if (!inAir && _islandOverviewBlend < 0.25f)
         {
             float minCamY = Mathf.Lerp(1.15f, 1.35f, cine);
             targetPos.y = Mathf.Max(targetPos.y, target.position.y + minCamY);
@@ -704,7 +750,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
         if (_land == null)
             _land = AdventureQuestLocations.FindLand();
-        if (_land != null)
+        if (_land != null && _islandOverviewBlend < 0.35f)
         {
             float groundY = AdventureQuestLocations.GroundY(_land, targetPos.x, targetPos.z) + 0.85f;
             float groundSmooth = walkingGround ? 0.14f : 0.06f;

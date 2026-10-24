@@ -627,6 +627,8 @@ public class AdventureDayNightDirector : MonoBehaviour
 
             float baseInt = Mathf.Lerp(5.2f, 3.2f, night);
             float targetGlitterInt = Mathf.Lerp(baseInt, 11.0f, sunset);
+            if (AdventureCurvedHorizonOcean.LiberationSparkleBoostActive)
+                targetGlitterInt *= 1.85f;
 
             if (_oceanMat.HasProperty("_SunGlitterColor"))
             {

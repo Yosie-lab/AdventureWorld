@@ -75,6 +75,7 @@ public static class AdventureSkybreakVisuals
 
         if (coldCrisis)
         {
+            ApplyLiberationOceanSparkle(false);
             // 限界中：オープニングの高品質映画的空を基調に、天蓋が割れて冷涼な光芒と冷気ミストが天空から降り注ぐ
             ApplySkyboxForSkybreak(coldCrisis: true);
             SpawnSkybreakGodRays(panoramaGo.transform, unlit, coldCrisis: true);
@@ -82,12 +83,19 @@ public static class AdventureSkybreakVisuals
         }
         else
         {
-            // 突破後：オープニングの空が全開に広がり、黄金の祝福光芒と光粒子が空を舞う
+            // 突破後：空はスカイボックスのみ。主役は実海面のキラキリ
             ApplySkyboxForSkybreak(coldCrisis: false);
-            SpawnSkybreakGodRays(panoramaGo.transform, unlit, coldCrisis: false);
-            SpawnLiberationDust(panoramaGo.transform, golden: true);
-            AdventureCloudDrift.EnsureCloudSystem();
+            AdventureCloudDrift.SetFluffyCloudsVisible(false);
+            ApplyLiberationOceanSparkle(true);
         }
+    }
+
+    /// <summary>クライマックス解放〜大空ショット中、海面グリッターとパーティクルを強調</summary>
+    public static void ApplyLiberationOceanSparkle(bool enabled)
+    {
+        AdventureCurvedHorizonOcean.SetLiberationSparkleBoost(enabled);
+        var oceanSparkle = AdventureOceanSparkleVFX.Ensure();
+        oceanSparkle?.SetLiberationBoost(enabled);
     }
 
     /// <summary>天蓋の裂け目から島全体へ降り注ぐ映画的シネマティック光芒（God Rays）</summary>
@@ -101,21 +109,24 @@ public static class AdventureSkybreakVisuals
         var rayMat = new Material(Shader.Find("Sprites/Default") ?? unlit);
         Color rayColor = coldCrisis
             ? new Color(0.70f, 0.90f, 1.0f, 0.08f)  // 寒冷限界：澄み渡る蒼白の淡い光芒
-            : new Color(1.0f, 0.94f, 0.72f, 0.12f); // 解放後：黄金に輝く祝福の淡い光芒
+            : new Color(1.0f, 0.98f, 0.92f, 0.045f); // 解放後：透明な白〜淡金の光筋
         rayMat.color = rayColor;
 
-        for (int r = 0; r < 8; r++)
+        int rayCount = coldCrisis ? 8 : 10;
+        for (int r = 0; r < rayCount; r++)
         {
             var ray = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             ray.name = $"GodRay_{r}";
             ray.transform.SetParent(raysGo.transform, false);
-            float angle = r * (360f / 8f) + Random.Range(-10f, 10f);
-            float tilt = Random.Range(15f, 30f);
+            float angle = r * (360f / rayCount) + Random.Range(-10f, 10f);
+            float tilt = coldCrisis ? Random.Range(15f, 30f) : Random.Range(52f, 68f);
             // プレイヤー（半径0〜50m）から遥かに離れた外周（280m〜380m）に配置して絶対に遮蔽しない
             float dist = Random.Range(280f, 380f);
             ray.transform.localPosition = new Vector3(Mathf.Cos(angle * Mathf.Deg2Rad) * dist, 40f, Mathf.Sin(angle * Mathf.Deg2Rad) * dist);
             ray.transform.localRotation = Quaternion.Euler(tilt, angle, 0f);
-            ray.transform.localScale = new Vector3(12f, 220f, 12f);
+            ray.transform.localScale = coldCrisis
+                ? new Vector3(12f, 220f, 12f)
+                : new Vector3(2.2f, 260f, 2.2f);
             Object.Destroy(ray.GetComponent<Collider>());
             var rend = ray.GetComponent<Renderer>();
             if (rend != null)

@@ -33,6 +33,12 @@ public class AdventureCurvedHorizonOcean : MonoBehaviour
     private MeshFilter _meshFilter;
     private MeshRenderer _meshRenderer;
 
+    public static bool LiberationSparkleBoostActive { get; private set; }
+    const float DefaultOverheadSparkle = 1.6f;
+    const float DefaultSparkleScale = 1.8f;
+    const float LiberationOverheadSparkle = 3.4f;
+    const float LiberationSparkleScale = 2.45f;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     public static void RuntimeInit()
     {
@@ -334,6 +340,30 @@ public class AdventureCurvedHorizonOcean : MonoBehaviour
         mesh.RecalculateBounds();
 
         return mesh;
+    }
+
+    public static void SetLiberationSparkleBoost(bool enabled)
+    {
+        LiberationSparkleBoostActive = enabled;
+        Ensure();
+        if (_instance == null) return;
+
+        var mat = _instance._meshRenderer != null ? _instance._meshRenderer.sharedMaterial : null;
+        if (mat == null) return;
+
+        if (mat.HasProperty("_OverheadSparkleIntensity"))
+        {
+            mat.SetFloat("_OverheadSparkleIntensity",
+                enabled ? LiberationOverheadSparkle : DefaultOverheadSparkle);
+        }
+        if (mat.HasProperty("_SparkleScale"))
+        {
+            mat.SetFloat("_SparkleScale", enabled ? LiberationSparkleScale : DefaultSparkleScale);
+        }
+        if (mat.HasProperty("_SunGlitterColor") && enabled)
+        {
+            mat.SetColor("_SunGlitterColor", new Color(1f, 0.99f, 0.92f, 1f));
+        }
     }
 
     private void EnsureCameraClipDistance()

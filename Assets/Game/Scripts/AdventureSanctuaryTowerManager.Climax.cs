@@ -27,6 +27,7 @@ public partial class AdventureSanctuaryTowerManager
         var player = GetPlayer();
 
         SetCinematicCamera(true);
+        SetIslandOverviewCamera(false);
         EnsureCinematicLetterbox();
         if (_letterboxRoot != null)
         {
@@ -133,6 +134,8 @@ public partial class AdventureSanctuaryTowerManager
             var drone = GetDrone();
             if (drone != null)
                 drone.TriggerClimaxOverdrive();
+
+            SetIslandOverviewCamera(true);
 
             var cam = AdventureCameraFollow.Instance;
             if (cam != null)

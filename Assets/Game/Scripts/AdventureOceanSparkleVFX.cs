@@ -21,21 +21,65 @@ public class AdventureOceanSparkleVFX : MonoBehaviour
     private ParticleSystem _particleSystem;
     private ParticleSystemRenderer _particleRenderer;
     private Transform _targetTransform;
+    private bool _liberationBoost;
+
+    const float BaseEmissionRate = 220f;
+    const float BaseShapeX = 220f;
+    const int BaseMaxParticles = 600;
+    const float LiberationEmissionRate = 520f;
+    const float LiberationShapeX = 480f;
+    const int LiberationMaxParticles = 1400;
 
     public const float OceanSurfaceY = 5.54f;
 
-    public static void Ensure()
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void AutoInit()
     {
-        if (_instance != null) return;
+        Ensure();
+    }
+
+    public static AdventureOceanSparkleVFX Ensure()
+    {
+        if (_instance != null)
+        {
+            _instance.SetupSparkleSystemIfNeeded();
+            return _instance;
+        }
+
         var existing = Object.FindAnyObjectByType<AdventureOceanSparkleVFX>();
         if (existing != null)
         {
             _instance = existing;
-            return;
+            _instance.SetupSparkleSystemIfNeeded();
+            return _instance;
         }
 
-        var go = new GameObject("AdventureOceanSparkleVFX");
-        _instance = go.AddComponent<AdventureOceanSparkleVFX>();
+        var sceneRoot = GameObject.Find(SparkleGameObjectName);
+        GameObject go;
+        if (sceneRoot != null)
+        {
+            go = sceneRoot;
+            _instance = go.GetComponent<AdventureOceanSparkleVFX>() ?? go.AddComponent<AdventureOceanSparkleVFX>();
+        }
+        else
+        {
+            go = new GameObject("AdventureOceanSparkleVFX");
+            _instance = go.AddComponent<AdventureOceanSparkleVFX>();
+        }
+
+        if (Application.isPlaying)
+            Object.DontDestroyOnLoad(go);
+
+        _instance.SetupSparkleSystemIfNeeded();
+        return _instance;
+    }
+
+    public void SetLiberationBoost(bool enabled)
+    {
+        _liberationBoost = enabled;
+        if (_particleSystem == null)
+            SetupSparkleSystemIfNeeded();
+        ApplyEmissionProfile();
     }
 
     private void Awake()
@@ -79,13 +123,7 @@ public class AdventureOceanSparkleVFX : MonoBehaviour
         if (_particleSystem == null) _particleSystem = pGo.AddComponent<ParticleSystem>();
         _particleRenderer = pGo.GetComponent<ParticleSystemRenderer>();
 
-#if UNITY_EDITOR
-        var glitterMat = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath);
-        if (glitterMat != null && _particleRenderer != null)
-        {
-            _particleRenderer.sharedMaterial = glitterMat;
-        }
-#endif
+        EnsureGlitterMaterial();
 
         var main = _particleSystem.main;
         main.loop = true;
@@ -93,16 +131,9 @@ public class AdventureOceanSparkleVFX : MonoBehaviour
         main.startSpeed = 0.05f;
         main.startSize = new ParticleSystem.MinMaxCurve(0.35f, 0.85f);
         main.startColor = new Color(1f, 1f, 0.98f, 0.95f);
-        main.maxParticles = 600;
+        main.maxParticles = BaseMaxParticles;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
         main.scalingMode = ParticleSystemScalingMode.Shape;
-
-        var emission = _particleSystem.emission;
-        emission.rateOverTime = 220f; // 高密度なキラキラ
-
-        var shape = _particleSystem.shape;
-        shape.shapeType = ParticleSystemShapeType.Box;
-        shape.scale = new Vector3(220f, 0.25f, 220f); // プレイヤー周囲半径110mの広大な海面をカバー
 
         var col = _particleSystem.colorOverLifetime;
         col.enabled = true;
@@ -136,8 +167,59 @@ public class AdventureOceanSparkleVFX : MonoBehaviour
         rot.enabled = true;
         rot.z = new ParticleSystem.MinMaxCurve(-45f, 45f);
 
+        ApplyEmissionProfile();
+
         if (!_particleSystem.isPlaying)
             _particleSystem.Play();
+    }
+
+    void EnsureGlitterMaterial()
+    {
+        if (_particleRenderer == null) return;
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            var glitterMat = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath);
+            if (glitterMat != null)
+                _particleRenderer.sharedMaterial = glitterMat;
+            return;
+        }
+#endif
+        if (_particleRenderer.sharedMaterial != null) return;
+
+        var sh = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                 ?? Shader.Find("Universal Render Pipeline/Particles/Additive")
+                 ?? Shader.Find("Sprites/Default");
+        var mat = new Material(sh);
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        mat.SetInt("_ZWrite", 0);
+        mat.renderQueue = 3100;
+        if (mat.HasProperty("_BaseColor"))
+            mat.SetColor("_BaseColor", Color.white);
+        else
+            mat.color = Color.white;
+        _particleRenderer.material = mat;
+    }
+
+    void ApplyEmissionProfile()
+    {
+        if (_particleSystem == null) return;
+
+        float rate = _liberationBoost ? LiberationEmissionRate : BaseEmissionRate;
+        float span = _liberationBoost ? LiberationShapeX : BaseShapeX;
+        int maxP = _liberationBoost ? LiberationMaxParticles : BaseMaxParticles;
+
+        var main = _particleSystem.main;
+        main.maxParticles = maxP;
+
+        var emission = _particleSystem.emission;
+        emission.rateOverTime = rate;
+
+        var shape = _particleSystem.shape;
+        shape.shapeType = ParticleSystemShapeType.Box;
+        shape.scale = new Vector3(span, 0.25f, span);
     }
 
     private void UpdatePositionAndIntensity()

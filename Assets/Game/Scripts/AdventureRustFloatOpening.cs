@@ -41,8 +41,14 @@ public class AdventureRustFloatOpening : MonoBehaviour
         "……隣には、スクラップ寸前で連れ出した相棒ドローン、Rust。\n" +
         "島を巡って翼を直し、あの自由な蒼穹（そら）へ飛び立とう。";
 
+    const string PreStartCaptureAssetPath = "Assets/RustAndFloat/Textures/CurrentSceneCapture.png";
+    const string PreStartCaptureResourcesPath = "CurrentSceneCapture";
+
     GameObject _canvasGo;
     GameObject _overlayGo;
+    GameObject _preStartImageRoot;
+    RawImage _preStartImage;
+    Texture2D _preStartTexture;
     GameObject _modalBoard;
     CanvasGroup _modalCg;
     Text _guideText;
@@ -104,6 +110,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_overlayGo != null) _overlayGo.SetActive(false);
         if (_modalBoard != null) _modalBoard.SetActive(false);
         if (_modalCg != null) _modalCg.alpha = 0f;
+        SetPreStartImageVisible(false);
         if (_guideText != null) _guideText.gameObject.SetActive(true);
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -133,6 +140,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
             BuildHud();
 
         if (_overlayGo != null) _overlayGo.SetActive(true);
+        SetPreStartImageVisible(true);
         EnsureTitleStoryTextVisible();
         if (_modalBoard != null)
         {
@@ -290,12 +298,15 @@ public class AdventureRustFloatOpening : MonoBehaviour
         {
             if (_overlayGo != null) _overlayGo.SetActive(false);
             if (_modalBoard != null) _modalBoard.SetActive(false);
+            SetPreStartImageVisible(false);
             IsGameStarted = true;
             if (_guideText != null) _guideText.gameObject.SetActive(true);
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
             return;
         }
+
+        SetPreStartImageVisible(true);
 
         // タイトル画面のセーブ状況を更新して表示
         RefreshSaveDataStatus();
@@ -613,6 +624,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
             _modalBoard.SetActive(false);
         if (_modalCg != null)
             _modalCg.alpha = 0f;
+        SetPreStartImageVisible(false);
         IsGameStarted = true;
         _isClosing = false;
         _inputGuardUntil = Mathf.Max(_inputGuardUntil, Time.unscaledTime + 0.40f);
@@ -683,6 +695,9 @@ public class AdventureRustFloatOpening : MonoBehaviour
             _guideText = null;
             _storyHeaderText = null;
             _storyBodyText = null;
+            _preStartImageRoot = null;
+            _preStartImage = null;
+            _preStartTexture = null;
         }
 
         // 孤児化した旧HUDがあれば掃除
@@ -707,6 +722,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
         _canvasGo.AddComponent<GraphicRaycaster>();
 
         Font font = ResolveFont();
+
+        CreatePreStartBackground();
 
         // 1. 画面最上部中央の水平リボンコンパスHUD
         AdventureCompassHUD.Create(_canvasGo.transform, font);
@@ -735,7 +752,9 @@ public class AdventureRustFloatOpening : MonoBehaviour
         overlayRt.anchorMax = Vector2.one;
         overlayRt.sizeDelta = Vector2.zero;
         var overlayImg = _overlayGo.AddComponent<Image>();
-        overlayImg.color = new Color(0.02f, 0.05f, 0.09f, 0.38f);
+        overlayImg.color = _preStartTexture != null
+            ? new Color(0.02f, 0.05f, 0.09f, 0.20f)
+            : new Color(0.02f, 0.05f, 0.09f, 0.38f);
         overlayImg.raycastTarget = false;
 
         // 4. メインタイトルボード（洗練されたグラスモーフィズムカード: 幅860, 高さ540）
@@ -946,20 +965,13 @@ public class AdventureRustFloatOpening : MonoBehaviour
         Canvas.ForceUpdateCanvases();
     }
 
-    /// <summary>左カードは常に物語テキスト。旧 PreStartPreview / 全画面キャプチャを除去。</summary>
+    /// <summary>左カードは物語テキスト。背景は CurrentSceneCapture の全画面表示。</summary>
     void EnsureTitleStoryTextVisible()
     {
         if (_storyHeaderText != null)
             _storyHeaderText.gameObject.SetActive(true);
         if (_storyBodyText != null)
             _storyBodyText.gameObject.SetActive(true);
-
-        if (_canvasGo == null)
-            return;
-
-        var legacyBg = _canvasGo.transform.Find("PreStartCaptureBackground");
-        if (legacyBg != null)
-            Destroy(legacyBg.gameObject);
 
         if (_modalBoard == null)
             return;
@@ -975,6 +987,48 @@ public class AdventureRustFloatOpening : MonoBehaviour
         var storyPanel = left.Find("StoryTextPanel") as RectTransform;
         if (storyPanel != null)
             EnsureTitleStoryPanelLayout(storyPanel);
+    }
+
+    void CreatePreStartBackground()
+    {
+        _preStartTexture = LoadPreStartCaptureTexture();
+        if (_preStartTexture == null)
+            return;
+
+        _preStartImageRoot = new GameObject("PreStartCaptureBackground");
+        _preStartImageRoot.transform.SetParent(_canvasGo.transform, false);
+        _preStartImageRoot.transform.SetAsFirstSibling();
+
+        var rt = _preStartImageRoot.AddComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        _preStartImage = _preStartImageRoot.AddComponent<RawImage>();
+        _preStartImage.texture = _preStartTexture;
+        _preStartImage.raycastTarget = false;
+        _preStartImage.color = Color.white;
+
+        var fitter = _preStartImageRoot.AddComponent<AspectRatioFitter>();
+        fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+        fitter.aspectRatio = (float)_preStartTexture.width / Mathf.Max(1, _preStartTexture.height);
+    }
+
+    void SetPreStartImageVisible(bool visible)
+    {
+        if (_preStartImageRoot != null)
+            _preStartImageRoot.SetActive(visible);
+    }
+
+    static Texture2D LoadPreStartCaptureTexture()
+    {
+#if UNITY_EDITOR
+        var editorTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(PreStartCaptureAssetPath);
+        if (editorTex != null)
+            return editorTex;
+#endif
+        return Resources.Load<Texture2D>(PreStartCaptureResourcesPath);
     }
 
     void CreateRightMenuCard(Transform parent, Font font)
