@@ -59,8 +59,10 @@ public class AdventureCameraFollow : MonoBehaviour
 
     bool _cinematic;
     float _cinematicBlend;
+    float _cinematicProgress;
     bool _islandOverview;
     float _islandOverviewBlend;
+    float _overviewProgress;
     float _skyWideSideBias;
     bool _titleClimaxSplash;
     Transform _savedFollowTarget;
@@ -68,6 +70,13 @@ public class AdventureCameraFollow : MonoBehaviour
     const float CinematicHeight = 1.8f;
     const float CinematicFov = 78f;
     const float CinematicBlendSpeed = 1.35f;
+
+    /// <summary>3次ベジェ・完全ゼロショック（初速0・終速0・加速度連続）イージング関数</summary>
+    public static float EaseInOutCubic(float t)
+    {
+        t = Mathf.Clamp01(t);
+        return t < 0.5f ? 4f * t * t * t : 1f - Mathf.Pow(-2f * t + 2f, 3f) * 0.5f;
+    }
 
     bool _lookUpdatedThisFrame;
 
@@ -80,24 +89,31 @@ public class AdventureCameraFollow : MonoBehaviour
 
     /// <summary>接地フラグの瞬間切替で歩行↔空中カメラが揺れないようブレンド</summary>
     float _walkGroundBlend = 1f;
+    float _walkGroundProgress = 1f;
     const float WalkPivotVerticalSmooth = 0.095f;
     const float WalkDistanceSmooth = 0.075f;
 
-    public void SetCinematicMode(bool enabled)
+    public void SetCinematicMode(bool enabled, bool instant = false)
     {
         _cinematic = enabled;
-        if (!enabled)
-            _cinematicBlend = 0f;
+        if (instant)
+        {
+            _cinematicProgress = enabled ? 1f : 0f;
+            _cinematicBlend = _cinematicProgress;
+        }
     }
 
     /// <summary>「全力で行こう!!」以降：Float・Rust・ウミネコと島・海が同時に入る広い大空ショット</summary>
-    public void SetIslandOverviewMode(bool enabled)
+    public void SetIslandOverviewMode(bool enabled, bool instant = false)
     {
         _islandOverview = enabled;
         if (enabled && Mathf.Abs(_skyWideSideBias) < 0.01f)
             _skyWideSideBias = Random.value > 0.5f ? 24f : -24f;
-        if (!enabled)
-            _islandOverviewBlend = 0f;
+        if (instant)
+        {
+            _overviewProgress = enabled ? 1f : 0f;
+            _islandOverviewBlend = _overviewProgress;
+        }
     }
 
     /// <summary>タイトル待機：クライマックス広角と同じ構図でライブ背景</summary>
@@ -112,10 +128,8 @@ public class AdventureCameraFollow : MonoBehaviour
             target = splashPivot;
 
             _skyWideSideBias = 24f;
-            SetCinematicMode(true);
-            _cinematicBlend = 1f;
-            SetIslandOverviewMode(true);
-            _islandOverviewBlend = 1f;
+            SetCinematicMode(true, instant: true);
+            SetIslandOverviewMode(true, instant: true);
 
             float pivotYaw = splashPivot.eulerAngles.y;
             float camYaw = pivotYaw + 180f + _skyWideSideBias;
@@ -546,9 +560,11 @@ public class AdventureCameraFollow : MonoBehaviour
     void UpdateWalkGroundBlend(bool playerGrounded)
     {
         if (playerGrounded)
-            _walkGroundBlend = Mathf.MoveTowards(_walkGroundBlend, 1f, Time.deltaTime / 0.07f);
+            _walkGroundProgress = Mathf.MoveTowards(_walkGroundProgress, 1f, Time.deltaTime / 0.09f);
         else
-            _walkGroundBlend = Mathf.MoveTowards(_walkGroundBlend, 0f, Time.deltaTime / 0.11f);
+            _walkGroundProgress = Mathf.MoveTowards(_walkGroundProgress, 0f, Time.deltaTime / 0.12f);
+
+        _walkGroundBlend = Mathf.SmoothStep(0f, 1f, _walkGroundProgress);
     }
 
     /// <summary>歩行カメラ判定（ApplyCameraRig と ApplyLookSmoothing で同一基準）</summary>
@@ -591,7 +607,8 @@ public class AdventureCameraFollow : MonoBehaviour
             SetCinematicMode(false);
 
         float blendTarget = _cinematic ? 1f : 0f;
-        _cinematicBlend = Mathf.MoveTowards(_cinematicBlend, blendTarget, CinematicBlendSpeed * Time.unscaledDeltaTime);
+        _cinematicProgress = Mathf.MoveTowards(_cinematicProgress, blendTarget, CinematicBlendSpeed * Time.unscaledDeltaTime);
+        _cinematicBlend = EaseInOutCubic(_cinematicProgress);
         float cine = _cinematicBlend;
 
         UpdateWalkGroundBlend(playerGrounded);
@@ -658,8 +675,9 @@ public class AdventureCameraFollow : MonoBehaviour
     void ApplyCameraRig()
     {
         float overviewTarget = _islandOverview ? 1f : 0f;
-        _islandOverviewBlend = Mathf.MoveTowards(
-            _islandOverviewBlend, overviewTarget, Time.unscaledDeltaTime * 0.48f);
+        _overviewProgress = Mathf.MoveTowards(
+            _overviewProgress, overviewTarget, Time.unscaledDeltaTime * 0.48f);
+        _islandOverviewBlend = EaseInOutCubic(_overviewProgress);
 
         var player = AdventurePlayerController.InstanceOrFind();
         bool isGliding = player != null && player.IsGliding;
@@ -771,10 +789,10 @@ public class AdventureCameraFollow : MonoBehaviour
         }
 
         Vector3 targetPos = _currentPivot + currentRot * new Vector3(0f, 0f, -_currentDistance);
-        if (_islandOverviewBlend > 0.02f && target != null)
+        if (_islandOverviewBlend > 0.01f && target != null)
         {
             float b = _islandOverviewBlend;
-            float smoothB = Mathf.SmoothStep(0f, 1f, b);
+            float smoothB = EaseInOutCubic(b);
             Vector3 pivot = target.position + Vector3.up * (2.0f + 2.4f * smoothB);
             _currentPivot = Vector3.Lerp(_currentPivot, pivot, 0.14f + 0.30f * smoothB);
 
