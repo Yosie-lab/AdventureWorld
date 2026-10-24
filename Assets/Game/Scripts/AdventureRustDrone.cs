@@ -153,12 +153,14 @@ public partial class AdventureRustDrone : MonoBehaviour
             CurrentState = RustState.Petting;
             _stateTimer = duration;
             _velocity = Vector3.zero; // 物理的な跳ね上がりや落下速度をクリアし、胸元へスムーズに引き寄せる
+            SetExpression(FaceExpressionType.Smiling, duration + 0.5f);
         }
         else
         {
             if (CurrentState == RustState.Petting)
             {
                 TriggerAffectionJoy();
+                SetExpression(FaceExpressionType.Joyful, 2.5f);
             }
         }
     }
@@ -628,6 +630,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         TickClimaxOverdriveBooster();
         UpdateSmartCameraOcclusion();
         UpdateRealtimeCompanionReactions();
+        UpdateFaceExpressionAnimation();
 
         if (_lookAt == null)
             return;
@@ -2673,6 +2676,7 @@ public partial class AdventureRustDrone : MonoBehaviour
         _speechShowTime = 0f;
         var player = AdventurePlayerController.Instance;
         _speechPlayerStartPos = player != null ? player.transform.position : transform.position;
+        AutoTriggerExpressionFromSpeech(_speechText, duration);
     }
 
     /// <summary>探索中の気軽な話しかけ（自動で消え、次のセリフが続きやすい）</summary>
@@ -2685,6 +2689,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             duration > 0f ? duration : AdventureSpeechBoardLayout.RustIdleChatDuration);
         _waitingForPlayerAction = false;
         _speechShowTime = 0f;
+        AutoTriggerExpressionFromSpeech(_speechText, duration);
     }
 
     public bool HasActiveSpeech => _speechTimer > 0.05f && !string.IsNullOrEmpty(_speechText);
