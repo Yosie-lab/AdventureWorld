@@ -640,6 +640,13 @@ public class AdventureDayNightDirector : MonoBehaviour
                 float curInt = _oceanMat.GetFloat("_SunGlitterIntensity");
                 _oceanMat.SetFloat("_SunGlitterIntensity", Mathf.Lerp(curInt, targetGlitterInt, dt * 2.0f));
             }
+            if (_oceanMat.HasProperty("_SunRoadIntensity"))
+            {
+                // 夕暮れ時に一直線に伸びる黄金の光条を3.2fへブースト（夕日マジックアワー）
+                float targetRoadInt = Mathf.Lerp(1.2f, 3.2f, sunset);
+                float curRoadInt = _oceanMat.GetFloat("_SunRoadIntensity");
+                _oceanMat.SetFloat("_SunRoadIntensity", Mathf.Lerp(curRoadInt, targetRoadInt, dt * 2.0f));
+            }
         }
     }
 

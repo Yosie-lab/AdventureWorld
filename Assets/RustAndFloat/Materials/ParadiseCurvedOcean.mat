@@ -43,6 +43,7 @@ Material:
     - _SparkleScale: 2.45
     - _SunGlitterExponent: 80
     - _SunGlitterIntensity: 5.2
+    - _SunRoadIntensity: 2.2
     - _WaveScale1: 0.035
     - _WaveScale2: 0.085
     m_Colors:

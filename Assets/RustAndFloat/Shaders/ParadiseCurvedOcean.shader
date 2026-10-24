@@ -25,6 +25,7 @@ Shader "RustAndFloat/ParadiseCurvedOcean"
         _SunGlitterExponent ("きらめき集中度", Range(16, 256)) = 80
         _SparkleScale ("星屑グリッタースケール", Float) = 1.6
         _OverheadSparkleIntensity ("上空見下ろし波のキラキラ強度", Range(0.0, 5.0)) = 2.2
+        _SunRoadIntensity ("夕日サンセット・ゴールドロード強度", Range(0.0, 5.0)) = 2.2
 
         [Header(Curved Horizon)]
         _IslandCenter ("島中心ワールド座標 (XZ)", Vector) = (512, 5.5, 512, 0)
@@ -97,6 +98,7 @@ Shader "RustAndFloat/ParadiseCurvedOcean"
                 float _SunGlitterExponent;
                 float _SparkleScale;
                 float _OverheadSparkleIntensity;
+                float _SunRoadIntensity;
                 float _ShallowRadius;
                 float _DeepRadius;
                 float _HorizonRadius;
@@ -206,11 +208,35 @@ Shader "RustAndFloat/ParadiseCurvedOcean"
                 // 4. 太陽方向の散乱照り返し（波頭のハイライト）
                 float crestSunGlitter = pow(saturate(dot(normalWS, lightDir)), 8.0) * waveCrest * 0.55;
 
+                // 5. 海面サンセット・ゴールドロード（夕暮れの太陽光条・水平線から手前へ一直線に伸びる黄金の光の道）
+                float3 sunFlat = normalize(float3(lightDir.x, 0.0, lightDir.z));
+                float3 viewFlat = normalize(float3(-viewDirWS.x, 0.0, -viewDirWS.z));
+                float sunFacing = saturate(dot(sunFlat, viewFlat)); // 太陽を正面に見ている度合い
+
+                // 太陽高度（夕暮れ・低角度で強く伸びる）
+                float lowSun = saturate((0.48 - lightDir.y) * 2.6);
+
+                // 太陽方向と直交する軸（左右の広がりを抑えて縦長の光の道を作る）
+                float3 sunSide = normalize(cross(float3(0, 1, 0), sunFlat));
+                float3 toPixel = normalize(posWS - _WorldSpaceCameraPos);
+                float sideDot = abs(dot(toPixel, sunSide));
+                float sunRoadBeam = exp(-sideDot * sideDot * 42.0); // 左右の広がりをシャープに絞る
+
+                // 波頭のきらめきと異方性ハイライトの融合
+                float roadRipple = pow(saturate(dot(normalWS, halfDir)), 18.0);
+                float sunRoadGlitter = roadRipple * sunRoadBeam * sunFacing * lowSun * _SunRoadIntensity;
+
+                // 豊かでドラマチックなアンバー〜シャンパンゴールドの光条
+                float3 sunRoadColor = float3(1.0, 0.72, 0.28) * sunRoadGlitter * 2.5;
+
                 float totalGlitter = (spec + sunSparkle) * _SunGlitterIntensity + (overheadSparkle + crestSunGlitter);
-                float3 glitterColor = totalGlitter * _SunGlitterColor.rgb * (lightColor * 0.65 + 0.35);
+                float3 glitterColor = totalGlitter * _SunGlitterColor.rgb * (lightColor * 0.65 + 0.35) + sunRoadColor;
+
+                // 夕暮れ時に水面ベースカラーへ夕焼けトワイライトの暖かみが上品に溶け込む
+                float3 sunsetWaterTint = lerp(diffuseWater, float3(0.55, 0.28, 0.38) * 0.8 + diffuseWater * 0.4, lowSun * sunFacing * 0.35);
 
                 // 最終カラー合成（フォグで白飛びさせず、水平線カラーと自然に融合）
-                float3 finalColor = diffuseWater * (lightColor * 0.65 + 0.35) + glitterColor;
+                float3 finalColor = sunsetWaterTint * (lightColor * 0.65 + 0.35) + glitterColor;
 
                 // 水平線遠景での大気フェード（遠くはなだらかな水平線スカイブルーに溶け込む）
                 if (tHorizon > 0.4)
