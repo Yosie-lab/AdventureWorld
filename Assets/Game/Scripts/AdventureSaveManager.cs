@@ -356,17 +356,35 @@ public class AdventureSaveManager : MonoBehaviour
             catch { }
         }
 
-        // uGUIバナーのフェードアニメーション
-        if (_bannerTimer > 0f)
+        // uGUIバナーのフェードアニメーション（タイトル画面中や未開始時は完全非表示）
+        bool suppressBanner = !AdventureRustFloatOpening.IsGameStarted || (AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen());
+        if (suppressBanner)
+        {
+            _bannerTimer = 0f;
+            if (_bannerCg != null)
+            {
+                _bannerCg.alpha = 0f;
+                if (_bannerCg.gameObject.activeSelf)
+                    _bannerCg.gameObject.SetActive(false);
+            }
+        }
+        else if (_bannerTimer > 0f)
         {
             _bannerTimer -= Time.deltaTime;
             if (_bannerCg != null)
+            {
+                if (!_bannerCg.gameObject.activeSelf) _bannerCg.gameObject.SetActive(true);
                 _bannerCg.alpha = Mathf.MoveTowards(_bannerCg.alpha, 1.0f, Time.deltaTime * 6f);
+            }
         }
         else
         {
             if (_bannerCg != null)
-                _bannerCg.alpha = Mathf.MoveTowards(_bannerCg.alpha, 0.0f, Time.deltaTime * 2.5f);
+            {
+                _bannerCg.alpha = Mathf.MoveTowards(_bannerCg.alpha, 0.0f, Time.deltaTime * 3.5f);
+                if (_bannerCg.alpha <= 0.005f && _bannerCg.gameObject.activeSelf)
+                    _bannerCg.gameObject.SetActive(false);
+            }
         }
     }
 
@@ -836,6 +854,10 @@ public class AdventureSaveManager : MonoBehaviour
 
     public void ShowSaveNotification(string title, string subText = "")
     {
+        // タイトル画面中や未開始時はセーブ通知を出さない
+        if (!AdventureRustFloatOpening.IsGameStarted || (AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen()))
+            return;
+
         string locTitle = AdventureLocalizationManager.Get(title);
         if (string.IsNullOrEmpty(locTitle)) locTitle = title;
         string locSubText = AdventureLocalizationManager.Get(subText);
@@ -844,7 +866,11 @@ public class AdventureSaveManager : MonoBehaviour
         if (string.IsNullOrWhiteSpace(locTitle) && string.IsNullOrWhiteSpace(locSubText))
         {
             _bannerTimer = 0f;
-            if (_bannerCg != null) _bannerCg.alpha = 0f;
+            if (_bannerCg != null)
+            {
+                _bannerCg.alpha = 0f;
+                if (_bannerCg.gameObject.activeSelf) _bannerCg.gameObject.SetActive(false);
+            }
             return;
         }
 

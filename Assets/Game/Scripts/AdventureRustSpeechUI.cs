@@ -137,7 +137,12 @@ public class AdventureRustSpeechUI : MonoBehaviour
             hide = true;
 
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
-        bool show = !hide && drone != null && drone.HasActiveSpeech;
+        string rawSpeech = drone != null ? (drone.ActiveSpeechText ?? "") : "";
+        string locSpeech = AdventureLocalizationManager.Get(rawSpeech);
+        if (!string.IsNullOrEmpty(locSpeech) && locSpeech != rawSpeech) rawSpeech = locSpeech;
+
+        bool hasValidSpeech = !string.IsNullOrWhiteSpace(rawSpeech) && rawSpeech != "「」" && rawSpeech != "\"\"" && rawSpeech != "«»";
+        bool show = !hide && drone != null && drone.HasActiveSpeech && hasValidSpeech;
 
         if (show)
         {

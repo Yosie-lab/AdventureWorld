@@ -669,7 +669,11 @@ public class AdventureCompassHUD : MonoBehaviour
 
     void LateUpdate()
     {
-        if (AdventureStoryFlow.HidesExplorationHud)
+        bool hideHud = AdventureStoryFlow.HidesExplorationHud
+                       || !AdventureRustFloatOpening.IsGameStarted
+                       || (AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen());
+
+        if (hideHud)
         {
             if (_headingBadgeText != null) _headingBadgeText.enabled = false;
             if (_goalLineText != null) _goalLineText.enabled = false;
@@ -677,8 +681,16 @@ public class AdventureCompassHUD : MonoBehaviour
             if (_ribbonContainer != null) _ribbonContainer.gameObject.SetActive(false);
             if (_scrapMarkerRt != null) _scrapMarkerRt.gameObject.SetActive(false);
             if (_boxMarkerRt != null) _boxMarkerRt.gameObject.SetActive(false);
+            transform.Find("BackgroundPlate")?.gameObject.SetActive(false);
+            transform.Find("BorderTop")?.gameObject.SetActive(false);
+            transform.Find("BorderBottom")?.gameObject.SetActive(false);
             return;
         }
+
+        transform.Find("BackgroundPlate")?.gameObject.SetActive(true);
+        transform.Find("BorderTop")?.gameObject.SetActive(true);
+        transform.Find("BorderBottom")?.gameObject.SetActive(true);
+
         if (_headingBadgeText != null) _headingBadgeText.enabled = true;
         if (_goalLineText != null) _goalLineText.enabled = true;
         if (_scrapNavText != null)
