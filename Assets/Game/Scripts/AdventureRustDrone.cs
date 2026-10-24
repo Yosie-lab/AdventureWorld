@@ -805,24 +805,33 @@ public partial class AdventureRustDrone : MonoBehaviour
             goal.z = transform.position.z;
         }
 
-        float lerpRate = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 6.5f : 2.2f;
+        var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        bool isEpilogueGliding = (towerMgr != null && (towerMgr.EpilogueTriggered || towerMgr.EndingSequenceActive)) || IsClimaxOverdrive;
+
+        float lerpRate = isEpilogueGliding ? 16.0f : ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 6.5f : 2.2f);
         _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-lerpRate * Time.deltaTime));
-        float smoothTime = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 0.22f :
-            ((CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill || CurrentState == RustState.Perching) ? 0.32f : (wellOiled ? 0.38f : 0.52f));
-        if (CurrentState == RustState.Guiding)
-            smoothTime = 0.20f;
-        else if (_climaxHealing)
-            smoothTime = 0.14f;
-        else if (IsClimaxOverdrive)
-            smoothTime = 0.12f;
-        else if (IsClimaxCrisis || _skybreakNestle || _prologueDistress)
-            smoothTime = 0.16f;
-        float maxSpeed = (CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 15.5f :
-            ((CurrentState == RustState.Guiding) ? 17.5f : (_climaxHealing ? 18f : (IsClimaxOverdrive ? 24f : 8.5f)));
+        float smoothTime = isEpilogueGliding ? 0.06f : ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 0.22f :
+            ((CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill || CurrentState == RustState.Perching) ? 0.32f : (wellOiled ? 0.38f : 0.52f)));
+        if (!isEpilogueGliding)
+        {
+            if (CurrentState == RustState.Guiding)
+                smoothTime = 0.20f;
+            else if (_climaxHealing)
+                smoothTime = 0.14f;
+            else if (IsClimaxOverdrive)
+                smoothTime = 0.12f;
+            else if (IsClimaxCrisis || _skybreakNestle || _prologueDistress)
+                smoothTime = 0.16f;
+        }
+
+        // Floatが18m/sで高速滑空しても置き去りにならないよう、エピローグ中はmaxSpeed=36m/sで確実に特等席キープ
+        float maxSpeed = isEpilogueGliding ? 36.0f :
+            ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 15.5f :
+            ((CurrentState == RustState.Guiding) ? 17.5f : (_climaxHealing ? 18f : (IsClimaxOverdrive ? 24f : 8.5f))));
         transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, maxSpeed);
 
         // 画面見切れ防止ガード（オフスクリーン時のみソフト補正）
-        if ((_skybreakNestle || IsClimaxCrisis || _climaxHealing || IsClimaxOverdrive || _prologueDistress) && !_climaxFalling)
+        if ((_skybreakNestle || IsClimaxCrisis || _climaxHealing || IsClimaxOverdrive || _prologueDistress || isEpilogueGliding) && !_climaxFalling)
             KeepRustOnScreenNearNiko(force: false);
 
         // 危機時／冒頭ドラマ：ガタガタ震え
@@ -840,7 +849,12 @@ public partial class AdventureRustDrone : MonoBehaviour
 
         // 回転の計算
         Vector3 to = goal - transform.position;
-        if (IsClimaxOverdrive && _lookAt != null)
+        if (isEpilogueGliding && _lookAt != null)
+        {
+            // エピローグ滑空時はFloatの進行方向（カメラ手前方向）を主体に向け、カメラに愛らしいLEDフェイスを正面から見せる！
+            to = _lookAt.forward * 5f;
+        }
+        else if (IsClimaxOverdrive && _lookAt != null)
         {
             // 頭直視だと機首が胸に刺さるので、頭の少し外側を見る
             Vector3 head = GetNikoHeadPosition();
@@ -886,8 +900,6 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
         else if (CurrentState == RustState.Petting)
         {
-            var towerMgr = AdventureSanctuaryTowerManager.Instance;
-            bool isEpilogueGliding = (towerMgr != null && (towerMgr.EpilogueTriggered || towerMgr.EndingSequenceActive)) || IsClimaxOverdrive;
             if (isEpilogueGliding && _lookAt != null)
             {
                 // エピローグ滑空時は胸元ではなく、Floatの進行方向（カメラ手前方向）を主体に向く！

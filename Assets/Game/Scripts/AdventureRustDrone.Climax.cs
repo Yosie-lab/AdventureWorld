@@ -54,16 +54,16 @@ public partial class AdventureRustDrone
     /// <summary>全力セリフ中・エピローグ滑空中：翼に遮られず、カメラから一番見えやすい特等席（カメラ手前側＋右側）</summary>
     Vector3 GetOverdriveShoulderNestle()
     {
-        // towardCam: 1.25m（カメラ手前側へしっかり張り出し、Floatのグライダー翼に隠れるのを完全防止）
-        // side: 1.15f（Floatの右側で絶妙な並走感を演出）
-        // lift: 0.38f（胸〜肩の高さでバランスよく映る）
-        Vector3 nest = VisibleBesideNikoOnScreen(1.15f, 1.25f, 0.38f);
+        // towardCam: 1.80m（カメラ手前側へしっかり張り出し、Floatのグライダー翼に隠れるのを完全防止）
+        // side: 2.20f（Floatの巨大な翼幅3.5mの外側で美しい並走感を演出）
+        // lift: 0.60f（青空が綺麗に抜ける高さ）
+        Vector3 nest = VisibleBesideNikoOnScreen(2.20f, 1.80f, 0.60f);
         if (_lookAt == null) return nest;
 
         Vector3 chest = GetNikoChestPosition();
         Vector3 flat = nest - chest;
         flat.y = 0f;
-        const float minFlat = 1.15f;
+        const float minFlat = 2.0f;
         if (flat.sqrMagnitude < minFlat * minFlat)
         {
             Vector3 dir = flat.sqrMagnitude > 0.01f ? flat.normalized : _lookAt.right;
@@ -780,11 +780,11 @@ public partial class AdventureRustDrone
         bool isEpilogueGliding = (towerMgr != null && (towerMgr.EpilogueTriggered || towerMgr.EndingSequenceActive)) || IsClimaxOverdrive;
         if (isEpilogueGliding)
         {
-            // エピローグ滑空中：引きカメラでもRustのシルエット・表情がくっきり映えるよう、スケールを1.35倍にふっくらボリュームアップ
-            transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * 1.35f, 6f * Time.deltaTime);
+            // エピローグ滑空中：引きカメラ（距離17.5m、FoV 88度）でもRustの愛らしい姿が画面でくっきり際立つよう、スケールを2.0倍に大幅アップ！
+            transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * 2.0f, 8f * Time.deltaTime);
 
-            // ゴールドの温かい光彩アイライト（光量3.6f）を照射して夜空・滑空中でも抜群の視認性を確保
-            EnsureClimaxEyeLight(new Color(1f, 0.92f, 0.62f), 3.6f);
+            // ゴールドの温かい光彩アイライト（光量5.5f、範囲8.5m）を照射して夜空・逆光でも抜群の視認性を確保
+            EnsureClimaxEyeLight(new Color(1f, 0.94f, 0.65f), 5.5f);
 
             // 表情は満面の笑顔（^ ▽ ^）をキープ
             if (_currentExpression != FaceExpressionType.Smiling)
@@ -909,10 +909,11 @@ public partial class AdventureRustDrone
             go.transform.localPosition = new Vector3(0f, 0.05f, 0.35f);
             _climaxEyeLight = go.AddComponent<Light>();
             _climaxEyeLight.type = LightType.Point;
-            _climaxEyeLight.range = 4.5f;
+            _climaxEyeLight.range = 8.5f;
         }
         _climaxEyeLight.color = color;
         _climaxEyeLight.intensity = intensity;
+        _climaxEyeLight.range = 8.5f;
         _climaxEyeLight.enabled = true;
     }
 
