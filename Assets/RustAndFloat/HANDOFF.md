@@ -7,6 +7,61 @@ created: 2026-09-11
 
 次のエージェント（Antigravity 含む）は、このファイルを最初に読む。作業対象は **RustAndFloat**。元ゲーム **AdventureWorld は壊さない**。
 
+## Antigravity / 次のエージェントへの引き継ぎ（2026-10-24）【最新・ここから】
+
+### Git
+| 項目 | 値 |
+|------|-----|
+| リポジトリ | `/Users/user/Unity project/RustAndFloat`（**git root**。親 `Unity project/` だけ開いている場合もここが本線） |
+| ブランチ | `main` = `origin/main`（**clean**、未コミットなし） |
+| HEAD | `3d4256e` — `fix(canopy,title): hold pillar ascent until dive and live title splash` |
+| 直前 | `7074d79` — クライマックス広角カメラ・解放空の海面キラキリ（光の筋は削除） |
+
+リモート: `https://github.com/Yosie-lab/AdventureWorld.git`
+
+### 直近セッションの要点（Cursor → Antigravity）
+1. **スタート待機画面**（`AdventureTitleSplashScene.cs` / `AdventureRustFloatOpening.cs`）  
+   - RustAndFloat シーンでは静止画の代わりに **クライマックス広角と同じライブ3D**（Y≈156m 付近・FOV88°・解放パノラマ＋海面キラキリ）。  
+   - Editor 用 PNG 書き出し: メニュー `RustAndFloat/📸 Capture Pre-Start Splash (Climax Wide Shot)`。  
+   - カメラ: `AdventureCameraFollow.EnableTitleClimaxSplash`（タイトルモーダル中も `LateUpdate` 継続）。
+2. **天蓋〜光の柱〜クライマックス**（`AdventurePlayerController.cs` / `AdventureSanctuaryTowerManager.*` / `AdventureThermalUpdraft.cs`）  
+   - **ダイブ確定前**に上空へ吸い上げない: `BlocksSkybreakColumnLift`（`_canopyBeatIndex >= 0 && !IsPendingClimax`）。柱・上昇気流・大空ホールドは台本中オフ。  
+   - **柱上昇中の墜落防止**: `_skybreakPillarLock` 中は Update 先頭で上昇のみ実行（ポーズ・台本中も）。CC 自動再有効化を柱上昇・`_climaxSkyHold` 中はしない。  
+   - ダイブ完了 `FinishCanopyScriptBeats` でのみ `BuildSkybreakHyperUpdraft` + `BeginSkybreakPillarAscend` + `ArmClimaxSkyHold(156)`。  
+   - レバー引き時 `SuppressSkybreakHyperUpdraft()`。
+3. **ビジュアル（解放〜大空ショット）**（`AdventureSkybreakVisuals.cs` / `AdventureOceanSparkleVFX.cs` / `AdventureCurvedHorizonOcean.cs`）  
+   - ピンク楕円雲・光の筋は使わず、**実海面のグリッター**（`ApplyLiberationOceanSparkle`）。  
+   - 「全力で行こう!!」付近: `AdventureCameraFollow.SetIslandOverviewMode`（Float/Rust/島/海の広角）。  
+   - 触らない: `Assets/Scenes/AdventureWorld.unity`、`Land_Terrain.asset`。
+
+### PlayMode でユーザーに確認してほしいこと（未確認なら最優先）
+- [ ] レバー → 天蓋台本 → **「光の柱へダイブ」長押しまで**テラスに留まる（早浮きしない）  
+- [ ] ダイブ後、割れ目手前で**止まって落ちない**（156m 付近まで柱上昇）  
+- [ ] クライマックス「全力で行こう!!」以降、広角＋キラキリ海（楕円雲・光筋なし）  
+- [ ] タイトル待機がクライマックス広角ライブ背景になっている  
+- [ ] プロローグ E/クリック注油・漂着箱・スタート前キャプチャ（前コミット `46978f3` 系）
+
+### 主要ファイル（2026-10-24 変更）
+- `Assets/Game/Scripts/AdventureTitleSplashScene.cs`（新規）  
+- `Assets/Game/Scripts/AdventurePlayerController.cs`  
+- `Assets/Game/Scripts/AdventureSanctuaryTowerManager.cs` / `.Canopy.cs` / `.Climax.cs` / `.Epilogue.cs`  
+- `Assets/Game/Scripts/AdventureCameraFollow.cs`  
+- `Assets/Game/Scripts/AdventureSkybreakVisuals.cs`  
+- `Assets/Game/Scripts/AdventureRustFloatOpening.cs`  
+- `Assets/Game/Scripts/Editor/AdventureCapturePreStartSplash.cs`
+
+### Antigravity 作業ルール（再掲）
+- ルート `RustAndFloat/AGENTS.md` と本 HANDOFF を先に読む。  
+- **Play Mode 停止してから**シーン／Prefab 保存。  
+- コミット・push・main マージは **ユーザー明示指示時のみ**（2026-10-24 時点で main は最新 push 済み）。  
+- ユーザーとの会話: **日本語・結論ファースト・1ステップ・確認1問**。
+
+### 次にやりうること（ユーザー未指示・候補のみ）
+- タイトル広角に **Float/Rust/ウミネコ** を待機用だけ配置（ユーザーが「画面に欲しい」と言った場合）。  
+- 柱上昇〜割れ目の **演出タイミング** の微調整（止まった高度の報告があればその値で調整）。
+
+---
+
 ## Cursor / 次のエージェントへの引き継ぎ（2026-10-15）
 
 ### 概要・現在の状態
