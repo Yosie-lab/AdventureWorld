@@ -2,9 +2,9 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// 急斜面高速スライディング＆砂煙サーフ（Slope Surfing）拡張。
+/// 急斜面高速スライディング＆サーフ（Slope Surfing）拡張。
 /// 急勾配の草地や白砂ビーチを駆け下りる際、または【Cキー / ゲームパッドBボタン】で足を滑らせて
-/// 高速滑走・砂煙ドリフト・スライドジャンプを展開する。
+/// 高速滑走・スライドジャンプを展開する。（※パーティクル不使用・視界完全クリーン保証）
 /// </summary>
 public partial class AdventurePlayerController
 {
@@ -15,8 +15,6 @@ public partial class AdventurePlayerController
     private Vector3 _slideDir = Vector3.forward;
     private float _slideDuration = 0f;
 
-    private GameObject _slideDustGo;
-    private ParticleSystem _slideDustPs;
     private AudioSource _slideAudioSource;
     private AudioClip _slideLoopClip;
 
@@ -76,9 +74,6 @@ public partial class AdventurePlayerController
             _slideDir = Vector3.Slerp(_slideDir, slopeDown, 0.45f).normalized;
 
         _slideSpeed = Mathf.Max(HorizontalSpeed * 1.15f, 9.5f);
-
-        if (_slideDustPs != null && !_slideDustPs.isPlaying)
-            _slideDustPs.Play();
 
         if (_slideAudioSource != null && _slideLoopClip != null)
         {
@@ -146,21 +141,12 @@ public partial class AdventurePlayerController
             _slideAudioSource.volume = Mathf.Lerp(0.18f, 0.48f, speedRatio);
             _slideAudioSource.pitch = Mathf.Lerp(0.85f, 1.35f, speedRatio);
         }
-
-        // 5. パーティクル位置追従
-        if (_slideDustGo != null)
-        {
-            _slideDustGo.transform.position = transform.position + Vector3.up * 0.12f - transform.forward * 0.25f;
-        }
     }
 
     private void StopSliding()
     {
         _isSliding = false;
         AdventureInputHaptics.UpdateSlopeSlideRumble(0f, false);
-
-        if (_slideDustPs != null && _slideDustPs.isPlaying)
-            _slideDustPs.Stop();
 
         if (_slideAudioSource != null && _slideAudioSource.isPlaying)
             _slideAudioSource.Stop();
@@ -213,40 +199,22 @@ public partial class AdventurePlayerController
         return true;
     }
 
-    /// <summary>砂煙パーティクル＆プロシージャル滑走音の初期化</summary>
+    /// <summary>滑走サウンドリソースの初期化（※パーティクル完全不使用）</summary>
     private void EnsureSlideResources()
     {
-        if (_slideDustGo == null)
+        // 既存の不要なパーティクルオブジェクトが万一残っていれば完全消去
+        var oldDust = transform.Find("Player_SlideDustFx");
+        if (oldDust != null)
         {
-            _slideDustGo = new GameObject("Player_SlideDustFx");
-            _slideDustGo.transform.SetParent(transform, false);
-            _slideDustGo.transform.localPosition = new Vector3(0f, 0.1f, -0.3f);
+            Destroy(oldDust.gameObject);
+        }
 
-            _slideDustPs = _slideDustGo.AddComponent<ParticleSystem>();
-            var main = _slideDustPs.main;
-            main.loop = true;
-            main.startLifetime = 0.45f;
-            main.startSpeed = 3.2f;
-            main.startSize = 0.55f;
-            main.startColor = new Color(0.92f, 0.88f, 0.76f, 0.45f); // 白砂・砂埃色
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.playOnAwake = false;
+        if (_slideAudioSource == null)
+        {
+            var audioGo = new GameObject("Player_SlideAudio");
+            audioGo.transform.SetParent(transform, false);
 
-            var emission = _slideDustPs.emission;
-            emission.rateOverTime = 32f;
-
-            var shape = _slideDustPs.shape;
-            shape.shapeType = ParticleSystemShapeType.Cone;
-            shape.angle = 25f;
-            shape.radius = 0.25f;
-            shape.rotation = new Vector3(0f, 180f, 0f);
-
-            var psr = _slideDustGo.GetComponent<ParticleSystemRenderer>();
-            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit") ?? Shader.Find("Sprites/Default");
-            if (shader != null) psr.material = new Material(shader);
-
-            // プロシージャル滑走サウンド
-            _slideAudioSource = _slideDustGo.AddComponent<AudioSource>();
+            _slideAudioSource = audioGo.AddComponent<AudioSource>();
             _slideAudioSource.spatialBlend = 0.2f;
             _slideAudioSource.loop = true;
             _slideAudioSource.playOnAwake = false;
