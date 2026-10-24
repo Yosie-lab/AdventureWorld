@@ -796,9 +796,10 @@ public static class AdventureSkybreakVisuals
         ps.Play();
 
         // 2. 冷たく強力に光り輝くキラキラ粒子のダイヤモンドダスト（画面全面を覆う加算発光）
+        // ※ WildernessPanorama の再生成・破棄に巻き込まれないようトップレベルで独立管理！
         var dustGo = new GameObject("SkybreakDiamondDust");
-        dustGo.transform.SetParent(parent, false);
-        dustGo.transform.localPosition = new Vector3(0f, 35f, 0f);
+        dustGo.transform.SetParent(null);
+        dustGo.transform.position = new Vector3(512f, 150f, 512f);
 
         var dustPs = dustGo.AddComponent<ParticleSystem>();
         var dMain = dustPs.main;
@@ -1249,9 +1250,17 @@ public static class AdventureSkybreakVisuals
                 {
                     if (!_isFinalClearing)
                     {
-                        // 「温かい油が…」シーン中：ダイヤモンドダストを一気に消さず、淡く美しい余韻（28%）として残す！
-                        Color c = Color.Lerp(Color.white, new Color(1f, 1f, 1f, 0.28f), smoothT);
+                        // 「温かい油が…」シーン中：ダイヤモンドダストを一気に消さず、淡く美しい余韻（35%）として残す！
+                        Color c = Color.Lerp(Color.white, new Color(1f, 1f, 1f, 0.35f), smoothT);
                         _dustMat.color = c;
+                        if (_dustMat.HasProperty("_BaseColor")) _dustMat.SetColor("_BaseColor", c);
+
+                        // 放出量も猛吹雪（1100）から穏やかな星屑（180）へ落ち着かせて舞わせる
+                        if (_dustPs != null)
+                        {
+                            var em = _dustPs.emission;
+                            em.rateOverTime = Mathf.Lerp(1100f, 180f, smoothT);
+                        }
                     }
                 }
 
@@ -1260,8 +1269,9 @@ public static class AdventureSkybreakVisuals
                     // 次のシーン（「ありがとう、Float！」）：残っていたダイヤモンドダストを滑らかに完全消去
                     _finalClearProgress += Time.deltaTime / _finalClearDuration;
                     float fcT = Mathf.Clamp01(_finalClearProgress);
-                    Color c = Color.Lerp(new Color(1f, 1f, 1f, 0.28f), Color.clear, Mathf.SmoothStep(0f, 1f, fcT));
+                    Color c = Color.Lerp(new Color(1f, 1f, 1f, 0.35f), Color.clear, Mathf.SmoothStep(0f, 1f, fcT));
                     _dustMat.color = c;
+                    if (_dustMat.HasProperty("_BaseColor")) _dustMat.SetColor("_BaseColor", c);
 
                     if (fcT >= 1f)
                     {
@@ -1300,6 +1310,13 @@ public static class AdventureSkybreakVisuals
             _isFinalClearing = true;
             _finalClearProgress = 0f;
             _finalClearDuration = Mathf.Max(0.2f, duration);
+
+            // 新規放出を停止し、滞留粒子を自然に消散フェード
+            if (_dustPs != null)
+            {
+                var em = _dustPs.emission;
+                em.rateOverTime = 0f;
+            }
         }
 
         public void StartThaw(float duration = 3.0f)
