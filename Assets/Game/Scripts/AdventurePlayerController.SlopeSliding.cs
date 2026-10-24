@@ -52,19 +52,25 @@ public partial class AdventurePlayerController
         // 滑空の勢いを100%保持し、最低14.0m/s、最大22.0m/sの圧倒的初速で着地サーフィン
         _slideSpeed = Mathf.Clamp(Mathf.Max(prevGlideSpeed * 1.15f, HorizontalSpeed), 14.0f, MaxSlideSpeed);
 
-        if (_slideAudioSource != null && _slideLoopClip != null)
-        {
-            _slideAudioSource.clip = _slideLoopClip;
-            _slideAudioSource.volume = 0.52f;
-            _slideAudioSource.pitch = 1.25f;
-            _slideAudioSource.Play();
-        }
+        PlaySlideAudio(0.52f, 1.25f);
 
         // 強烈な着地サーフィン衝撃＋摩擦ハプティクス
         AdventureInputHaptics.PlayPulse(0.55f, 0.70f, 0.22f);
 
         Debug.Log($"[RustAndFloat] 着地サーフィン発動！速度={_slideSpeed:F1}m/s");
         return true;
+    }
+
+    private void PlaySlideAudio(float volume, float pitch)
+    {
+        if (_slideAudioSource != null && _slideLoopClip != null)
+        {
+            _slideAudioSource.clip = _slideLoopClip;
+            _slideAudioSource.volume = volume;
+            _slideAudioSource.pitch = pitch;
+            if (!_slideAudioSource.isPlaying)
+                _slideAudioSource.Play();
+        }
     }
 
     /// <summary>
@@ -124,13 +130,7 @@ public partial class AdventurePlayerController
 
         _slideSpeed = Mathf.Max(HorizontalSpeed * 1.15f, 9.5f);
 
-        if (_slideAudioSource != null && _slideLoopClip != null)
-        {
-            _slideAudioSource.clip = _slideLoopClip;
-            _slideAudioSource.volume = 0.35f;
-            _slideAudioSource.pitch = 1.1f;
-            _slideAudioSource.Play();
-        }
+        PlaySlideAudio(0.35f, 1.1f);
 
         AdventureInputHaptics.PlayPulse(0.35f, 0.50f, 0.12f);
     }

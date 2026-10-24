@@ -39,10 +39,27 @@ public class AdventurePettingAction : MonoBehaviour
 
     void Update()
     {
+        // 撫でアクション中に移動入力があった場合、自然に移動へ移行できるよう解除
+        if (_isPetting && _petTimer > 0.45f && _player != null && _player.HasMoveInput)
+        {
+            CancelPetting();
+            return;
+        }
+
         // コルーチン中断などによる万が一の永続ロックを自動解除
         if (_isPetting && _petTimer > _petDuration + 1.2f)
         {
             CancelPetting();
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+        if (_heartFxInstance != null)
+        {
+            Destroy(_heartFxInstance.gameObject);
+            _heartFxInstance = null;
         }
     }
 
@@ -134,6 +151,7 @@ public class AdventurePettingAction : MonoBehaviour
         if (_heartFxInstance == null)
         {
             var fxGo = new GameObject("HeartSparkleFX");
+            fxGo.transform.SetParent(transform, false);
             _heartFxInstance = fxGo.AddComponent<ParticleSystem>();
             var main = _heartFxInstance.main;
             main.startSpeed = 0.5f;
@@ -155,13 +173,16 @@ public class AdventurePettingAction : MonoBehaviour
                          ?? Shader.Find("Sprites/Default");
             if (shader != null)
             {
-                var mat = new Material(shader);
-                mat.SetColor("_BaseColor", new Color(1.0f, 0.62f, 0.80f, 0.95f));
+                var mat = new Material(shader) { name = "HeartSparkle_Mat" };
+                Color pinkGold = new Color(1.0f, 0.62f, 0.80f, 0.95f);
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", pinkGold);
+                if (mat.HasProperty("_Color")) mat.SetColor("_Color", pinkGold);
+
                 var tex = AdventureRustDrone.GetSoftSmokeTexture();
                 if (tex != null)
                 {
-                    mat.SetTexture("_BaseMap", tex);
-                    mat.SetTexture("_MainTex", tex);
+                    if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+                    if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
                 }
                 rend.sharedMaterial = mat;
             }
