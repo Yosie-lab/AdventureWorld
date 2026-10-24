@@ -1846,19 +1846,28 @@ public partial class AdventurePlayerController : MonoBehaviour
         transform.rotation = Quaternion.LookRotation(launchDir);
     }
 
-    /// <summary>エピローグ用：高度を保ちながら雄大に水平旋回するオートグライド</summary>
+    /// <summary>エピローグ用：雄大な外海へ向けて美しく直進するシネマティック・オートグライド</summary>
     Vector3 ComputeAutoGlideHorizontal()
     {
-        float currentYaw = transform.eulerAngles.y + AutoGlideYawRate * Time.deltaTime;
-        transform.rotation = Quaternion.Euler(2f, currentYaw, -8f);
+        // 急旋回（毎秒16度）を廃止し、大海原へ向かって雄大に直進（微細な大気のうねり ±2.5度のみ）
+        float swayYaw = Mathf.Sin(Time.time * 0.22f) * 2.5f;
+        float baseYaw = transform.eulerAngles.y;
+
+        // 前傾ピッチ（-4.5度）で翼が風を切って前進するスピード感を実現（仰け反り・失速感を完全解消）
+        float forwardPitch = -4.5f + Mathf.Sin(Time.time * 0.6f) * 0.8f;
+        float gentleBank = Mathf.Sin(Time.time * 0.22f) * 2.2f;
+
+        transform.rotation = Quaternion.Euler(forwardPitch, baseYaw + swayYaw * Time.deltaTime, gentleBank);
 
         Vector3 forward = transform.forward.SetY(0f);
         if (forward.sqrMagnitude < 0.001f)
             forward = Vector3.forward;
         forward.Normalize();
 
-        float cruise = AutoGlideCruiseSpeed * moveSpeedMultiplier;
-        _airMomentum = Vector3.MoveTowards(_airMomentum, forward * cruise, 8f * Time.deltaTime);
+        // 巡航速度を 7.2m/s から 13.5m/s へ引き上げ、堂々たる前進感を創出
+        const float EpilogueCruiseSpeed = 13.5f;
+        float cruise = EpilogueCruiseSpeed * moveSpeedMultiplier;
+        _airMomentum = Vector3.MoveTowards(_airMomentum, forward * cruise, 14f * Time.deltaTime);
 
         // 高度維持の急激なハンチング（上下振動）を防止し、穏やかに吸着
         float dy = _autoGlideAltitude - transform.position.y;

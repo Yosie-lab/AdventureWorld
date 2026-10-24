@@ -108,7 +108,7 @@ public class AdventureCameraFollow : MonoBehaviour
     {
         _islandOverview = enabled;
         if (enabled && Mathf.Abs(_skyWideSideBias) < 0.01f)
-            _skyWideSideBias = Random.value > 0.5f ? 24f : -24f;
+            _skyWideSideBias = Random.value > 0.5f ? 8f : -8f;
         if (instant)
         {
             _overviewProgress = enabled ? 1f : 0f;
@@ -644,10 +644,10 @@ public class AdventureCameraFollow : MonoBehaviour
         if (_islandOverviewBlend > 0.02f && target != null)
         {
             float playerYaw = target.eulerAngles.y;
-            float sway = Mathf.Sin(Time.unscaledTime * 0.11f) * 4.5f;
-            // 正面から二人を映すシネマティック構図（最短経路で滑らかに旋回）
+            float sway = Mathf.Sin(Time.unscaledTime * 0.12f) * 2.5f;
+            // 正面から二人を捉える映画的フロントアングル（水平目線ピッチ4.5度）
             _targetYaw = playerYaw + 180f + _skyWideSideBias + sway;
-            _targetPitch = Mathf.Lerp(_targetPitch, 12f + Mathf.Sin(Time.unscaledTime * 0.08f) * 2.2f, _islandOverviewBlend);
+            _targetPitch = Mathf.Lerp(_targetPitch, 4.5f, _islandOverviewBlend);
         }
         else if (cine > 0.4f && !isAutoGlide && !cursorLook)
             _targetPitch = Mathf.Clamp(_targetPitch, -6f, 22f);
@@ -736,9 +736,9 @@ public class AdventureCameraFollow : MonoBehaviour
 
         float walkBaseFov = AdventureRustFloatFeel.IsActiveScene ? AdventureRustFloatFeel.WalkFov : 64f;
         float glideBaseFov = walkBaseFov + 4f;
-        float cineFov = (isAutoGlide && cine > 0.3f) ? 78f : CinematicFov;
+        float cineFov = (isAutoGlide && cine > 0.3f) ? 74f : CinematicFov;
         if (_islandOverviewBlend > 0.01f)
-            cineFov = Mathf.Lerp(cineFov, 88f, _islandOverviewBlend);
+            cineFov = Mathf.Lerp(cineFov, 71f, _islandOverviewBlend);
         float targetFov = Mathf.Lerp(isGliding ? glideBaseFov : walkBaseFov, cineFov, cine);
 
         // 70mメガジャンプ・急上昇・高速滑空ブースト・急斜面スライディングによるダイナミックFOV（最大82°までワイド化）
@@ -793,21 +793,24 @@ public class AdventureCameraFollow : MonoBehaviour
         {
             float b = _islandOverviewBlend;
             float smoothB = EaseInOutCubic(b);
-            Vector3 pivot = target.position + Vector3.up * (2.0f + 2.4f * smoothB);
-            _currentPivot = Vector3.Lerp(_currentPivot, pivot, 0.14f + 0.30f * smoothB);
+
+            // 目標ピボット：Floatの胸元（高さ1.8m）
+            Vector3 pivot = target.position + Vector3.up * 1.80f;
+            // ブレンド完了時は100%完全にピボット追従（遅れゼロで前進速度を完全同期）
+            _currentPivot = Vector3.Lerp(_currentPivot, pivot, Mathf.Lerp(0.35f, 1.0f, smoothB));
 
             float playerYaw = target.eulerAngles.y;
-            float sway = Mathf.Sin(Time.unscaledTime * 0.11f) * 4.5f;
+            float sway = Mathf.Sin(Time.unscaledTime * 0.12f) * 2.5f;
             float camYaw = playerYaw + 180f + _skyWideSideBias + sway;
-            float camPitch = Mathf.Lerp(6f, 14f, smoothB);
-            float dist = Mathf.Lerp(10f, 17.5f, smoothB);
+            // 正面からまっすぐ二人を捉える映画的フロントアングル（ピッチ 4.5度）
+            float camPitch = Mathf.Lerp(6f, 4.5f, smoothB);
+            float dist = Mathf.Lerp(10f, 13.5f, smoothB);
 
             // Slerpで滑らかに回転補間
             currentRot = Quaternion.Slerp(currentRot, Quaternion.Euler(camPitch, camYaw, 0f), smoothB);
 
             // 【完全同期】位置計算にもSlerp後のcurrentRotを適用し、位置と回転の脱臼・ねじれ・ガクつきを根絶！
-            targetPos = _currentPivot + currentRot * new Vector3(0f, 0.35f * smoothB, -dist);
-            targetPos.y = Mathf.Max(targetPos.y, target.position.y + 3.5f + 5.5f * smoothB);
+            targetPos = _currentPivot + currentRot * new Vector3(0f, 0.15f * smoothB, -dist);
             _currentDistance = dist;
         }
 
