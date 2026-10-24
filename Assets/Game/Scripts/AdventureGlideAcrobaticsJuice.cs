@@ -50,6 +50,13 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
     // カメラGシェイク用
     private float _cameraShakeIntensity = 0f;
 
+    // 風切りストリームライン（速度線）UI
+    private Canvas _speedLinesCanvas;
+    private UnityEngine.UI.RawImage _speedLinesImage;
+    private Texture2D _speedLinesTexture;
+    private Material _speedLinesMaterial;
+    private float _speedLinesCurrentAlpha = 0f;
+
     void Awake()
     {
         if (_instance != null && _instance != this)
@@ -65,6 +72,7 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
 
         CreateProceduralAudio();
         CreateVaporTrails();
+        CreateSpeedLinesUI();
     }
 
     void Start()
@@ -153,6 +161,9 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
                 Camera.main.transform.position += Camera.main.transform.up * microShakeY + Camera.main.transform.right * microShakeX;
             }
         }
+
+        // 5. 風切りストリームライン（速度線）の動的描画
+        UpdateSpeedLines(speed, isGliding);
     }
 
     private void TriggerPullUpGForce(float intensity, Vector3 playerPos)
@@ -479,4 +490,133 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
         ps.Play();
         Destroy(fxGo, 0.75f);
     }
+
+    #region Speed Lines (Wind Streamlines) System
+    private void CreateSpeedLinesUI()
+    {
+        var canvasGo = new GameObject("Glide_SpeedLinesCanvas");
+        canvasGo.transform.SetParent(transform, false);
+        _speedLinesCanvas = canvasGo.AddComponent<Canvas>();
+        _speedLinesCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        _speedLinesCanvas.sortingOrder = 8200; // ゲーム内HUDの下、シネマレターボックスの下
+
+        var scaler = canvasGo.AddComponent<UnityEngine.UI.CanvasScaler>();
+        scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        var imgGo = new GameObject("SpeedLinesImage");
+        imgGo.transform.SetParent(canvasGo.transform, false);
+        _speedLinesImage = imgGo.AddComponent<UnityEngine.UI.RawImage>();
+        _speedLinesImage.raycastTarget = false;
+
+        var rt = _speedLinesImage.rectTransform;
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = new Vector2(-120, -120);
+        rt.offsetMax = new Vector2(120, 120);
+
+        _speedLinesTexture = GenerateSpeedLinesTexture(256, 256);
+        _speedLinesImage.texture = _speedLinesTexture;
+
+        var sh = Shader.Find("Universal Render Pipeline/Unlit")
+                 ?? Shader.Find("Sprites/Default")
+                 ?? Shader.Find("UI/Default");
+        if (sh != null)
+        {
+            _speedLinesMaterial = new Material(sh);
+            _speedLinesMaterial.SetFloat("_Surface", 1f); // Transparent
+            _speedLinesMaterial.SetFloat("_Blend", 1f); // Additive blend
+            _speedLinesMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            _speedLinesMaterial.EnableKeyword("_BLENDMODE_ADD");
+            _speedLinesMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            _speedLinesMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            _speedLinesMaterial.SetInt("_ZWrite", 0);
+            _speedLinesMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 120;
+            _speedLinesImage.material = _speedLinesMaterial;
+        }
+
+        _speedLinesImage.color = new Color(1f, 1f, 1f, 0f);
+    }
+
+    private Texture2D GenerateSpeedLinesTexture(int width, int height)
+    {
+        var tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+
+        Vector2 center = new Vector2((width - 1) * 0.5f, (height - 1) * 0.5f);
+        float maxR = width * 0.5f;
+
+        Color[] pixels = new Color[width * height];
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                Vector2 diff = new Vector2(x, y) - center;
+                float dist = diff.magnitude / maxR;
+                float angle = Mathf.Atan2(diff.y, diff.x);
+
+                // 中心部（FloatやRustの視界領域）は完全透明（アルファ0）
+                float edgeFade = Mathf.SmoothStep(0.42f, 0.95f, dist);
+
+                // 放射状の流線パターン（細く繊細な風の筋）
+                float s1 = Mathf.Pow(Mathf.Sin(angle * 28f) * 0.5f + 0.5f, 8.0f);
+                float s2 = Mathf.Pow(Mathf.Sin(angle * 56f + 1.4f) * 0.5f + 0.5f, 12.0f);
+                float s3 = Mathf.Pow(Mathf.Sin(angle * 84f + 2.8f) * 0.5f + 0.5f, 16.0f);
+                float linePattern = Mathf.Clamp01(s1 * 0.5f + s2 * 0.35f + s3 * 0.35f);
+
+                float alpha = linePattern * edgeFade * 0.85f;
+                // 白銀〜淡いシアンの爽やかな風色
+                pixels[y * width + x] = new Color(0.92f, 0.98f, 1.0f, alpha);
+            }
+        }
+        tex.SetPixels(pixels);
+        tex.Apply(false, true);
+        return tex;
+    }
+
+    private void UpdateSpeedLines(float speed, bool isGliding)
+    {
+        if (_speedLinesImage == null) return;
+
+        bool isSliding = _player != null && _player.IsSliding;
+        bool isFast = isGliding || isSliding || (_player != null && _player.IsUpdraftAscending);
+
+        float targetAlpha = 0f;
+        if (isFast)
+        {
+            float minSpeed = 12.0f;
+            float maxSpeed = 20.0f;
+            if (speed > minSpeed)
+            {
+                targetAlpha = Mathf.Clamp01((speed - minSpeed) / (maxSpeed - minSpeed)) * 0.70f;
+            }
+            if (_isDiving)
+            {
+                targetAlpha = Mathf.Max(targetAlpha, 0.45f + _diveIntensity * 0.40f);
+            }
+        }
+
+        // 滑らかなフェードイン・フェードアウト
+        _speedLinesCurrentAlpha = Mathf.MoveTowards(_speedLinesCurrentAlpha, targetAlpha, Time.deltaTime * (targetAlpha > _speedLinesCurrentAlpha ? 4.5f : 3.0f));
+
+        if (_speedLinesCurrentAlpha > 0.005f)
+        {
+            if (!_speedLinesImage.gameObject.activeSelf)
+                _speedLinesImage.gameObject.SetActive(true);
+
+            // 風の流れる微小なパルス回転アニメーション（毎秒ステップ）
+            float pulseAngle = (Mathf.Floor(Time.time * 18f) * 11.25f) % 360f;
+            _speedLinesImage.rectTransform.localEulerAngles = new Vector3(0f, 0f, pulseAngle);
+
+            _speedLinesImage.color = new Color(1f, 1f, 1f, _speedLinesCurrentAlpha);
+        }
+        else
+        {
+            if (_speedLinesImage.gameObject.activeSelf)
+                _speedLinesImage.gameObject.SetActive(false);
+        }
+    }
+    #endregion
 }
