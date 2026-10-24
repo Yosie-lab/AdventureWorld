@@ -561,6 +561,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         bool wasGliding = _gliding;
         float prevAirborneTime = _airborneTime;
         float prevFallSpeed = -_hop;
+        float prevGlideSpeed = HorizontalSpeed;
         bool ccGrounded = _cc.isGrounded;
         // 微小浮遊や凸凹・小石による一瞬の離地を吸収し、地上歩行の滑らかさを維持
         bool rayGrounded = false;
@@ -589,10 +590,19 @@ public partial class AdventurePlayerController : MonoBehaviour
                 if (_hop < 0f) _hop = -0.85f;
                 if (!wasGrounded)
                 {
-                    ClearLocomotionInertia();
-                    if (_footsteps == null) _footsteps = GetComponent<AdventureNikoFootsteps>();
-                    _footsteps?.PlayLandImpact(prevAirborneTime, prevFallSpeed, wasGliding);
-                    AdventureGlideAcrobaticsJuice.Instance?.TriggerLandingShockwave(prevFallSpeed, wasGliding, transform.position);
+                    bool surfed = false;
+                    if (wasGliding)
+                    {
+                        surfed = TryTriggerGlideToSlideSurfing(prevGlideSpeed, transform.forward);
+                    }
+
+                    if (!surfed)
+                    {
+                        ClearLocomotionInertia();
+                        if (_footsteps == null) _footsteps = GetComponent<AdventureNikoFootsteps>();
+                        _footsteps?.PlayLandImpact(prevAirborneTime, prevFallSpeed, wasGliding);
+                        AdventureGlideAcrobaticsJuice.Instance?.TriggerLandingShockwave(prevFallSpeed, wasGliding, transform.position);
+                    }
                 }
             }
             else
@@ -612,10 +622,19 @@ public partial class AdventurePlayerController : MonoBehaviour
             // 毎フレーム慣性クリアしない（出だしで速度を殺さない）。着地瞬間のみ。
             if (!wasGrounded)
             {
-                ClearLocomotionInertia();
-                if (_footsteps == null) _footsteps = GetComponent<AdventureNikoFootsteps>();
-                _footsteps?.PlayLandImpact(prevAirborneTime, prevFallSpeed, wasGliding);
-                AdventureGlideAcrobaticsJuice.Instance?.TriggerLandingShockwave(prevFallSpeed, wasGliding, transform.position);
+                bool surfed = false;
+                if (wasGliding)
+                {
+                    surfed = TryTriggerGlideToSlideSurfing(prevGlideSpeed, transform.forward);
+                }
+
+                if (!surfed)
+                {
+                    ClearLocomotionInertia();
+                    if (_footsteps == null) _footsteps = GetComponent<AdventureNikoFootsteps>();
+                    _footsteps?.PlayLandImpact(prevAirborneTime, prevFallSpeed, wasGliding);
+                    AdventureGlideAcrobaticsJuice.Instance?.TriggerLandingShockwave(prevFallSpeed, wasGliding, transform.position);
+                }
             }
         }
         else

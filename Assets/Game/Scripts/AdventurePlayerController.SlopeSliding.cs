@@ -14,14 +14,58 @@ public partial class AdventurePlayerController
     private float _slideSpeed = 0f;
     private Vector3 _slideDir = Vector3.forward;
     private float _slideDuration = 0f;
+    private float _slideInputBufferTimer = 0f;
 
     private AudioSource _slideAudioSource;
     private AudioClip _slideLoopClip;
 
     private const float MinSlopeAngleForAutoSlide = 16f;
-    private const float MaxSlideSpeed = 19.5f;
+    private const float MaxSlideSpeed = 22.0f;
     private const float SlideAccel = 24f;
     private const float SlideFriction = 5.5f;
+
+    /// <summary>
+    /// 滑空から着地した瞬間の「着地サーフィン（シームレス・スライド移行）」判定。
+    /// 接地直前（0.35秒以内）にCキー/Bボタンを押していた場合、滑空速度をそのまま保持して超高速スライディングへ移行！
+    /// </summary>
+    public bool TryTriggerGlideToSlideSurfing(float prevGlideSpeed, Vector3 glideDir)
+    {
+        EnsureSlideResources();
+
+        bool hasInput = CheckSlideInputHeld() || _slideInputBufferTimer > 0f;
+        if (!hasInput) return false;
+
+        _slideInputBufferTimer = 0f;
+
+        Vector3 groundNormal = GetGroundNormal();
+        Vector3 slopeDown = Vector3.ProjectOnPlane(Vector3.down, groundNormal).normalized;
+
+        _isSliding = true;
+        _slideDuration = 0f;
+
+        Vector3 dir = glideDir.sqrMagnitude > 0.01f ? glideDir.normalized : transform.forward;
+        if (slopeDown.sqrMagnitude > 0.01f)
+            dir = Vector3.Slerp(dir, slopeDown, 0.35f).normalized;
+        _slideDir = dir;
+        transform.rotation = Quaternion.LookRotation(_slideDir, Vector3.up);
+
+        // 滑空の勢いを100%保持し、最低14.0m/s、最大22.0m/sの圧倒的初速で着地サーフィン
+        _slideSpeed = Mathf.Clamp(Mathf.Max(prevGlideSpeed * 1.15f, HorizontalSpeed), 14.0f, MaxSlideSpeed);
+
+        if (_slideAudioSource != null && _slideLoopClip != null)
+        {
+            _slideAudioSource.clip = _slideLoopClip;
+            _slideAudioSource.volume = 0.52f;
+            _slideAudioSource.pitch = 1.25f;
+            _slideAudioSource.Play();
+        }
+
+        // 強烈な着地サーフィン衝撃＋摩擦ハプティクス
+        AdventureInputHaptics.PlayPulse(0.55f, 0.70f, 0.22f);
+
+        Debug.Log($"[RustAndFloat] 着地サーフィン発動！速度={_slideSpeed:F1}m/s");
+        return true;
+    }
 
     /// <summary>
     /// スライディング状態の更新（Updateから毎フレーム呼び出し）
@@ -29,6 +73,11 @@ public partial class AdventurePlayerController
     private void UpdateSlopeSliding()
     {
         EnsureSlideResources();
+
+        if (CheckSlideInputHeld())
+            _slideInputBufferTimer = 0.35f;
+        else if (_slideInputBufferTimer > 0f)
+            _slideInputBufferTimer -= Time.deltaTime;
 
         if (!_grounded || _gliding)
         {
