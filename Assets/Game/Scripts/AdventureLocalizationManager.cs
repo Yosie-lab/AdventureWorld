@@ -3588,6 +3588,103 @@ public static class AdventureLocalizationManager
             "Head for the central tower.",
             "前往中央高塔。",
             "Ve hacia la torre central."
+        } },
+        { "暗くなってきたね、前を照らすよ、Float！", new[] {
+            "暗くなってきたね、前を照らすよ、Float！",
+            "It's getting dark, I'll light the path ahead, Float!",
+            "天色暗下来了呢，我来为你照亮前路，Float！",
+            "¡Se está haciendo oscuro! ¡Iluminaré el camino por delante, Float!"
+        } },
+
+        { "map_modal_header", new[] {
+            "✦ 島嶼探検マップ 〜 冒険日誌 〜 ✦",
+            "✦ Island Exploration Map — Adventure Journal — ✦",
+            "✦ 岛屿探索地图 〜 冒险日志 〜 ✦",
+            "✦ Mapa de Exploración — Diario de Aventuras — ✦"
+        } },
+        { "map_modal_footer", new[] {
+            "【Mキー / Esc / クリック】マップを閉じる",
+            "[M / Esc / Click] Close Map",
+            "【按M键 / Esc / 点击】关闭地图",
+            "[M / Esc / Clic] Cerrar Mapa"
+        } },
+        { "map_quest_title", new[] {
+            "探索進行記録",
+            "Exploration Journal",
+            "探索进行记录",
+            "Diario de Exploración"
+        } },
+        { "map_scrap_status", new[] {
+            "古代パーツ回収",
+            "Ancient Parts",
+            "古代零件收集",
+            "Piezas Antiguas"
+        } },
+        { "map_capyta_status", new[] {
+            "水豚カピタの祝福",
+            "Capyta's Blessing",
+            "水豚卡皮塔的祝福",
+            "Bendición de Capyta"
+        } },
+        { "map_dash_status", new[] {
+            "高速ダッシュ",
+            "High-Speed Sprint",
+            "高速冲刺",
+            "Carrera Rápida"
+        } },
+        { "map_jump_status", new[] {
+            "反重力二段ジャンプ",
+            "Double Jump",
+            "反重力二段跳",
+            "Doble Salto"
+        } },
+        { "map_sonar_status", new[] {
+            "探知ソナー",
+            "Detection Sonar",
+            "探测声呐",
+            "Sónar de Detección"
+        } },
+        { "白亜のタワー", new[] {
+            "白亜のタワー",
+            "White Sanctuary Tower",
+            "白垩高塔",
+            "Torre Blanca"
+        } },
+        { "目覚めの白砂ビーチ", new[] {
+            "目覚めの白砂ビーチ",
+            "Awakening White Beach",
+            "初醒白沙滩",
+            "Playa Blanca del Despertar"
+        } },
+        { "せせらぎ池", new[] {
+            "せせらぎ池",
+            "Murmuring Pond",
+            "潺潺细流池",
+            "Estanque del Murmullo"
+        } },
+        { "カルデラ湖", new[] {
+            "カルデラ湖",
+            "Caldera Lake",
+            "火口湖",
+            "Lago de la Caldera"
+        } },
+        { "大樹海・原生林", new[] {
+            "大樹海・原生林",
+            "Grand Primeval Forest",
+            "大树海·原生林",
+            "Gran Bosque Primitivo"
+        } },
+        { "北の大滑空崖", new[] {
+            "北の大滑空崖",
+            "North Soaring Precipice",
+            "北方大滑翔悬崖",
+            "Gran Acantilado del Vuelo Norte"
+        } },
+        { "砂浜の焚き火", new[] {
+            "砂浜の焚き火",
+            "Beach Campfire",
+            "沙滩篝火",
+            "Hoguera de la Playa"
         } }
     };
 }

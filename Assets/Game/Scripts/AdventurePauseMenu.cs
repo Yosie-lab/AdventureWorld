@@ -1051,7 +1051,24 @@ public class AdventurePauseMenu : MonoBehaviour
         subTitleText.raycastTarget = false;
         _headerSubTitleText = subTitleText;
 
-        // 2. タブバー（3タブ）
+        // 探検マップクイックボタン
+        var mapBtnGo = new GameObject("QuickMapButton");
+        mapBtnGo.transform.SetParent(_panelRoot.transform, false);
+        var mRt = mapBtnGo.AddComponent<RectTransform>();
+        mRt.anchorMin = new Vector2(1.0f, 1.0f);
+        mRt.anchorMax = new Vector2(1.0f, 1.0f);
+        mRt.pivot = new Vector2(1.0f, 1.0f);
+        mRt.anchoredPosition = new Vector2(-30f, -22f);
+        mRt.sizeDelta = new Vector2(165f, 36f);
+        var mImg = mapBtnGo.AddComponent<Image>();
+        mImg.color = new Color(0.18f, 0.48f, 0.38f, 0.95f);
+        var mBtn = mapBtnGo.AddComponent<Button>();
+        mBtn.onClick.AddListener(() => AdventureIslandMapModal.Instance?.ToggleMap());
+        var mTxt = MakeLabel(mapBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "🗺 探検マップ [M]", 14, Color.white);
+        mTxt.fontStyle = FontStyle.Bold;
+        mTxt.alignment = TextAnchor.MiddleCenter;
+
+        // 2. タブバー（4タブ）
         CreateTabBar(_panelRoot.transform);
 
         // 3. コンテンツ領域（タブごとのパネル）

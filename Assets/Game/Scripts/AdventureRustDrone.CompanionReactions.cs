@@ -16,6 +16,9 @@ public partial class AdventureRustDrone
         var player = AdventurePlayerController.Instance;
         if (player == null) return;
 
+        // 1. 夜間自律サーチライト（地上・滑空を問わず暗闇で自動点灯）
+        UpdateNightSearchlight(player);
+
         if (!player.IsGliding)
         {
             _prevGliderYaw = player.transform.eulerAngles.y;
@@ -69,6 +72,55 @@ public partial class AdventureRustDrone
             };
             SpeakCustom(skimLines[Random.Range(0, skimLines.Length)], 3.6f);
             return;
+        }
+    }
+
+    private Light _nightLanternLight;
+    private bool _hasAnnouncedNightLantern = false;
+
+    private void UpdateNightSearchlight(AdventurePlayerController player)
+    {
+        bool isDark = AdventureDayNightDirector.NightFactor > 0.30f || AdventureDayNightDirector.SunsetFactor > 0.70f;
+
+        if (isDark)
+        {
+            if (_nightLanternLight == null)
+            {
+                var lGo = new GameObject("Rust_NightLantern");
+                lGo.transform.SetParent(transform, false);
+                lGo.transform.localPosition = Vector3.forward * 0.35f + Vector3.down * 0.05f;
+                lGo.transform.localRotation = Quaternion.Euler(15f, 0f, 0f);
+
+                _nightLanternLight = lGo.AddComponent<Light>();
+                _nightLanternLight.type = LightType.Spot;
+                _nightLanternLight.range = 14.5f;
+                _nightLanternLight.spotAngle = 68f;
+                _nightLanternLight.innerSpotAngle = 35f;
+                _nightLanternLight.color = new Color(1.0f, 0.92f, 0.76f); // 温かい琥珀ランタン色
+                _nightLanternLight.intensity = 0f;
+            }
+
+            _nightLanternLight.enabled = true;
+            _nightLanternLight.intensity = Mathf.MoveTowards(_nightLanternLight.intensity, 1.85f, Time.deltaTime * 1.5f);
+
+            if (!_hasAnnouncedNightLantern && !HasActiveSpeech)
+            {
+                _hasAnnouncedNightLantern = true;
+                string line = AdventureLocalizationManager.Get("暗くなってきたね、前を照らすよ、Float！");
+                SpeakCustom(line, 4.0f);
+            }
+        }
+        else
+        {
+            if (_nightLanternLight != null && _nightLanternLight.enabled)
+            {
+                _nightLanternLight.intensity = Mathf.MoveTowards(_nightLanternLight.intensity, 0f, Time.deltaTime * 2.5f);
+                if (_nightLanternLight.intensity <= 0.01f)
+                {
+                    _nightLanternLight.enabled = false;
+                    _hasAnnouncedNightLantern = false; // 朝・昼を経て再び夜になったら再度案内
+                }
+            }
         }
     }
 }

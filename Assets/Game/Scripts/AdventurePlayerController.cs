@@ -590,6 +590,7 @@ public partial class AdventurePlayerController : MonoBehaviour
                     ClearLocomotionInertia();
                     if (_footsteps == null) _footsteps = GetComponent<AdventureNikoFootsteps>();
                     _footsteps?.PlayLandImpact(prevAirborneTime, prevFallSpeed, wasGliding);
+                    AdventureGlideAcrobaticsJuice.Instance?.TriggerLandingShockwave(prevFallSpeed, wasGliding, transform.position);
                 }
             }
             else
@@ -612,6 +613,7 @@ public partial class AdventurePlayerController : MonoBehaviour
                 ClearLocomotionInertia();
                 if (_footsteps == null) _footsteps = GetComponent<AdventureNikoFootsteps>();
                 _footsteps?.PlayLandImpact(prevAirborneTime, prevFallSpeed, wasGliding);
+                AdventureGlideAcrobaticsJuice.Instance?.TriggerLandingShockwave(prevFallSpeed, wasGliding, transform.position);
             }
         }
         else
@@ -1072,6 +1074,11 @@ public partial class AdventurePlayerController : MonoBehaviour
         float targetSpeed = cruiseSpeed;
         targetSpeed = Mathf.Lerp(targetSpeed, diveSpeed, diveT);
         targetSpeed = Mathf.Lerp(targetSpeed, flareSpeed, flareT);
+
+        if (flareT > 0.35f && targetSpeed > 2.0f)
+        {
+            AdventureGlideAcrobaticsJuice.Instance?.TriggerFlareAirBrake(flareT, transform.position);
+        }
 
         float cruiseFall = isBoosted ? 0.2f : -1.15f;
         float diveFall   = isBoosted ? -0.8f : -2.8f;

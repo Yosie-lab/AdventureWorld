@@ -31,6 +31,8 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
     private AudioSource _audioSource;
     private AudioClip _windHowlLoopClip;
     private AudioClip _pullUpWhooshClip;
+    private AudioClip _landThumpClip;
+    private AudioClip _flareAirBrakeClip;
 
     // ダイブ状態追跡
     private bool _isDiving = false;
@@ -38,6 +40,7 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
     private float _prevVerticalVel = 0f;
     private float _diveDuration = 0f;
     private float _lastPullUpTime = -10f;
+    private float _lastFlareBrakeTime = -10f;
 
     // 翼端ベイパートレイル
     private TrailRenderer _leftVaporTrail;
@@ -346,5 +349,127 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
         }
         _pullUpWhooshClip = AudioClip.Create("Juice_PullUpWhoosh", whooshSamplesCount, 1, sampleRate, false);
         _pullUpWhooshClip.SetData(whooshSamples, 0);
+
+        // 3. ランディング・重低音インパクト（Land Thump / ズシン音）
+        float landDur = 0.42f;
+        int landSamplesCount = (int)(sampleRate * landDur);
+        float[] landSamples = new float[landSamplesCount];
+        for (int i = 0; i < landSamplesCount; i++)
+        {
+            float t = (float)i / sampleRate;
+            float decay = Mathf.Exp(-t * 14f);
+            float subBass = Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(65f, 32f, t / landDur) * t) * 0.65f;
+            float punchNoise = (Random.value * 2f - 1f) * Mathf.Exp(-t * 28f) * 0.45f;
+            landSamples[i] = Mathf.Clamp((subBass + punchNoise) * decay, -1f, 1f);
+        }
+        _landThumpClip = AudioClip.Create("Juice_LandThump", landSamplesCount, 1, sampleRate, false);
+        _landThumpClip.SetData(landSamples, 0);
+
+        // 4. フレア（減速・引き起こし制動）風圧音（Flare Air Brake / バサッ・ファサッ音）
+        float flareDur = 0.52f;
+        int flareSamplesCount = (int)(sampleRate * flareDur);
+        float[] flareSamples = new float[flareSamplesCount];
+        for (int i = 0; i < flareSamplesCount; i++)
+        {
+            float t = (float)i / sampleRate;
+            float env = Mathf.Sin(t / flareDur * Mathf.PI);
+            float whoosh = Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(160f, 75f, t / flareDur) * t) * 0.35f;
+            float airNoise = (Random.value * 2f - 1f) * 0.38f;
+            flareSamples[i] = Mathf.Clamp((whoosh + airNoise) * env, -1f, 1f);
+        }
+        _flareAirBrakeClip = AudioClip.Create("Juice_FlareAirBrake", flareSamplesCount, 1, sampleRate, false);
+        _flareAirBrakeClip.SetData(flareSamples, 0);
+    }
+
+    /// <summary>着地時の衝撃波リング＆ズシンと響く重低音ランディングSE</summary>
+    public void TriggerLandingShockwave(float fallSpeed, bool wasGliding, Vector3 pos)
+    {
+        // 落下速度または滑空からの着地時
+        float absSpeed = Mathf.Abs(fallSpeed);
+        if (absSpeed < 3.2f && !wasGliding) return;
+
+        float intensity = Mathf.Clamp01((absSpeed - 3.0f) / 10.0f);
+        if (wasGliding) intensity = Mathf.Max(intensity, 0.55f);
+
+        // 1. 重低音ランディングインパクトSE
+        if (_audioSource != null && _landThumpClip != null)
+        {
+            _audioSource.pitch = Random.Range(0.92f, 1.08f);
+            _audioSource.PlayOneShot(_landThumpClip, Mathf.Clamp01(0.45f + intensity * 0.55f));
+        }
+
+        // 2. カメラ垂直バウンス（Landing G-Bounce）
+        _cameraShakeIntensity = Mathf.Max(_cameraShakeIntensity, Mathf.Clamp01(0.35f + intensity * 0.45f));
+
+        // 3. 白砂・風塵ショックウェーブリングを足元に展開
+        SpawnShockwaveFx(pos, intensity);
+    }
+
+    /// <summary>フレア（【Sキー】制動・減速）時の空力ブレーキジュース</summary>
+    public void TriggerFlareAirBrake(float intensity, Vector3 pos)
+    {
+        if (intensity < 0.35f || Time.time < _lastFlareBrakeTime + 0.85f) return;
+        _lastFlareBrakeTime = Time.time;
+
+        // 空力ブレーキ音再生
+        if (_audioSource != null && _flareAirBrakeClip != null)
+        {
+            _audioSource.pitch = Random.Range(0.95f, 1.06f);
+            _audioSource.PlayOneShot(_flareAirBrakeClip, Mathf.Clamp01(0.35f + intensity * 0.45f));
+        }
+
+        // 翼端トレイルを一時的に濃縮
+        StartCoroutine(EmitVaporBurstRoutine());
+    }
+
+    private void SpawnShockwaveFx(Vector3 center, float intensity)
+    {
+        var fxGo = new GameObject("Land_ShockwaveRing");
+        fxGo.transform.position = center + Vector3.up * 0.08f;
+        var ps = fxGo.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        var main = ps.main;
+        main.duration = 0.55f;
+        main.loop = false;
+        main.startLifetime = 0.45f;
+        main.startSpeed = 7.5f * (0.8f + intensity * 0.5f);
+        main.startSize = 0.35f;
+        main.startColor = new Color(1.0f, 0.95f, 0.88f, 0.55f);
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.playOnAwake = false;
+
+        var emission = ps.emission;
+        emission.rateOverTime = 0;
+        emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, Mathf.RoundToInt(22 + intensity * 24)) });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = 0.6f;
+        shape.arc = 360f;
+        shape.rotation = new Vector3(90f, 0f, 0f); // 地面に水平に放射
+
+        var sizeOverLifetime = ps.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        AnimationCurve curve = new AnimationCurve();
+        curve.AddKey(0f, 0.4f);
+        curve.AddKey(1f, 1.6f);
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, curve);
+
+        var colorOverLifetime = ps.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient grad = new Gradient();
+        grad.SetKeys(
+            new GradientColorKey[] { new GradientColorKey(new Color(1f, 0.96f, 0.90f), 0f), new GradientColorKey(new Color(0.9f, 0.95f, 1f), 1f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(0.65f, 0f), new GradientAlphaKey(0f, 1f) }
+        );
+        colorOverLifetime.color = grad;
+
+        var psRenderer = fxGo.GetComponent<ParticleSystemRenderer>();
+        if (psRenderer != null && _vaporMaterial != null)
+            psRenderer.material = _vaporMaterial;
+
+        ps.Play();
+        Destroy(fxGo, 0.75f);
     }
 }
