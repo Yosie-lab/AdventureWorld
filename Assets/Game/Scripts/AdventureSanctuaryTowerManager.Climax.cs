@@ -576,7 +576,13 @@ public partial class AdventureSanctuaryTowerManager
         var player = GetPlayer();
         if (player != null)
         {
-            player.ApplyGlideBoost(2.0f, 18f);
+            Vector3 outToSea = player.transform.position - new Vector3(512f, player.transform.position.y, 512f);
+            outToSea.y = 0f;
+            if (outToSea.sqrMagnitude < 0.01f) outToSea = new Vector3(1f, 0f, 0.45f);
+            outToSea.Normalize();
+            player.transform.rotation = Quaternion.LookRotation(outToSea);
+
+            player.ApplyGlideBoost(2.0f, 18f, outToSea);
             if (player.transform.position.y < 155f)
                 player.ApplyUpdraft(22f);
         }

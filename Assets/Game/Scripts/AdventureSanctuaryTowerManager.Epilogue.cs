@@ -80,10 +80,17 @@ public partial class AdventureSanctuaryTowerManager
         var player = GetPlayer();
         if (player != null)
         {
+            // 中央タワー(512,512)から外海（東〜北東）方向へ前向きに方向づけ
+            Vector3 outToSea = player.transform.position - new Vector3(512f, player.transform.position.y, 512f);
+            outToSea.y = 0f;
+            if (outToSea.sqrMagnitude < 0.01f) outToSea = new Vector3(1f, 0f, 0.45f);
+            outToSea.Normalize();
+            player.transform.rotation = Quaternion.LookRotation(outToSea);
+
             if (player.transform.position.y < 155f)
-                player.ApplyLaunchUpdraft(24f, 20f);
+                player.ApplyLaunchUpdraft(24f, 20f, outToSea * 10f);
             player.SetAutoGlideMode(true, 160f); // 天蓋（150m）突破後の雄大な大空・雲海パノラマ高度（160m）へ
-            player.ApplyGlideBoost(1.5f, 12f);
+            player.ApplyGlideBoost(1.6f, 14f, outToSea);
         }
 
         SetCinematicCamera(true);

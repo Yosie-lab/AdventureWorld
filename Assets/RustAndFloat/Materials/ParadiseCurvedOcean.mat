@@ -37,10 +37,10 @@ Material:
     - _DeepRadius: 800
     - _HorizonRadius: 4500
     - _NormalStrength: 1.25
-    - _OverheadSparkleIntensity: 1.6
+    - _OverheadSparkleIntensity: 3.4
     - _ShallowRadius: 360
     - _Smoothness: 0.985
-    - _SparkleScale: 1.8
+    - _SparkleScale: 2.45
     - _SunGlitterExponent: 80
     - _SunGlitterIntensity: 5.2
     - _WaveScale1: 0.035
@@ -51,7 +51,7 @@ Material:
     - _IslandCenter: {r: 512, g: 5.5, b: 512, a: 0}
     - _MidColor: {r: 0.04, g: 0.88, b: 0.8, a: 0.9}
     - _ShallowColor: {r: 0.08, g: 0.99, b: 0.82, a: 0.78}
-    - _SunGlitterColor: {r: 1, g: 0.97999996, b: 0.88, a: 1}
+    - _SunGlitterColor: {r: 1, g: 0.99, b: 0.92, a: 1}
     - _WaveSpeed1: {r: 0.025, g: 0.015, b: 0, a: 0}
     - _WaveSpeed2: {r: -0.02, g: 0.03, b: 0, a: 0}
   m_BuildTextureStacks: []

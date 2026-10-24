@@ -627,8 +627,9 @@ public class AdventureCameraFollow : MonoBehaviour
         {
             float playerYaw = target.eulerAngles.y;
             float sway = Mathf.Sin(Time.unscaledTime * 0.11f) * 4.5f;
-            _targetYaw = playerYaw + 180f + _skyWideSideBias + sway;
-            _targetPitch = Mathf.Lerp(_targetPitch, 10f + Mathf.Sin(Time.unscaledTime * 0.08f) * 2.2f, _islandOverviewBlend);
+            // 正面反転(+180f)ではなく、後方斜め(+_skyWideSideBias)から前向きに雄大に飛ぶ二人を追従
+            _targetYaw = playerYaw + _skyWideSideBias + sway;
+            _targetPitch = Mathf.Lerp(_targetPitch, 12f + Mathf.Sin(Time.unscaledTime * 0.08f) * 2.2f, _islandOverviewBlend);
         }
         else if (cine > 0.4f && !isAutoGlide && !cursorLook)
             _targetPitch = Mathf.Clamp(_targetPitch, -6f, 22f);
