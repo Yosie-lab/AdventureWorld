@@ -558,21 +558,17 @@ public partial class AdventureSanctuaryTowerManager
     void SpawnEpilogueRainbow()
     {
         var player = GetPlayer();
-        Camera cam = Camera.main;
         Vector3 origin = player != null ? player.transform.position : new Vector3(512f, 120f, 512f);
-        Vector3 forward = Vector3.forward;
 
-        if (cam != null && cam.transform != null)
-        {
-            forward = cam.transform.forward;
-        }
-        else if (player != null && player.transform != null)
-        {
-            forward = player.transform.forward;
-        }
+        // エピローグ中はフロントカメラがFloatを正面から捉えるため、二人の背後〜島の大空へ向けて大虹を架橋
+        Vector3 forward = (player != null) ? -player.transform.forward : Vector3.back;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.01f)
+            forward = Vector3.back;
+        forward.Normalize();
 
         AdventureSkybreakRainbow.Spawn(origin, forward);
-        Debug.Log("[RustAndFloat] エピローグ冒頭「世界はこんなにも広かったんだ」：正面大空に二重虹（Grand Rainbow）を架橋");
+        Debug.Log("[RustAndFloat] エピローグ冒頭「世界はこんなにも広かったんだ」：二人の背景大空に神々しい大二重虹（Grand Double Rainbow）を架橋");
     }
 
     #endregion

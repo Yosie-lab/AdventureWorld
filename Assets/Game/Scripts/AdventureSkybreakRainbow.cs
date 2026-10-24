@@ -2,43 +2,51 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// エピローグ冒頭「わぁぁ……！見て、Niko！世界はこんなにも広かったんだ……！！」のシーンで
-/// 大空の正面に神々しく架かる雄大な大虹（主虹＋副虹のダブルレインボー）。
-/// プロシージャルな大円弧メッシュと7色スペクトルグラデーションにより、
-/// 青空と雲の彼方にゆっくりと幻想的にフェードインする。
+/// エピローグ冒頭「わぁぁ……！見て、Float！世界はこんなにも広かったんだ……！！」のシーンで
+/// 大空の正面に神々しく架かる雄大な大虹（主虹＋副虹のダブルレインボー＋内光グロー）。
+/// 500mを超える巨大アーチと加算合成・HDRエミッションにより、
+/// 太陽光を透かして自ら輝く奇跡の光の架け橋を創出する。
 /// </summary>
 public class AdventureSkybreakRainbow : MonoBehaviour
 {
     static AdventureSkybreakRainbow _instance;
 
     [Header("Rainbow Mesh Settings")]
-    const int ArcSegments = 84;
+    const int ArcSegments = 96;
     const int WidthSlices = 8;
-    const float ArcStartDeg = 14f;
-    const float ArcEndDeg = 166f;
+    const float ArcStartDeg = 12f;
+    const float ArcEndDeg = 168f;
 
-    // 主虹（Primary Rainbow）
-    const float PrimaryInnerRadius = 220f;
-    const float PrimaryOuterRadius = 268f;
-    const float PrimaryBaseAlpha = 0.92f;
+    // 主虹（Primary Rainbow）：鮮烈な7色プリズム光条
+    const float PrimaryInnerRadius = 310f;
+    const float PrimaryOuterRadius = 385f;
+    const float PrimaryBaseAlpha = 0.98f;
 
-    // 副虹（Secondary Rainbow）
-    const float SecondaryInnerRadius = 295f;
-    const float SecondaryOuterRadius = 332f;
-    const float SecondaryBaseAlpha = 0.38f;
+    // 副虹（Secondary Rainbow）：外側に淡く逆順スペクトルで架かる
+    const float SecondaryInnerRadius = 425f;
+    const float SecondaryOuterRadius = 475f;
+    const float SecondaryBaseAlpha = 0.48f;
+
+    // 内光アーチ（Inner Sky Glow）：主虹の内側の大空が神々しく輝く大気現象
+    const float GlowInnerRadius = 20f;
+    const float GlowOuterRadius = 310f;
 
     Material _primaryMat;
     Material _secondaryMat;
+    Material _glowMat;
     Texture2D _primaryTex;
     Texture2D _secondaryTex;
+    Texture2D _glowTex;
     GameObject _primaryGo;
     GameObject _secondaryGo;
+    GameObject _glowGo;
 
     float _currentAlpha = 0f;
     float _targetAlpha = 1f;
     float _fadeDuration = 4.2f;
     float _fadeTimer = 0f;
     bool _isFading = false;
+    Vector3 _cachedForward = Vector3.forward;
 
     /// <summary>
     /// エピローグの指定位置・向き正面に大虹を生成してフェードイン開始
@@ -82,18 +90,30 @@ public class AdventureSkybreakRainbow : MonoBehaviour
     {
         Reposition(playerPos, forwardDir);
 
-        Shader unlitSh = Shader.Find("Sprites/Default")
-                         ?? Shader.Find("Universal Render Pipeline/Unlit")
+        Shader unlitSh = Shader.Find("Universal Render Pipeline/Unlit")
+                         ?? Shader.Find("Sprites/Default")
                          ?? Shader.Find("Unlit/Transparent");
 
-        // 1. 主虹（Primary Rainbow）の生成
+        // 0. 内光アーチ（Inner Glow）：主虹の内側を淡く黄金〜シアンに満たす
+        _glowTex = GenerateInnerGlowTexture();
+        _glowMat = CreateRainbowMaterial(unlitSh, _glowTex, isAdditive: true);
+        _glowGo = new GameObject("InnerRainbowGlow");
+        _glowGo.transform.SetParent(transform, false);
+        _glowGo.transform.localPosition = new Vector3(0f, 0f, 2.0f); // わずかに奥
+        var mfGlow = _glowGo.AddComponent<MeshFilter>();
+        mfGlow.sharedMesh = CreateArchMesh(GlowInnerRadius, GlowOuterRadius);
+        var mrGlow = _glowGo.AddComponent<MeshRenderer>();
+        mrGlow.sharedMaterial = _glowMat;
+        mrGlow.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mrGlow.receiveShadows = false;
+
+        // 1. 主虹（Primary Rainbow）の生成（加算合成＋鮮烈スペクトル）
         _primaryTex = GenerateSpectrumTexture(isSecondary: false);
-        _primaryMat = CreateRainbowMaterial(unlitSh, _primaryTex);
+        _primaryMat = CreateRainbowMaterial(unlitSh, _primaryTex, isAdditive: true);
 
         _primaryGo = new GameObject("PrimaryRainbowArch");
         _primaryGo.transform.SetParent(transform, false);
         _primaryGo.transform.localPosition = Vector3.zero;
-        _primaryGo.transform.localRotation = Quaternion.identity;
         var mfPrimary = _primaryGo.AddComponent<MeshFilter>();
         mfPrimary.sharedMesh = CreateArchMesh(PrimaryInnerRadius, PrimaryOuterRadius);
         var mrPrimary = _primaryGo.AddComponent<MeshRenderer>();
@@ -103,12 +123,11 @@ public class AdventureSkybreakRainbow : MonoBehaviour
 
         // 2. 副虹（Secondary Rainbow）の生成（外側に淡く色の順序が逆転して架かる）
         _secondaryTex = GenerateSpectrumTexture(isSecondary: true);
-        _secondaryMat = CreateRainbowMaterial(unlitSh, _secondaryTex);
+        _secondaryMat = CreateRainbowMaterial(unlitSh, _secondaryTex, isAdditive: true);
 
         _secondaryGo = new GameObject("SecondaryRainbowArch");
         _secondaryGo.transform.SetParent(transform, false);
-        _secondaryGo.transform.localPosition = Vector3.zero;
-        _secondaryGo.transform.localRotation = Quaternion.identity;
+        _secondaryGo.transform.localPosition = new Vector3(0f, 0f, 1.0f);
         var mfSecondary = _secondaryGo.AddComponent<MeshFilter>();
         mfSecondary.sharedMesh = CreateArchMesh(SecondaryInnerRadius, SecondaryOuterRadius);
         var mrSecondary = _secondaryGo.AddComponent<MeshRenderer>();
@@ -117,7 +136,7 @@ public class AdventureSkybreakRainbow : MonoBehaviour
         mrSecondary.receiveShadows = false;
     }
 
-    static Material CreateRainbowMaterial(Shader sh, Texture2D tex)
+    static Material CreateRainbowMaterial(Shader sh, Texture2D tex, bool isAdditive)
     {
         var mat = new Material(sh);
         mat.mainTexture = tex;
@@ -127,12 +146,21 @@ public class AdventureSkybreakRainbow : MonoBehaviour
         mat.color = c;
         mat.SetColor("_BaseColor", c);
         mat.SetFloat("_Surface", 1f); // Transparent
-        mat.SetFloat("_Blend", 0f); // Alpha blend
+        mat.SetFloat("_Blend", isAdditive ? 1f : 0f); // Additive or Alpha blend
         mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        if (isAdditive)
+        {
+            mat.EnableKeyword("_BLENDMODE_ADD");
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        }
+        else
+        {
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        }
         mat.SetInt("_ZWrite", 0);
-        mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 50;
+        mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 120;
         return mat;
     }
 
@@ -143,9 +171,11 @@ public class AdventureSkybreakRainbow : MonoBehaviour
             forwardFlat = Vector3.forward;
         forwardFlat.Normalize();
 
-        // プレイヤーの視界正面330m先、地平線近く（Y=15m）を着地点として配置（エピローグ全体を飛んでもアーチの全景が美しく保たれる距離）
-        Vector3 center = playerPos + forwardFlat * 330f;
-        center.y = 15f;
+        _cachedForward = forwardFlat;
+
+        // プレイヤーの視界正面560m先、地平線近く（Y=10m）を着地点として配置
+        Vector3 center = playerPos + forwardFlat * 560f;
+        center.y = 10f;
         transform.position = center;
 
         // アーチの平面がカメラ正面に対して垂直に美しくそびえ立つよう回転
@@ -172,23 +202,41 @@ public class AdventureSkybreakRainbow : MonoBehaviour
                 _isFading = false;
         }
 
+        // 遠景スカイボックスのように、プレイヤーの移動に対してゆったりと相対距離を維持
+        var player = AdventurePlayerController.Instance;
+        if (player != null)
+        {
+            Vector3 targetCenter = player.transform.position + _cachedForward * 560f;
+            targetCenter.y = 10f;
+            transform.position = Vector3.Lerp(transform.position, targetCenter, Time.deltaTime * 1.8f);
+        }
+
         // 太陽光と大気の反射による微細な光のきらめき・呼吸感（ブリージング）
-        float shimmer = 1f + Mathf.Sin(Time.time * 1.8f) * 0.04f + Mathf.Cos(Time.time * 3.1f) * 0.02f;
+        float shimmer = 1f + Mathf.Sin(Time.time * 1.6f) * 0.05f + Mathf.Cos(Time.time * 2.8f) * 0.03f;
 
         if (_primaryMat != null)
         {
             float a = _currentAlpha * PrimaryBaseAlpha * shimmer;
-            var c = new Color(1f, 1f, 1f, Mathf.Clamp01(a));
-            _primaryMat.color = c;
-            _primaryMat.SetColor("_BaseColor", c);
+            // 加算合成＋HDR（1.4倍輝度）でBloomと連動し、空に浮かぶ発光プリズムを創出
+            Color hdrColor = new Color(1.35f, 1.35f, 1.35f, Mathf.Clamp01(a));
+            _primaryMat.color = hdrColor;
+            _primaryMat.SetColor("_BaseColor", hdrColor);
         }
 
         if (_secondaryMat != null)
         {
             float a = _currentAlpha * SecondaryBaseAlpha * shimmer;
-            var c = new Color(1f, 1f, 1f, Mathf.Clamp01(a));
-            _secondaryMat.color = c;
-            _secondaryMat.SetColor("_BaseColor", c);
+            Color hdrColor = new Color(1.20f, 1.20f, 1.20f, Mathf.Clamp01(a));
+            _secondaryMat.color = hdrColor;
+            _secondaryMat.SetColor("_BaseColor", hdrColor);
+        }
+
+        if (_glowMat != null)
+        {
+            float a = _currentAlpha * 0.22f * shimmer;
+            Color glowColor = new Color(1.0f, 0.95f, 0.85f, Mathf.Clamp01(a));
+            _glowMat.color = glowColor;
+            _glowMat.SetColor("_BaseColor", glowColor);
         }
     }
 
@@ -196,8 +244,10 @@ public class AdventureSkybreakRainbow : MonoBehaviour
     {
         if (_primaryMat != null) Destroy(_primaryMat);
         if (_secondaryMat != null) Destroy(_secondaryMat);
+        if (_glowMat != null) Destroy(_glowMat);
         if (_primaryTex != null) Destroy(_primaryTex);
         if (_secondaryTex != null) Destroy(_secondaryTex);
+        if (_glowTex != null) Destroy(_glowTex);
     }
 
     /// <summary>
@@ -279,12 +329,47 @@ public class AdventureSkybreakRainbow : MonoBehaviour
     }
 
     /// <summary>
+    /// 虹の内側の大空を神々しく満たす内光グローテクスチャ
+    /// </summary>
+    Texture2D GenerateInnerGlowTexture()
+    {
+        const int width = 128;
+        const int height = 64;
+        var tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        tex.name = "RainbowInnerGlow";
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+
+        Color[] pixels = new Color[width * height];
+        for (int y = 0; y < height; y++)
+        {
+            float v = (float)y / (height - 1);
+            // 内側ほど淡く、主虹の境界付近で最も美しく光る
+            float radGlow = Mathf.Pow(v, 2.2f) * 0.85f;
+
+            for (int x = 0; x < width; x++)
+            {
+                float u = (float)x / (width - 1);
+                float arcGlow = Mathf.Sin(u * Mathf.PI);
+                arcGlow = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(arcGlow * 2.5f));
+
+                // 暖かなシャンパンゴールド〜天上のシアンホワイト
+                Color glow = new Color(1.0f, 0.94f, 0.82f, radGlow * arcGlow);
+                pixels[y * width + x] = glow;
+            }
+        }
+        tex.SetPixels(pixels);
+        tex.Apply();
+        return tex;
+    }
+
+    /// <summary>
     /// 虹の7色スペクトルグラデーションテクスチャを生成
     /// </summary>
     Texture2D GenerateSpectrumTexture(bool isSecondary)
     {
-        const int width = 256;
-        const int height = 64;
+        const int width = 512;
+        const int height = 128;
         var tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
         tex.name = isSecondary ? "SecondaryRainbowSpectrum" : "PrimaryRainbowSpectrum";
         tex.wrapMode = TextureWrapMode.Clamp;
@@ -292,14 +377,14 @@ public class AdventureSkybreakRainbow : MonoBehaviour
 
         Color[] pixels = new Color[width * height];
 
-        // 虹の純粋スペクトル基準色（赤・橙・黄・緑・シアン・青・紫）
-        Color cRed     = new Color(1.00f, 0.18f, 0.18f);
-        Color cOrange  = new Color(1.00f, 0.54f, 0.10f);
-        Color cYellow  = new Color(1.00f, 0.92f, 0.15f);
-        Color cGreen   = new Color(0.20f, 0.90f, 0.32f);
-        Color cCyan    = new Color(0.12f, 0.88f, 0.96f);
-        Color cBlue    = new Color(0.18f, 0.44f, 1.00f);
-        Color cViolet  = new Color(0.70f, 0.22f, 0.92f);
+        // 息を呑む極上7色プリズムスペクトル（鮮明・彩度アップ・透明感）
+        Color cRed     = new Color(1.00f, 0.14f, 0.20f); // 真紅
+        Color cOrange  = new Color(1.00f, 0.50f, 0.06f); // 鮮烈なオレンジ
+        Color cYellow  = new Color(1.00f, 0.95f, 0.12f); // 輝くサンゴールド
+        Color cGreen   = new Color(0.12f, 0.96f, 0.40f); // 瑞々しいエメラルド
+        Color cCyan    = new Color(0.08f, 0.92f, 1.00f); // 抜けるようなシアンブルー
+        Color cBlue    = new Color(0.12f, 0.46f, 1.00f); // 澄み渡るコバルト
+        Color cViolet  = new Color(0.74f, 0.20f, 0.98f); // 幻想的なアメジストバイオレット
 
         for (int y = 0; y < height; y++)
         {
@@ -330,7 +415,7 @@ public class AdventureSkybreakRainbow : MonoBehaviour
                 float u = (float)x / (width - 1);
                 // 角度両端のソフト減衰
                 float arcAlpha = Mathf.Sin(u * Mathf.PI);
-                arcAlpha = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(arcAlpha * 3.0f));
+                arcAlpha = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(arcAlpha * 3.5f));
 
                 Color finalColor = baseColor;
                 finalColor.a = bandAlpha * arcAlpha;
