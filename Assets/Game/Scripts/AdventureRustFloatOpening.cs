@@ -141,15 +141,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
             BuildHud();
 
         if (_overlayGo != null) _overlayGo.SetActive(true);
-        if (AdventureRustFloatFeel.IsActiveScene)
-        {
-            AdventureTitleSplashScene.SetActive(true);
-            SetPreStartImageVisible(false);
-        }
-        else
-        {
-            SetPreStartImageVisible(true);
-        }
+        AdventureTitleSplashScene.SetActive(false);
+        SetPreStartImageVisible(true);
         EnsureTitleStoryTextVisible();
         if (_modalBoard != null)
         {
@@ -315,15 +308,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
             return;
         }
 
-        if (AdventureRustFloatFeel.IsActiveScene)
-        {
-            AdventureTitleSplashScene.SetActive(true);
-            SetPreStartImageVisible(false);
-        }
-        else
-        {
-            SetPreStartImageVisible(true);
-        }
+        AdventureTitleSplashScene.SetActive(false);
+        SetPreStartImageVisible(true);
 
         // タイトル画面のセーブ状況を更新して表示
         RefreshSaveDataStatus();
@@ -630,8 +616,11 @@ public class AdventureRustFloatOpening : MonoBehaviour
         while (t < 0.35f)
         {
             t += Time.unscaledDeltaTime;
+            float alpha = Mathf.Lerp(1f, 0f, t / 0.35f);
             if (_modalCg != null)
-                _modalCg.alpha = Mathf.Lerp(1f, 0f, t / 0.35f);
+                _modalCg.alpha = alpha;
+            if (_preStartImage != null)
+                _preStartImage.color = new Color(1f, 1f, 1f, alpha);
             yield return null;
         }
 
@@ -643,6 +632,8 @@ public class AdventureRustFloatOpening : MonoBehaviour
             _modalCg.alpha = 0f;
         AdventureTitleSplashScene.SetActive(false);
         SetPreStartImageVisible(false);
+        if (_preStartImage != null)
+            _preStartImage.color = Color.white;
         IsGameStarted = true;
         _isClosing = false;
         _inputGuardUntil = Mathf.Max(_inputGuardUntil, Time.unscaledTime + 0.40f);

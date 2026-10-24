@@ -140,6 +140,9 @@ created: 2026-09-11
   4. **【+2点】Input System 設定の完全クリーン化（コンソール例外ゼロ保証）（`ProjectSettings.asset`）**:
      - `ProjectSettings/ProjectSettings.asset` の `activeInputHandler` を `2`（Both: 新旧Input完全両対応）に設定。
      - バックグラウンドで発生していた `InvalidOperationException` を根絶し、Unityコンソールエラー0件、例外0件を決定論的に保証。
+  5. **ゲーム起動時およびプロローグ開始前の全画面背景画像表示（`AdventureRustFloatOpening.cs`）**:
+     - エディタでキャプチャした最新の美麗シーン（`CurrentSceneCapture.png`）を、ゲーム起動時およびプロローグ開始前の全画面背景として常時表示。
+     - ゲーム開始（冒険を始める／つづきから）操作時に、タイトルUIカードとともに背景画像が美しくクロスフェードアウトし、3Dシーン・プロローグへ滑らかに接続。
 - **タワー横の崖スタック解消＆空中アンスタックエンジン（2026-10-19 追記）**:
   1. **タワー東側・南東側崖の岩コライダー（86個）の通行可能化（`AdventureSanctuaryTowerManager.Structure.cs`）**:
      - タワー中心(512,512)から半径55m以内・Y∈[28, 65]にあるすべての岩（`Rock_*`, `Stone_*`）を自動で通過可能（トリガー化／通過許可）にし、外壁と岩の狭隘挟まりトラップを根絶。
