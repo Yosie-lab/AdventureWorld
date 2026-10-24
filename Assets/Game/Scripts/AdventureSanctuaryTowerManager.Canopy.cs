@@ -104,6 +104,7 @@ public partial class AdventureSanctuaryTowerManager
         _leverPulled = true;
         _scriptHoldTimer = 0f;
         ClearPendingClimax();
+        SuppressSkybreakHyperUpdraft();
 
         SetExplorationHudVisible(false);
         if (_scriptUiRoot != null)
@@ -478,6 +479,7 @@ public partial class AdventureSanctuaryTowerManager
             player.transform.position = new Vector3(512f, startY + 2.5f, 512f);
             if (cc != null) cc.enabled = true;
             player.BeginSkybreakPillarAscend(new Vector3(512f, 0f, 512f), 38f, 156f);
+            player.ArmClimaxSkyHold(156f);
         }
     }
 

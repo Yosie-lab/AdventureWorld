@@ -110,6 +110,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
         if (_overlayGo != null) _overlayGo.SetActive(false);
         if (_modalBoard != null) _modalBoard.SetActive(false);
         if (_modalCg != null) _modalCg.alpha = 0f;
+        AdventureTitleSplashScene.SetActive(false);
         SetPreStartImageVisible(false);
         if (_guideText != null) _guideText.gameObject.SetActive(true);
         Cursor.lockState = CursorLockMode.Locked;
@@ -140,7 +141,15 @@ public class AdventureRustFloatOpening : MonoBehaviour
             BuildHud();
 
         if (_overlayGo != null) _overlayGo.SetActive(true);
-        SetPreStartImageVisible(true);
+        if (AdventureRustFloatFeel.IsActiveScene)
+        {
+            AdventureTitleSplashScene.SetActive(true);
+            SetPreStartImageVisible(false);
+        }
+        else
+        {
+            SetPreStartImageVisible(true);
+        }
         EnsureTitleStoryTextVisible();
         if (_modalBoard != null)
         {
@@ -306,7 +315,15 @@ public class AdventureRustFloatOpening : MonoBehaviour
             return;
         }
 
-        SetPreStartImageVisible(true);
+        if (AdventureRustFloatFeel.IsActiveScene)
+        {
+            AdventureTitleSplashScene.SetActive(true);
+            SetPreStartImageVisible(false);
+        }
+        else
+        {
+            SetPreStartImageVisible(true);
+        }
 
         // タイトル画面のセーブ状況を更新して表示
         RefreshSaveDataStatus();
@@ -624,6 +641,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
             _modalBoard.SetActive(false);
         if (_modalCg != null)
             _modalCg.alpha = 0f;
+        AdventureTitleSplashScene.SetActive(false);
         SetPreStartImageVisible(false);
         IsGameStarted = true;
         _isClosing = false;

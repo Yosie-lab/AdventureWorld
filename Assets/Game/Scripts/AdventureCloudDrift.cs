@@ -31,7 +31,7 @@ public class AdventureCloudDrift : MonoBehaviour
     static AudioClip _mistPassClip;
     float _lastMistTime = 0f;
 
-    /// <summary>大空解放シーン中は楕円パフ雲を消し、光の筋だけ見せる</summary>
+    /// <summary>大空解放シーン中は楕円パフ雲を消す</summary>
     public static void SetFluffyCloudsVisible(bool visible)
     {
         var root = GameObject.Find("RustFloat_Clouds");

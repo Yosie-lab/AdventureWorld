@@ -77,6 +77,10 @@ public class AdventureThermalUpdraft : MonoBehaviour
 
     void ApplyLiftToPlayer(AdventurePlayerController player, float distXZ)
     {
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null && tower.BlocksSkybreakColumnLift)
+            return;
+
         if (autoLaunch)
         {
             // 光の柱：物理に頼らず中心＋上昇を強制（途中引っかかり対策）

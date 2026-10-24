@@ -45,10 +45,10 @@ public partial class AdventureSanctuaryTowerManager
         if (player != null)
         {
             const float climaxSkyY = 156f;
+            player.SetAutoGlideMode(false);
+            player.EndSkybreakPillarAscend();
             if (player.transform.position.y < climaxSkyY - 1f)
                 player.ForceSkybreakArrival(new Vector3(512f, climaxSkyY, 512f), climaxSkyY);
-            else
-                player.EndSkybreakPillarAscend();
             player.SetAutoGlideMode(false);
             float holdY = Mathf.Max(player.transform.position.y, climaxSkyY);
             player.ArmClimaxSkyHold(holdY);

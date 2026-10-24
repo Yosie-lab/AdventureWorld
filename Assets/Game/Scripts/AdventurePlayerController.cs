@@ -259,8 +259,17 @@ public partial class AdventurePlayerController : MonoBehaviour
             return;
         }
 
-        // CharacterController の自動復旧（焚き火座り以外で無効のまま残った場合）
-        if (_cc != null && !_cc.enabled)
+        // 光の柱上昇：台本・ポーズ・入力ガード中も止めない（割れ目手前で墜落する主因を防ぐ）
+        if (_skybreakPillarLock)
+        {
+            TickSkybreakPillarLock();
+            ApplySkybreakPillarAscentStep();
+            ApplyClimaxSkyHoldVertical();
+            return;
+        }
+
+        // CharacterController の自動復旧（焚き火座り・柱上昇・大空ホールド中は CC 無効を維持）
+        if (_cc != null && !_cc.enabled && !_climaxSkyHold)
             _cc.enabled = true;
         if (!enabled)
             enabled = true;
@@ -1475,6 +1484,14 @@ public partial class AdventurePlayerController : MonoBehaviour
     /// <summary>ブースト・滑空・ホップ状態を強制リセットして地上に着地させる（緊急回復）</summary>
     public void ForceGroundReset()
     {
+        if (_skybreakPillarLock)
+            return;
+
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (transform.position.y > 85f && tower != null
+            && (tower.IsPendingClimax || tower.NeedsClimaxSkyAltitude || _climaxSkyHold))
+            return;
+
         _skybreakPillarLock  = false;
         _skybreakPillarDone  = false;
         _skybreakPillarEndAt = 0f;
@@ -1848,6 +1865,12 @@ public partial class AdventurePlayerController : MonoBehaviour
         bool pendingCanopyToClimax = tower != null
                                      && tower.IsPendingClimax
                                      && !tower.ClimaxCrisisStarted;
+        if (tower != null && tower.BlocksSkybreakColumnLift)
+        {
+            _climaxSkyHold = false;
+            return;
+        }
+
         bool needHold = tower != null
                         && (tower.NeedsClimaxSkyAltitude || pendingCanopyToClimax);
         if (!needHold)
@@ -1865,7 +1888,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         _gliding = true;
 
         const float riftApproachY = 147f;
-        if (pendingCanopyToClimax && transform.position.y < riftApproachY)
+        if (pendingCanopyToClimax)
             _climaxSkyHoldAltitude = Mathf.Max(_climaxSkyHoldAltitude, 156f);
 
         if (transform.position.y < floorY)
@@ -1974,6 +1997,10 @@ public partial class AdventurePlayerController : MonoBehaviour
     /// <summary>光の柱上昇を開始（クライマックス開始まで維持。解放時は高度確保＋物語継続）</summary>
     public void BeginSkybreakPillarAscend(Vector3 pillarCenter, float liftSpeed, float releaseY = 150f)
     {
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null && tower.BlocksSkybreakColumnLift)
+            return;
+
         // クライマックス開始後のみ再ロックしない（台本ボード表示中の IsEpiloguePlaying では弾かない）
         if (_autoGlide) return;
         if (AdventureStoryFlow.BlocksPillarRelock)
@@ -1984,7 +2011,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         _skybreakPillarLift = Mathf.Clamp(liftSpeed, 24f, 42f);
         _skybreakPillarTargetY = Mathf.Clamp(releaseY, 152f, 162f);
         _skybreakPillarCenter = new Vector3(pillarCenter.x, 0f, pillarCenter.z);
-        _skybreakPillarEndAt = Time.unscaledTime + 12f;
+        _skybreakPillarEndAt = Time.unscaledTime + 22f;
         _skybreakLastY = transform.position.y;
         _autoGlide = false;
         ApplyLaunchUpdraft(_skybreakPillarLift, _skybreakPillarLift);
@@ -2079,6 +2106,10 @@ public partial class AdventurePlayerController : MonoBehaviour
     /// <summary>光の柱ゾーン内にいる間の補助。クライマックス後／到達済みは再ロックしない。</summary>
     public void ForceSkybreakPillarAscend(Vector3 pillarBase, float liftSpeed, bool pullToCenter)
     {
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null && tower.BlocksSkybreakColumnLift)
+            return;
+
         if (_autoGlide || _skybreakPillarDone) return;
         if (AdventureStoryFlow.BlocksPillarRelock)
             return;

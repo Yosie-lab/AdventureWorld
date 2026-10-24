@@ -223,6 +223,10 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     public bool ShowGameClearModal => _showGameClearModal;
     public bool IsPendingClimax => _pendingClimaxAfterCanopy;
 
+    /// <summary>天蓋台本〜「光の柱へダイブ」確定前は、柱・上昇気流で上空へ吸い上げない</summary>
+    public bool BlocksSkybreakColumnLift =>
+        _canopyBeatIndex >= 0 && !_pendingClimaxAfterCanopy;
+
     /// <summary>限界高度クライマックス中〜エピローグ前：大空高度を維持（注油後の蘇生台本含む）</summary>
     public bool NeedsClimaxSkyAltitude =>
         _climaxCrisisStarted && !_epilogueTriggered;
@@ -1460,10 +1464,15 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         if (cam != null)
             cam.Shake(0.35f, 1.5f);
 
-        if (_hyperUpdraftGo != null)
-            _hyperUpdraftGo.SetActive(false);
+        SuppressSkybreakHyperUpdraft();
 
         yield break;
+    }
+
+    void SuppressSkybreakHyperUpdraft()
+    {
+        if (_hyperUpdraftGo != null)
+            _hyperUpdraftGo.SetActive(false);
     }
 
     System.Collections.IEnumerator AnimateLeverPullRoutine()

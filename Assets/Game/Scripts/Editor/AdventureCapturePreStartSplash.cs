@@ -12,6 +12,53 @@ public static class AdventureCapturePreStartSplash
     const int Width = 1280;
     const int Height = 720;
 
+    [MenuItem("RustAndFloat/📸 Capture Pre-Start Splash (Climax Wide Shot)", false, 11)]
+    public static void CaptureClimaxWideSplash()
+    {
+        AdventureCurvedHorizonOcean.Ensure();
+        var camGo = new GameObject("__PreStartClimaxCaptureCam");
+        camGo.hideFlags = HideFlags.HideAndDontSave;
+        try
+        {
+            var cam = camGo.AddComponent<Camera>();
+            cam.clearFlags = CameraClearFlags.Skybox;
+            cam.fieldOfView = 88f;
+            cam.nearClipPlane = 0.3f;
+            cam.farClipPlane = 5000f;
+
+            float pivotYaw = AdventureTitleSplashScene.ClimaxPivotYaw;
+            float sideBias = 24f;
+            float camYaw = pivotYaw + 180f + sideBias;
+            float camPitch = 10f;
+            float dist = 17.5f;
+            Vector3 pivot = new Vector3(512f, AdventureTitleSplashScene.ClimaxPivotY, 512f) + Vector3.up * 4.4f;
+            cam.transform.rotation = Quaternion.Euler(camPitch, camYaw, 0f);
+            cam.transform.position = pivot + Quaternion.Euler(camPitch, camYaw, 0f) * new Vector3(0f, 0.35f, -dist);
+            cam.transform.position = new Vector3(
+                cam.transform.position.x,
+                Mathf.Max(cam.transform.position.y, pivot.y + 9f),
+                cam.transform.position.z);
+
+            WritePng(RenderCameraToPng(cam, Width, Height));
+        }
+        finally
+        {
+            Object.DestroyImmediate(camGo);
+        }
+    }
+
+    static void WritePng(byte[] png)
+    {
+        string texAbs = Path.GetFullPath(TextureAssetPath);
+        string resAbs = Path.GetFullPath(ResourcesAssetPath);
+        File.WriteAllBytes(texAbs, png);
+        File.WriteAllBytes(resAbs, png);
+        AssetDatabase.ImportAsset(TextureAssetPath, ImportAssetOptions.ForceUpdate);
+        AssetDatabase.ImportAsset(ResourcesAssetPath, ImportAssetOptions.ForceUpdate);
+        Debug.Log(
+            $"<color=#00ffc8><b>[PreStartSplash]</b> クライマックス広角待機画像を更新（{Width}x{Height}）</color>");
+    }
+
     [MenuItem("RustAndFloat/📸 Capture Pre-Start Splash (Current View)", false, 12)]
     public static void CaptureFromCurrentView()
     {
@@ -26,15 +73,7 @@ public static class AdventureCapturePreStartSplash
 
         try
         {
-            byte[] png = RenderCameraToPng(cam, Width, Height);
-            string texAbs = Path.GetFullPath(TextureAssetPath);
-            string resAbs = Path.GetFullPath(ResourcesAssetPath);
-            File.WriteAllBytes(texAbs, png);
-            File.WriteAllBytes(resAbs, png);
-            AssetDatabase.ImportAsset(TextureAssetPath, ImportAssetOptions.ForceUpdate);
-            AssetDatabase.ImportAsset(ResourcesAssetPath, ImportAssetOptions.ForceUpdate);
-            Debug.Log(
-                $"<color=#00ffc8><b>[PreStartSplash]</b> 待機画像を更新しました（{Width}x{Height}）→ {TextureAssetPath}</color>");
+            WritePng(RenderCameraToPng(cam, Width, Height));
         }
         finally
         {

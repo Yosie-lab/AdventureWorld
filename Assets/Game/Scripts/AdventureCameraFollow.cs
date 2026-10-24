@@ -62,6 +62,8 @@ public class AdventureCameraFollow : MonoBehaviour
     bool _islandOverview;
     float _islandOverviewBlend;
     float _skyWideSideBias;
+    bool _titleClimaxSplash;
+    Transform _savedFollowTarget;
     const float CinematicDistance = 7.4f;
     const float CinematicHeight = 1.8f;
     const float CinematicFov = 78f;
@@ -97,6 +99,49 @@ public class AdventureCameraFollow : MonoBehaviour
         if (!enabled)
             _islandOverviewBlend = 0f;
     }
+
+    /// <summary>タイトル待機：クライマックス広角と同じ構図でライブ背景</summary>
+    public void EnableTitleClimaxSplash(bool enabled, Transform splashPivot)
+    {
+        _titleClimaxSplash = enabled;
+        if (enabled && splashPivot != null)
+        {
+            EnsureTarget();
+            if (_savedFollowTarget == null)
+                _savedFollowTarget = target;
+            target = splashPivot;
+
+            _skyWideSideBias = 24f;
+            SetCinematicMode(true);
+            _cinematicBlend = 1f;
+            SetIslandOverviewMode(true);
+            _islandOverviewBlend = 1f;
+
+            float pivotYaw = splashPivot.eulerAngles.y;
+            float camYaw = pivotYaw + 180f + _skyWideSideBias;
+            _pitch = 10f;
+            _targetPitch = 10f;
+            _yaw = camYaw;
+            _targetYaw = camYaw;
+            _currentPivot = splashPivot.position + Vector3.up * 4.4f;
+            _currentDistance = 17.5f;
+            if (_cam != null)
+            {
+                _cam.fieldOfView = 88f;
+                _cam.farClipPlane = Mathf.Max(_cam.farClipPlane, 5000f);
+            }
+        }
+        else
+        {
+            SetIslandOverviewMode(false);
+            SetCinematicMode(false);
+            if (_savedFollowTarget != null)
+                target = _savedFollowTarget;
+            _savedFollowTarget = null;
+        }
+    }
+
+    public bool IsTitleClimaxSplash => _titleClimaxSplash;
 
     /// <summary>地面・衝撃用のカメラ揺れ（天蓋裂開など）。intensity はワールドメートル相当。</summary>
     public void Shake(float intensity, float duration)
@@ -307,7 +352,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
-        if (IsTitleModalBlocking()) return;
+        if (IsTitleModalBlocking() && !_titleClimaxSplash) return;
         EnsureTarget();
         if (target == null) return;
 
