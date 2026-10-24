@@ -38,6 +38,8 @@ public class AdventureRustFloatIsland : MonoBehaviour
     void Start()
     {
         AdventureWestSlopeFloraManager.Ensure();
+        AdventureInputHaptics.Ensure();
+        AdventureWaterRippleManager.Ensure();
         EnsureAncientWindVent();
     }
 

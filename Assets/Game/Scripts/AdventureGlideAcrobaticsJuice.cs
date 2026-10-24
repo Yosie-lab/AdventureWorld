@@ -138,6 +138,7 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
                 aeroRumble = Mathf.Max(aeroRumble, _diveIntensity * 0.45f);
             }
         }
+        AdventureInputHaptics.UpdateGlideAeroRumble(speed, isGliding);
 
         // カメラGシェイクとエアロランブルの合成
         float totalShake = _cameraShakeIntensity + aeroRumble;
@@ -403,6 +404,9 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
 
         // 3. 白砂・風塵ショックウェーブリングを足元に展開
         SpawnShockwaveFx(pos, intensity);
+
+        // 4. ゲームパッド触覚ハプティクス（重厚な低周波ズシン衝撃パルス）
+        AdventureInputHaptics.PlayLandingImpact(fallSpeed);
     }
 
     /// <summary>フレア（【Sキー】制動・減速）時の空力ブレーキジュース</summary>
@@ -417,6 +421,9 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
             _audioSource.pitch = Random.Range(0.95f, 1.06f);
             _audioSource.PlayOneShot(_flareAirBrakeClip, Mathf.Clamp01(0.35f + intensity * 0.45f));
         }
+
+        // ゲームパッド触覚ハプティクス（空力減速の風圧パルス）
+        AdventureInputHaptics.PlayPulse(0.18f, 0.42f * intensity, 0.14f);
 
         // 翼端トレイルを一時的に濃縮
         StartCoroutine(EmitVaporBurstRoutine());

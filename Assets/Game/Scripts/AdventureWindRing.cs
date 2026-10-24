@@ -339,6 +339,9 @@ public class AdventureWindRing : MonoBehaviour
         float dur = player.IsGliding ? boostDuration : 2.2f;
         player.ApplyGlideBoost(mult, dur, through);
 
+        // ゲームパッド触覚ハプティクス（気流突入のスイープパルス）
+        AdventureInputHaptics.PlayWindStreamEntry();
+
         if (_audio != null)
             _audio.PlayOneShot(GetSharedPassBoostClip());
 

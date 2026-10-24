@@ -391,6 +391,9 @@ public class AdventureScrapItem : MonoBehaviour
         // 弾けるスパークル演出
         SpawnCollectParticles();
 
+        // ゲームパッド触覚ハプティクス（ゴールドチャイム振動）
+        AdventureInputHaptics.PlayScrapPickupChime();
+
         // ビジュアルの非表示
         if (_model != null)
             _model.gameObject.SetActive(false);

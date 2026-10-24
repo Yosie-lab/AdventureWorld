@@ -313,14 +313,16 @@ public partial class AdventurePlayerController : MonoBehaviour
         UpdateGroundedState();
         _cc.stepOffset = StepOffsetGround; // 常時0.45mの段差乗り上げ判定を有効化
 
+        UpdateSlopeSliding();
         HandleJump();
         UpdateGlidingState(holdGlide || _skybreakPillarLock || _autoGlide);
         NotifyGlideStart();
 
-        Vector3 horizontal = ComputeHorizontal(input, speed, running);
+        Vector3 horizontal = _isSliding ? Vector3.zero : ComputeHorizontal(input, speed, running);
 
         ApplyClimaxSkyHoldVertical();
-        ApplyMotion(horizontal);
+        if (!_isSliding)
+            ApplyMotion(horizontal);
 
         if (!_skybreakPillarLock)
         {
@@ -676,9 +678,11 @@ public partial class AdventurePlayerController : MonoBehaviour
             float targetShortHeight = Mathf.Max(shortJumpHeight, 2.6f) * jumpMultiplier; // 約2.6mのしっかりした跳躍
             if (_grounded || _airborneTime < 0.25f || _rockStuckFrames > 0 || _cliffStuckFrames > 0 || TooSteep())
             {
+                if (TrySlideJump(targetShortHeight)) return;
                 _hop          = Mathf.Sqrt(targetShortHeight * -2f * gravity);
                 _grounded     = false;
                 _airborneTime = 0f;
+                AdventureInputHaptics.PlayJump(false);
                 GetComponent<AdventureNikoFootsteps>()?.PlayJumpSound();
             }
             else if (canDoubleJump && !_doubleJumpUsed && !_gliding)
@@ -686,6 +690,7 @@ public partial class AdventurePlayerController : MonoBehaviour
                 _hop = Mathf.Sqrt(targetShortHeight * -1.8f * gravity);
                 _doubleJumpUsed = true;
                 _airborneTime = 0f;
+                AdventureInputHaptics.PlayJump(true);
                 GetComponent<AdventureNikoFootsteps>()?.PlayJumpSound();
             }
             return;
@@ -724,9 +729,11 @@ public partial class AdventurePlayerController : MonoBehaviour
         }
         else if (_grounded)
         {
+            if (TrySlideJump(effectiveJumpHeight)) return;
             _hop          = Mathf.Sqrt(effectiveJumpHeight * -2f * gravity);
             _grounded     = false;
             _airborneTime = 0f;
+            AdventureInputHaptics.PlayJump(false);
         }
         else if (canDoubleJump && !_doubleJumpUsed && !_gliding)
         {
@@ -742,6 +749,7 @@ public partial class AdventurePlayerController : MonoBehaviour
                 _hop = Mathf.Sqrt(effectiveJumpHeight * -1.8f * gravity);
             }
             _doubleJumpUsed = true;
+            AdventureInputHaptics.PlayJump(true);
         }
         else if (_rockStuckFrames > 0 || _cliffStuckFrames > 0 || TooSteep())
         {
