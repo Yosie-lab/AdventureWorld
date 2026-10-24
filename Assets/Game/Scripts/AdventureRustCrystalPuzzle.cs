@@ -1,0 +1,812 @@
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.InputSystem;
+using System.Collections;
+
+/// <summary>
+/// 『Rust & Float』相棒Rustとの協力ギミック第1弾：
+/// 【古代の蓄電クリスタルと上昇気流パズル（Ancient Power Crystal & Wind Vent）】
+/// 1. 西側断崖の麓に眠る古代のクリスタルと閉じた風孔ファン
+/// 2. Floatが近づいて【Fキー】を押すと、相棒Rustが飛行してエネルギービームを照射チャージ
+/// 3. クリスタルが覚醒してファンが高速回転、垂直な巨大上昇気流（サーマル）が発生
+/// 4. Floatが気流に乗って断崖の上（高台テラス）へ大跳躍
+/// 5. 崖上の古代コンテナを開封して特別な探索ポイント(+2pt)と素材を獲得！
+/// </summary>
+public class AdventureRustCrystalPuzzle : MonoBehaviour
+{
+    public static AdventureRustCrystalPuzzle Instance { get; private set; }
+
+    public const string PrefKeyCrystalActivated = "Adventure_AncientCrystal_Activated";
+    public const string PrefKeyChestOpened = "Adventure_AncientCrystal_ChestOpened";
+
+    [Header("配置座標（西側砂浜・断崖の麓と、崖上の展望テラス）")]
+    public Vector3 crystalBasePos = new Vector3(182.0f, 8.25f, 286.0f);
+    public Vector3 ventBasePos = new Vector3(186.0f, 8.68f, 288.0f);
+    public Vector3 cliffTerracePos = new Vector3(200.0f, 29.8f, 302.0f);
+
+    private bool _isActivated = false;
+    public bool IsActivated => _isActivated;
+
+    private bool _isCharging = false;
+    private bool _isChestOpened = false;
+    public bool IsChestOpened => _isChestOpened;
+
+    // クリスタル本体
+    private Transform _crystalCore;
+    private Material _crystalMat;
+    private Light _crystalLight;
+
+    // 送風ファン
+    private Transform _fanBlades;
+    private ParticleSystem _windPS;
+    private AudioSource _windAudio;
+    private SphereCollider _windTrigger;
+
+    // 崖上の宝箱
+    private GameObject _chestRoot;
+    private Transform _chestLid;
+    private Light _chestLight;
+    private GameObject _chestBeaconPillar;
+
+    // プロンプトUI
+    private GameObject _promptCanvasGo;
+    private CanvasGroup _promptCg;
+    private Text _promptText;
+    private float _rustGuideCooldown = 0f;
+    private bool _rustGuideSpokenOnce = false;
+    private float _lastLiftToastTime = 0f;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    public static void AutoEnsure()
+    {
+        Ensure();
+    }
+
+    /// <summary>断崖麓の古代クリスタル送電合図エリア内か（Rust通常手当てのE奪取防止）</summary>
+    public static bool IsPlayerNearChargeSite(Vector3 playerPos)
+    {
+        var puzzle = Instance ?? Object.FindAnyObjectByType<AdventureRustCrystalPuzzle>();
+        if (puzzle == null || puzzle.IsActivated || puzzle._isCharging)
+            return false;
+        return Vector3.Distance(playerPos, puzzle.crystalBasePos) <= 7.5f;
+    }
+
+    public static void Ensure()
+    {
+        if (Instance != null && Instance.gameObject != null) return;
+        var existing = Object.FindAnyObjectByType<AdventureRustCrystalPuzzle>();
+        if (existing != null)
+        {
+            Instance = existing;
+            return;
+        }
+
+        var go = new GameObject("AdventureRustCrystalPuzzle");
+        Instance = go.AddComponent<AdventureRustCrystalPuzzle>();
+    }
+
+    void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+    }
+
+    void Start()
+    {
+        AlignToTerrain();
+        BuildStructures();
+        CreatePromptUI();
+
+        // 記録の復元
+        _isActivated = PlayerPrefs.GetInt(PrefKeyCrystalActivated, 0) == 1;
+        _isChestOpened = PlayerPrefs.GetInt(PrefKeyChestOpened, 0) == 1;
+
+        if (_isActivated)
+        {
+            ApplyActivatedState(immediate: true);
+            SyncWestCliffAirRings();
+        }
+        if (_isChestOpened)
+        {
+            if (_chestLid != null) _chestLid.localRotation = Quaternion.Euler(-95f, 0f, 0f);
+            if (_chestLight != null) _chestLight.enabled = false;
+            if (_chestBeaconPillar != null) _chestBeaconPillar.SetActive(false);
+        }
+    }
+
+    void AlignToTerrain()
+    {
+        var land = Terrain.activeTerrain ?? Object.FindAnyObjectByType<Terrain>();
+        if (land != null)
+        {
+            float cy = land.SampleHeight(crystalBasePos) + land.transform.position.y;
+            crystalBasePos.y = cy + 0.1f;
+
+            float vy = land.SampleHeight(ventBasePos) + land.transform.position.y;
+            ventBasePos.y = vy + 0.05f;
+
+            float ty = land.SampleHeight(cliffTerracePos) + land.transform.position.y;
+            cliffTerracePos.y = ty + 0.55f; // 地面の傾斜からしっかり浮き上がった展望石舞台
+        }
+    }
+
+    void BuildStructures()
+    {
+        var litShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+
+        // ═══════════════════════════════════════════════════════════════
+        // 1. 古代の蓄電クリスタル塔（Ancient Power Crystal）
+        // ═══════════════════════════════════════════════════════════════
+        var crystalRoot = new GameObject("AncientCrystalPillar");
+        crystalRoot.transform.SetParent(transform, false);
+        crystalRoot.transform.position = crystalBasePos;
+
+        // 石造の台座
+        var basePillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        basePillar.name = "PillarBase";
+        basePillar.transform.SetParent(crystalRoot.transform, false);
+        basePillar.transform.localPosition = new Vector3(0f, 0.9f, 0f);
+        basePillar.transform.localScale = new Vector3(1.4f, 0.9f, 1.4f);
+        var baseCol = basePillar.GetComponent<Collider>();
+        if (baseCol != null) Destroy(baseCol); // プレイヤーの空中浮遊・引っかかり防止
+        var baseRend = basePillar.GetComponent<Renderer>();
+        var stoneMat = new Material(litShader);
+        stoneMat.SetColor("_BaseColor", new Color(0.42f, 0.44f, 0.46f));
+        stoneMat.SetFloat("_Smoothness", 0.25f);
+        if (baseRend != null) baseRend.material = stoneMat;
+
+        // 浮遊する受光クリスタルコア（8角・六角錐プリミティブ）
+        var crystalCoreGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        crystalCoreGo.name = "CrystalCore";
+        crystalCoreGo.transform.SetParent(crystalRoot.transform, false);
+        crystalCoreGo.transform.localPosition = new Vector3(0f, 2.5f, 0f);
+        crystalCoreGo.transform.localRotation = Quaternion.Euler(45f, 45f, 45f);
+        crystalCoreGo.transform.localScale = new Vector3(0.95f, 0.95f, 0.95f);
+        _crystalCore = crystalCoreGo.transform;
+
+        var coreCol = crystalCoreGo.GetComponent<Collider>();
+        if (coreCol != null) Destroy(coreCol);
+
+        _crystalMat = new Material(litShader);
+        _crystalMat.SetColor("_BaseColor", new Color(0.2f, 0.85f, 1.0f, 0.95f));
+        _crystalMat.EnableKeyword("_EMISSION");
+        _crystalMat.SetColor("_EmissionColor", new Color(0.1f, 0.45f, 0.75f) * 1.5f);
+        _crystalMat.SetFloat("_Smoothness", 0.9f);
+        var coreRend = crystalCoreGo.GetComponent<Renderer>();
+        if (coreRend != null) coreRend.material = _crystalMat;
+
+        // クリスタルライト
+        var clGo = new GameObject("CrystalGlowLight");
+        clGo.transform.SetParent(_crystalCore, false);
+        _crystalLight = clGo.AddComponent<Light>();
+        _crystalLight.type = LightType.Point;
+        _crystalLight.color = new Color(0.3f, 0.9f, 1.0f);
+        _crystalLight.range = 8.5f;
+        _crystalLight.intensity = 2.2f;
+
+        // 空高く立ち上る古代遺跡のシアン光柱（遠景ビーコン：遠くからでも場所がわかる）
+        var beaconPillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        beaconPillar.name = "CrystalBeaconPillar";
+        beaconPillar.transform.SetParent(crystalRoot.transform, false);
+        beaconPillar.transform.localPosition = new Vector3(0f, 22f, 0f);
+        beaconPillar.transform.localScale = new Vector3(0.55f, 22f, 0.55f);
+        var bpCol = beaconPillar.GetComponent<Collider>();
+        if (bpCol != null) Destroy(bpCol);
+        var bpRend = beaconPillar.GetComponent<Renderer>();
+        var beaconMat = new Material(litShader);
+        beaconMat.SetColor("_BaseColor", new Color(0.2f, 0.9f, 1f, 0.65f));
+        beaconMat.EnableKeyword("_EMISSION");
+        beaconMat.SetColor("_EmissionColor", new Color(0.3f, 1.2f, 2.2f) * 2.5f);
+        if (bpRend != null) bpRend.material = beaconMat;
+
+        // ═══════════════════════════════════════════════════════════════
+        // 2. 上昇気流送風孔ファン（Wind Vent）
+        // ═══════════════════════════════════════════════════════════════
+        var ventRoot = new GameObject("AncientWindVent");
+        ventRoot.transform.SetParent(transform, false);
+        ventRoot.transform.position = ventBasePos;
+
+        // 外枠リング（CylinderプリミティブのCapsuleColliderがプレイヤーを宙に浮かせるのを防ぐためコライダー削除）
+        var ventRim = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        ventRim.name = "VentRim";
+        ventRim.transform.SetParent(ventRoot.transform, false);
+        ventRim.transform.localPosition = new Vector3(0f, 0.15f, 0f);
+        ventRim.transform.localScale = new Vector3(3.4f, 0.15f, 3.4f);
+        var vCol = ventRim.GetComponent<Collider>();
+        if (vCol != null) Destroy(vCol);
+        var rimRend = ventRim.GetComponent<Renderer>();
+        var bronzeMat = new Material(litShader);
+        bronzeMat.SetColor("_BaseColor", new Color(0.35f, 0.38f, 0.36f));
+        bronzeMat.SetFloat("_Metallic", 0.65f);
+        bronzeMat.SetFloat("_Smoothness", 0.45f);
+        if (rimRend != null) rimRend.material = bronzeMat;
+
+        // 回転するプロペラブレード
+        var bladeRoot = new GameObject("FanBlades");
+        bladeRoot.transform.SetParent(ventRoot.transform, false);
+        bladeRoot.transform.localPosition = new Vector3(0f, 0.22f, 0f);
+        _fanBlades = bladeRoot.transform;
+
+        for (int i = 0; i < 4; i++)
+        {
+            var blade = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            blade.transform.SetParent(_fanBlades, false);
+            blade.transform.localRotation = Quaternion.Euler(0f, i * 45f, 15f);
+            blade.transform.localScale = new Vector3(2.8f, 0.05f, 0.45f);
+            var bCol = blade.GetComponent<Collider>();
+            if (bCol != null) Destroy(bCol);
+            var bRend = blade.GetComponent<Renderer>();
+            if (bRend != null) bRend.material = bronzeMat;
+        }
+
+        // 上昇気流パーティクル
+        var psGo = new GameObject("UpdraftWindParticles");
+        psGo.transform.SetParent(ventRoot.transform, false);
+        psGo.transform.localPosition = new Vector3(0f, 0.3f, 0f);
+        _windPS = psGo.AddComponent<ParticleSystem>();
+        SetupWindParticles(_windPS);
+        _windPS.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        // 気流の心地よいASMR風音
+        _windAudio = ventRoot.AddComponent<AudioSource>();
+        _windAudio.spatialBlend = 0.85f;
+        _windAudio.minDistance = 4f;
+        _windAudio.maxDistance = 35f;
+        _windAudio.loop = true;
+        _windAudio.volume = 0.75f;
+        _windAudio.clip = CreateWindAudioClip();
+
+        // ═══════════════════════════════════════════════════════════════
+        // 3. 崖上の古代テラス＆宝箱（Cliff Terrace & Ancient Chest）
+        // ═══════════════════════════════════════════════════════════════
+        _chestRoot = new GameObject("AncientTerraceChest");
+        _chestRoot.transform.SetParent(transform, false);
+        _chestRoot.transform.position = cliffTerracePos;
+
+        // 迫り出す重厚な古代石の円形テラス舞台（厚さ1.2m、直径7.2m）
+        var terraceFloor = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        terraceFloor.name = "TerracePlatform";
+        terraceFloor.transform.SetParent(_chestRoot.transform, false);
+        terraceFloor.transform.localPosition = new Vector3(0f, 0f, 0f);
+        terraceFloor.transform.localScale = new Vector3(7.2f, 0.6f, 7.2f);
+        var tfRend = terraceFloor.GetComponent<Renderer>();
+        if (tfRend != null) tfRend.material = stoneMat;
+
+        // CylinderのデフォルトCapsuleColliderを破棄し、メッシュに忠実な正確なMeshColliderを付与
+        var cylCol = terraceFloor.GetComponent<Collider>();
+        if (cylCol != null) Destroy(cylCol);
+        terraceFloor.AddComponent<MeshCollider>();
+
+        // テラスの手前（谷側・ファン側）のステップ基盤（着地しやすい幅広ステップ）
+        var stepFloor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        stepFloor.name = "TerraceStep";
+        stepFloor.transform.SetParent(_chestRoot.transform, false);
+        stepFloor.transform.localPosition = new Vector3(0f, -0.25f, -2.5f);
+        stepFloor.transform.localScale = new Vector3(5.2f, 0.6f, 2.8f);
+        var sfRend = stepFloor.GetComponent<Renderer>();
+        if (sfRend != null) sfRend.material = stoneMat;
+
+        // テラス背後（北側）の古代石柵（低い半円状の護壁、プレイヤーのスタックを防ぐため外側にゆとり配置）
+        for (int i = 0; i < 5; i++)
+        {
+            float angle = 45f + i * 45f;
+            float rad = angle * Mathf.Deg2Rad;
+            var fence = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            fence.name = "TerraceFence_" + i;
+            fence.transform.SetParent(_chestRoot.transform, false);
+            fence.transform.localPosition = new Vector3(Mathf.Sin(rad) * 3.4f, 0.45f, Mathf.Cos(rad) * 3.4f);
+            fence.transform.localRotation = Quaternion.Euler(0f, angle + 90f, 0f);
+            fence.transform.localScale = new Vector3(1.8f, 0.5f, 0.25f);
+            var fRend = fence.GetComponent<Renderer>();
+            if (fRend != null) fRend.material = stoneMat;
+        }
+
+        // 左右にそびえる古代石柱（Monument Pillars）
+        for (int side = -1; side <= 1; side += 2)
+        {
+            var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pillar.name = "TerracePillar_" + (side > 0 ? "R" : "L");
+            pillar.transform.SetParent(_chestRoot.transform, false);
+            pillar.transform.localPosition = new Vector3(side * 2.8f, 1.6f, 0.6f);
+            pillar.transform.localScale = new Vector3(0.65f, 1.6f, 0.65f);
+            var pRend = pillar.GetComponent<Renderer>();
+            if (pRend != null) pRend.material = stoneMat;
+
+            // 柱頭の黄金ルーンランタン（遠くからでも目立つ灯火）
+            var orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            orb.transform.SetParent(pillar.transform, false);
+            orb.transform.localPosition = new Vector3(0f, 1.05f, 0f);
+            orb.transform.localScale = new Vector3(0.6f, 0.3f, 0.6f);
+            var orbRend = orb.GetComponent<Renderer>();
+            var orbMat = new Material(litShader);
+            orbMat.SetColor("_BaseColor", new Color(1.0f, 0.85f, 0.3f));
+            orbMat.EnableKeyword("_EMISSION");
+            orbMat.SetColor("_EmissionColor", new Color(2.5f, 1.8f, 0.4f) * 2.0f);
+            if (orbRend != null) orbRend.material = orbMat;
+        }
+
+        // 空高く立ち上る古代遺跡の黄金光柱（天空ビーコン：どこからでもテラスが一目でわかる）
+        var chestBeacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        chestBeacon.name = "ChestBeaconPillar";
+        chestBeacon.transform.SetParent(_chestRoot.transform, false);
+        chestBeacon.transform.localPosition = new Vector3(0f, 16f, 0f);
+        chestBeacon.transform.localScale = new Vector3(0.65f, 16f, 0.65f);
+        var tbCol = chestBeacon.GetComponent<Collider>();
+        if (tbCol != null) Destroy(tbCol);
+        var tbRend = chestBeacon.GetComponent<Renderer>();
+        var tbMat = new Material(litShader);
+        tbMat.SetColor("_BaseColor", new Color(1.0f, 0.85f, 0.25f, 0.6f));
+        tbMat.EnableKeyword("_EMISSION");
+        tbMat.SetColor("_EmissionColor", new Color(2.8f, 2.0f, 0.5f) * 2.5f);
+        if (tbRend != null) tbRend.material = tbMat;
+        _chestBeaconPillar = chestBeacon;
+
+        // 宝箱本体
+        var chestBase = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        chestBase.name = "ChestBase";
+        chestBase.transform.SetParent(_chestRoot.transform, false);
+        chestBase.transform.localPosition = new Vector3(0f, 0.7f, 0f);
+        chestBase.transform.localScale = new Vector3(1.3f, 0.75f, 0.9f);
+        var goldMat = new Material(litShader);
+        goldMat.SetColor("_BaseColor", new Color(0.95f, 0.80f, 0.35f));
+        goldMat.SetFloat("_Metallic", 0.85f);
+        goldMat.SetFloat("_Smoothness", 0.75f);
+        var cbRend = chestBase.GetComponent<Renderer>();
+        if (cbRend != null) cbRend.material = goldMat;
+
+        // 宝箱の蓋
+        var lidGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        lidGo.name = "ChestLid";
+        lidGo.transform.SetParent(_chestRoot.transform, false);
+        lidGo.transform.localPosition = new Vector3(0f, 1.1f, -0.42f);
+        lidGo.transform.localScale = new Vector3(1.35f, 0.28f, 0.95f);
+        _chestLid = lidGo.transform;
+        var lidRend = lidGo.GetComponent<Renderer>();
+        if (lidRend != null) lidRend.material = goldMat;
+
+        // 宝箱の黄金の輝き
+        var chlGo = new GameObject("ChestGlowLight");
+        chlGo.transform.SetParent(_chestRoot.transform, false);
+        chlGo.transform.localPosition = new Vector3(0f, 1.4f, 0f);
+        _chestLight = chlGo.AddComponent<Light>();
+        _chestLight.type = LightType.Point;
+        _chestLight.color = new Color(1.0f, 0.85f, 0.4f);
+        _chestLight.range = 8.5f;
+        _chestLight.intensity = 3.2f;
+    }
+
+    void SetupWindParticles(ParticleSystem ps)
+    {
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        var main = ps.main;
+        main.duration = 4f;
+        main.loop = true;
+        main.startLifetime = 2.2f;
+        main.startSpeed = new ParticleSystem.MinMaxCurve(14f, 19f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.4f, 0.85f);
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.maxParticles = 80;
+
+        var emission = ps.emission;
+        emission.rateOverTime = 32f;
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = 1.4f;
+        shape.rotation = new Vector3(-90f, 0f, 0f);
+
+        var col = ps.colorOverLifetime;
+        col.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new[] { new GradientColorKey(new Color(0.4f, 0.9f, 1f), 0f), new GradientColorKey(Color.white, 1f) },
+            new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.6f, 0.2f), new GradientAlphaKey(0f, 1f) }
+        );
+        col.color = grad;
+
+        var sol = ps.sizeOverLifetime;
+        sol.enabled = true;
+        var curve = new AnimationCurve();
+        curve.AddKey(0f, 0.4f);
+        curve.AddKey(0.5f, 1.0f);
+        curve.AddKey(1f, 0.2f);
+        sol.size = new ParticleSystem.MinMaxCurve(1f, curve);
+
+        var rend = ps.GetComponent<ParticleSystemRenderer>();
+        if (rend != null)
+        {
+            var pShader = Shader.Find("RustAndFloat/WhiteSmoke")
+                          ?? Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                          ?? Shader.Find("Sprites/Default");
+            var pMat = new Material(pShader);
+            pMat.SetTexture("_BaseMap", AdventureRustDrone.GetSoftSmokeTexture());
+            pMat.SetColor("_BaseColor", new Color(0.35f, 0.95f, 1.0f, 0.40f));
+            rend.material = pMat;
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+    }
+
+    AudioClip CreateWindAudioClip()
+    {
+        int rate = 44100;
+        float duration = 2.0f;
+        int numSamples = (int)(rate * duration);
+        float[] samples = new float[numSamples];
+
+        for (int i = 0; i < numSamples; i++)
+        {
+            float t = (float)i / rate;
+            // 柔らかいピンクノイズ（風のゴオオオというASMR）
+            float noise = (UnityEngine.Random.value - 0.5f) * 2f;
+            float pulse = Mathf.Sin(t * 1.5f * Mathf.PI) * 0.15f + 0.85f;
+            samples[i] = noise * pulse * 0.25f;
+        }
+
+        var clip = AudioClip.Create("UpdraftWindASMR", numSamples, 1, rate, false);
+        clip.SetData(samples, 0);
+        return clip;
+    }
+
+    void CreatePromptUI()
+    {
+        _promptCanvasGo = new GameObject("CrystalPuzzlePromptCanvas");
+        _promptCanvasGo.transform.SetParent(transform, false);
+        var canvas = _promptCanvasGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 95;
+        _promptCanvasGo.AddComponent<CanvasScaler>();
+        _promptCanvasGo.AddComponent<GraphicRaycaster>();
+
+        _promptCg = _promptCanvasGo.AddComponent<CanvasGroup>();
+        _promptCg.alpha = 0f;
+        _promptCg.blocksRaycasts = false;
+
+        var textGo = new GameObject("PromptText");
+        textGo.transform.SetParent(_promptCanvasGo.transform, false);
+        var rt = textGo.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.5f, 0.15f);
+        rt.anchorMax = new Vector2(0.5f, 0.15f);
+        rt.sizeDelta = new Vector2(700f, 60f);
+
+        _promptText = textGo.AddComponent<Text>();
+        _promptText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Font.CreateDynamicFontFromOSFont("Hiragino Sans", 20);
+        _promptText.fontSize = 20;
+        _promptText.alignment = TextAnchor.MiddleCenter;
+        _promptText.color = Color.white;
+        _promptText.raycastTarget = false;
+
+        var shadow = textGo.AddComponent<Outline>();
+        shadow.effectColor = new Color(0f, 0f, 0f, 0.85f);
+        shadow.effectDistance = new Vector2(1.5f, -1.5f);
+    }
+
+    void Update()
+    {
+        var player = AdventurePlayerController.Instance;
+        if (player == null) return;
+
+        Vector3 pPos = player.transform.position;
+
+        // クリスタルの自転アニメーション
+        if (_crystalCore != null)
+        {
+            float rotSpeed = _isActivated ? 85f : (_isCharging ? 180f : 25f);
+            _crystalCore.Rotate(Vector3.up, rotSpeed * Time.deltaTime, Space.World);
+            _crystalCore.Rotate(Vector3.forward, (rotSpeed * 0.45f) * Time.deltaTime, Space.Self);
+        }
+
+        // プロペラの高速回転
+        if (_isActivated && _fanBlades != null)
+        {
+            _fanBlades.Rotate(Vector3.up, 650f * Time.deltaTime, Space.Self);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 上昇気流（サーマル）リフト判定：砂浜のファンから崖上テラス（高低差21m）へ大跳躍！
+        // ═══════════════════════════════════════════════════════════════
+        if (_isActivated)
+        {
+            Vector3 toTerraceFlat = new Vector3(cliffTerracePos.x - ventBasePos.x, 0f, cliffTerracePos.z - ventBasePos.z).normalized;
+            float distToVent = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(ventBasePos.x, ventBasePos.z));
+            float yDiff = pPos.y - ventBasePos.y;
+
+            // 送風ファン直上（砂浜から一気に大空へドカンと打ち上げ！）
+            // 初速24.5m/sでテラス頭上（高度33m）まで一気に舞い上がり、放物線でテラス石舞台へふわりと着地
+            if (distToVent < 3.2f && yDiff >= -0.5f && yDiff < 4.5f)
+            {
+                player.ApplyLaunchUpdraft(19.5f, 24.5f, toTerraceFlat);
+                if (Time.time - _lastLiftToastTime > 4.5f)
+                {
+                    _lastLiftToastTime = Time.time;
+                    AdventureNotificationToast.Show("✦ サーマルリフト！ 砂浜から断崖の展望テラスへ大跳躍！ ✦", 2.5f);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 崖上の古代宝箱インタラクション
+        // ═══════════════════════════════════════════════════════════════
+        float distToChest = Vector3.Distance(pPos, cliffTerracePos);
+        if (!_isChestOpened && distToChest < 3.2f)
+        {
+            _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 1f, 5f * Time.deltaTime);
+            _promptText.text = "<color=#FFE066><b>✨ 【E / クリック】古代の浮遊遺物を開封する</b></color>";
+
+            if (CheckInteractInput())
+            {
+                OpenChest();
+            }
+            return;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // クリスタルへの送電合図インタラクション（E / F / 左クリックどれでもOK）
+        // ═══════════════════════════════════════════════════════════════
+        float distToCrystal = Vector3.Distance(pPos, crystalBasePos);
+        if (!_isActivated && !_isCharging)
+        {
+            if (distToCrystal < 7.5f)
+            {
+                _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 1f, 5f * Time.deltaTime);
+                _promptText.text = "<color=#80D8FF><b>✦ 【E / F / クリック】相棒Rustにクリスタルへの送電を合図する ✦</b></color>";
+
+                var drone = AdventureRustDrone.Instance;
+                if (drone != null && !drone.IsPerformingGimmick)
+                {
+                    if (!_rustGuideSpokenOnce)
+                    {
+                        _rustGuideSpokenOnce = true;
+                        drone.SpeakCustom("ピピッ！見て、古代の送電クリスタルだよ！\n【E / F / クリック】で合図してくれたら、ボクのライトでチャージしてみるよ、Float！", 6.5f);
+                    }
+                    else
+                    {
+                        _rustGuideCooldown -= Time.deltaTime;
+                        if (_rustGuideCooldown <= 0f)
+                        {
+                            _rustGuideCooldown = 28f;
+                            drone.SpeakCustom(AdventureLocalizationManager.Get("rust_crystal_power_hint"), 5.5f);
+                        }
+                    }
+                }
+
+                if (CheckChargeTriggerInput())
+                {
+                    StartCrystalCharging();
+                }
+            }
+            else
+            {
+                _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 0f, 5f * Time.deltaTime);
+            }
+        }
+        else if (_isCharging)
+        {
+            _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 1f, 5f * Time.deltaTime);
+            _promptText.text = "<color=#FFE066><b>⚡ 相棒Rustがエネルギー放電チャージ中…</b></color>";
+        }
+        else
+        {
+            if (distToChest >= 3.2f)
+            {
+                _promptCg.alpha = Mathf.MoveTowards(_promptCg.alpha, 0f, 5f * Time.deltaTime);
+            }
+        }
+
+        if (AdventureStoryFlow.HideWorldInteractPrompts && _promptCg != null)
+            _promptCg.alpha = 0f;
+    }
+
+    bool CheckChargeTriggerInput()
+    {
+        if (AdventureRustWorkshopUI.IsOpen) return false;
+        // Fキー、Eキー、マウス左クリックのいずれでも快活に反応
+        var kb = Keyboard.current ?? AdventureInputReader.Keyboard;
+        if (kb != null && (kb.fKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)) return true;
+        if (AdventureInputReader.InteractDown || AdventureInputReader.MouseLeftDown) return true;
+        try { if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0)) return true; } catch { }
+        return false;
+    }
+
+    bool CheckInteractInput()
+    {
+        if (AdventureRustWorkshopUI.IsOpen) return false;
+        return AdventureInputReader.InteractDown || AdventureInputReader.MouseLeftDown;
+    }
+
+    void StartCrystalCharging()
+    {
+        var drone = AdventureRustDrone.Instance;
+        if (drone == null || drone.IsPerformingGimmick) return;
+
+        _isCharging = true;
+
+        Vector3 targetPos = _crystalCore != null ? _crystalCore.position : crystalBasePos + Vector3.up * 2.5f;
+
+        drone.CommandChargeCrystal(
+            targetPos,
+            onProgress: () =>
+            {
+                // チャージ中の明滅・発光強化
+                if (_crystalMat != null)
+                {
+                    float pulse = Mathf.Sin(Time.time * 25f) * 0.5f + 0.5f;
+                    Color glow = Color.Lerp(new Color(0.2f, 0.8f, 1f), new Color(1f, 0.95f, 0.4f), pulse) * 3.5f;
+                    _crystalMat.SetColor("_EmissionColor", glow);
+                }
+                if (_crystalLight != null)
+                {
+                    _crystalLight.intensity = UnityEngine.Random.Range(3.5f, 5.5f);
+                }
+            },
+            onComplete: () =>
+            {
+                _isCharging = false;
+                _isActivated = true;
+                PlayerPrefs.SetInt(PrefKeyCrystalActivated, 1);
+                PlayerPrefs.Save();
+
+                ApplyActivatedState(immediate: false);
+
+                var hud = AdventureScrapHUD.Instance;
+                if (hud != null)
+                {
+                    hud.ShowUpgradeBanner(AdventureLocalizationManager.Get("banner_fan_activated"));
+                }
+
+                var drone = AdventureRustDrone.Instance;
+                if (drone != null)
+                {
+                    drone.SpeakCustom(AdventureLocalizationManager.Get("ピピッ！ファンが回ったよ！\n送風孔に乗ると、崖の上の隠しテラス（黄金の光柱）へ運んでくれるよ、Float！"), 6.5f);
+                }
+            }
+        );
+    }
+
+    void ApplyActivatedState(bool immediate)
+    {
+        // クリスタルを完全覚醒カラーへ
+        if (_crystalMat != null)
+        {
+            _crystalMat.SetColor("_EmissionColor", new Color(0.4f, 1.8f, 2.5f) * 2.8f);
+        }
+        if (_crystalLight != null)
+        {
+            _crystalLight.color = new Color(0.4f, 0.95f, 1.0f);
+            _crystalLight.intensity = 4.2f;
+        }
+
+        // 上昇気流ファン・パーティクル・サウンドの開始
+        if (_windPS != null && !_windPS.isPlaying)
+        {
+            _windPS.Play();
+        }
+        if (_windAudio != null && !_windAudio.isPlaying)
+        {
+            _windAudio.Play();
+        }
+
+        SyncWestCliffAirRings();
+    }
+
+    static void SyncWestCliffAirRings()
+    {
+        var vent = Object.FindAnyObjectByType<AdventureAncientWindVent>();
+        if (vent != null)
+            vent.ActivateFromLinkedGimmick();
+    }
+
+    void OpenChest()
+    {
+        _isChestOpened = true;
+        PlayerPrefs.SetInt(PrefKeyChestOpened, 1);
+        PlayerPrefs.Save();
+
+        // 宝箱オープン演出
+        StartCoroutine(AnimateChestOpen());
+        if (_chestBeaconPillar != null)
+        {
+            _chestBeaconPillar.SetActive(false);
+        }
+
+        // 探索ポイント+2pt加算
+        var scrapMgr = AdventureScrapManager.Instance;
+        if (scrapMgr != null)
+        {
+            scrapMgr.OnDriftBoxOpened(99, "古代の浮遊遺物");
+        }
+
+        var hud = AdventureScrapHUD.Instance;
+        if (hud != null)
+        {
+            hud.ShowUpgradeBanner(AdventureLocalizationManager.Get("banner_crystal_relic"));
+        }
+
+        var drone = AdventureRustDrone.Instance;
+        if (drone != null)
+        {
+            drone.TriggerCelebration(AdventureLocalizationManager.Get("わぁぁ！崖の上にこんなお宝があったんだね！ボクたちの力で登れたよ、Float！"), 4.0f);
+        }
+    }
+
+    IEnumerator AnimateChestOpen()
+    {
+        if (_chestLid != null)
+        {
+            Quaternion startRot = _chestLid.localRotation;
+            Quaternion endRot = startRot * Quaternion.Euler(-95f, 0f, 0f);
+            float elapsed = 0f;
+            float dur = 0.5f;
+
+            while (elapsed < dur)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.SmoothStep(0f, 1f, elapsed / dur);
+                _chestLid.localRotation = Quaternion.Slerp(startRot, endRot, t);
+                yield return null;
+            }
+            _chestLid.localRotation = endRot;
+        }
+
+        if (_chestLight != null)
+        {
+            float elapsed = 0f;
+            while (elapsed < 0.6f)
+            {
+                elapsed += Time.deltaTime;
+                _chestLight.intensity = Mathf.Lerp(2.8f, 0f, elapsed / 0.6f);
+                yield return null;
+            }
+            _chestLight.enabled = false;
+        }
+    }
+
+    /// <summary>ニューゲーム時の完全初期化リセット</summary>
+    public void ResetForNewGame()
+    {
+        _isActivated = false;
+        _isCharging = false;
+        _isChestOpened = false;
+        _rustGuideSpokenOnce = false;
+        _rustGuideCooldown = 0f;
+
+        Object.FindAnyObjectByType<AdventureAncientWindVent>()?.ResetGimmickState();
+
+        PlayerPrefs.DeleteKey(PrefKeyCrystalActivated);
+        PlayerPrefs.DeleteKey(PrefKeyChestOpened);
+        PlayerPrefs.Save();
+
+        if (_crystalMat != null)
+        {
+            _crystalMat.SetColor("_EmissionColor", new Color(0.1f, 0.45f, 0.75f) * 1.5f);
+        }
+        if (_crystalLight != null)
+        {
+            _crystalLight.intensity = 2.2f;
+        }
+
+        if (_windPS != null)
+        {
+            _windPS.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+        if (_windAudio != null)
+        {
+            _windAudio.Stop();
+        }
+
+        if (_chestLid != null)
+        {
+            _chestLid.localRotation = Quaternion.identity;
+        }
+        if (_chestLight != null)
+        {
+            _chestLight.enabled = true;
+            _chestLight.intensity = 2.8f;
+        }
+
+        Debug.Log("[AdventureRustCrystalPuzzle] 🔄 古代クリスタルパズルを初期状態へリセットしました。");
+    }
+}

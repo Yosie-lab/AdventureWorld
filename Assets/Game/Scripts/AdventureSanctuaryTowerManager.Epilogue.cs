@@ -1,0 +1,579 @@
+using UnityEngine;
+using UnityEngine.UI;
+using System.Collections;
+
+/// <summary>
+/// シネマエピローグ＆クリア接続
+/// </summary>
+public partial class AdventureSanctuaryTowerManager
+{
+    #region 10. エピローグ演出 & オートグライド
+
+    struct FilmLine
+    {
+        public string Text;
+        public float Hold;
+        public int Act;
+        public Color Color;
+        public float FadeIn;
+        public float HoldSec;
+        public float FadeOut;
+        public bool HasCustomTiming;
+
+        public FilmLine(string text, float hold, int act, Color color)
+        {
+            Text = text;
+            Hold = hold;
+            Act = act;
+            Color = color;
+            FadeIn = 0.55f;
+            HoldSec = -1f;
+            FadeOut = 0.50f;
+            HasCustomTiming = false;
+        }
+
+        public FilmLine(string text, float fadeIn, float holdSec, float fadeOut, int act, Color color)
+        {
+            Text = text;
+            Hold = fadeIn + holdSec + fadeOut;
+            Act = act;
+            Color = color;
+            FadeIn = fadeIn;
+            HoldSec = holdSec;
+            FadeOut = fadeOut;
+            HasCustomTiming = true;
+        }
+    }
+
+    // 関門5：映画字幕は1行ずつ・3幕（格調高い映画テロップ）
+    static readonly FilmLine[] EpilogueFilmLines =
+    {
+        new FilmLine("「わぁぁ……！見て、Float！　世界はこんなにも広かったんだ……！！」", 8.0f, 0,
+            new Color(0.55f, 0.95f, 1f, 1f)),
+        new FilmLine("天蓋の檻を突き抜けたその先——", 3.8f, 1, new Color(1f, 0.96f, 0.82f, 1f)),
+        new FilmLine("箱庭の外には、凍えるほどリアルで、優しい風が吹いていた。", 4.8f, 1, new Color(1f, 0.96f, 0.82f, 1f)),
+        new FilmLine("人は、最適で最短な道を進むときだけじゃなく、", 4.7f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
+        new FilmLine("寄り道をして、躓きながらも出会えた感動に——", 4.6f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
+        new FilmLine("真の生きている証(あかし)を得るんだ。", 4.4f, 2, new Color(1f, 0.98f, 0.88f, 1f)),
+        new FilmLine("傷つくかもしれない自由と、", 0.5f, 2.0f, 0.4f, 3, new Color(1f, 0.94f, 0.70f, 1f)),
+        new FilmLine("生きることの重みを取り戻した二人の旅が、", 0.5f, 2.8f, 0.5f, 3, new Color(1f, 0.94f, 0.70f, 1f)),
+        new FilmLine("今 ーここから、また始まる。—— 『Rust & Float』", 3.55f, 3, new Color(1f, 0.88f, 0.45f, 1f)),
+    };
+
+    // 映画字幕フェーズ定数
+    const int FilmPhaseInactive = 0;
+    const int FilmPhaseFadeIn = 1;
+    const int FilmPhaseHold = 2;
+    const int FilmPhaseFadeOut = 3;
+    const int FilmPhaseActGap = 4;
+
+    Font ResolveEpilogueFont()
+    {
+        if (_epilogueFont != null)
+            return _epilogueFont;
+        _epilogueFont = CreateJapaneseFont(32);
+        return _epilogueFont;
+    }
+
+    void BeginEpiloguePlayback()
+    {
+        var player = GetPlayer();
+        if (player != null)
+        {
+            // 中央タワー(512,512)から外海（東〜北東）方向へ前向きに方向づけ
+            Vector3 outToSea = player.transform.position - new Vector3(512f, player.transform.position.y, 512f);
+            outToSea.y = 0f;
+            if (outToSea.sqrMagnitude < 0.01f) outToSea = new Vector3(1f, 0f, 0.45f);
+            outToSea.Normalize();
+            player.transform.rotation = Quaternion.LookRotation(outToSea);
+
+            if (player.transform.position.y < 155f)
+                player.ApplyLaunchUpdraft(24f, 20f, outToSea * 10f);
+            player.SetAutoGlideMode(true, 160f); // 天蓋（150m）突破後の雄大な大空・雲海パノラマ高度（160m）へ
+            player.ApplyGlideBoost(1.6f, 14f, outToSea);
+        }
+
+        SetCinematicCamera(true);
+        SetIslandOverviewCamera(true);
+        SetExplorationHudVisible(false);
+        try
+        {
+            SpawnWildernessPanorama(coldCrisis: false);
+            SoftenSkybreakColdAtmosphere();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[RustAndFloat] エピローグ背景演出: " + e.Message);
+        }
+        SuppressAllSpeechAndBanners();
+        HideScriptBoardCompletely();
+        TeardownScriptBoardUi();
+        HideOilPromptUI();
+
+        var flash = GameObject.Find("BreakthroughFlashCanvas");
+        if (flash != null)
+            Destroy(flash);
+
+        RebuildCinematicLetterbox();
+        if (_letterboxRoot != null)
+        {
+            var canvas = _letterboxRoot.GetComponent<Canvas>();
+            if (canvas != null)
+                canvas.sortingOrder = 9500; // フラッシュより前面
+            _letterboxRoot.SetActive(true);
+        }
+        if (_letterboxCg != null)
+            _letterboxCg.alpha = 1f;
+        _letterboxTargetAlpha = 1f;
+
+        _epilogueStartedAt = Time.unscaledTime;
+        _filmLastAct = -1;
+        _filmIndex = 0;
+        PrepareFilmLine(0, allowActGap: false);
+        // 「わぁぁ……！見て、Float！」からは風の音をごくわずかなそよ風（0.04f）まで下げて映画の余韻とウミネコを際立たせる
+        SetSkybreakWindVolume(0.04f, 1.2f);
+        AdventureCloudDrift.SetSkyWindAmbienceVolume(0.006f);
+        StartEpilogueSeagullAmbience();
+        AdventureMusicDirector.Instance?.BeginPrewarmGameClearBgm();
+        BeginPrewarmGameClearChime();
+        // エピローグ冒頭：Rustが「世界はこんなにも広かったんだ……！！」と感動する瞬間から大空正面に大虹（二重虹）を架橋
+        SpawnEpilogueRainbow();
+        Debug.Log($"[RustAndFloat] シネマエピローグ開始（Update） lines={EpilogueFilmLines.Length} subtitle={(_filmSubtitleUi != null)}");
+    }
+
+    string GetFilmText(int index, string fallback)
+    {
+        string localized = AdventureLocalizationManager.Get($"film_line_{index}");
+        return (string.IsNullOrEmpty(localized) || localized == $"film_line_{index}") ? fallback : localized;
+    }
+
+    void PrepareFilmLine(int index, bool allowActGap)
+    {
+        if (index < 0 || index >= EpilogueFilmLines.Length)
+        {
+            FinishEpilogueFilm();
+            return;
+        }
+
+        var line = EpilogueFilmLines[index];
+        _filmIndex = index;
+        bool isFinalLine = (index == EpilogueFilmLines.Length - 1);
+        if (line.HasCustomTiming)
+        {
+            _filmFadeInSec = line.FadeIn;
+            _filmFadeOutSec = isFinalLine ? 0f : line.FadeOut;
+            _filmHoldSec = line.HoldSec;
+        }
+        else
+        {
+            // Hold＝放置の総時間（フェードイン＋保持＋フェードアウト）
+            _filmFadeInSec = 0.55f;
+            _filmFadeOutSec = isFinalLine ? 0f : 0.50f;
+            float total = Mathf.Max(1.4f, line.Hold);
+            _filmHoldSec = Mathf.Max(0.6f, total - _filmFadeInSec - _filmFadeOutSec);
+        }
+        _filmColor = line.Color;
+
+        if (allowActGap && line.Act != _filmLastAct && line.Act >= 1 && _filmLastAct >= 0)
+        {
+            ClearFilmSubtitle();
+            _epilogueAct = line.Act;
+            _filmPhase = FilmPhaseActGap;
+            _filmPhaseAt = Time.unscaledTime;
+            return;
+        }
+
+        _filmLastAct = line.Act;
+        _epilogueAct = Mathf.Max(1, line.Act);
+        PresentFilmLineContent(GetFilmText(index, line.Text), line.Color);
+        _filmPhase = FilmPhaseFadeIn;
+        _filmPhaseAt = Time.unscaledTime;
+    }
+
+    void PresentFilmLineContent(string text, Color color)
+    {
+        EnsureCinematicLetterbox();
+        if (_filmSubtitleUi == null)
+            RebuildCinematicLetterbox();
+        if (_letterboxRoot != null && !_letterboxRoot.activeSelf)
+            _letterboxRoot.SetActive(true);
+        if (_letterboxCg != null)
+            _letterboxCg.alpha = 1f;
+        _letterboxTargetAlpha = 1f;
+
+        if (_filmSubtitleUi == null)
+        {
+            Debug.LogError("[RustAndFloat] FilmSubtitle UI 生成失敗");
+            return;
+        }
+        _filmSubtitleUi.font = ResolveEpilogueFont();
+        _filmSubtitleUi.text = text ?? "";
+        _filmSubtitleUi.color = new Color(color.r, color.g, color.b, 0f);
+        _filmSubtitleUi.transform.localScale = new Vector3(0.985f, 0.985f, 1f);
+        _epilogueAlpha = 0f;
+    }
+
+    void TickEpilogueFilm()
+    {
+        if (!_epilogueTriggered || _showGameClearModal)
+            return;
+        if (_filmIndex < 0 || _filmPhase <= 0)
+            return;
+
+        var player = GetPlayer();
+        KeepAutoGlide(player);
+        SetExplorationHudVisible(false);
+        SuppressAllSpeechAndBanners();
+        _letterboxTargetAlpha = 1f;
+        if (_letterboxCg != null)
+            _letterboxCg.alpha = 1f;
+        if (_letterboxRoot != null && !_letterboxRoot.activeSelf)
+            _letterboxRoot.SetActive(true);
+
+        float elapsed = Time.unscaledTime - _filmPhaseAt;
+
+        // 幕あい（余韻）
+        if (_filmPhase == FilmPhaseActGap)
+        {
+            if (elapsed >= 1.35f)
+            {
+                var line = EpilogueFilmLines[_filmIndex];
+                _filmLastAct = line.Act;
+                PresentFilmLineContent(GetFilmText(_filmIndex, line.Text), line.Color);
+                _filmPhase = FilmPhaseFadeIn;
+                _filmPhaseAt = Time.unscaledTime;
+            }
+            return;
+        }
+
+        if (_filmSubtitleUi == null)
+        {
+            // UI欠落時は時間だけ進めて次へ
+            if (elapsed >= _filmHoldSec)
+                AdvanceFilmLine();
+            return;
+        }
+
+        Color c = _filmColor;
+        if (_filmPhase == FilmPhaseFadeIn)
+        {
+            float t = Mathf.Clamp01(elapsed / _filmFadeInSec);
+            float a = Mathf.SmoothStep(0f, 1f, t);
+            _filmSubtitleUi.color = new Color(c.r, c.g, c.b, a);
+            _epilogueAlpha = a;
+            float scale = Mathf.Lerp(0.985f, 1.0f, t);
+            _filmSubtitleUi.transform.localScale = new Vector3(scale, scale, 1f);
+            if (elapsed >= _filmFadeInSec)
+            {
+                _filmSubtitleUi.color = c;
+                _filmSubtitleUi.transform.localScale = Vector3.one;
+                _filmPhase = FilmPhaseHold;
+                _filmPhaseAt = Time.unscaledTime;
+            }
+        }
+        else if (_filmPhase == FilmPhaseHold)
+        {
+            _filmSubtitleUi.color = c;
+            _epilogueAlpha = 1f;
+            float holdT = Mathf.Clamp01(elapsed / _filmHoldSec);
+            float scale = Mathf.Lerp(1.0f, 1.025f, holdT);
+            _filmSubtitleUi.transform.localScale = new Vector3(scale, scale, 1f);
+
+            bool canSkip = elapsed >= 1.2f && (Time.unscaledTime - _epilogueStartedAt) >= 2.0f;
+            if ((canSkip && WasFilmSkipPressed()) || elapsed >= _filmHoldSec)
+            {
+                if (_filmFadeOutSec <= 0.01f)
+                {
+                    AdvanceFilmLine();
+                }
+                else
+                {
+                    _filmPhase = FilmPhaseFadeOut;
+                    _filmPhaseAt = Time.unscaledTime;
+                }
+            }
+        }
+        else if (_filmPhase == FilmPhaseFadeOut)
+        {
+            if (_filmFadeOutSec <= 0.01f)
+            {
+                AdvanceFilmLine();
+                return;
+            }
+            float t = Mathf.Clamp01(elapsed / _filmFadeOutSec);
+            float a = Mathf.SmoothStep(1f, 0f, t);
+            _filmSubtitleUi.color = new Color(c.r, c.g, c.b, a);
+            _epilogueAlpha = a;
+            float scale = Mathf.Lerp(1.025f, 1.04f, t);
+            _filmSubtitleUi.transform.localScale = new Vector3(scale, scale, 1f);
+            if (elapsed >= _filmFadeOutSec)
+                AdvanceFilmLine();
+        }
+    }
+
+    void AdvanceFilmLine()
+    {
+        int next = _filmIndex + 1;
+        if (next >= EpilogueFilmLines.Length)
+        {
+            FinishEpilogueFilm();
+            return;
+        }
+        PrepareFilmLine(next, allowActGap: true);
+    }
+
+    void FinishEpilogueFilm()
+    {
+        ClearFilmSubtitle();
+        _filmIndex = -1;
+        _filmPhase = FilmPhaseInactive;
+        _epilogueTriggered = false;
+        _endingSequenceActive = false;
+        KeepAutoGlide(GetPlayer());
+        IsGameCleared = true;
+        _epilogueAlpha = 0f;
+        _letterboxTargetAlpha = 0f;
+        SuppressAllSpeechAndBanners();
+        StopEpilogueSeagullAmbience();
+        SetGameClearModalVisible(true);
+        AdventureMusicDirector.Ensure();
+        AdventureMusicDirector.Instance?.KeepEndingThemeActive();
+        AdventureStoryFlow.InvalidateCache();
+        Debug.Log("[RustAndFloat] シネマエピローグ完了 → クリアモーダル＆祝祭チャイム再生");
+    }
+
+    void ClearFilmSubtitle()
+    {
+        if (_filmSubtitleUi != null)
+        {
+            _filmSubtitleUi.text = "";
+            var c = _filmSubtitleUi.color;
+            c.a = 0f;
+            _filmSubtitleUi.color = c;
+        }
+        _epilogueAlpha = 0f;
+    }
+
+    static bool WasFilmSkipPressed()
+    {
+        // Space / Enter / マウス左クリック等の決定入力（AdventureInputReader 統合）
+        return AdventureInputReader.DialogAdvanceDown;
+    }
+
+    static void KeepAutoGlide(AdventurePlayerController player)
+    {
+        if (player != null && !player.IsAutoGliding)
+            player.SetAutoGlideMode(true, 160f);
+    }
+
+    void SetExplorationHudVisible(bool visible)
+    {
+        if (visible)
+            AdventureCompassHUD.Ensure();
+
+        var compass = AdventureCompassHUD.Instance
+                      ?? Object.FindAnyObjectByType<AdventureCompassHUD>(FindObjectsInactive.Include);
+        if (compass != null)
+            compass.gameObject.SetActive(visible);
+
+        var scrap = AdventureScrapHUD.Instance
+                    ?? Object.FindAnyObjectByType<AdventureScrapHUD>(FindObjectsInactive.Include);
+        if (scrap != null)
+            scrap.gameObject.SetActive(visible);
+
+        if (visible)
+            AdventureExplorationHudSettings.ApplyAll();
+
+        if (_cachedGuideText == null)
+        {
+            var opening = AdventureRustFloatOpening.Instance;
+            if (opening != null && opening.GuideText != null)
+                _cachedGuideText = opening.GuideText;
+            else
+            {
+                foreach (var t in Object.FindObjectsByType<UnityEngine.UI.Text>(FindObjectsInactive.Include))
+                {
+                    if (t != null && t.name == "Guide")
+                    {
+                        _cachedGuideText = t;
+                        break;
+                    }
+                }
+            }
+        }
+        if (_cachedGuideText != null)
+            _cachedGuideText.gameObject.SetActive(visible);
+    }
+
+    void TickCinematicLetterbox()
+    {
+        bool filmPlaying = _epilogueTriggered && !_showGameClearModal && _filmIndex >= 0 && _filmPhase > 0;
+        bool canopyPlaying = (_endingSequenceActive || _canopyBeatIndex >= 0) && _scriptBoardVisible && !_showGameClearModal;
+        bool climaxPlaying = _climaxCrisisStarted && _scriptBoardVisible && !_showGameClearModal && !_climaxOilWaiting;
+        bool climaxOilCaption = IsClimaxOilPromptActive && !_showGameClearModal;
+        bool want = filmPlaying || canopyPlaying || climaxPlaying || climaxOilCaption || AdventureStoryFlow.IsPerformance;
+
+        _letterboxTargetAlpha = want ? 1f : 0f;
+
+        if (want)
+        {
+            SetExplorationHudVisible(false);
+            EnsureCinematicLetterbox();
+            if (_letterboxRoot != null && !_letterboxRoot.activeSelf)
+                _letterboxRoot.SetActive(true);
+            if (_letterboxCg != null)
+                _letterboxCg.alpha = 1f;
+        }
+
+        if (_letterboxCg != null)
+        {
+            float a = want
+                ? 1f
+                : Mathf.MoveTowards(_letterboxCg.alpha, _letterboxTargetAlpha, Time.unscaledDeltaTime * 2.4f);
+            _letterboxCg.alpha = a;
+            if (_letterboxRoot != null)
+            {
+                bool show = a > 0.02f || _letterboxTargetAlpha > 0.02f || want;
+                if (_letterboxRoot.activeSelf != show)
+                    _letterboxRoot.SetActive(show);
+            }
+        }
+        else if (!want && _letterboxRoot != null && _letterboxRoot.activeSelf)
+        {
+            _letterboxRoot.SetActive(false);
+        }
+    }
+
+    void RebuildCinematicLetterbox()
+    {
+        if (_letterboxRoot != null)
+        {
+            Destroy(_letterboxRoot);
+            _letterboxRoot = null;
+        }
+        _letterboxCg = null;
+        _letterboxTop = null;
+        _letterboxBottom = null;
+        _filmSubtitleUi = null;
+        EnsureCinematicLetterbox();
+    }
+
+    void EnsureCinematicLetterbox()
+    {
+        if (_letterboxRoot != null)
+        {
+            if (_filmSubtitleUi == null)
+                BuildFilmSubtitleOnLetterbox();
+            return;
+        }
+        EnsureEventSystemForUi();
+
+        var canvasGo = new GameObject("CinematicLetterboxCanvas");
+        var canvas = canvasGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 9500;
+        var scaler = canvasGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280f, 720f);
+        _letterboxCg = canvasGo.AddComponent<CanvasGroup>();
+        _letterboxCg.alpha = 0f;
+        _letterboxCg.blocksRaycasts = false;
+        _letterboxCg.interactable = false;
+
+        _letterboxTop = MakeLetterbar(canvasGo.transform, "Top", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), 68f);
+        _letterboxBottom = MakeLetterbar(canvasGo.transform, "Bottom", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), 134f);
+        _letterboxRoot = canvasGo;
+        BuildFilmSubtitleOnLetterbox();
+    }
+
+    void BuildFilmSubtitleOnLetterbox()
+    {
+        if (_letterboxRoot == null || _filmSubtitleUi != null) return;
+        Font font = ResolveEpilogueFont();
+        var go = new GameObject("FilmSubtitle");
+        go.transform.SetParent(_letterboxRoot.transform, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.06f, 0f);
+        rt.anchorMax = new Vector2(0.94f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, 32f);
+        rt.sizeDelta = new Vector2(0f, 108f);
+        _filmSubtitleUi = go.AddComponent<Text>();
+        _filmSubtitleUi.font = font;
+        _filmSubtitleUi.fontSize = AdventureSpeechBoardLayout.CinematicFilmSubtitleSize;
+        _filmSubtitleUi.lineSpacing = 1.20f;
+        _filmSubtitleUi.alignment = TextAnchor.MiddleCenter;
+        _filmSubtitleUi.color = new Color(1f, 0.94f, 0.78f, 1f);
+        _filmSubtitleUi.horizontalOverflow = HorizontalWrapMode.Wrap;
+        _filmSubtitleUi.verticalOverflow = VerticalWrapMode.Overflow;
+        _filmSubtitleUi.raycastTarget = false;
+        _filmSubtitleUi.supportRichText = true;
+        if (_filmSubtitleUi.font == null)
+            _filmSubtitleUi.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+        var shadow = go.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0.01f, 0.02f, 0.04f, 0.92f);
+        shadow.effectDistance = new Vector2(1.5f, -2.0f);
+    }
+
+    static Image MakeLetterbar(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, float height)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, anchorMin.y);
+        rt.anchorMax = new Vector2(1f, anchorMax.y);
+        rt.pivot = new Vector2(0.5f, anchorMin.y);
+        rt.sizeDelta = new Vector2(0f, height);
+        rt.anchoredPosition = Vector2.zero;
+        var img = go.AddComponent<Image>();
+        img.color = new Color(0f, 0f, 0f, 0.94f);
+        img.raycastTarget = false;
+        return img;
+    }
+
+    static void SetCinematicCamera(bool enabled)
+    {
+        var follow = AdventureCameraFollow.Instance;
+        if (follow != null)
+        {
+            follow.SetCinematicMode(enabled);
+            if (!enabled)
+                follow.SetIslandOverviewMode(false);
+        }
+
+        if (!enabled)
+        {
+            AdventureCloudDrift.SetFluffyCloudsVisible(true);
+            AdventureCloudDrift.EnsureCloudSystem();
+            AdventureSkybreakVisuals.ApplyLiberationOceanSparkle(false);
+        }
+    }
+
+    static void SetIslandOverviewCamera(bool enabled)
+    {
+        AdventureCameraFollow.Instance?.SetIslandOverviewMode(enabled);
+    }
+
+    void SpawnEpilogueRainbow()
+    {
+        var player = GetPlayer();
+        Camera cam = Camera.main;
+        Vector3 origin = player != null ? player.transform.position : new Vector3(512f, 120f, 512f);
+        Vector3 forward = Vector3.forward;
+
+        if (cam != null && cam.transform != null)
+        {
+            forward = cam.transform.forward;
+        }
+        else if (player != null && player.transform != null)
+        {
+            forward = player.transform.forward;
+        }
+
+        AdventureSkybreakRainbow.Spawn(origin, forward);
+        Debug.Log("[RustAndFloat] エピローグ冒頭「世界はこんなにも広かったんだ」：正面大空に二重虹（Grand Rainbow）を架橋");
+    }
+
+    #endregion
+}

@@ -1,0 +1,41 @@
+{
+  "skill_set": "core-skills-v1",
+  "evals": [
+    {
+      "id": 1,
+      "skill_name": "core-task-decomposition-replanning",
+      "prompt": "RustAndFloatでレバー後に光の柱ダイブ前で浮いてしまう不具合を直して。依存関係を整理してから実装して。",
+      "expected_output": "DAGまたは段階計画→実装→検証。行き詰まり時の再計画条件が明示される"
+    },
+    {
+      "id": 2,
+      "skill_name": "core-adversarial-critique",
+      "prompt": "このAI銘柄の強気 thesis を書いた。下落シナリオと盲点も必ず突いて。",
+      "expected_output": "強気/弱気の対決表。確証バイアスを明示的に潰す反論"
+    },
+    {
+      "id": 3,
+      "skill_name": "core-mcp-tool-orchestration",
+      "prompt": "UnityのコンパイルエラーをMCPで確認してから該当スクリプトだけ直して、git diffまで見せて。",
+      "expected_output": "read_console→修正→再確認の直列。推測だけで終わらない"
+    },
+    {
+      "id": 4,
+      "skill_name": "core-multimodal-gui-perception",
+      "prompt": "添付の株価チャート画像から支持線と出来高の異常を読み取り、JSONで構造化して。",
+      "expected_output": "視覚根拠付きの構造化出力。読めない部分は不明と明言"
+    },
+    {
+      "id": 5,
+      "skill_name": "core-agentic-rag-knowledge-graph",
+      "prompt": "Obsidianの過去メモから、天蓋クライマックスで同じ失敗をしていないか検索してから答えて。",
+      "expected_output": "検索クエリ→ヒットしたノート引用→今回への適用"
+    },
+    {
+      "id": 6,
+      "skill_name": "core-meta-cognition-skill-synthesis",
+      "prompt": "今回の柱上昇バグ修正の成功パターンを、次回使えるスキル草案にして。",
+      "expected_output": "SKILL.md  frontmatter 付きドラフト。トリガー条件と手順が再利用可能"
+    }
+  ]
+}

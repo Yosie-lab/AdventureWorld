@@ -1,0 +1,270 @@
+using UnityEngine;
+
+/// <summary>
+/// 砂浜と深い森の標。次に必要な手掛かりと、その地形で動きやすくなるスキルを渡す。
+/// </summary>
+public class AdventureFieldLesson : MonoBehaviour
+{
+    public enum Kind { BeachTide, DeepForest }
+
+    const string KeyTide = "RustAndFloat_TideStep";
+    const string KeyCanopy = "RustAndFloat_CanopyRead";
+
+    static readonly Vector3[] DeepGroves =
+    {
+        new Vector3(680f, 0f, 530f),
+        new Vector3(490f, 0f, 680f),
+        new Vector3(720f, 0f, 380f),
+        new Vector3(620f, 0f, 640f),
+    };
+    static readonly float[] DeepRadii = { 75f, 65f, 70f, 65f };
+
+    public Kind kind = Kind.BeachTide;
+
+    public static bool HasTideStep { get; private set; }
+    public static bool HasCanopyRead { get; private set; }
+
+    TextMesh _prompt;
+    Transform _cam;
+    bool _promptKnown;
+
+    public static void Ensure()
+    {
+        Load();
+        string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (scene != "RustAndFlat" && scene != "RustAndFloat")
+            return;
+
+        Terrain land = null;
+        foreach (var t in Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude))
+        {
+            if (t != null && t.name == "LandTerrain")
+            {
+                land = t;
+                break;
+            }
+        }
+        if (land == null)
+            land = Object.FindAnyObjectByType<Terrain>();
+
+        Spawn(Kind.BeachTide, "FieldLesson_Beach", new Vector3(145f, 0f, 310f), land);
+        Spawn(Kind.DeepForest, "FieldLesson_Forest", new Vector3(680f, 0f, 530f), land);
+    }
+
+    public static void ClearForNewGame()
+    {
+        PlayerPrefs.DeleteKey(KeyTide);
+        PlayerPrefs.DeleteKey(KeyCanopy);
+        PlayerPrefs.Save();
+        HasTideStep = false;
+        HasCanopyRead = false;
+        foreach (var lesson in Object.FindObjectsByType<AdventureFieldLesson>(FindObjectsInactive.Exclude))
+            lesson.RefreshLearnedLook();
+    }
+
+    public static bool IsInDeepForest(Vector3 pos)
+    {
+        for (int i = 0; i < DeepGroves.Length; i++)
+        {
+            float dx = pos.x - DeepGroves[i].x;
+            float dz = pos.z - DeepGroves[i].z;
+            if (dx * dx + dz * dz <= DeepRadii[i] * DeepRadii[i])
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>習得スキルに応じて、Rustの照準距離と「近くの届きにくいパーツ」候補距離を広げる。</summary>
+    public static void GetRustAimAssist(Vector3 nikoPos, ref float maxDist, ref float bestDot, ref float fallbackRange)
+    {
+        var player = AdventurePlayerController.Instance;
+        bool beach = HasTideStep && player != null && player.IsInBeachOrCoastZone(nikoPos);
+        bool forest = HasCanopyRead && IsInDeepForest(nikoPos);
+        if (beach)
+        {
+            maxDist = Mathf.Max(maxDist, 48f);
+            bestDot = Mathf.Min(bestDot, 0.84f);
+            fallbackRange = Mathf.Max(fallbackRange, 18f);
+        }
+        if (forest)
+        {
+            maxDist = Mathf.Max(maxDist, 54f);
+            bestDot = Mathf.Min(bestDot, 0.76f);
+            fallbackRange = Mathf.Max(fallbackRange, 24f);
+        }
+    }
+
+    public static string NextNeed()
+    {
+        var mgr = AdventureScrapManager.Instance;
+        int scraps = mgr != null ? mgr.CollectedCount : 0;
+        int pts = mgr != null ? mgr.TotalProgressPoints : 0;
+        bool lever = mgr != null && mgr.IsLeverUnlocked;
+        if (AdventureSanctuaryTowerManager.IsCanopyBroken)
+            return AdventureLocalizationManager.Get("field_next_canopy_open");
+        if (lever)
+            return AdventureLocalizationManager.Get("field_next_pull_lever");
+        if (scraps < 3)
+            return AdventureLocalizationManager.GetFormat("field_next_scrap_3", 3 - scraps);
+        if (scraps < 6)
+            return AdventureLocalizationManager.GetFormat("field_next_scrap_6", 6 - scraps);
+        if (scraps < 9)
+            return AdventureLocalizationManager.GetFormat("field_next_scrap_9", 9 - scraps);
+        if (scraps < 12)
+            return AdventureLocalizationManager.GetFormat("field_next_scrap_12", 12 - scraps);
+        if (pts < AdventureScrapManager.RequiredPointsForCanopy)
+            return AdventureLocalizationManager.GetFormat("field_next_points_20", pts);
+        return AdventureLocalizationManager.Get("field_next_go_tower");
+    }
+
+    static void Load()
+    {
+        HasTideStep = PlayerPrefs.GetInt(KeyTide, 0) == 1;
+        HasCanopyRead = PlayerPrefs.GetInt(KeyCanopy, 0) == 1;
+    }
+
+    static void Spawn(Kind kind, string name, Vector3 pos, Terrain land)
+    {
+        if (GameObject.Find(name) != null)
+            return;
+
+        if (land != null)
+            pos.y = land.SampleHeight(pos) + land.transform.position.y;
+        else
+            pos.y = 6.5f;
+
+        var root = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        root.name = name;
+        root.transform.position = pos + Vector3.up * 0.55f;
+        root.transform.localScale = new Vector3(0.42f, 0.7f, 0.42f);
+        var col = root.GetComponent<CapsuleCollider>();
+        if (col == null)
+            col = root.AddComponent<CapsuleCollider>();
+        col.isTrigger = false;
+
+        var lesson = root.AddComponent<AdventureFieldLesson>();
+        lesson.kind = kind;
+
+        var orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        orb.name = "LessonOrb";
+        orb.transform.SetParent(root.transform, false);
+        orb.transform.localPosition = new Vector3(0f, 1.15f, 0f);
+        orb.transform.localScale = Vector3.one * 0.55f;
+        var orbCol = orb.GetComponent<Collider>();
+        if (orbCol != null)
+            Destroy(orbCol);
+
+        Color tint = kind == Kind.BeachTide
+            ? new Color(1f, 0.82f, 0.45f)
+            : new Color(0.45f, 0.9f, 0.55f);
+        var rend = root.GetComponent<Renderer>();
+        var orbRend = orb.GetComponent<Renderer>();
+        if (rend != null)
+            AdventurePrimitiveVisuals.ApplyLitColor(rend, tint * 0.65f, true);
+        if (orbRend != null)
+            AdventurePrimitiveVisuals.ApplyLitColor(orbRend, tint, true);
+    }
+
+    void Start()
+    {
+        Load();
+        var cam = Camera.main;
+        if (cam != null)
+            _cam = cam.transform;
+
+        var promptGo = new GameObject("LessonPrompt");
+        promptGo.transform.SetParent(transform, false);
+        promptGo.transform.localPosition = new Vector3(0f, 2.1f, 0f);
+        _prompt = promptGo.AddComponent<TextMesh>();
+        _prompt.characterSize = 0.12f;
+        _prompt.fontSize = 32;
+        _prompt.anchor = TextAnchor.MiddleCenter;
+        _prompt.alignment = TextAlignment.Center;
+        _prompt.color = new Color(1f, 0.95f, 0.75f);
+        promptGo.SetActive(false);
+        RefreshLearnedLook();
+    }
+
+    void Update()
+    {
+        if (_cam == null && Camera.main != null)
+            _cam = Camera.main.transform;
+
+        var player = AdventurePlayerController.Instance;
+        bool inRange = player != null && Vector3.Distance(transform.position, player.transform.position) <= 3.4f;
+        if (_prompt != null)
+            _prompt.gameObject.SetActive(false);
+
+        bool known = OwnsSkill();
+        if (known != _promptKnown)
+            RefreshLearnedLook();
+
+        if (!inRange || player == null || !player.InteractPressed)
+            return;
+
+        GrantAndTell(player);
+    }
+
+    bool OwnsSkill()
+    {
+        return kind == Kind.BeachTide ? HasTideStep : HasCanopyRead;
+    }
+
+    void OnEnable()
+    {
+        AdventureLocalizationManager.OnLanguageChanged += RefreshLearnedLook;
+    }
+
+    void OnDisable()
+    {
+        AdventureLocalizationManager.OnLanguageChanged -= RefreshLearnedLook;
+    }
+
+    void RefreshLearnedLook()
+    {
+        _promptKnown = OwnsSkill();
+        if (_prompt != null)
+        {
+            _prompt.text = _promptKnown
+                ? AdventureLocalizationManager.Get("field_lesson_prompt_need")
+                : (kind == Kind.BeachTide 
+                    ? AdventureLocalizationManager.Get("field_lesson_prompt_tide") 
+                    : AdventureLocalizationManager.Get("field_lesson_prompt_canopy"));
+        }
+    }
+
+    void GrantAndTell(AdventurePlayerController player)
+    {
+        bool first = !OwnsSkill();
+        string skillLine;
+        string title;
+        if (kind == Kind.BeachTide)
+        {
+            HasTideStep = true;
+            PlayerPrefs.SetInt(KeyTide, 1);
+            title = first ? "field_lesson_tide_title_first" : "field_lesson_tide_title";
+            skillLine = "field_lesson_tide_skill";
+        }
+        else
+        {
+            HasCanopyRead = true;
+            PlayerPrefs.SetInt(KeyCanopy, 1);
+            title = first ? "field_lesson_canopy_title_first" : "field_lesson_canopy_title";
+            skillLine = "field_lesson_canopy_skill";
+        }
+        PlayerPrefs.Save();
+        RefreshLearnedLook();
+
+        string next = NextNeed();
+        var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
+        drone?.SpeakCustom(first ? skillLine : next, 6.2f);
+
+        if (AdventureScrapHUD.Instance != null)
+        {
+            if (first)
+                AdventureScrapHUD.Instance.ShowPoeticLore(title, next, skillLine);
+            else
+                AdventureScrapHUD.Instance.ShowPoeticLore(title, next, "field_clue_updated");
+        }
+    }
+}
