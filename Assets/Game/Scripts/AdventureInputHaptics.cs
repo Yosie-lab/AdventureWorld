@@ -164,6 +164,12 @@ public class AdventureInputHaptics : MonoBehaviour
         PlayPulse(0.55f, 0.75f, 0.25f);
     }
 
+    /// <summary>タイムアタックSSランク達成（神風アルティメット祝祭大振動）</summary>
+    public static void PlayTimeAttackSSCelebration()
+    {
+        PlayPulse(0.85f, 0.95f, 0.65f);
+    }
+
     /// <summary>タワー主電源レバー操作（ゴゴゴ…と機械が目覚める重厚な振動）</summary>
     public static void PlayTowerLever()
     {

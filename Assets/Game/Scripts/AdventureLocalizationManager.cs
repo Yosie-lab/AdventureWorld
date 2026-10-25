@@ -2120,7 +2120,17 @@ public static class AdventureLocalizationManager
             "用时: {0:F2} 秒\n通过风环: {1} / {2}\n评价等级: {3}\n最佳纪录: {4:F2} 秒 ({5})",
             "Tiempo: {0:F2} s\nAros cruzados: {1} / {2}\nCalificación: {3}\nMejor tiempo: {4:F2} s ({5})"
         } },
-        { "ta_btn_fly_again", new[] { "🪂 もう一度飛ぶ！ [R]キー", "🪂 Fly Again! [R] Key", "🪂 再飞一次！ [R] 键", "🪂 ¡Volar otra vez! Tecla [R]" } },
+        { "ta_rank_ss", new[] { "SS (神風アルティメット 👑)", "SS (Kamikaze Ultimate 👑)", "SS (神风终极至尊 👑)", "SS (Vuelo Definitivo 👑)" } },
+        { "ta_rank_s", new[] { "S (神風マスター 🌟)", "S (Master Flyer 🌟)", "S (神风疾速大师 🌟)", "S (Maestro del Viento 🌟)" } },
+        { "ta_rank_a", new[] { "A (爽快フライヤー 🥇)", "A (Skilled Glider 🥇)", "A (敏捷翱翔者 🥇)", "A (Planeador Experto 🥇)" } },
+        { "ta_rank_b", new[] { "B (スカイダイバー 🥈)", "B (Sky Diver 🥈)", "B (高空漫游者 🥈)", "B (Saltador Celeste 🥈)" } },
+        { "ta_rank_c", new[] { "C (のんびりフライト 🥉)", "C (Casual Cruise 🥉)", "C (悠闲观光者 🥉)", "C (Vuelo Relajado 🥉)" } },
+        { "ta_clear_ss", new[] {
+            "し、信じられない…全リング完全通過＆超速レコード！！SSランク達成だよ、Float！！お前こそがこの大空の真の覇者だ！！（タイム: {0:F2}秒）",
+            "U-Unbelievable... 100% rings cleared and a blazing record!! SS-Rank achieved, Float!! You truly own the skies!! (Time: {0:F2}s)",
+            "太、太不可思议了……全部风环完美通过＋超绝疾速纪录！！达成SS级至尊评分，Float！！你就是这片浩瀚苍穹真正的王者！！（用时: {0:F2}秒）",
+            "¡I-Increíble...! ¡Todos los aros cruzados a una velocidad descomunal! ¡¡Rango SS conseguido, Float!! ¡Eres el rey absoluto del cielo! (Tiempo: {0:F2}s)"
+        } },
         { "ta_clear_s", new[] {
             "信じられないスピードだ、Float！Sランク達成！！お前、翼が生えてるんじゃないか！？（タイム: {0:F2}秒）",
             "Incredible speed, Float! S-Rank achieved!! Do you secretly have wings?! (Time: {0:F2}s)",

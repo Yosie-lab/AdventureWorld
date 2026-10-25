@@ -269,27 +269,37 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         _showResult = true;
         _resultTimer = currentTimer;
 
-        // ランク計算
-        // S: 34秒以内 & リング8個以上
-        // A: 44秒以内 & リング6個以上
-        // B: 58秒以内 & リング3個以上
-        // C: それ以外
+        // 厳格なインディー最高峰基準によるランク計算
+        // SS (神風アルティメット 👑): 29.5秒以内 かつ リング全通過 (全10個パーフェクト)
+        // S  (神風マスター 🌟):      33.0秒以内 かつ リング9個以上
+        // A  (爽快フライヤー 🥇):    40.0秒以内 かつ リング7個以上
+        // B  (スカイダイバー 🥈):    50.0秒以内 かつ リング4個以上
+        // C  (のんびりフライト 🥉): それ以外
         int total = courseRings.Count > 0 ? courseRings.Count : 10;
-        if (_resultTimer <= 34.0f && ringsPassedCount >= 8)
+        bool isSS = _resultTimer <= 29.5f && ringsPassedCount >= total && total >= 8;
+        bool isS = !isSS && _resultTimer <= 33.0f && ringsPassedCount >= 9;
+        bool isA = !isSS && !isS && _resultTimer <= 40.0f && ringsPassedCount >= 7;
+        bool isB = !isSS && !isS && !isA && (_resultTimer <= 50.0f && ringsPassedCount >= 4);
+
+        if (isSS)
         {
-            _currentResultRank = "S (神風マスター 🌟)";
+            _currentResultRank = AdventureLocalizationManager.Get("ta_rank_ss");
         }
-        else if (_resultTimer <= 44.0f && ringsPassedCount >= 6)
+        else if (isS)
         {
-            _currentResultRank = "A (爽快フライヤー 🥇)";
+            _currentResultRank = AdventureLocalizationManager.Get("ta_rank_s");
         }
-        else if (_resultTimer <= 58.0f)
+        else if (isA)
         {
-            _currentResultRank = "B (スカイダイバー 🥈)";
+            _currentResultRank = AdventureLocalizationManager.Get("ta_rank_a");
+        }
+        else if (isB)
+        {
+            _currentResultRank = AdventureLocalizationManager.Get("ta_rank_b");
         }
         else
         {
-            _currentResultRank = "C (のんびりフライト 🥉)";
+            _currentResultRank = AdventureLocalizationManager.Get("ta_rank_c");
         }
 
         // ベストタイム判定
@@ -310,15 +320,31 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         if (_audioSource != null && _goalFanfareClip != null)
             _audioSource.PlayOneShot(_goalFanfareClip, 0.95f);
 
+        if (isSS)
+        {
+            AdventureInputHaptics.PlayTimeAttackSSCelebration();
+        }
+        else
+        {
+            AdventureInputHaptics.PlayScrapPickupChime();
+        }
+
         var drone = AdventureRustDrone.Instance;
         if (drone != null)
         {
-            if (_currentResultRank.StartsWith("S"))
+            if (isSS)
             {
+                drone.TriggerCelebrate();
+                drone.SetSpeech(AdventureLocalizationManager.GetFormat("ta_clear_ss", _resultTimer), 6.5f);
+            }
+            else if (isS)
+            {
+                drone.TriggerAffectionJoy();
                 drone.SetSpeech(AdventureLocalizationManager.GetFormat("ta_clear_s", _resultTimer), 5.5f);
             }
-            else if (_currentResultRank.StartsWith("A"))
+            else if (isA)
             {
+                drone.TriggerAffectionJoy();
                 drone.SetSpeech(AdventureLocalizationManager.GetFormat("ta_clear_a", _resultTimer), 5.0f);
             }
             else

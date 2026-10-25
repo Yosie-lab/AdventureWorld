@@ -22,6 +22,7 @@
 
 | スキル | ディレクトリ | いつ |
 |--------|--------------|------|
+| 100点満点マスター・ゲームフィール調律 | `core-gamefeel-perfection-100/` | 厳格な100点満点評価基準を完全突破し、極上の手触りと完成度を実装するとき |
 | Unity / iOS MVP 設計 | `unity-app-architect/` | Obsidian のアイデアメモから SE3 向け Unity 構成を出すとき |
 
 ## Cursor / Antigravity
