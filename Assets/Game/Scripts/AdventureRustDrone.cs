@@ -755,6 +755,8 @@ public partial class AdventureRustDrone : MonoBehaviour
             {
                 goal = FollowPoint();
                 _lagTarget = goal;
+                if (_climaxChase)
+                    TickClimaxChaseScream();
             }
             else
             {
@@ -814,7 +816,7 @@ public partial class AdventureRustDrone : MonoBehaviour
 
         var towerMgr = AdventureSanctuaryTowerManager.Instance;
         bool isEpilogueGliding = (towerMgr != null && towerMgr.EpilogueTriggered) || IsClimaxOverdrive;
-        bool isOilFaceToFace = IsClimaxCrisis || _climaxHealing;
+        bool isOilFaceToFace = (IsClimaxCrisis || _climaxHealing) && !_climaxChase;
 
         // 注油中（Floatの目の前）およびエピローグ中は高速レスポンス（置き去り防止）
         float lerpRate = (isEpilogueGliding || isOilFaceToFace) ? 24.0f : ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 6.5f : 2.2f);
@@ -833,10 +835,16 @@ public partial class AdventureRustDrone : MonoBehaviour
         float maxSpeed = (isEpilogueGliding || isOilFaceToFace) ? 38.0f :
             ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 15.5f :
             ((CurrentState == RustState.Guiding) ? 17.5f : 8.5f));
+        if (_climaxChase)
+        {
+            smoothTime = 0.28f;
+            maxSpeed = 9.5f;
+        }
+
         transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, maxSpeed);
 
         // 画面見切れ防止ガード（オフスクリーン時のみソフト補正）
-        if ((_skybreakNestle || IsClimaxCrisis || _climaxHealing || IsClimaxOverdrive || _prologueDistress || isEpilogueGliding) && !_climaxFalling)
+        if ((_skybreakNestle || IsClimaxCrisis || _climaxHealing || IsClimaxOverdrive || _prologueDistress || isEpilogueGliding) && !_climaxFalling && !_climaxChase)
             KeepRustOnScreenNearNiko(force: false);
 
         // 危機時／冒頭ドラマ：ガタガタ震え
@@ -868,6 +876,10 @@ public partial class AdventureRustDrone : MonoBehaviour
             if (away.sqrMagnitude > 0.01f) away.Normalize();
             else away = _lookAt.right;
             to = (head + away * 0.35f) - transform.position;
+        }
+        else if (_climaxChase && _lookAt != null)
+        {
+            to = GetNikoChestPosition() - transform.position;
         }
         else if (_climaxHealing && _lookAt != null)
         {
@@ -1686,6 +1698,10 @@ public partial class AdventureRustDrone : MonoBehaviour
             // 右0.95m・前0.45m、頭〜胸の高さ
             return EndingNestleAtHead(0.45f, 0.95f, 0.08f + nestleBob);
         }
+
+        // 柱抜け直後：後ろから必死に追い、置いていかれてカメラへ落ちる
+        if (_climaxChase && !_climaxFalling)
+            return ClimaxChasePoint();
 
         // クライマックス危機／注油：FloatとRustが正面至近距離でまっすぐ向き合う（至高のFace-to-Face構図）
         if ((IsClimaxCrisis || _climaxHealing) && !_climaxFalling)
