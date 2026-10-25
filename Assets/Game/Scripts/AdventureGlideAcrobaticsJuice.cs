@@ -50,6 +50,12 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
     // カメラGシェイク用
     private float _cameraShakeIntensity = 0f;
 
+    // 風圧スピードライン演出用
+    private ParticleSystem _speedLinesPs;
+    private Material _speedLinesMat;
+    private Texture2D _speedLineTex;
+    private Transform _speedLinesTransform;
+
     void Awake()
     {
         if (_instance != null && _instance != this)
@@ -69,6 +75,7 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
 
         CreateProceduralAudio();
         CreateVaporTrails();
+        CreateSpeedLinesEmitter();
     }
 
     void Start()
@@ -157,6 +164,9 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
                 Camera.main.transform.position += Camera.main.transform.up * microShakeY + Camera.main.transform.right * microShakeX;
             }
         }
+
+        // 5. 高速ダイブ時の風圧スピードライン（集中線）演出
+        UpdateSpeedLines(_diveIntensity, speed, isGliding);
     }
 
     private void TriggerPullUpGForce(float intensity, Vector3 playerPos)
@@ -483,4 +493,123 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
         ps.Play();
         Destroy(fxGo, 0.75f);
     }
+
+    #region Procedural Speed Lines (風圧スピードライン演出)
+    private Texture2D GetOrCreateSpeedLineTexture()
+    {
+        if (_speedLineTex != null) return _speedLineTex;
+        int width = 32;
+        int height = 128;
+        _speedLineTex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        _speedLineTex.wrapMode = TextureWrapMode.Clamp;
+        _speedLineTex.filterMode = FilterMode.Bilinear;
+
+        Color[] pixels = new Color[width * height];
+        for (int y = 0; y < height; y++)
+        {
+            float v = (float)y / (height - 1);
+            // 縦方向の滑らかな針状グラデーション（中心 0.5 が最大で、両端で 0）
+            float vFactor = Mathf.Sin(v * Mathf.PI);
+            vFactor = Mathf.Pow(vFactor, 1.8f);
+
+            for (int x = 0; x < width; x++)
+            {
+                float u = (float)x / (width - 1);
+                float uDist = Mathf.Abs(u - 0.5f) * 2f; // 0 (中心) 〜 1 (端)
+                float uFactor = Mathf.Clamp01(1f - uDist);
+                uFactor = Mathf.Pow(uFactor, 2.5f);
+
+                float alpha = vFactor * uFactor;
+                pixels[y * width + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+        _speedLineTex.SetPixels(pixels);
+        _speedLineTex.Apply(false, true);
+        return _speedLineTex;
+    }
+
+    private void CreateSpeedLinesEmitter()
+    {
+        var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                     ?? Shader.Find("Particles/Standard Unlit")
+                     ?? Shader.Find("Sprites/Default");
+
+        _speedLinesMat = new Material(shader) { name = "Glide_SpeedLines_Mat" };
+        var tex = GetOrCreateSpeedLineTexture();
+        _speedLinesMat.SetTexture("_BaseMap", tex);
+        _speedLinesMat.SetTexture("_MainTex", tex);
+        _speedLinesMat.color = new Color(0.85f, 0.95f, 1.0f, 0.35f);
+        _speedLinesMat.SetFloat("_Surface", 1f); // Transparent
+        _speedLinesMat.SetFloat("_Blend", 1f); // Additive
+        _speedLinesMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 200;
+
+        var go = new GameObject("Glide_CameraSpeedLines");
+        go.transform.SetParent(transform, false);
+        _speedLinesTransform = go.transform;
+
+        _speedLinesPs = go.AddComponent<ParticleSystem>();
+        var main = _speedLinesPs.main;
+        main.loop = true;
+        main.playOnAwake = true;
+        main.simulationSpace = ParticleSystemSimulationSpace.Local;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.18f, 0.28f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(22f, 38f);
+        main.startSize3D = true;
+        main.startSizeX = new ParticleSystem.MinMaxCurve(0.04f, 0.08f);
+        main.startSizeY = new ParticleSystem.MinMaxCurve(0.8f, 1.8f);
+        main.startSizeZ = 0.05f;
+        main.startColor = new Color(0.9f, 0.97f, 1f, 0.35f);
+
+        var emission = _speedLinesPs.emission;
+        emission.rateOverTime = 0f; // 初期は0
+
+        var shape = _speedLinesPs.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = 1.35f;
+        shape.radiusThickness = 0.45f; // 画面周辺部に集中（中央はクリア）
+        shape.rotation = new Vector3(0f, 180f, 0f); // カメラに向かって飛んでくる
+
+        var colOverLifetime = _speedLinesPs.colorOverLifetime;
+        colOverLifetime.enabled = true;
+        Gradient grad = new Gradient();
+        grad.SetKeys(
+            new GradientColorKey[] { new GradientColorKey(new Color(0.8f, 0.95f, 1f), 0f), new GradientColorKey(Color.white, 1f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.45f, 0.3f), new GradientAlphaKey(0f, 1f) }
+        );
+        colOverLifetime.color = grad;
+
+        var psr = go.GetComponent<ParticleSystemRenderer>();
+        psr.renderMode = ParticleSystemRenderMode.Stretch;
+        psr.cameraVelocityScale = 0f;
+        psr.velocityScale = 0.08f;
+        psr.lengthScale = 3.5f;
+        psr.material = _speedLinesMat;
+    }
+
+    private void UpdateSpeedLines(float diveIntensity, float speed, bool isGliding)
+    {
+        if (_speedLinesPs == null) return;
+
+        Camera cam = Camera.main;
+        if (cam != null && _speedLinesTransform != null)
+        {
+            _speedLinesTransform.position = cam.transform.position + cam.transform.forward * 1.35f;
+            _speedLinesTransform.rotation = cam.transform.rotation;
+        }
+
+        float speedFactor = isGliding ? Mathf.Clamp01((speed - 12.5f) / 6.5f) : 0f;
+        float totalIntensity = Mathf.Max(diveIntensity, speedFactor);
+
+        var emission = _speedLinesPs.emission;
+        if (totalIntensity > 0.05f)
+        {
+            emission.rateOverTime = Mathf.Lerp(0f, 55f, totalIntensity);
+            if (!_speedLinesPs.isPlaying) _speedLinesPs.Play();
+        }
+        else
+        {
+            emission.rateOverTime = 0f;
+        }
+    }
+    #endregion
 }

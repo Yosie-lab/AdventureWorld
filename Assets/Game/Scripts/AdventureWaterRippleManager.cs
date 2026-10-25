@@ -14,6 +14,9 @@ public class AdventureWaterRippleManager : MonoBehaviour
     private ParticleSystem _splashPs;
     private float _playerRippleTimer = 0f;
     private float _rustRippleTimer = 0f;
+    private float _wakeSprayTimer = 0f;
+    private AudioSource _surfAudio;
+    private AudioClip _surfClip;
 
     public const float DefaultWaterLevel = 5.5f;
 
@@ -39,6 +42,7 @@ public class AdventureWaterRippleManager : MonoBehaviour
         }
 
         SetupParticleSystems();
+        CreateSurfAudio();
     }
 
     private void Update()
@@ -61,32 +65,73 @@ public class AdventureWaterRippleManager : MonoBehaviour
     private void TickPlayerWaterRipples(float waterY)
     {
         var player = AdventurePlayerController.Instance;
-        if (player == null) return;
+        if (player == null)
+        {
+            UpdateSurfAudio(0f, 1f);
+            return;
+        }
 
         Vector3 pPos = player.transform.position;
         float diffY = pPos.y - waterY;
 
         // 水面から下0.8m（浅瀬）〜上0.35m（波打ち際）の範囲
         bool isInWaterZone = diffY >= -0.85f && diffY <= 0.40f;
-        if (!isInWaterZone) return;
+        if (!isInWaterZone)
+        {
+            UpdateSurfAudio(0f, 1f);
+            return;
+        }
 
         float hSpeed = player.HorizontalSpeed;
+        bool isSliding = player.IsSliding;
+
+        // 1. スライディングまたは高速走行時の水切りサウンド
+        if (isSliding && hSpeed > 3.0f)
+        {
+            float surfVol = Mathf.Lerp(0.25f, 0.65f, Mathf.Clamp01((hSpeed - 3f) / 14f));
+            float surfPitch = Mathf.Lerp(0.95f, 1.35f, Mathf.Clamp01((hSpeed - 3f) / 14f));
+            UpdateSurfAudio(surfVol, surfPitch);
+        }
+        else
+        {
+            UpdateSurfAudio(0f, 1f);
+        }
+
         if (hSpeed < 0.25f) return;
 
         _playerRippleTimer -= Time.deltaTime;
-        float interval = Mathf.Lerp(0.38f, 0.16f, Mathf.Clamp01(hSpeed / 10.0f));
+        float interval = isSliding ? 0.09f : Mathf.Lerp(0.38f, 0.16f, Mathf.Clamp01(hSpeed / 10.0f));
 
         if (_playerRippleTimer <= 0f)
         {
             _playerRippleTimer = interval;
             SpawnRipple(new Vector3(pPos.x, waterY + 0.02f, pPos.z), Mathf.Lerp(0.6f, 1.25f, hSpeed / 9f));
 
-            // 水面を走る心地よい足踏みハプティクス
-            AdventureInputHaptics.PlayWaterWading();
+            if (!isSliding)
+            {
+                // 通常歩行の水面足踏みハプティクス
+                AdventureInputHaptics.PlayWaterWading();
+            }
 
-            if (hSpeed > 3.0f)
+            if (hSpeed > 3.0f && !isSliding)
             {
                 SpawnSplash(new Vector3(pPos.x, waterY + 0.05f, pPos.z), player.transform.forward, hSpeed);
+            }
+        }
+
+        // 2. 浅瀬スライディング＆超高速ダッシュ時のダイナミック扇状水飛沫（Wake Spray）
+        if (isSliding || hSpeed > 6.5f)
+        {
+            _wakeSprayTimer -= Time.deltaTime;
+            float sprayInterval = isSliding ? 0.065f : 0.10f;
+            if (_wakeSprayTimer <= 0f)
+            {
+                _wakeSprayTimer = sprayInterval;
+                SpawnWakeSpray(pPos, player.transform.forward, player.transform.right, hSpeed);
+                if (isSliding)
+                {
+                    AdventureInputHaptics.PlayPulse(0.32f, 0.45f, 0.06f);
+                }
             }
         }
     }
@@ -148,6 +193,87 @@ public class AdventureWaterRippleManager : MonoBehaviour
                 startColor = new Color(0.92f, 0.98f, 1.0f, 0.75f)
             };
             _splashPs.Emit(emitParams, 1);
+        }
+    }
+
+    /// <summary>浅瀬スライディング＆超高速ダッシュ時の扇状ダイナミックスプレー（左右のV字水煙）</summary>
+    public void SpawnWakeSpray(Vector3 pPos, Vector3 forward, Vector3 right, float speed)
+    {
+        if (_splashPs == null) return;
+
+        float waterY = GetWaterSurfaceY();
+        Vector3 basePos = new Vector3(pPos.x, waterY + 0.04f, pPos.z);
+
+        int perSide = Mathf.Clamp((int)(speed * 0.75f), 3, 8);
+        for (int side = -1; side <= 1; side += 2)
+        {
+            Vector3 sideDir = right * side;
+            Vector3 origin = basePos + sideDir * 0.35f;
+
+            for (int i = 0; i < perSide; i++)
+            {
+                // 左右斜め前方＋上方に激しく跳ね上がる
+                Vector3 spreadDir = (sideDir * Random.Range(0.6f, 1.1f) + forward * Random.Range(0.2f, 0.5f) + Vector3.up * Random.Range(0.45f, 0.95f)).normalized;
+                float spraySpeed = Random.Range(3.2f, 6.8f);
+
+                var emitParams = new ParticleSystem.EmitParams
+                {
+                    position = origin + Random.insideUnitSphere * 0.12f,
+                    velocity = spreadDir * spraySpeed,
+                    startSize = Random.Range(0.12f, 0.28f),
+                    startLifetime = Random.Range(0.45f, 0.75f),
+                    startColor = new Color(0.90f, 0.97f, 1.0f, 0.85f)
+                };
+                _splashPs.Emit(emitParams, 1);
+            }
+        }
+    }
+
+    private void CreateSurfAudio()
+    {
+        _surfAudio = gameObject.AddComponent<AudioSource>();
+        _surfAudio.playOnAwake = false;
+        _surfAudio.loop = true;
+        _surfAudio.spatialBlend = 0f; // 耳元に心地よく響く
+        _surfAudio.volume = 0f;
+
+        // 水しぶき・波切りのプロシージャルサウンド（44.1kHz / 0.8s）
+        int sampleRate = 44100;
+        float duration = 0.8f;
+        int sampleCount = (int)(sampleRate * duration);
+        float[] samples = new float[sampleCount];
+
+        for (int i = 0; i < sampleCount; i++)
+        {
+            float t = (float)i / sampleRate;
+            // 水流シアー音（高域ノイズ＋低域スプラッシュ揺らぎ）
+            float noise = (Random.value * 2f - 1f) * 0.35f;
+            float rush = Mathf.Sin(2f * Mathf.PI * 88f * t + Mathf.Sin(t * 12f) * 2f) * 0.25f;
+            samples[i] = Mathf.Clamp(noise + rush, -1f, 1f);
+        }
+
+        _surfClip = AudioClip.Create("WaterSurf_Loop", sampleCount, 1, sampleRate, false);
+        _surfClip.SetData(samples, 0);
+        _surfAudio.clip = _surfClip;
+    }
+
+    private void UpdateSurfAudio(float targetVol, float targetPitch)
+    {
+        if (_surfAudio == null) return;
+
+        if (targetVol > 0.01f)
+        {
+            if (!_surfAudio.isPlaying) _surfAudio.Play();
+            _surfAudio.volume = Mathf.MoveTowards(_surfAudio.volume, targetVol, Time.deltaTime * 5f);
+            _surfAudio.pitch = Mathf.MoveTowards(_surfAudio.pitch, targetPitch, Time.deltaTime * 4f);
+        }
+        else
+        {
+            if (_surfAudio.isPlaying)
+            {
+                _surfAudio.volume = Mathf.MoveTowards(_surfAudio.volume, 0f, Time.deltaTime * 6f);
+                if (_surfAudio.volume <= 0.01f) _surfAudio.Stop();
+            }
         }
     }
 
