@@ -160,6 +160,10 @@ public partial class AdventureRustDrone
     bool _climaxFalling;
     Vector3 _climaxFallVel;
     float _climaxFallUntil;
+    /// <summary>柱を抜けた直後：後ろから必死に追い、カメラへ落ちてはまた追いつこうとする</summary>
+    bool _climaxChase;
+    float _climaxChaseScreamAt;
+    int _climaxChaseScream;
     ParticleSystem _climaxIceFx;
     ParticleSystem _climaxSparkFx;
     ParticleSystem _climaxJetFx;
@@ -251,14 +255,17 @@ public partial class AdventureRustDrone
         _heat = 0f;
 
         EnsureLookAtCached();
+        _climaxChase = true;
+        _climaxChaseScreamAt = Time.unscaledTime + 0.35f;
+        _climaxChaseScream = 0;
         if (_lookAt != null)
         {
             if (!_bonesCached) CacheNikoBones();
-            Vector3 nest = VisibleBesideNikoOnScreen(0.55f, 0.42f, 0.38f);
-            transform.position = nest;
-            _lagTarget = nest;
+            Vector3 behind = ClimaxChasePoint();
+            transform.position = behind;
+            _lagTarget = behind;
             _velocity = Vector3.zero;
-            Vector3 face = GetNikoChestPosition() + Vector3.up * 0.2f - nest;
+            Vector3 face = GetNikoChestPosition() - behind;
             if (face.sqrMagnitude > 0.01f)
                 transform.rotation = Quaternion.LookRotation(face.normalized);
         }
@@ -283,6 +290,11 @@ public partial class AdventureRustDrone
     public void BeginClimaxColdFallAway()
     {
         if (_climaxHealing || IsClimaxOverdrive) return;
+        if (_climaxChase)
+        {
+            PlayCreak(true);
+            return;
+        }
         IsClimaxCrisis = true;
         _climaxFalling = true;
         _climaxFallUntil = Time.unscaledTime + 2.8f;
@@ -312,6 +324,7 @@ public partial class AdventureRustDrone
     /// <summary>「Rust、待ってて！今、集めた油を全部注ぐから…！」でFloatと正面から向かい合う</summary>
     public void BeginClimaxFaceToFaceOilReady()
     {
+        _climaxChase = false;
         ClearClimaxFallState();
         IsClimaxCrisis = true;
         _climaxHealing = false;
@@ -349,6 +362,48 @@ public partial class AdventureRustDrone
         return pos;
     }
 
+    public Vector3 ClimaxChasePoint()
+    {
+        if (_lookAt == null) return transform.position;
+        Vector3 chest = GetNikoChestPosition();
+        float wobble = Mathf.Sin(Time.unscaledTime * 7.5f) * 0.28f;
+        Vector3 behind = chest - _lookAt.forward * 2.6f + _lookAt.right * wobble + Vector3.down * 0.45f;
+
+        Vector3 nearCam = behind;
+        var cam = Camera.main;
+        if (cam != null)
+            nearCam = cam.transform.position + cam.transform.forward * 1.15f + cam.transform.right * 0.15f;
+
+        float cycle = Mathf.Repeat(Time.unscaledTime * 0.42f, 1f);
+        float towardCam = 0f;
+        if (cycle >= 0.42f && cycle <= 0.70f)
+            towardCam = Mathf.SmoothStep(0f, 1f, (cycle - 0.42f) / 0.28f);
+        else if (cycle > 0.70f)
+            towardCam = Mathf.SmoothStep(1f, 0f, (cycle - 0.70f) / 0.30f);
+        return Vector3.Lerp(behind, nearCam, towardCam * 0.85f);
+    }
+
+    public void TickClimaxChaseScream()
+    {
+        if (!_climaxChase || Time.unscaledTime < _climaxChaseScreamAt) return;
+        _climaxChaseScreamAt = Time.unscaledTime + 1.7f;
+        string[] screams =
+        {
+            "ぎゃあああっ…！ま、待って、Float…！",
+            "つ、つらいよっ…！置いてかないで…！",
+            "うあああっ…！翼が、冷たい…！"
+        };
+        SpeakCustom(screams[_climaxChaseScream % screams.Length], 1.6f);
+        _climaxChaseScream++;
+        SetExpression(FaceExpressionType.Surprised, 1.5f);
+        PlayCreak(true);
+        if (_audio != null && _sonarBeepClip != null)
+        {
+            _audio.pitch = 0.55f;
+            _audio.PlayOneShot(_sonarBeepClip, 0.7f);
+        }
+    }
+
     /// <summary>F9再演用：危機／注油／オーバードライブ状態を通常へ戻す</summary>
     public void ResetClimaxState()
     {
@@ -356,6 +411,7 @@ public partial class AdventureRustDrone
         IsClimaxOverdrive = false;
         _climaxHealing = false;
         _skybreakNestle = false;
+        _climaxChase = false;
         ClearClimaxFallState();
         _prologueDistress = false;
         ClearSpeech();
