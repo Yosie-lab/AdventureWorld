@@ -114,6 +114,20 @@ public partial class AdventureSanctuaryTowerManager
         if (flash != null)
             Destroy(flash);
 
+        // カメラ前方のスピードライン・ストリーク集中線を即座に完全消去
+        var speedLines = GameObject.Find("Glide_CameraSpeedLines");
+        if (speedLines != null)
+        {
+            var ps = speedLines.GetComponent<ParticleSystem>();
+            if (ps != null) ps.Clear(true);
+        }
+        var windStreak = GameObject.Find("WindStreakParticles");
+        if (windStreak != null)
+        {
+            var ps = windStreak.GetComponent<ParticleSystem>();
+            if (ps != null) ps.Clear(true);
+        }
+
         RebuildCinematicLetterbox();
         if (_letterboxRoot != null)
         {

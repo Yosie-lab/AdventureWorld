@@ -167,6 +167,7 @@ public class AdventureCameraFollow : MonoBehaviour
     }
 
     public bool IsCinematic => _cinematic;
+    public bool IsIslandOverview => _islandOverview;
 
     static AdventureCameraFollow _instance;
     public static AdventureCameraFollow Instance => _instance != null ? _instance : (_instance = Object.FindAnyObjectByType<AdventureCameraFollow>());

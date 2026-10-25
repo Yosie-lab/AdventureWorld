@@ -151,8 +151,14 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
         }
         AdventureInputHaptics.UpdateGlideAeroRumble(speed, isGliding);
 
-        // カメラGシェイクとエアロランブルの合成
-        float totalShake = _cameraShakeIntensity + aeroRumble;
+        // カメラGシェイクとエアロランブルの合成（シネマティック・エピローグ中はカメラを揺らさず美しい構図を維持）
+        var towerCheck = AdventureSanctuaryTowerManager.Instance;
+        bool isCinematicActive = (towerCheck != null && (towerCheck.EpilogueTriggered || towerCheck.EndingSequenceActive || towerCheck.IsCanopyToEpilogueSequence))
+            || AdventureStoryFlow.Current == AdventureStoryFlow.Phase.Epilogue
+            || AdventureStoryFlow.Current == AdventureStoryFlow.Phase.Clear
+            || (AdventureCameraFollow.Instance != null && (AdventureCameraFollow.Instance.IsIslandOverview || AdventureCameraFollow.Instance.IsCinematic));
+
+        float totalShake = isCinematicActive ? 0f : (_cameraShakeIntensity + aeroRumble);
         if (totalShake > 0.001f)
         {
             _cameraShakeIntensity = Mathf.MoveTowards(_cameraShakeIntensity, 0f, Time.deltaTime * 6.0f);
@@ -163,6 +169,10 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
                 float microShakeX = Mathf.Cos(Time.time * 29f) * totalShake * 0.025f;
                 Camera.main.transform.position += Camera.main.transform.up * microShakeY + Camera.main.transform.right * microShakeX;
             }
+        }
+        else
+        {
+            _cameraShakeIntensity = 0f;
         }
 
         // 5. 高速ダイブ時の風圧スピードライン（集中線）演出
@@ -531,6 +541,7 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
     private void CreateSpeedLinesEmitter()
     {
         var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                     ?? Shader.Find("Universal Render Pipeline/Unlit")
                      ?? Shader.Find("Particles/Standard Unlit")
                      ?? Shader.Find("Sprites/Default");
 
@@ -538,9 +549,19 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
         var tex = GetOrCreateSpeedLineTexture();
         _speedLinesMat.SetTexture("_BaseMap", tex);
         _speedLinesMat.SetTexture("_MainTex", tex);
-        _speedLinesMat.color = new Color(0.85f, 0.95f, 1.0f, 0.35f);
-        _speedLinesMat.SetFloat("_Surface", 1f); // Transparent
-        _speedLinesMat.SetFloat("_Blend", 1f); // Additive
+        _speedLinesMat.color = new Color(0.92f, 0.98f, 1.0f, 0.45f);
+        if (_speedLinesMat.HasProperty("_BaseColor"))
+            _speedLinesMat.SetColor("_BaseColor", _speedLinesMat.color);
+
+        // URP Transparent + Additive を完全に適用（不透明・灰色描画を完全防止）
+        _speedLinesMat.SetFloat("_Surface", 1f); // 1 = Transparent
+        _speedLinesMat.SetFloat("_Blend", 1f); // 1 = Additive
+        _speedLinesMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        _speedLinesMat.EnableKeyword("_BLENDMODE_ADD");
+        _speedLinesMat.DisableKeyword("_BLENDMODE_ALPHA");
+        _speedLinesMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        _speedLinesMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        _speedLinesMat.SetInt("_ZWrite", 0);
         _speedLinesMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 200;
 
         var go = new GameObject("Glide_CameraSpeedLines");
@@ -589,6 +610,26 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
     private void UpdateSpeedLines(float diveIntensity, float speed, bool isGliding)
     {
         if (_speedLinesPs == null) return;
+
+        // シネマティック中、天蓋崩壊中、エピローグ中（「わぁ 見て Float」含む）、クリア画面中は画面にスピードラインを一切出さない
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        bool isCinematicOrEpilogue = (tower != null && (tower.EpilogueTriggered || tower.EndingSequenceActive || tower.IsCanopyToEpilogueSequence))
+            || AdventureStoryFlow.Current == AdventureStoryFlow.Phase.Epilogue
+            || AdventureStoryFlow.Current == AdventureStoryFlow.Phase.Clear
+            || AdventureStoryFlow.Current == AdventureStoryFlow.Phase.Climax
+            || (AdventureCameraFollow.Instance != null && (AdventureCameraFollow.Instance.IsIslandOverview || AdventureCameraFollow.Instance.IsCinematic));
+
+        if (isCinematicOrEpilogue)
+        {
+            var em = _speedLinesPs.emission;
+            em.rateOverTime = 0f;
+            if (_speedLinesPs.isPlaying || _speedLinesPs.particleCount > 0)
+            {
+                _speedLinesPs.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                _speedLinesPs.Clear();
+            }
+            return;
+        }
 
         Camera cam = Camera.main;
         if (cam != null && _speedLinesTransform != null)

@@ -49,17 +49,22 @@ public class AdventureWindStreakEffect : MonoBehaviour
         float intensity = _player.SpeedIntensity;
         bool isAscending = _player.IsUpdraftAscending;
 
-        // タワー崩壊後の光の柱上昇やシネマティック中は速度線も停止
-        bool isTowerAscendOrClimax = _player.IsSkybreakPillarAscending
-            || (AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.IsCanopyToEpilogueSequence)
-            || AdventureStoryFlow.KeepsAirborne(_player);
+        // タワー崩壊後の光の柱上昇、クライマックス、エピローグ（「わぁ 見て Float」含む）、クリア画面中は速度線を完全停止
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        bool isCinematicOrEpilogue = _player.IsSkybreakPillarAscending
+            || (tower != null && (tower.IsCanopyToEpilogueSequence || tower.EpilogueTriggered || tower.EndingSequenceActive))
+            || AdventureStoryFlow.KeepsAirborne(_player)
+            || AdventureStoryFlow.Current == AdventureStoryFlow.Phase.Epilogue
+            || AdventureStoryFlow.Current == AdventureStoryFlow.Phase.Clear
+            || AdventureStoryFlow.Current == AdventureStoryFlow.Phase.Climax
+            || (AdventureCameraFollow.Instance != null && (AdventureCameraFollow.Instance.IsIslandOverview || AdventureCameraFollow.Instance.IsCinematic));
 
         var emission = _streakPs.emission;
 
         bool isValidFlight = !_player.IsGrounded && (_player.IsGliding || isAscending || intensity > 0.40f);
 
         // 速度が乗っている時（intensity > 0.18f）かつ飛行中かつシネマティック中以外のみウィンドストリークを放出
-        if (!isTowerAscendOrClimax && isValidFlight && intensity > 0.18f)
+        if (!isCinematicOrEpilogue && isValidFlight && intensity > 0.18f)
         {
             float targetRate = Mathf.Lerp(12f, 75f, (intensity - 0.18f) / 0.82f);
             if (isAscending) targetRate *= 1.35f; // メガジャンプ急上昇時はさらに増量
@@ -83,6 +88,11 @@ public class AdventureWindStreakEffect : MonoBehaviour
         else
         {
             emission.rateOverTime = 0f;
+            if (isCinematicOrEpilogue && (_streakPs.isPlaying || _streakPs.particleCount > 0))
+            {
+                _streakPs.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                _streakPs.Clear();
+            }
         }
     }
 
@@ -127,8 +137,24 @@ public class AdventureWindStreakEffect : MonoBehaviour
 #endif
             if (rend.sharedMaterial == null)
             {
-                var s = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
-                rend.material = new Material(s);
+                var s = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                        ?? Shader.Find("Universal Render Pipeline/Unlit")
+                        ?? Shader.Find("Particles/Standard Unlit")
+                        ?? Shader.Find("Sprites/Default");
+                var fallbackMat = new Material(s);
+                fallbackMat.SetFloat("_Surface", 1f); // Transparent
+                fallbackMat.SetFloat("_Blend", 1f); // Additive
+                fallbackMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                fallbackMat.EnableKeyword("_BLENDMODE_ADD");
+                fallbackMat.DisableKeyword("_BLENDMODE_ALPHA");
+                fallbackMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                fallbackMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+                fallbackMat.SetInt("_ZWrite", 0);
+                fallbackMat.color = new Color(0.92f, 0.98f, 1f, 0.4f);
+                if (fallbackMat.HasProperty("_BaseColor"))
+                    fallbackMat.SetColor("_BaseColor", fallbackMat.color);
+                fallbackMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 200;
+                rend.material = fallbackMat;
             }
         }
 
