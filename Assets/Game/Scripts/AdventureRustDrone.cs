@@ -609,17 +609,24 @@ public partial class AdventureRustDrone : MonoBehaviour
         {
             _lastNotifiedBoxId = box.boxId;
             Vector3 diff = box.transform.position - transform.position;
-            string dirName;
+            string rawBeach;
             if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
-                dirName = diff.x > 0 ? "東側" : "西側";
+                rawBeach = diff.x > 0 ? "東浜" : "西浜";
             else
-                dirName = diff.z > 0 ? "北側" : "南側";
+                rawBeach = diff.z > 0 ? "北浜" : "南浜";
+            string beachName = AdventureLocalizationManager.Get(rawBeach);
 
             if (_audio != null && _sonarBeepClip != null)
                 _audio.PlayOneShot(_sonarBeepClip, 0.65f);
 
             string shortName = box.boxTitle.Replace("漂着", "");
-            SpeakCustom($"ピピッ！{dirName}の白砂ビーチに「{shortName}」の電波反応だよ！", 5.2f);
+            string localizedTitle = AdventureLocalizationManager.Get($"driftbox_{box.boxId}_title");
+            if (!string.IsNullOrEmpty(localizedTitle) && localizedTitle != $"driftbox_{box.boxId}_title")
+            {
+                shortName = localizedTitle.Replace("漂着", "").Replace("Drift ", "").Replace("Caja de ", "");
+            }
+
+            SpeakCustom(AdventureLocalizationManager.GetFormat("sonar_detect_beach_signal", beachName, shortName), 5.2f);
         }
     }
 

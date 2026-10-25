@@ -3157,6 +3157,60 @@ public static class AdventureLocalizationManager
             "南（海滩侧）",
             "Sur (Hacia la playa)"
         } },
+        { "sonar_detect_beach_signal", new[] {
+            "ピピッ！{0}のビーチに「{1}」の電波反応を感じるよ！",
+            "Pip-pip! I sense radio signals of \"{1}\" at {0} beach!",
+            "哔哔！在{0}海滩上感应到了「{1}」的电波反应哦！",
+            "¡Pip-pip! ¡Siento señales de radio de \"{1}\" en la playa de {0}!"
+        } },
+        { "sonar_detect_beach_feel", new[] {
+            "ピピッ！{0}のビーチに、古代パーツの共鳴を感じるよ！",
+            "Pip-pip! I feel resonance of ancient scrap at {0} beach!",
+            "哔哔！在{0}海滩上，感应到了古代零件的共鸣哦！",
+            "¡Pip-pip! ¡Siento la resonancia de piezas antiguas en la playa de {0}!"
+        } },
+        { "ピピッ！東浜のビーチに感じるよ", new[] {
+            "ピピッ！東浜のビーチに、電波反応を感じるよ！",
+            "Pip-pip! I feel a radio signal at East Beach!",
+            "哔哔！在东滩的海滩上感应到了电波反应哦！",
+            "¡Pip-pip! ¡Siento una señal de radio en la playa del este!"
+        } },
+        { "ピピッ　東浜のビーチに　感じるよ", new[] {
+            "ピピッ！東浜のビーチに、何かを感じるよ……！",
+            "Pip-pip! I feel something at East Beach...!",
+            "哔哔！在东滩的海滩上……感应到了什么！",
+            "¡Pip-pip! ¡Siento algo en la playa del este...!"
+        } },
+        { "ピピッ！東浜のビーチに……感じるよ", new[] {
+            "ピピッ！東浜のビーチに……何かを感じるよ！",
+            "Pip-pip! At East Beach... I sense something!",
+            "哔哔！在东滩的海滩上……感应到了某些东西！",
+            "¡Pip-pip! En la playa del este... ¡siento algo!"
+        } },
+        { "東浜", new[] {
+            "東浜",
+            "East Beach",
+            "东滩",
+            "Playa del Este"
+        } },
+        { "西浜", new[] {
+            "西浜",
+            "West Beach",
+            "西滩",
+            "Playa del Oeste"
+        } },
+        { "北浜", new[] {
+            "北浜",
+            "North Beach",
+            "北滩",
+            "Playa del Norte"
+        } },
+        { "南浜", new[] {
+            "南浜",
+            "South Beach",
+            "南滩",
+            "Playa del Sur"
+        } },
         { "ハッ！寝てないよ！起きてるよ！", new[] {
             "ハッ！寝てないよ！起きてるよ！",
             "Huh! I wasn't sleeping! I'm wide awake!",
