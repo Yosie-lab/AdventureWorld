@@ -806,28 +806,26 @@ public partial class AdventureRustDrone : MonoBehaviour
         }
 
         var towerMgr = AdventureSanctuaryTowerManager.Instance;
-        bool isEpilogueGliding = (towerMgr != null && (towerMgr.EpilogueTriggered || towerMgr.EndingSequenceActive)) || IsClimaxOverdrive;
+        bool isEpilogueGliding = (towerMgr != null && towerMgr.EpilogueTriggered) || IsClimaxOverdrive;
+        bool isOilFaceToFace = IsClimaxCrisis || _climaxHealing;
 
-        float lerpRate = isEpilogueGliding ? 16.0f : ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 6.5f : 2.2f);
+        // 注油中（Floatの目の前）およびエピローグ中は高速レスポンス（置き去り防止）
+        float lerpRate = (isEpilogueGliding || isOilFaceToFace) ? 24.0f : ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 6.5f : 2.2f);
         _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-lerpRate * Time.deltaTime));
-        float smoothTime = isEpilogueGliding ? 0.06f : ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 0.22f :
-            ((CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill || CurrentState == RustState.Perching) ? 0.32f : (wellOiled ? 0.38f : 0.52f)));
-        if (!isEpilogueGliding)
+        float smoothTime = isOilFaceToFace ? 0.04f : (isEpilogueGliding ? 0.06f : ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 0.22f :
+            ((CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill || CurrentState == RustState.Perching) ? 0.32f : (wellOiled ? 0.38f : 0.52f))));
+        if (!isEpilogueGliding && !isOilFaceToFace)
         {
             if (CurrentState == RustState.Guiding)
                 smoothTime = 0.20f;
-            else if (_climaxHealing)
-                smoothTime = 0.14f;
-            else if (IsClimaxOverdrive)
-                smoothTime = 0.12f;
-            else if (IsClimaxCrisis || _skybreakNestle || _prologueDistress)
+            else if (_skybreakNestle || _prologueDistress)
                 smoothTime = 0.16f;
         }
 
-        // Floatが18m/sで高速滑空しても置き去りにならないよう、エピローグ中はmaxSpeed=36m/sで確実に特等席キープ
-        float maxSpeed = isEpilogueGliding ? 36.0f :
+        // Floatが18m/sで高速滑空しても置き去りにならないよう、maxSpeed=38m/sで確実にFloatの目の前／特等席をキープ
+        float maxSpeed = (isEpilogueGliding || isOilFaceToFace) ? 38.0f :
             ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 15.5f :
-            ((CurrentState == RustState.Guiding) ? 17.5f : (_climaxHealing ? 18f : (IsClimaxOverdrive ? 24f : 8.5f))));
+            ((CurrentState == RustState.Guiding) ? 17.5f : 8.5f));
         transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, maxSpeed);
 
         // 画面見切れ防止ガード（オフスクリーン時のみソフト補正）
@@ -950,7 +948,7 @@ public partial class AdventureRustDrone : MonoBehaviour
             {
                 look *= Quaternion.Euler(-18f + Mathf.Sin(Time.unscaledTime * 2.5f) * 6f, 0f, 8f);
             }
-            else if (IsClimaxOverdrive || (AdventureSanctuaryTowerManager.Instance != null && (AdventureSanctuaryTowerManager.Instance.EpilogueTriggered || AdventureSanctuaryTowerManager.Instance.EndingSequenceActive)))
+            else if (IsClimaxOverdrive || (AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.EpilogueTriggered))
             {
                 // カメラ側＆Floatの進行方向を向いて、時折Floatを見やる愛らしいチルト
                 float glanceFloat = Mathf.Sin(Time.time * 2.2f) * 8f;
@@ -1691,7 +1689,7 @@ public partial class AdventureRustDrone : MonoBehaviour
 
         // オーバードライブ＆エピローグ滑空中：右肩のすぐ外側・カメラ手前側の特等席
         var towerMgr = AdventureSanctuaryTowerManager.Instance;
-        bool isEpilogueGliding = (towerMgr != null && (towerMgr.EpilogueTriggered || towerMgr.EndingSequenceActive)) || IsClimaxOverdrive;
+        bool isEpilogueGliding = (towerMgr != null && towerMgr.EpilogueTriggered) || IsClimaxOverdrive;
         if (isEpilogueGliding)
             return GetOverdriveShoulderNestle();
 

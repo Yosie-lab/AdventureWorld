@@ -200,6 +200,11 @@ public partial class AdventureSanctuaryTowerManager
             oilPlayer.ArmClimaxSkyHold(holdY);
         }
 
+        SetIslandOverviewCamera(true);
+        var drone = GetDrone();
+        if (drone != null)
+            drone.BeginClimaxFaceToFaceOilReady();
+
         Debug.Log("[RustAndFloat] 注油フェーズ開始（E/Space/クリック長押し）");
     }
 

@@ -334,19 +334,18 @@ public partial class AdventureRustDrone
         }
     }
 
-    /// <summary>FloatとRustが至近距離で正面から美しく向き合う位置（Floatの顔を遮らない黄金ポジション）</summary>
+    /// <summary>Floatの正面・目の前（油を直接注げる手元の黄金ポジション）</summary>
     public Vector3 GetClimaxFaceToFacePoint()
     {
         if (_lookAt == null) return transform.position;
         Vector3 chest = GetNikoChestPosition();
-        Camera cam = Camera.main;
 
-        // Floatの正面0.68m、高さ-0.06m（胸元正面やや下）、カメラ横から見て右に0.25mオフセット
-        // これによりカメラからFloatの顔と真剣な表情がクッキリ見え、Rustも正面から正対する
-        Vector3 camRight = cam != null ? Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized : _lookAt.right;
+        // Floatの体の真正面（forward方向）0.85m、胸〜腹部（高さ-0.04m）
+        // Floatから見てわずかに右（0.12m）に寄せ、二人の顔が隠れず真正面から向き合って油を注げる
         Vector3 floatFwd = _lookAt.forward;
+        Vector3 floatRight = _lookAt.right;
 
-        Vector3 pos = chest + floatFwd * 0.68f + camRight * 0.25f + Vector3.down * 0.06f;
+        Vector3 pos = chest + floatFwd * 0.85f + floatRight * 0.12f + Vector3.down * 0.04f;
         return pos;
     }
 
@@ -613,14 +612,14 @@ public partial class AdventureRustDrone
         if (cam == null) return;
 
         var towerMgr = AdventureSanctuaryTowerManager.Instance;
-        bool isEpilogueGliding = (towerMgr != null && (towerMgr.EpilogueTriggered || towerMgr.EndingSequenceActive)) || IsClimaxOverdrive;
+        bool isEpilogueGliding = (towerMgr != null && towerMgr.EpilogueTriggered) || IsClimaxOverdrive;
+        bool isOilFaceToFace = IsClimaxCrisis || _climaxHealing;
 
-        Vector3 safe = isEpilogueGliding
-            ? GetOverdriveShoulderNestle()
-            : VisibleBesideNikoOnScreen(
-                _climaxHealing ? 0.75f : 0.55f,
-                _climaxHealing ? 0.50f : 0.42f,
-                _climaxHealing ? 0.28f : 0.38f);
+        Vector3 safe = isOilFaceToFace
+            ? GetClimaxFaceToFacePoint()
+            : (isEpilogueGliding
+                ? GetOverdriveShoulderNestle()
+                : VisibleBesideNikoOnScreen(0.55f, 0.42f, 0.38f));
 
         // 画面外や字幕枠・レターボックス帯に見切れた場合のみ、滑らかに画面内へソフト補正
         Vector3 sp = cam.WorldToViewportPoint(transform.position);
@@ -818,7 +817,7 @@ public partial class AdventureRustDrone
     public void TickClimaxOverdriveBooster()
     {
         var towerMgr = AdventureSanctuaryTowerManager.Instance;
-        bool isEpilogueGliding = (towerMgr != null && (towerMgr.EpilogueTriggered || towerMgr.EndingSequenceActive)) || IsClimaxOverdrive;
+        bool isEpilogueGliding = (towerMgr != null && towerMgr.EpilogueTriggered) || IsClimaxOverdrive;
         if (isEpilogueGliding)
         {
             // エピローグ滑空中：引きカメラ（距離17.5m、FoV 88度）でもRustの愛らしい姿が画面でくっきり際立つよう、スケールを2.0倍に大幅アップ！
