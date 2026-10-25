@@ -317,6 +317,34 @@ public static class AdventureInputReader
         }
     }
 
+    /// <summary>Pキーまたは十字キー上がこのフレームに押された（フォトモード・UI非表示トグル）</summary>
+    public static bool PhotoModeDown
+    {
+        get
+        {
+            try { if (Input.GetKeyDown(KeyCode.P) || Input.GetKeyDown(KeyCode.F2)) return true; } catch { }
+            var kb = Keyboard;
+            if (kb != null && (kb.pKey.wasPressedThisFrame || kb.f2Key.wasPressedThisFrame)) return true;
+            var gp = Gamepad.current;
+            if (gp != null && gp.dpad.up.wasPressedThisFrame) return true;
+            return false;
+        }
+    }
+
+    /// <summary>Tキーがこのフレームに押された（フォトモード中の時間停止トグル）</summary>
+    public static bool PhotoModeFreezeDown
+    {
+        get
+        {
+            try { if (Input.GetKeyDown(KeyCode.T)) return true; } catch { }
+            var kb = Keyboard;
+            if (kb != null && kb.tKey.wasPressedThisFrame) return true;
+            var gp = Gamepad.current;
+            if (gp != null && gp.leftStickButton.wasPressedThisFrame) return true;
+            return false;
+        }
+    }
+
     /// <summary>EscapeキーまたはゲームパッドStart/Menuボタンがこのフレームに押された</summary>
     public static bool EscapeDown
     {

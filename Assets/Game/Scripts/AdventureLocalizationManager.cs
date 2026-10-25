@@ -544,6 +544,7 @@ public static class AdventureLocalizationManager
             "<b>[Q] / [中クリック]</b>  <b>相棒Rustに道案内を頼む（最寄り目標へ先行フライト）</b>\n" +
             "<b>[F]</b>  遠隔パーツ回収 / 視線偵察指示\n" +
             "<b>[B]</b>  Rustクラフト工房を開く\n" +
+            "<b>[P] / [パッド上]</b>  <b>フォトモード（UI全非表示 / Tで時間停止撮影）</b>\n" +
             "<b>[Tab]</b>  詳細ナビ（距離・箱・塔）固定 ON/OFF\n" +
             "<b>[F5] / [Cmd+S]</b>  クイックセーブ\n" +
             "<b>[ESC] / [Pad B]</b>  ポーズ ＆ 設定メニュー開閉\n\n" +
@@ -554,6 +555,7 @@ public static class AdventureLocalizationManager
             "<b>[Q] / [Middle Click]</b>  <b>Ask Rust to guide (scout to the nearest goal)</b>\n" +
             "<b>[F]</b>  Remote Scrap Retrieve / Scout Command\n" +
             "<b>[B]</b>  Open Rust Craft Workshop\n" +
+            "<b>[P] / [D-Pad Up]</b>  <b>Photo Mode (Hide all HUD / T to Freeze Time)</b>\n" +
             "<b>[Tab]</b>  Pin detail nav (distance, crates, tower) ON/OFF\n" +
             "<b>[F5] / [Cmd+S]</b>  Quick Save\n" +
             "<b>[ESC] / [Pad B]</b>  Pause & Settings Menu\n\n" +
@@ -564,6 +566,7 @@ public static class AdventureLocalizationManager
             "<b>[Q] / [中键点击]</b>  <b>请求Rust引路 (飞向最近目标)</b>\n" +
             "<b>[F]</b>  远程回收零件 / 视线侦察指令\n" +
             "<b>[B]</b>  打开Rust工艺工坊\n" +
+            "<b>[P] / [十字键上]</b>  <b>拍照模式 (全界面隐藏 / 按T定格时间拍摄)</b>\n" +
             "<b>[Tab]</b>  固定/取消详细导航（距离·箱·塔）\n" +
             "<b>[F5] / [Cmd+S]</b>  快速存档\n" +
             "<b>[ESC] / [手柄 B]</b>  暂停与设置菜单\n\n" +
@@ -574,6 +577,7 @@ public static class AdventureLocalizationManager
             "<b>[Q] / [Clic Central]</b>  <b>Pedir guía a Rust (vuela al objetivo cercano)</b>\n" +
             "<b>[F]</b>  Recuperar pieza a distancia / Orden de exploración\n" +
             "<b>[B]</b>  Abrir el taller de artesanía de Rust\n" +
+            "<b>[P] / [Cruceta Arriba]</b>  <b>Modo Foto (Ocultar HUD / T para congelar)</b>\n" +
             "<b>[Tab]</b>  Fijar nav. detalle (distancia, cajas, torre) ON/OFF\n" +
             "<b>[F5] / [Cmd+S]</b>  Guardado rápido\n" +
             "<b>[ESC] / [Mando B]</b>  Pausa y menú de ajustes\n\n" +
@@ -3781,6 +3785,31 @@ public static class AdventureLocalizationManager
             "Beach Campfire",
             "沙滩篝火",
             "Hoguera de la Playa"
+        } },
+        // --- フォトモード ---
+        { "photomode_toast_on", new[] {
+            "📷 フォトモード [P: HUD復帰 / T: 時間停止]",
+            "📷 Photo Mode [P: Restore HUD / T: Freeze]",
+            "📷 拍照模式 [P: 恢复界面 / T: 定格时间]",
+            "📷 Modo Foto [P: Restaurar HUD / T: Congelar]"
+        } },
+        { "photomode_toast_off", new[] {
+            "HUDを表示しました",
+            "HUD Restored",
+            "界面已恢复",
+            "HUD Restaurado"
+        } },
+        { "photomode_toast_freeze", new[] {
+            "⏳ 時間停止中 [T: 再開]",
+            "⏳ Time Frozen [T: Resume]",
+            "⏳ 时间已定格 [T: 恢复]",
+            "⏳ Tiempo Congelado [T: Reanudar]"
+        } },
+        { "photomode_toast_resume", new[] {
+            "▶ 時間を再開しました",
+            "▶ Time Resumed",
+            "▶ 时间已恢复",
+            "▶ Tiempo Reanudado"
         } }
     };
 }
