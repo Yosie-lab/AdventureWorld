@@ -835,16 +835,35 @@ public partial class AdventureRustDrone : MonoBehaviour
         float maxSpeed = (isEpilogueGliding || isOilFaceToFace) ? 38.0f :
             ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 15.5f :
             ((CurrentState == RustState.Guiding) ? 17.5f : 8.5f));
+        bool pillarFeet = IsPillarFeetFollow;
         if (_climaxChase)
         {
-            smoothTime = 0.28f;
-            maxSpeed = 9.5f;
+            smoothTime = 0.16f;
+            maxSpeed = 26f;
+        }
+        if (pillarFeet)
+        {
+            smoothTime = 0.05f;
+            maxSpeed = 52f;
         }
 
         transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, maxSpeed);
 
+        if (pillarFeet)
+        {
+            Vector3 slot = PillarFeetFollowPoint();
+            if (Vector3.Distance(transform.position, slot) > 0.85f)
+            {
+                transform.position = Vector3.Lerp(transform.position, slot, 0.7f);
+                _lagTarget = transform.position;
+            }
+        }
+
+        if (_climaxChase)
+            KeepClimaxChaseInView();
+
         // 画面見切れ防止ガード（オフスクリーン時のみソフト補正）
-        if ((_skybreakNestle || IsClimaxCrisis || _climaxHealing || IsClimaxOverdrive || _prologueDistress || isEpilogueGliding) && !_climaxFalling && !_climaxChase)
+        if ((_skybreakNestle || IsClimaxCrisis || _climaxHealing || IsClimaxOverdrive || _prologueDistress || isEpilogueGliding) && !_climaxFalling && !_climaxChase && !pillarFeet)
             KeepRustOnScreenNearNiko(force: false);
 
         // 危機時／冒頭ドラマ：ガタガタ震え
@@ -876,6 +895,10 @@ public partial class AdventureRustDrone : MonoBehaviour
             if (away.sqrMagnitude > 0.01f) away.Normalize();
             else away = _lookAt.right;
             to = (head + away * 0.35f) - transform.position;
+        }
+        else if (pillarFeet && _lookAt != null)
+        {
+            to = _lookAt.position + Vector3.up * 0.95f - transform.position;
         }
         else if (_climaxChase && _lookAt != null)
         {
@@ -1688,6 +1711,9 @@ public partial class AdventureRustDrone : MonoBehaviour
     {
         Vector3 niko = _lookAt.position;
         Vector3 chest = GetNikoChestPosition();
+
+        if (IsPillarFeetFollow && !_climaxFalling)
+            return PillarFeetFollowPoint();
 
         // 天蓋崩壊〜エンディング同伴：カメラ右斜め前（以前の見え方）
         if ((_skybreakNestle || _prologueDistress) && !_climaxFalling && !IsClimaxCrisis && !_climaxHealing && !IsClimaxOverdrive)

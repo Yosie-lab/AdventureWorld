@@ -28,6 +28,7 @@ public partial class AdventureSanctuaryTowerManager
 
         SetCinematicCamera(true);
         SetIslandOverviewCamera(false);
+        AdventureCameraFollow.Instance?.SetClimaxCinematicPhase(1);
         EnsureCinematicLetterbox();
         if (_letterboxRoot != null)
         {
@@ -119,6 +120,11 @@ public partial class AdventureSanctuaryTowerManager
         // 映画的な没入感を優先するため、字幕下部の操作ガイドは完全非表示
         SetScreenScriptSubtitle(title, speaker, body, beat.Accent, false, null);
 
+        if (index == 0)
+            AdventureCameraFollow.Instance?.SetClimaxCinematicPhase(1);
+        else if (index == 1)
+            AdventureCameraFollow.Instance?.SetClimaxCinematicPhase(2);
+
         // 台本1（警告）：そばで震え始める
         // 台本2（気流が冷たい）：力なく落ちていく
         if (index == 1)
@@ -132,7 +138,7 @@ public partial class AdventureSanctuaryTowerManager
         // Floatがこちら向きになり、Rustと真正面から向き合って注油準備に入る
         if (index == 2)
         {
-            SetIslandOverviewCamera(true);
+            AdventureCameraFollow.Instance?.SetClimaxCinematicPhase(3);
             var drone = GetDrone();
             if (drone != null)
                 drone.BeginClimaxFaceToFaceOilReady();
@@ -145,7 +151,7 @@ public partial class AdventureSanctuaryTowerManager
             if (drone != null)
                 drone.TriggerClimaxOverdrive();
 
-            SetIslandOverviewCamera(true);
+            AdventureCameraFollow.Instance?.SetClimaxCinematicPhase(4);
 
             var cam = AdventureCameraFollow.Instance;
             if (cam != null)
@@ -200,7 +206,7 @@ public partial class AdventureSanctuaryTowerManager
             oilPlayer.ArmClimaxSkyHold(holdY);
         }
 
-        SetIslandOverviewCamera(true);
+        AdventureCameraFollow.Instance?.SetClimaxCinematicPhase(3);
         var drone = GetDrone();
         if (drone != null)
             drone.BeginClimaxFaceToFaceOilReady();

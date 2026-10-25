@@ -461,7 +461,7 @@ public partial class AdventureSanctuaryTowerManager
         _ignoreSavedCanopyState = false;
         IsCanopyBroken = true;
 
-        // 柱上昇完了までクライマックス開始を待つ（通常約2.5秒で到達。万一の引っ掛かり防止に10秒フェイルセーフを設定）
+        // 柱上昇完了までクライマックス開始を待つ（秒速18mで約5秒。万一の引っ掛かり防止に10秒フェイルセーフを設定）
         ArmPendingClimax(failsafeSeconds: 10f);
 
         var drone = GetDrone();
@@ -479,9 +479,11 @@ public partial class AdventureSanctuaryTowerManager
             float startY = Mathf.Max(player.transform.position.y, TerraceTopY + 1f);
             player.transform.position = new Vector3(512f, startY + 2.5f, 512f);
             if (cc != null) cc.enabled = true;
-            player.BeginSkybreakPillarAscend(new Vector3(512f, 0f, 512f), 38f, 156f);
+            player.BeginSkybreakPillarAscend(new Vector3(512f, 0f, 512f), 18f, 156f);
             if (player.IsSkybreakPillarAscending)
                 player.ArmClimaxSkyHold(156f);
+            if (drone != null)
+                drone.SnapPillarFeetFollow();
         }
     }
 

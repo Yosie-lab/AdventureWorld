@@ -64,6 +64,16 @@ public class AdventureCameraFollow : MonoBehaviour
     float _islandOverviewBlend;
     float _overviewProgress;
     float _skyWideSideBias;
+    int _climaxCamPhase;
+    float _climaxYawOff;
+    float _climaxYawOffVel;
+    float _climaxPitch;
+    float _climaxPitchVel;
+    float _climaxDist;
+    float _climaxDistVel;
+    float _climaxFov;
+    float _climaxFovVel;
+    bool _climaxCamSeeded;
     bool _titleClimaxSplash;
     Transform _savedFollowTarget;
     const float CinematicDistance = 7.4f;
@@ -114,6 +124,16 @@ public class AdventureCameraFollow : MonoBehaviour
             _overviewProgress = enabled ? 1f : 0f;
             _islandOverviewBlend = _overviewProgress;
         }
+    }
+
+    /// <summary>柱抜け後の連続ショット。1追走 2接近 3正面注油 4大空。0で解除</summary>
+    public void SetClimaxCinematicPhase(int phase)
+    {
+        if (phase > 0 && _climaxCamPhase <= 0)
+            _climaxCamSeeded = false;
+        _climaxCamPhase = phase;
+        if (phase > 0)
+            SetIslandOverviewMode(false);
     }
 
     /// <summary>タイトル待機：クライマックス広角と同じ構図でライブ背景</summary>
@@ -642,7 +662,7 @@ public class AdventureCameraFollow : MonoBehaviour
             }
         }
 
-        if (_islandOverviewBlend > 0.02f && target != null)
+        if (_islandOverviewBlend > 0.02f && _climaxCamPhase <= 0 && target != null)
         {
             float playerYaw = target.eulerAngles.y;
             float sway = Mathf.Sin(Time.unscaledTime * 0.12f) * 2.5f;
@@ -700,7 +720,7 @@ public class AdventureCameraFollow : MonoBehaviour
             targetPivot = target.position + Vector3.up * useHeight;
         }
 
-        if (Vector3.Distance(_currentPivot, targetPivot) > 12f)
+        if (_climaxCamPhase <= 0 && Vector3.Distance(_currentPivot, targetPivot) > 12f)
         {
             _currentPivot = targetPivot;
             _pivotVelocity = Vector3.zero;
@@ -762,7 +782,7 @@ public class AdventureCameraFollow : MonoBehaviour
             targetFov = Mathf.Min(82f, targetFov + speedBoostFov);
         }
 
-        if (_cam != null)
+        if (_cam != null && _climaxCamPhase <= 0)
         {
             float fovSpeed = (cine > 0.01f || (player != null && player.IsUpdraftAscending)) ? 26f : 10f;
             _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, targetFov, fovSpeed * Time.deltaTime);
@@ -805,7 +825,81 @@ public class AdventureCameraFollow : MonoBehaviour
         }
 
         Vector3 targetPos = _currentPivot + currentRot * new Vector3(0f, 0f, -_currentDistance);
-        if (_islandOverviewBlend > 0.01f && target != null)
+        bool pillarFeetCam = _climaxCamPhase <= 0 && player != null && player.IsSkybreakPillarAscending;
+        if (pillarFeetCam && target != null)
+        {
+            float dt = Time.unscaledDeltaTime;
+            float yaw = target.eulerAngles.y + 24f + Mathf.Sin(Time.unscaledTime * 0.35f) * 2f;
+            currentRot = Quaternion.Euler(17f, yaw, 0f);
+            Vector3 pivot = target.position + Vector3.up * 0.85f;
+            _currentPivot = Vector3.Lerp(_currentPivot, pivot, 1f - Mathf.Exp(-6f * dt));
+            const float dist = 6.8f;
+            targetPos = _currentPivot + currentRot * new Vector3(0.35f, 0.05f, -dist);
+            _currentDistance = dist;
+            if (_cam != null)
+                _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, 66f, 22f * dt);
+        }
+        else if (_climaxCamPhase > 0 && target != null)
+        {
+            float yawOff = 32f;
+            float pitch = 10f;
+            float dist = 8.4f;
+            float fov = 68f;
+            float side = 0.55f;
+            if (_climaxCamPhase == 2)
+            {
+                yawOff = 86f;
+                pitch = 9f;
+                dist = 9.6f;
+                fov = 72f;
+                side = 0.45f;
+            }
+            else if (_climaxCamPhase == 3)
+            {
+                yawOff = 180f;
+                pitch = 7.5f;
+                dist = 9.2f;
+                fov = 70f;
+                side = 0.2f;
+            }
+            else if (_climaxCamPhase >= 4)
+            {
+                if (Mathf.Abs(_skyWideSideBias) < 0.01f)
+                    _skyWideSideBias = 14f;
+                yawOff = 180f + _skyWideSideBias;
+                pitch = 8.5f;
+                dist = 15.2f;
+                fov = 76f;
+                side = 0f;
+            }
+
+            if (!_climaxCamSeeded)
+            {
+                _climaxYawOff = yawOff;
+                _climaxPitch = _pitch;
+                _climaxDist = _currentDistance;
+                _climaxFov = _cam != null ? _cam.fieldOfView : fov;
+                _climaxYawOffVel = _climaxPitchVel = _climaxDistVel = _climaxFovVel = 0f;
+                _climaxCamSeeded = true;
+            }
+
+            float dt = Time.unscaledDeltaTime;
+            _climaxYawOff = Mathf.SmoothDampAngle(_climaxYawOff, yawOff, ref _climaxYawOffVel, 1.15f, Mathf.Infinity, dt);
+            _climaxPitch = Mathf.SmoothDamp(_climaxPitch, pitch, ref _climaxPitchVel, 0.9f, Mathf.Infinity, dt);
+            _climaxDist = Mathf.SmoothDamp(_climaxDist, dist, ref _climaxDistVel, 1.05f, Mathf.Infinity, dt);
+            _climaxFov = Mathf.SmoothDamp(_climaxFov, fov, ref _climaxFovVel, 0.85f, Mathf.Infinity, dt);
+            if (_cam != null)
+                _cam.fieldOfView = _climaxFov;
+
+            float sway = Mathf.Sin(Time.unscaledTime * 0.18f) * 1.4f;
+            float camYaw = target.eulerAngles.y + _climaxYawOff + sway;
+            currentRot = Quaternion.Euler(_climaxPitch, camYaw, 0f);
+            Vector3 pivot = target.position + Vector3.up * 1.65f;
+            _currentPivot = Vector3.Lerp(_currentPivot, pivot, 1f - Mathf.Exp(-2.2f * dt));
+            targetPos = _currentPivot + currentRot * new Vector3(side, 0.12f, -_climaxDist);
+            _currentDistance = _climaxDist;
+        }
+        else if (_islandOverviewBlend > 0.01f && target != null)
         {
             float b = _islandOverviewBlend;
             float smoothB = EaseInOutCubic(b);
