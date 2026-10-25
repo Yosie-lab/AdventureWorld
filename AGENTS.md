@@ -13,4 +13,5 @@ Active work is **RustAndFloat** (folder `Assets/RustAndFloat/`). Read [[Assets/R
 - **Core (reasoning/tools)**: `.agents/skills/core-*` — see `core-skills-index.md`
 - **Harness (safety)**: `.agents/skills/harness-*`
 - **Unity/iOS MVP**: `.agents/skills/unity-app-architect/` — Obsidian idea → SE3 checklist
+- **Strict 100 roadmap**: `.agents/skills/rustfloat-strict-100-roadmap/` — evidence-graded score; HANDOFF "100" is not a score
 - Cursor personal mirror: user Agent Store `skills/core-*`

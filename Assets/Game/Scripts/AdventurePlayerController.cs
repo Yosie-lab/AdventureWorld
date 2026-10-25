@@ -2044,9 +2044,9 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (tower != null && tower.BlocksSkybreakColumnLift)
             return;
 
-        // クライマックス開始後のみ再ロックしない（台本ボード表示中の IsEpiloguePlaying では弾かない）
-        if (_autoGlide) return;
-        if (AdventureStoryFlow.BlocksPillarRelock)
+        // ダイブ確定後の柱開始では、残留オートグライドで上昇を拒否しない
+        _autoGlide = false;
+        if (AdventureStoryFlow.BlocksPillarRelock && _skybreakPillarDone)
             return;
 
         _skybreakPillarDone = false;

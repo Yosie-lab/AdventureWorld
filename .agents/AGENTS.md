@@ -20,6 +20,7 @@ Work only on RustAndFloat (`Assets/RustAndFloat/`). Never edit `Assets/Scenes/Ad
 ## ドメインスキル
 
 - `unity-app-architect` — Obsidian アイデアから Unity/iOS MVP（仕様・C#構成・Inspector手順・SE3実機チェック）
+- `rustfloat-strict-100-roadmap` — 証拠グレード付き100点判定と、減点だけのロードマップ。HANDOFFの「100点到達」は得点にしない
 
 ## ハーネススキル（安全境界）
 

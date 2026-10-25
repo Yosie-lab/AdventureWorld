@@ -24,6 +24,7 @@
 |--------|--------------|------|
 | 100点満点マスター・ゲームフィール調律 | `core-gamefeel-perfection-100/` | 厳格な100点満点評価基準を完全突破し、極上の手触りと完成度を実装するとき |
 | Unity / iOS MVP 設計 | `unity-app-architect/` | Obsidian のアイデアメモから SE3 向け Unity 構成を出すとき |
+| 厳格100点判定とロードマップ | `rustfloat-strict-100-roadmap/` | ゲーム評価・100点・減点・出荷判断。採点表は harness-eval-coverage、厳しさはこちら |
 
 ## Cursor / Antigravity
 
