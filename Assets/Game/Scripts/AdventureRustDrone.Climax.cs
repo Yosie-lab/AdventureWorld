@@ -309,6 +309,47 @@ public partial class AdventureRustDrone
         }
     }
 
+    /// <summary>「Rust、待ってて！今、集めた油を全部注ぐから…！」でFloatと正面から向かい合う</summary>
+    public void BeginClimaxFaceToFaceOilReady()
+    {
+        ClearClimaxFallState();
+        IsClimaxCrisis = true;
+        _climaxHealing = false;
+        IsClimaxOverdrive = false;
+        CurrentState = RustState.Petting;
+        _stateTimer = 9999f;
+
+        EnsureLookAtCached();
+        if (_lookAt != null)
+        {
+            Vector3 nest = GetClimaxFaceToFacePoint();
+            transform.position = nest;
+            _lagTarget = nest;
+            _velocity = Vector3.zero;
+
+            // Floatの胸元・顔をまっすぐ見つめて正対
+            Vector3 toFloat = GetNikoChestPosition() - transform.position;
+            if (toFloat.sqrMagnitude > 0.01f)
+                transform.rotation = Quaternion.LookRotation(toFloat.normalized, Vector3.up);
+        }
+    }
+
+    /// <summary>FloatとRustが至近距離で正面から美しく向き合う位置（Floatの顔を遮らない黄金ポジション）</summary>
+    public Vector3 GetClimaxFaceToFacePoint()
+    {
+        if (_lookAt == null) return transform.position;
+        Vector3 chest = GetNikoChestPosition();
+        Camera cam = Camera.main;
+
+        // Floatの正面0.68m、高さ-0.06m（胸元正面やや下）、カメラ横から見て右に0.25mオフセット
+        // これによりカメラからFloatの顔と真剣な表情がクッキリ見え、Rustも正面から正対する
+        Vector3 camRight = cam != null ? Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized : _lookAt.right;
+        Vector3 floatFwd = _lookAt.forward;
+
+        Vector3 pos = chest + floatFwd * 0.68f + camRight * 0.25f + Vector3.down * 0.06f;
+        return pos;
+    }
+
     /// <summary>F9再演用：危機／注油／オーバードライブ状態を通常へ戻す</summary>
     public void ResetClimaxState()
     {

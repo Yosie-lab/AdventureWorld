@@ -128,6 +128,16 @@ public partial class AdventureSanctuaryTowerManager
                 droneFall.BeginClimaxColdFallAway();
         }
 
+        // 台本3（Float:「Rust、待ってて！　今、集めた油を全部注ぐから……！」）
+        // Floatがこちら向きになり、Rustと真正面から向き合って注油準備に入る
+        if (index == 2)
+        {
+            SetIslandOverviewCamera(true);
+            var drone = GetDrone();
+            if (drone != null)
+                drone.BeginClimaxFaceToFaceOilReady();
+        }
+
         // 台本（ピピッ！……ありがとう、Float！）：全出力セリフと同時にオーバードライブ演出
         if (index == ClimaxOilSlot + 1)
         {

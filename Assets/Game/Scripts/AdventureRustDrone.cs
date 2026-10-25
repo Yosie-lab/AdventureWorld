@@ -1682,13 +1682,11 @@ public partial class AdventureRustDrone : MonoBehaviour
             return EndingNestleAtHead(0.45f, 0.95f, 0.08f + nestleBob);
         }
 
-        // クライマックス危機／注油：カメラ側・画面右に寄せて必ず見える
-        // 「上空でRustが限界」時点で画面外に出ないこと（Nikoの右胸〜肩前方の見やすい位置）
+        // クライマックス危機／注油：FloatとRustが正面至近距離でまっすぐ向き合う（至高のFace-to-Face構図）
         if ((IsClimaxCrisis || _climaxHealing) && !_climaxFalling)
         {
-            if (_climaxHealing)
-                return VisibleBesideNikoOnScreen(0.75f, 0.50f, 0.28f) + Vector3.up * (Mathf.Sin(Time.unscaledTime * 2.8f) * 0.04f);
-            return VisibleBesideNikoOnScreen(0.55f, 0.42f, 0.38f);
+            float bob = Mathf.Sin(Time.unscaledTime * 2.8f) * 0.03f;
+            return GetClimaxFaceToFacePoint() + Vector3.up * bob;
         }
 
         // オーバードライブ＆エピローグ滑空中：右肩のすぐ外側・カメラ手前側の特等席

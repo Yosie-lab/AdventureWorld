@@ -734,11 +734,23 @@ public class AdventureCameraFollow : MonoBehaviour
             _currentPivot = Vector3.SmoothDamp(_currentPivot, targetPivot, ref _pivotVelocity, pivotSmooth);
         }
 
+        bool isOilPhase = false;
+        var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        if (towerMgr != null && towerMgr.NeedsClimaxSkyAltitude)
+        {
+            var drone = AdventureRustDrone.Instance;
+            if (drone == null || !drone.IsClimaxOverdrive)
+                isOilPhase = true;
+        }
+
         float walkBaseFov = AdventureRustFloatFeel.IsActiveScene ? AdventureRustFloatFeel.WalkFov : 64f;
         float glideBaseFov = walkBaseFov + 4f;
         float cineFov = (isAutoGlide && cine > 0.3f) ? 74f : CinematicFov;
         if (_islandOverviewBlend > 0.01f)
-            cineFov = Mathf.Lerp(cineFov, 71f, _islandOverviewBlend);
+        {
+            float targetFovVal = isOilPhase ? 60f : 71f;
+            cineFov = Mathf.Lerp(cineFov, targetFovVal, _islandOverviewBlend);
+        }
         float targetFov = Mathf.Lerp(isGliding ? glideBaseFov : walkBaseFov, cineFov, cine);
 
         // 70mメガジャンプ・急上昇・高速滑空ブースト・急斜面スライディングによるダイナミックFOV（最大82°までワイド化）
@@ -757,7 +769,10 @@ public class AdventureCameraFollow : MonoBehaviour
 
         float cineDist = (isAutoGlide && cine > 0.3f) ? 8.5f : CinematicDistance;
         if (_islandOverviewBlend > 0.01f)
-            cineDist = Mathf.Lerp(cineDist, 16.5f, _islandOverviewBlend);
+        {
+            float targetDistVal = isOilPhase ? 4.5f : 16.5f;
+            cineDist = Mathf.Lerp(cineDist, targetDistVal, _islandOverviewBlend);
+        }
         float speedExtraDist = (player != null && player.IsUpdraftAscending) ? (player.SpeedIntensity * 1.6f) : 0f;
         float desiredDist = Mathf.Lerp(isGliding ? (distance + 1.2f) : distance, cineDist, cine) + speedExtraDist;
         
