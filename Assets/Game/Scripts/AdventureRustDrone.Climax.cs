@@ -162,6 +162,15 @@ public partial class AdventureRustDrone
     float _climaxFallUntil;
     /// <summary>柱を抜けた直後：後ろから必死に追い、カメラへ落ちてはまた追いつこうとする</summary>
     bool _climaxChase;
+    /// <summary>光の柱を上昇中。足元の直後に貼り付いて映す</summary>
+    public bool IsPillarFeetFollow
+    {
+        get
+        {
+            var player = AdventurePlayerController.Instance;
+            return player != null && player.IsSkybreakPillarAscending;
+        }
+    }
     float _climaxChaseScreamAt;
     int _climaxChaseScream;
     ParticleSystem _climaxIceFx;
@@ -336,9 +345,8 @@ public partial class AdventureRustDrone
         if (_lookAt != null)
         {
             Vector3 nest = GetClimaxFaceToFacePoint();
-            transform.position = nest;
             _lagTarget = nest;
-            _velocity = Vector3.zero;
+            _velocity *= 0.25f;
 
             // Floatの胸元・顔をまっすぐ見つめて正対
             Vector3 toFloat = GetNikoChestPosition() - transform.position;
@@ -362,25 +370,67 @@ public partial class AdventureRustDrone
         return pos;
     }
 
+    /// <summary>柱上昇中：Floatのかかとの直後。カメラ側へずらして足元が画面に入る</summary>
+    public Vector3 PillarFeetFollowPoint()
+    {
+        if (_lookAt == null) return transform.position;
+        Vector3 feet = _lookAt.position;
+        var cam = Camera.main;
+        Vector3 back = cam != null ? -cam.transform.forward : -_lookAt.forward;
+        back.y = 0f;
+        if (back.sqrMagnitude < 0.01f) back = -_lookAt.forward;
+        else back.Normalize();
+        Vector3 side = cam != null ? cam.transform.right : _lookAt.right;
+        side.y = 0f;
+        if (side.sqrMagnitude < 0.01f) side = _lookAt.right;
+        else side.Normalize();
+        float wobble = Mathf.Sin(Time.unscaledTime * 9f) * 0.05f;
+        return feet + back * 0.7f + side * (0.5f + wobble) + Vector3.up * 0.2f;
+    }
+
+    public void SnapPillarFeetFollow()
+    {
+        EnsureLookAtCached();
+        if (_lookAt == null) return;
+        Vector3 slot = PillarFeetFollowPoint();
+        transform.position = slot;
+        _lagTarget = slot;
+        _velocity = Vector3.zero;
+        Vector3 face = _lookAt.position + Vector3.up * 0.9f - slot;
+        if (face.sqrMagnitude > 0.01f)
+            transform.rotation = Quaternion.LookRotation(face.normalized, Vector3.up);
+    }
+
     public Vector3 ClimaxChasePoint()
     {
         if (_lookAt == null) return transform.position;
         Vector3 chest = GetNikoChestPosition();
-        float wobble = Mathf.Sin(Time.unscaledTime * 7.5f) * 0.28f;
-        Vector3 behind = chest - _lookAt.forward * 2.6f + _lookAt.right * wobble + Vector3.down * 0.45f;
-
-        Vector3 nearCam = behind;
         var cam = Camera.main;
-        if (cam != null)
-            nearCam = cam.transform.position + cam.transform.forward * 1.15f + cam.transform.right * 0.15f;
+        Vector3 camPos = cam != null ? cam.transform.position : chest - _lookAt.forward * 6.5f;
+        Vector3 toCam = camPos - chest;
+        float camDist = toCam.magnitude;
+        if (camDist < 0.8f)
+            toCam = -_lookAt.forward;
+        else
+            toCam /= camDist;
 
-        float cycle = Mathf.Repeat(Time.unscaledTime * 0.42f, 1f);
-        float towardCam = 0f;
-        if (cycle >= 0.42f && cycle <= 0.70f)
-            towardCam = Mathf.SmoothStep(0f, 1f, (cycle - 0.42f) / 0.28f);
-        else if (cycle > 0.70f)
-            towardCam = Mathf.SmoothStep(1f, 0f, (cycle - 0.70f) / 0.30f);
-        return Vector3.Lerp(behind, nearCam, towardCam * 0.85f);
+        Vector3 side = cam != null ? cam.transform.right : _lookAt.right;
+        side = Vector3.ProjectOnPlane(side, toCam);
+        if (side.sqrMagnitude < 0.01f) side = _lookAt.right;
+        else side.Normalize();
+
+        // 0〜0.62 は画面内で遅れ、そのあと Float の背中へ必死に詰める。レンズ裏には出ない
+        float cycle = Mathf.Repeat(Time.unscaledTime * 0.48f, 1f);
+        float slip = cycle < 0.62f ? cycle / 0.62f : 1f - (cycle - 0.62f) / 0.38f;
+        float reach = 1.15f + slip * 1.55f;
+        float stayInFront = Mathf.Max(1.35f, camDist - 1.7f);
+        reach = Mathf.Min(reach, stayInFront);
+
+        float wobble = Mathf.Sin(Time.unscaledTime * 8.5f) * 0.08f;
+        return chest
+            + toCam * reach
+            + side * (0.95f + wobble)
+            + Vector3.down * (0.22f + slip * 0.28f);
     }
 
     public void TickClimaxChaseScream()
@@ -659,6 +709,18 @@ public partial class AdventureRustDrone
         Vector3 face = GetNikoChestPosition() + Vector3.up * 0.2f - nest;
         if (face.sqrMagnitude > 0.01f)
             transform.rotation = Quaternion.LookRotation(face.normalized);
+    }
+
+    void KeepClimaxChaseInView()
+    {
+        var cam = Camera.main;
+        if (cam == null) return;
+        Vector3 sp = cam.WorldToViewportPoint(transform.position);
+        bool off = sp.z < 0.4f || sp.x < 0.08f || sp.x > 0.92f || sp.y < 0.12f || sp.y > 0.9f;
+        if (!off) return;
+        Vector3 slot = ClimaxChasePoint();
+        transform.position = Vector3.Lerp(transform.position, slot, 0.55f);
+        _lagTarget = transform.position;
     }
 
     void KeepRustOnScreenNearNiko(bool force = false)

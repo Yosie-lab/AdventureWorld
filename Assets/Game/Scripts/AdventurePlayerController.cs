@@ -2051,7 +2051,7 @@ public partial class AdventurePlayerController : MonoBehaviour
 
         _skybreakPillarDone = false;
         _skybreakPillarLock = true;
-        _skybreakPillarLift = Mathf.Clamp(liftSpeed, 24f, 42f);
+        _skybreakPillarLift = Mathf.Clamp(liftSpeed, 12f, 42f);
         _skybreakPillarTargetY = Mathf.Clamp(releaseY, 152f, 162f);
         _skybreakPillarCenter = new Vector3(pillarCenter.x, 0f, pillarCenter.z);
         _skybreakPillarEndAt = Time.unscaledTime + 22f;
@@ -2163,7 +2163,6 @@ public partial class AdventurePlayerController : MonoBehaviour
             return;
         }
 
-        _skybreakPillarLift = Mathf.Max(_skybreakPillarLift, Mathf.Min(liftSpeed, 42f));
         _skybreakPillarCenter = new Vector3(pillarBase.x, 0f, pillarBase.z);
     }
 

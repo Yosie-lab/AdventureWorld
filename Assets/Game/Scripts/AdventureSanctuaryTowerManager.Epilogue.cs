@@ -94,7 +94,12 @@ public partial class AdventureSanctuaryTowerManager
         }
 
         SetCinematicCamera(true);
-        SetIslandOverviewCamera(true);
+        var follow = AdventureCameraFollow.Instance;
+        if (follow != null)
+        {
+            follow.SetIslandOverviewMode(true, instant: true);
+            follow.SetClimaxCinematicPhase(0);
+        }
         SetExplorationHudVisible(false);
         try
         {
@@ -553,7 +558,10 @@ public partial class AdventureSanctuaryTowerManager
         {
             follow.SetCinematicMode(enabled);
             if (!enabled)
+            {
                 follow.SetIslandOverviewMode(false);
+                follow.SetClimaxCinematicPhase(0);
+            }
         }
 
         if (!enabled)
