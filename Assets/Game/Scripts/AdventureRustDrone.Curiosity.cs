@@ -17,7 +17,9 @@ public partial class AdventureRustDrone
         NikoEyeContact,
         SleepNap,
         WaterPanic,
-        BeckonGesture
+        BeckonGesture,
+        Crab,
+        IdleOrbit
     }
 
     [Header("Curiosity & Emotion")]
@@ -36,6 +38,13 @@ public partial class AdventureRustDrone
     // 手招き＆呼びかけ（BeckonGesture）用
     Vector3 _beckonTargetPos = Vector3.zero;
     float _beckonStartTime = 0f;
+
+    // カニ好奇心（Crab）用
+    float _crabInvestigateStartTime = 0f;
+    bool _crabScaredHop = false;
+
+    // 待機旋回（IdleOrbit）用
+    float _idleOrbitStartTime = 0f;
 
     // うたた寝（SleepNap）用
     bool _isSleeping = false;
@@ -258,6 +267,15 @@ public partial class AdventureRustDrone
         // 好奇心アクションの実行中カウントダウン
         if (_curiosityKind != CuriosityKind.None)
         {
+            if (_curiosityKind == CuriosityKind.Crab && !_crabScaredHop && Time.time >= _crabInvestigateStartTime + 2.4f)
+            {
+                _crabScaredHop = true;
+                _velocity += Vector3.up * 2.8f;
+                PlaySurpriseBeep();
+                string scaredKey = Random.value < 0.5f ? "rust_curiosity_crab_scared_1" : "rust_curiosity_crab_scared_2";
+                SpeakCustom(AdventureLocalizationManager.Get(scaredKey), 3.0f);
+            }
+
             if (Time.time >= _curiosityEndTime)
             {
                 _curiosityKind = CuriosityKind.None;
@@ -303,6 +321,36 @@ public partial class AdventureRustDrone
         if (_playerRestTime >= 4.2f && Random.value < 0.65f)
         {
             StartSleepState(nikoPos);
+            return;
+        }
+
+        // B0. 周囲12m以内のカニ（CrabWander）を探して観察＆驚きホップ
+        var crabs = CrabWander.AllCrabs;
+        CrabWander nearestCrab = null;
+        float minCrabDist = 12.0f;
+        for (int i = 0; i < crabs.Count; i++)
+        {
+            var c = crabs[i];
+            if (c == null) continue;
+            float d = Vector3.Distance(nikoPos, c.transform.position);
+            if (d < minCrabDist)
+            {
+                minCrabDist = d;
+                nearestCrab = c;
+            }
+        }
+
+        if (nearestCrab != null && Random.value < 0.85f)
+        {
+            _curiosityKind = CuriosityKind.Crab;
+            _curiosityTransform = nearestCrab.transform;
+            _crabInvestigateStartTime = Time.time;
+            _crabScaredHop = false;
+            _curiosityEndTime = Time.time + 5.0f;
+            _targetIdleTiltAngle = (Random.value < 0.5f ? -1f : 1f) * 22f;
+            PlayCuriosityBeep();
+            string crabKey = Random.value < 0.5f ? "rust_curiosity_crab_1" : "rust_curiosity_crab_2";
+            SpeakCustom(AdventureLocalizationManager.Get(crabKey), 2.8f);
             return;
         }
 
@@ -393,6 +441,17 @@ public partial class AdventureRustDrone
         else if (pts >= 20 && Random.value < 0.65f)
         {
             SpeakCustom("20ポイント達成してるよ！中央タワーへ行って天蓋レバーを引こう、Float！", 4.8f);
+        }
+        else if (Random.value < 0.45f)
+        {
+            // E. Floatの周囲をくるりと1周旋回（退屈しぐさ・次どこ行く？促し）
+            _curiosityKind = CuriosityKind.IdleOrbit;
+            _idleOrbitStartTime = Time.time;
+            _curiosityEndTime = Time.time + 3.8f;
+            _targetIdleTiltAngle = 10f;
+            PlayCuriosityBeep();
+            string[] orbitKeys = { "rust_idle_orbit_1", "rust_idle_orbit_2", "rust_idle_orbit_3" };
+            SpeakCustom(AdventureLocalizationManager.Get(orbitKeys[Random.Range(0, orbitKeys.Length)]), 3.0f);
         }
         else if (Random.value < 0.5f)
         {
@@ -545,6 +604,34 @@ public partial class AdventureRustDrone
                 float beckonBounce = Mathf.Sin(Time.time * 5.5f) * (leadBlend > 0.5f ? 0.06f : 0.04f);
                 return targetBeckonPos + Vector3.up * beckonBounce;
 
+            case CuriosityKind.Crab:
+                if (_curiosityTransform != null)
+                {
+                    float crabElapsed = Time.time - _crabInvestigateStartTime;
+                    if (crabElapsed < 2.4f)
+                    {
+                        // カニの斜め前0.7m、地面から0.42mの低空でじっくり観察
+                        Vector3 crabPos = _curiosityTransform.position;
+                        Vector3 approachOffset = _curiosityTransform.forward * 0.72f + Vector3.up * 0.42f;
+                        float observeBob = Mathf.Sin(Time.time * 3.2f) * 0.025f;
+                        return crabPos + approachOffset + Vector3.up * observeBob;
+                    }
+                    else
+                    {
+                        // 驚いてFloatの後ろ斜め上にサッと隠れる
+                        Vector3 behindPos = nikoPos - _lookAt.forward * 0.85f + _lookAt.right * 0.65f + Vector3.up * 1.55f;
+                        float tremble = Mathf.Sin(Time.time * 26f) * 0.03f;
+                        return behindPos + Vector3.up * tremble;
+                    }
+                }
+                break;
+
+            case CuriosityKind.IdleOrbit:
+                // Floatの胸〜頭の周りを半径1.35mでふわりと1周旋回
+                float orbitTime = (Time.time - _idleOrbitStartTime) * 2.2f;
+                Vector3 orbitPos = chestPos + new Vector3(Mathf.Sin(orbitTime) * 1.35f, 0.35f + Mathf.Sin(orbitTime * 2f) * 0.15f, Mathf.Cos(orbitTime) * 1.35f);
+                return orbitPos;
+
             case CuriosityKind.WaterShore:
                 float waterBob = Mathf.Sin(Time.time * 2.4f) * 0.04f;
                 return _curiosityWorldPos + Vector3.up * (0.2f + waterBob);
@@ -600,6 +687,41 @@ public partial class AdventureRustDrone
                     }
                     return baseLook;
                 }
+
+            case CuriosityKind.Crab:
+                if (_curiosityTransform != null)
+                {
+                    float crabElapsed = Time.time - _crabInvestigateStartTime;
+                    if (crabElapsed < 2.4f)
+                    {
+                        // カニを見下ろす（下向きピッチ-32度）＋首かしげ
+                        Vector3 toCrab = _curiosityTransform.position - transform.position;
+                        toCrab.y = 0f;
+                        Quaternion faceCrab = toCrab.sqrMagnitude > 0.01f ? Quaternion.LookRotation(toCrab.normalized, Vector3.up) : baseLook;
+                        return faceCrab * Quaternion.Euler(-32f, 0f, _idleTiltAngle);
+                    }
+                    else
+                    {
+                        // Floatの背後から前方のカニを警戒してチラ見する姿勢
+                        Vector3 forwardDir = _lookAt != null ? _lookAt.forward : transform.forward;
+                        Quaternion lookFront = Quaternion.LookRotation(forwardDir, Vector3.up);
+                        float shiver = Mathf.Sin(Time.time * 28f) * 6f;
+                        return lookFront * Quaternion.Euler(12f, shiver, _idleTiltAngle);
+                    }
+                }
+                return baseLook;
+
+            case CuriosityKind.IdleOrbit:
+                // 旋回中は常にFloatの胸元を向く
+                Vector3 toFloatChest = GetNikoChestPosition() - transform.position;
+                toFloatChest.y = 0f;
+                if (toFloatChest.sqrMagnitude > 0.01f)
+                {
+                    Quaternion faceFloat = Quaternion.LookRotation(toFloatChest.normalized, Vector3.up);
+                    float rollBank = Mathf.Sin((Time.time - _idleOrbitStartTime) * 2.2f) * 14f;
+                    return faceFloat * Quaternion.Euler(-10f, 0f, rollBank);
+                }
+                return baseLook;
         }
 
         if (Mathf.Abs(_idleTiltAngle) > 0.05f)

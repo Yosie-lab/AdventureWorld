@@ -3211,6 +3211,48 @@ public static class AdventureLocalizationManager
             "南滩",
             "Playa del Sur"
         } },
+        { "rust_curiosity_crab_1", new[] {
+            "あ、カニさんだ！ハサミをシャキシャキしてる…！",
+            "Oh, a little crab! Snipping its claws click-clack...!",
+            "啊，是小螃蟹！大钳子正在咔嚓咔嚓动呢……！",
+            "¡Oh, un cangrejito! ¡Abriendo y cerrando sus pinzas clac-clac...!"
+        } },
+        { "rust_curiosity_crab_2", new[] {
+            "ピピッ♪ カニさん、横に歩いてるよ！おもしろいね",
+            "Pip-pip! The crab is scuttling sideways! How funny!",
+            "哔哔♪ 螃蟹横着走呢！真有趣呀",
+            "¡Pip-pip! ¡El cangrejo camina de lado! ¡Qué gracioso!"
+        } },
+        { "rust_curiosity_crab_scared_1", new[] {
+            "わわっ！怒られちゃった！Float、かくして〜！",
+            "Whoa! It got mad! Float, hide me quick~!",
+            "哇哇！它生气了！Float，快把我藏起来〜！",
+            "¡Uy! ¡Se enojó! ¡Float, escóndeme rápido~!"
+        } },
+        { "rust_curiosity_crab_scared_2", new[] {
+            "はさまれたら痛そうだなぁ…そーっとね…！",
+            "Ouch, that pinch would hurt... let's be gentle...!",
+            "要是被夹到肯定很疼吧……悄悄退后……！",
+            "¡Eso sí que debe doler si te pellizca... despacito...!"
+        } },
+        { "rust_idle_orbit_1", new[] {
+            "Float、次はどこに行く？ボク、準備できてるよ！",
+            "Float, where should we head next? I'm ready!",
+            "Float，接下来我们去哪里？我已经准备好啦！",
+            "Float, ¿adónde vamos ahora? ¡Estoy listo!"
+        } },
+        { "rust_idle_orbit_2", new[] {
+            "いい風が吹いてるね〜！飛んじゃおうか！",
+            "Such a nice breeze blowing! Shall we take flight?!",
+            "吹来一阵舒服的风呢〜！要不要起飞试试？！",
+            "¡Qué brisa tan agradable sopla! ¡¿Volamos?!"
+        } },
+        { "rust_idle_orbit_3", new[] {
+            "ふふっ、Floatの周りをくるりん♪",
+            "Hehe, twirling around you, Float♪",
+            "嘿嘿，在Float身边转圈圈♪",
+            "Jeje, ¡dando vueltas alrededor tuyo, Float♪!"
+        } },
         { "ハッ！寝てないよ！起きてるよ！", new[] {
             "ハッ！寝てないよ！起きてるよ！",
             "Huh! I wasn't sleeping! I'm wide awake!",

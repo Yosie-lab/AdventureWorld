@@ -7,6 +7,8 @@ using UnityEngine;
 /// <summary>砂浜のカニ（完全接地・傾斜追従・横歩きとハサミ振り）</summary>
 public class CrabWander : MonoBehaviour
 {
+    public static readonly System.Collections.Generic.List<CrabWander> AllCrabs = new System.Collections.Generic.List<CrabWander>();
+
     private Vector3 _startPos;
     private float _timer;
     private float _moveDuration = 2f;
@@ -18,6 +20,17 @@ public class CrabWander : MonoBehaviour
     private Terrain _terrain;
     private float _facingAngle;
     private const float MaxRadius = 2.2f;
+
+    void OnEnable()
+    {
+        if (!AllCrabs.Contains(this))
+            AllCrabs.Add(this);
+    }
+
+    void OnDisable()
+    {
+        AllCrabs.Remove(this);
+    }
 
     // 距離カリング用キャッシュ
     private static Transform _camTransform;
