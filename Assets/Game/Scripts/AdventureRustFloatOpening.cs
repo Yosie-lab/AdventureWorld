@@ -41,7 +41,7 @@ public class AdventureRustFloatOpening : MonoBehaviour
     const string TitleText = "✦ Rust & Float ✦";
     const string SubTitleText = "〜 2050 静かなる脱出 〜";
     const string StoryText =
-        "西暦2050年。100%最適化された無痛の幸福を脱獄した。\n\n" +
+        "2050年。AIで100%最適化された「完璧な社会」を脱出した。\n\n" +
         "荒波を越え、気がつくとこの波静かな白砂のビーチに打ち上げられていた。\n" +
         "頬を打つ冷たい潮風も、駆け抜けた足の痛みさえ、\n" +
         "ここではすべてが生きている証そのものだ。\n\n" +

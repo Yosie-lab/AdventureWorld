@@ -169,7 +169,7 @@ public static class AdventureLocalizationManager
         { "title_quit", new[] { "ゲーム終了", "Quit Game", "退出游戏", "Salir del Juego" } },
         { "title_story_head", new[] { "[時代背景と物語]", "[Story & Background]", "[时代背景与物语]", "[Historia y Trasfondo]" } },
         { "title_story_body", new[] {
-            "西暦2050年。100%徹底された閉塞の孤島を脱出した。\n\n荒波を越え、気がつくとこの静謐な白砂のビーチに打ち上げられていた。\n頬を打つ冷たい潮風も、駆け抜けた足の痛みさえ、ここではすべてが生きている証そのものだ。\n\n……脇には、スクラップ寸前で連れ出した相棒ドローン、Rust。\n息を巡って翼を直し、あの自由な蒼穹（そら）へ飛び立とう。",
+            "2050年。AIで100%最適化された「完璧な社会」を脱出した。\n\n荒波を越え、気がつくとこの静謐な白砂のビーチに打ち上げられていた。\n頬を打つ冷たい潮風も、駆け抜けた足の痛みさえ、ここではすべてが生きている証そのものだ。\n\n……脇には、スクラップ寸前で連れ出した相棒ドローン、Rust。\n息を巡って翼を直し、あの自由な蒼穹（そら）へ飛び立とう。",
             "Year 2050. Escaped from the completely confined island.\n\nAfter weathering the stormy waves, you wash ashore on this serene white beach.\nThe chilly breeze against your cheeks and the ache in your tired legs are living proof of your freedom.\n\n...Beside you lies Rust, the companion drone rescued on the brink of being scrapped.\nCatch your breath, repair your wings, and soar into the vast open sky.",
             "公元2050年。成功逃离了那座彻底闭塞的孤岛。\n\n穿越汹涌风浪，回过神时已躺在这片静谧的白沙海滩上。\n掠过脸颊的清冷海风，奔波后酸痛的双足，在此刻皆是生命鲜活跳动的证明。\n\n……身旁是险遭报废、被你一同带出的伙伴无人机 Rust。\n平复呼吸，修整羽翼，再次向那片自由的苍穹翱翔吧。",
             "Año 2050. Has escapado de la isla totalmente confinada.\n\nTras superar el oleaje embravecido, despiertas en esta serena playa de arena blanca.\nLa brisa marina en tus mejillas y el cansancio en tus piernas son prueba viviente de tu libertad.\n\n...A tu lado yace Rust, el dron compañero rescatado al borde del desguace.\nRecupera el aliento, repara tus alas y elévate hacia el cielo infinito."
