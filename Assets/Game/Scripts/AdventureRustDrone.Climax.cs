@@ -8,17 +8,50 @@ public partial class AdventureRustDrone
 {
     #region Climax motion & FX
 
+    // 柱上昇追従（かかと直後）パラメータ
+    const float ClimaxPillarFeetBackOffset = 0.7f;
+    const float ClimaxPillarFeetSideOffset = 0.5f;
+    const float ClimaxPillarFeetUpOffset = 0.2f;
+    const float ClimaxPillarFeetWobbleSpeed = 9f;
+    const float ClimaxPillarFeetWobbleAmount = 0.05f;
+
+    // 正面注油（Face to Face）パラメータ
+    const float ClimaxFaceToFaceForwardOffset = 0.85f;
+    const float ClimaxFaceToFaceRightOffset = 0.12f;
+    const float ClimaxFaceToFaceDownOffset = 0.04f;
+
+    // クライマックス追走（Chase）パラメータ
+    const float ClimaxChaseCycleSpeed = 0.48f;
+    const float ClimaxChaseSlipThreshold = 0.62f;
+    const float ClimaxChaseBaseReach = 1.15f;
+    const float ClimaxChaseSlipReach = 1.55f;
+    const float ClimaxChaseSideOffset = 0.95f;
+    const float ClimaxChaseWobbleSpeed = 8.5f;
+    const float ClimaxChaseWobbleAmount = 0.08f;
+    const float ClimaxChaseScreamInterval = 1.7f;
+
+    // 落下・凍結（Fall Away）パラメータ
+    const float ClimaxFallMaxDistFromChest = 3.2f;
+    const float ClimaxFallGravity = 3.2f;
+    const float ClimaxFallMaxVelocity = 4.5f;
+
+    static readonly string[] ClimaxChaseScreams =
+    {
+        "ぎゃあああっ…！ま、待って、Float…！",
+        "つ、つらいよっ…！置いてかないで…！",
+        "うあああっ…！翼が、冷たい…！"
+    };
+
     void TickClimaxFallAway()
     {
-        const float maxDistFromChest = 3.2f;
-        _climaxFallVel += Vector3.down * 3.2f * Time.deltaTime;
+        _climaxFallVel += Vector3.down * ClimaxFallGravity * Time.deltaTime;
         if (_lookAt != null)
         {
             Vector3 cling = EndingBesideNiko(0.55f, 0.9f, -0.15f);
             Vector3 pull = cling - transform.position;
             _climaxFallVel += pull * 1.2f * Time.deltaTime;
         }
-        _climaxFallVel = Vector3.ClampMagnitude(_climaxFallVel, 4.5f);
+        _climaxFallVel = Vector3.ClampMagnitude(_climaxFallVel, ClimaxFallMaxVelocity);
         transform.position += _climaxFallVel * Time.deltaTime;
         _lagTarget = transform.position;
         _velocity = _climaxFallVel;
@@ -27,8 +60,8 @@ public partial class AdventureRustDrone
         {
             Vector3 chest = GetNikoChestPosition();
             Vector3 delta = transform.position - chest;
-            if (delta.magnitude > maxDistFromChest)
-                transform.position = chest + delta.normalized * maxDistFromChest;
+            if (delta.magnitude > ClimaxFallMaxDistFromChest)
+                transform.position = chest + delta.normalized * ClimaxFallMaxDistFromChest;
         }
 
         if (Time.unscaledTime >= _climaxFallUntil)
@@ -366,7 +399,7 @@ public partial class AdventureRustDrone
         Vector3 floatFwd = _lookAt.forward;
         Vector3 floatRight = _lookAt.right;
 
-        Vector3 pos = chest + floatFwd * 0.85f + floatRight * 0.12f + Vector3.down * 0.04f;
+        Vector3 pos = chest + floatFwd * ClimaxFaceToFaceForwardOffset + floatRight * ClimaxFaceToFaceRightOffset + Vector3.down * ClimaxFaceToFaceDownOffset;
         return pos;
     }
 
@@ -384,8 +417,8 @@ public partial class AdventureRustDrone
         side.y = 0f;
         if (side.sqrMagnitude < 0.01f) side = _lookAt.right;
         else side.Normalize();
-        float wobble = Mathf.Sin(Time.unscaledTime * 9f) * 0.05f;
-        return feet + back * 0.7f + side * (0.5f + wobble) + Vector3.up * 0.2f;
+        float wobble = Mathf.Sin(Time.unscaledTime * ClimaxPillarFeetWobbleSpeed) * ClimaxPillarFeetWobbleAmount;
+        return feet + back * ClimaxPillarFeetBackOffset + side * (ClimaxPillarFeetSideOffset + wobble) + Vector3.up * ClimaxPillarFeetUpOffset;
     }
 
     public void SnapPillarFeetFollow()
@@ -419,31 +452,27 @@ public partial class AdventureRustDrone
         if (side.sqrMagnitude < 0.01f) side = _lookAt.right;
         else side.Normalize();
 
-        // 0〜0.62 は画面内で遅れ、そのあと Float の背中へ必死に詰める。レンズ裏には出ない
-        float cycle = Mathf.Repeat(Time.unscaledTime * 0.48f, 1f);
-        float slip = cycle < 0.62f ? cycle / 0.62f : 1f - (cycle - 0.62f) / 0.38f;
-        float reach = 1.15f + slip * 1.55f;
+        // 画面内で遅れたのち、Float の背中へ必死に詰める。レンズ裏には出ない
+        float cycle = Mathf.Repeat(Time.unscaledTime * ClimaxChaseCycleSpeed, 1f);
+        float slip = cycle < ClimaxChaseSlipThreshold
+            ? cycle / ClimaxChaseSlipThreshold
+            : 1f - (cycle - ClimaxChaseSlipThreshold) / (1f - ClimaxChaseSlipThreshold);
+        float reach = ClimaxChaseBaseReach + slip * ClimaxChaseSlipReach;
         float stayInFront = Mathf.Max(1.35f, camDist - 1.7f);
         reach = Mathf.Min(reach, stayInFront);
 
-        float wobble = Mathf.Sin(Time.unscaledTime * 8.5f) * 0.08f;
+        float wobble = Mathf.Sin(Time.unscaledTime * ClimaxChaseWobbleSpeed) * ClimaxChaseWobbleAmount;
         return chest
             + toCam * reach
-            + side * (0.95f + wobble)
+            + side * (ClimaxChaseSideOffset + wobble)
             + Vector3.down * (0.22f + slip * 0.28f);
     }
 
     public void TickClimaxChaseScream()
     {
         if (!_climaxChase || Time.unscaledTime < _climaxChaseScreamAt) return;
-        _climaxChaseScreamAt = Time.unscaledTime + 1.7f;
-        string[] screams =
-        {
-            "ぎゃあああっ…！ま、待って、Float…！",
-            "つ、つらいよっ…！置いてかないで…！",
-            "うあああっ…！翼が、冷たい…！"
-        };
-        SpeakCustom(screams[_climaxChaseScream % screams.Length], 1.6f);
+        _climaxChaseScreamAt = Time.unscaledTime + ClimaxChaseScreamInterval;
+        SpeakCustom(ClimaxChaseScreams[_climaxChaseScream % ClimaxChaseScreams.Length], 1.6f);
         _climaxChaseScream++;
         SetExpression(FaceExpressionType.Surprised, 1.5f);
         PlayCreak(true);
