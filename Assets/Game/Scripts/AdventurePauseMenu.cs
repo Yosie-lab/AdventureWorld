@@ -35,6 +35,12 @@ public class AdventurePauseMenu : MonoBehaviour
     Button _restartBtn;
     Button _returnTitleBtn;
     Button _resumeBtn;
+    Button _quickMapBtn;
+    GameObject _quickMapBtnGo;
+    Button _returnTitleYesBtn;
+    Button _returnTitleNoBtn;
+    Button _restartYesBtn;
+    Button _restartNoBtn;
     Text _restartBtnText;
     Text _returnTitleBtnText;
     Text _resumeBtnText;
@@ -424,11 +430,26 @@ public class AdventurePauseMenu : MonoBehaviour
 
     void TrySettingsDirectMouseClicks()
     {
-        if (!IsOpen || IsSettingsModalBlockingInput()) return;
+        if (!IsOpen) return;
         if (!AdventureInputReader.MouseLeftDown) return;
 
         var mouse = Mouse.current;
         Vector2 mousePos = mouse != null ? mouse.position.ReadValue() : (Vector2)Input.mousePosition;
+
+        // モーダル表示中のダイレクトクリック（uGUI EventSystem が Time.timeScale=0 で停止・遅延しても確実に検知）
+        if (_returnTitleConfirmModal != null && _returnTitleConfirmModal.activeSelf)
+        {
+            if (IsHit(_returnTitleYesBtn, mousePos)) { OnConfirmReturnTitleYes(); return; }
+            if (IsHit(_returnTitleNoBtn, mousePos)) { OnConfirmReturnTitleNo(); return; }
+            return;
+        }
+
+        if (_confirmModalRoot != null && _confirmModalRoot.activeSelf)
+        {
+            if (IsHit(_restartYesBtn, mousePos)) { OnConfirmRestartYes(); return; }
+            if (IsHit(_restartNoBtn, mousePos)) { OnConfirmRestartNo(); return; }
+            return;
+        }
 
         // 1. タブ切り替え
         if (IsHit(_tabDisplayBtn, mousePos)) { SwitchTab(1); return; }
@@ -436,13 +457,17 @@ public class AdventurePauseMenu : MonoBehaviour
         if (IsHit(_tabCreditsBtn, mousePos)) { SwitchTab(3); return; }
         if (IsHit(_tabAudioBtn, mousePos)) { SwitchTab(0); return; }
 
-        // 2. フッターボタン
-        if (IsHit(_resumeBtn, mousePos)) { SetMenuVisible(false); return; }
-        if (!_openedFromTitle)
+        // 2. クイックマップボタン
+        if (!_openedFromTitle && IsHit(_quickMapBtn, mousePos))
         {
-            if (IsHit(_restartBtn, mousePos)) { OnRestartClicked(); return; }
-            if (IsHit(_returnTitleBtn, mousePos)) { OnReturnToTitleClicked(); return; }
+            AdventureIslandMapModal.Instance?.ToggleMap();
+            return;
         }
+
+        // 3. フッターボタン
+        if (IsHit(_resumeBtn, mousePos)) { SetMenuVisible(false); return; }
+        if (IsHit(_returnTitleBtn, mousePos)) { OnReturnToTitleClicked(); return; }
+        if (!_openedFromTitle && IsHit(_restartBtn, mousePos)) { OnRestartClicked(); return; }
 
         // 3. 各タブ内容
         if (_currentTab == 1)
@@ -652,11 +677,13 @@ public class AdventurePauseMenu : MonoBehaviour
             {
                 if (_restartBtnGo != null) _restartBtnGo.SetActive(false);
                 if (_returnTitleBtnGo != null) _returnTitleBtnGo.SetActive(true);
+                if (_quickMapBtnGo != null) _quickMapBtnGo.SetActive(false);
             }
             else
             {
                 if (_restartBtnGo != null) _restartBtnGo.SetActive(true);
                 if (_returnTitleBtnGo != null) _returnTitleBtnGo.SetActive(true);
+                if (_quickMapBtnGo != null) _quickMapBtnGo.SetActive(true);
             }
 
             ApplyLocalization();
@@ -930,7 +957,10 @@ public class AdventurePauseMenu : MonoBehaviour
         }
 
         if (_returnTitleConfirmModal != null)
+        {
             _returnTitleConfirmModal.SetActive(true);
+            _returnTitleConfirmModal.transform.SetAsLastSibling();
+        }
     }
 
     void OnConfirmReturnTitleYes()
@@ -1064,19 +1094,19 @@ public class AdventurePauseMenu : MonoBehaviour
         _headerSubTitleText = subTitleText;
 
         // 探検マップクイックボタン
-        var mapBtnGo = new GameObject("QuickMapButton");
-        mapBtnGo.transform.SetParent(_panelRoot.transform, false);
-        var mRt = mapBtnGo.AddComponent<RectTransform>();
+        _quickMapBtnGo = new GameObject("QuickMapButton");
+        _quickMapBtnGo.transform.SetParent(_panelRoot.transform, false);
+        var mRt = _quickMapBtnGo.AddComponent<RectTransform>();
         mRt.anchorMin = new Vector2(1.0f, 1.0f);
         mRt.anchorMax = new Vector2(1.0f, 1.0f);
         mRt.pivot = new Vector2(1.0f, 1.0f);
         mRt.anchoredPosition = new Vector2(-30f, -22f);
         mRt.sizeDelta = new Vector2(165f, 36f);
-        var mImg = mapBtnGo.AddComponent<Image>();
+        var mImg = _quickMapBtnGo.AddComponent<Image>();
         mImg.color = new Color(0.18f, 0.48f, 0.38f, 0.95f);
-        var mBtn = mapBtnGo.AddComponent<Button>();
-        mBtn.onClick.AddListener(() => AdventureIslandMapModal.Instance?.ToggleMap());
-        var mTxt = MakeLabel(mapBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "🗺 探検マップ [M]", 14, Color.white);
+        _quickMapBtn = _quickMapBtnGo.AddComponent<Button>();
+        _quickMapBtn.onClick.AddListener(() => AdventureIslandMapModal.Instance?.ToggleMap());
+        var mTxt = MakeLabel(_quickMapBtnGo.transform, "Text", Vector2.zero, Vector2.zero, "🗺 探検マップ [M]", 14, Color.white);
         mTxt.fontStyle = FontStyle.Bold;
         mTxt.alignment = TextAnchor.MiddleCenter;
 
@@ -1775,8 +1805,8 @@ public class AdventurePauseMenu : MonoBehaviour
         yRt.sizeDelta = new Vector2(0f, 44f);
         var yImg = yesGo.AddComponent<Image>();
         yImg.color = new Color(0.75f, 0.18f, 0.22f, 1f);
-        var yBtn = yesGo.AddComponent<Button>();
-        yBtn.onClick.AddListener(OnConfirmRestartYes);
+        _restartYesBtn = yesGo.AddComponent<Button>();
+        _restartYesBtn.onClick.AddListener(OnConfirmRestartYes);
         _restartModalYesBtnText = MakeLabel(yesGo.transform, "Text", Vector2.zero, Vector2.zero, AdventureLocalizationManager.Get("confirm_restart_yes"), 15, Color.white);
         _restartModalYesBtnText.fontStyle = FontStyle.Bold;
         _restartModalYesBtnText.alignment = TextAnchor.MiddleCenter;
@@ -1792,8 +1822,8 @@ public class AdventurePauseMenu : MonoBehaviour
         nRt.sizeDelta = new Vector2(0f, 44f);
         var nImg = noGo.AddComponent<Image>();
         nImg.color = new Color(0.2f, 0.3f, 0.45f, 1f);
-        var nBtn = noGo.AddComponent<Button>();
-        nBtn.onClick.AddListener(OnConfirmRestartNo);
+        _restartNoBtn = noGo.AddComponent<Button>();
+        _restartNoBtn.onClick.AddListener(OnConfirmRestartNo);
         _restartModalNoBtnText = MakeLabel(noGo.transform, "Text", Vector2.zero, Vector2.zero, AdventureLocalizationManager.Get("confirm_restart_no"), 15, Color.white);
         _restartModalNoBtnText.fontStyle = FontStyle.Bold;
         _restartModalNoBtnText.alignment = TextAnchor.MiddleCenter;
@@ -1849,8 +1879,8 @@ public class AdventurePauseMenu : MonoBehaviour
         yRt.sizeDelta = new Vector2(0f, 44f);
         var yImg = yesGo.AddComponent<Image>();
         yImg.color = new Color(0.15f, 0.55f, 0.75f, 1f);
-        var yBtn = yesGo.AddComponent<Button>();
-        yBtn.onClick.AddListener(OnConfirmReturnTitleYes);
+        _returnTitleYesBtn = yesGo.AddComponent<Button>();
+        _returnTitleYesBtn.onClick.AddListener(OnConfirmReturnTitleYes);
         _returnTitleModalYesBtnText = MakeLabel(yesGo.transform, "Text", Vector2.zero, Vector2.zero, AdventureLocalizationManager.Get("confirm_title_yes"), 15, Color.white);
         _returnTitleModalYesBtnText.fontStyle = FontStyle.Bold;
         _returnTitleModalYesBtnText.alignment = TextAnchor.MiddleCenter;
@@ -1866,8 +1896,8 @@ public class AdventurePauseMenu : MonoBehaviour
         nRt.sizeDelta = new Vector2(0f, 44f);
         var nImg = noGo.AddComponent<Image>();
         nImg.color = new Color(0.2f, 0.3f, 0.45f, 1f);
-        var nBtn = noGo.AddComponent<Button>();
-        nBtn.onClick.AddListener(OnConfirmReturnTitleNo);
+        _returnTitleNoBtn = noGo.AddComponent<Button>();
+        _returnTitleNoBtn.onClick.AddListener(OnConfirmReturnTitleNo);
         _returnTitleModalNoBtnText = MakeLabel(noGo.transform, "Text", Vector2.zero, Vector2.zero, AdventureLocalizationManager.Get("confirm_title_no"), 15, Color.white);
         _returnTitleModalNoBtnText.fontStyle = FontStyle.Bold;
         _returnTitleModalNoBtnText.alignment = TextAnchor.MiddleCenter;
