@@ -128,6 +128,9 @@ public class AdventureBeachSeagull : MonoBehaviour
                 oldBeak.localRotation = Quaternion.identity;
                 _beak = oldBeak;
             }
+
+            var faceShader = (beakMat != null ? beakMat.shader : null) ?? Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            BuildBeachBirdFace(_head, _beak, faceShader);
         }
 
         // 左翼と右翼にそれぞれ外向きの翼型メッシュを適用
@@ -673,4 +676,126 @@ public class AdventureBeachSeagull : MonoBehaviour
         }
     }
     #endregion
+
+    static Material _cachedEyeIrisMat;
+    static Material _cachedEyePupilMat;
+    static Material _cachedEyeHlMat;
+    static Material _cachedBeakRedMat;
+    static Material _cachedBeakBlackMat;
+    static Material _cachedMouthLineMat;
+    static Material _cachedNostrilMat;
+
+    static void EnsureFaceMaterials(Shader shader)
+    {
+        if (_cachedEyeIrisMat != null) return;
+        _cachedEyeIrisMat = new Material(shader) { name = "BeachSeagull_EyeIris" };
+        _cachedEyeIrisMat.SetColor("_BaseColor", new Color(1.0f, 0.90f, 0.35f));
+
+        _cachedEyePupilMat = new Material(shader) { name = "BeachSeagull_EyePupil" };
+        _cachedEyePupilMat.SetColor("_BaseColor", new Color(0.04f, 0.04f, 0.06f));
+
+        _cachedEyeHlMat = new Material(shader) { name = "BeachSeagull_EyeHighlight" };
+        _cachedEyeHlMat.SetColor("_BaseColor", Color.white);
+
+        _cachedBeakRedMat = new Material(shader) { name = "BeachSeagull_BeakRed" };
+        _cachedBeakRedMat.SetColor("_BaseColor", new Color(0.92f, 0.15f, 0.10f));
+
+        _cachedBeakBlackMat = new Material(shader) { name = "BeachSeagull_BeakBlack" };
+        _cachedBeakBlackMat.SetColor("_BaseColor", new Color(0.12f, 0.12f, 0.15f));
+
+        _cachedMouthLineMat = new Material(shader) { name = "BeachSeagull_MouthLine" };
+        _cachedMouthLineMat.SetColor("_BaseColor", new Color(0.35f, 0.18f, 0.06f));
+
+        _cachedNostrilMat = new Material(shader) { name = "BeachSeagull_Nostril" };
+        _cachedNostrilMat.SetColor("_BaseColor", new Color(0.15f, 0.12f, 0.08f));
+    }
+
+    static void BuildBeachBirdFace(Transform head, Transform beak, Shader shader)
+    {
+        if (head == null || beak == null) return;
+        if (head.Find("RightEye_Iris") != null) return;
+
+        EnsureFaceMaterials(shader);
+
+        // 1. 左右の目（虹彩・瞳孔・ハイライト）
+        BuildBeachEye(head, true, _cachedEyeIrisMat, _cachedEyePupilMat, _cachedEyeHlMat);
+        BuildBeachEye(head, false, _cachedEyeIrisMat, _cachedEyePupilMat, _cachedEyeHlMat);
+
+        // 2. 口（クチバシの開口・合わせ目ライン）
+        var mouthGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        mouthGo.name = "MouthLine";
+        mouthGo.transform.SetParent(beak, false);
+        mouthGo.transform.localPosition = new Vector3(0f, 0f, 0.48f);
+        mouthGo.transform.localScale = new Vector3(1.02f, 0.04f, 0.90f);
+        mouthGo.transform.localRotation = Quaternion.identity;
+        mouthGo.GetComponent<Renderer>().sharedMaterial = _cachedMouthLineMat;
+        Object.Destroy(mouthGo.GetComponent<Collider>());
+
+        // 3. ウミネコ特有のクチバシ先端赤黒斑紋
+        var blackBandGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        blackBandGo.name = "BeakBlackBand";
+        blackBandGo.transform.SetParent(beak, false);
+        blackBandGo.transform.localPosition = new Vector3(0f, 0f, 0.72f);
+        blackBandGo.transform.localScale = new Vector3(0.36f, 0.36f, 0.14f);
+        blackBandGo.transform.localRotation = Quaternion.identity;
+        blackBandGo.GetComponent<Renderer>().sharedMaterial = _cachedBeakBlackMat;
+        Object.Destroy(blackBandGo.GetComponent<Collider>());
+
+        var redSpotGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        redSpotGo.name = "BeakRedSpot";
+        redSpotGo.transform.SetParent(beak, false);
+        redSpotGo.transform.localPosition = new Vector3(0f, -0.06f, 0.84f);
+        redSpotGo.transform.localScale = new Vector3(0.24f, 0.20f, 0.16f);
+        redSpotGo.transform.localRotation = Quaternion.identity;
+        redSpotGo.GetComponent<Renderer>().sharedMaterial = _cachedBeakRedMat;
+        Object.Destroy(redSpotGo.GetComponent<Collider>());
+
+        // 4. 左右の鼻孔
+        BuildBeachNostril(beak, true, _cachedNostrilMat);
+        BuildBeachNostril(beak, false, _cachedNostrilMat);
+    }
+
+    static void BuildBeachEye(Transform head, bool isRight, Material irisMat, Material pupilMat, Material hlMat)
+    {
+        float side = isRight ? 1f : -1f;
+
+        var irisGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        irisGo.name = isRight ? "RightEye_Iris" : "LeftEye_Iris";
+        irisGo.transform.SetParent(head, false);
+        irisGo.transform.localPosition = new Vector3(side * 0.46f, 0.12f, 0.26f);
+        irisGo.transform.localScale = new Vector3(0.10f, 0.14f, 0.14f);
+        irisGo.transform.localRotation = Quaternion.Euler(0f, side * 35f, 0f);
+        irisGo.GetComponent<Renderer>().sharedMaterial = irisMat;
+        Object.Destroy(irisGo.GetComponent<Collider>());
+
+        var pupilGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        pupilGo.name = isRight ? "RightEye_Pupil" : "LeftEye_Pupil";
+        pupilGo.transform.SetParent(irisGo.transform, false);
+        pupilGo.transform.localPosition = new Vector3(side * 0.22f, 0f, 0.15f);
+        pupilGo.transform.localScale = new Vector3(0.85f, 0.75f, 0.75f);
+        pupilGo.GetComponent<Renderer>().sharedMaterial = pupilMat;
+        Object.Destroy(pupilGo.GetComponent<Collider>());
+
+        var hlGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        hlGo.name = isRight ? "RightEye_Highlight" : "LeftEye_Highlight";
+        hlGo.transform.SetParent(pupilGo.transform, false);
+        hlGo.transform.localPosition = new Vector3(side * 0.20f, 0.32f, 0.35f);
+        hlGo.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
+        hlGo.GetComponent<Renderer>().sharedMaterial = hlMat;
+        Object.Destroy(hlGo.GetComponent<Collider>());
+    }
+
+    static void BuildBeachNostril(Transform beak, bool isRight, Material nostrilMat)
+    {
+        float side = isRight ? 1f : -1f;
+        var nostrilGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        nostrilGo.name = isRight ? "RightNostril" : "LeftNostril";
+        nostrilGo.transform.SetParent(beak, false);
+        nostrilGo.transform.localPosition = new Vector3(side * 0.18f, 0.22f, 0.20f);
+        nostrilGo.transform.localScale = new Vector3(0.08f, 0.05f, 0.22f);
+        nostrilGo.transform.localRotation = Quaternion.Euler(-6f, side * 10f, 0f);
+        nostrilGo.GetComponent<Renderer>().sharedMaterial = nostrilMat;
+        Object.Destroy(nostrilGo.GetComponent<Collider>());
+    }
+
 }

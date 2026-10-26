@@ -93,8 +93,44 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
         var wingTipMat = new Material(shader);
         wingTipMat.SetColor("_BaseColor", new Color(0.20f, 0.22f, 0.28f));
 
-        var beakMat = new Material(shader);
+        var beakMat = new Material(shader) { name = "Seagull_Beak" };
         beakMat.SetColor("_BaseColor", new Color(0.98f, 0.72f, 0.12f));
+
+        // 目・口・鼻用の高精細パーツマテリアル
+        var eyeIrisMat = new Material(shader) { name = "Seagull_EyeIris" };
+        eyeIrisMat.SetColor("_BaseColor", new Color(1.0f, 0.90f, 0.35f)); // ウミネコの黄色い虹彩
+
+        var eyePupilMat = new Material(shader) { name = "Seagull_EyePupil" };
+        eyePupilMat.SetColor("_BaseColor", new Color(0.04f, 0.04f, 0.06f)); // つぶらな黒い瞳孔
+
+        var eyeHlMat = new Material(shader) { name = "Seagull_EyeHighlight" };
+        eyeHlMat.SetColor("_BaseColor", Color.white); // 澄んだ光の反射
+
+        var beakRedMat = new Material(shader) { name = "Seagull_BeakRed" };
+        beakRedMat.SetColor("_BaseColor", new Color(0.92f, 0.15f, 0.10f)); // クチバシ先端の赤斑
+
+        var beakBlackMat = new Material(shader) { name = "Seagull_BeakBlack" };
+        beakBlackMat.SetColor("_BaseColor", new Color(0.12f, 0.12f, 0.15f)); // クチバシ先端の黒帯
+
+        var mouthLineMat = new Material(shader) { name = "Seagull_MouthLine" };
+        mouthLineMat.SetColor("_BaseColor", new Color(0.35f, 0.18f, 0.06f)); // 口の合わせ目ライン
+
+        var nostrilMat = new Material(shader) { name = "Seagull_Nostril" };
+        nostrilMat.SetColor("_BaseColor", new Color(0.15f, 0.12f, 0.08f)); // 鼻孔
+
+        var birdMats = new BirdMaterials
+        {
+            featherMat = featherMat,
+            wingTipMat = wingTipMat,
+            beakMat = beakMat,
+            eyeIrisMat = eyeIrisMat,
+            eyePupilMat = eyePupilMat,
+            eyeHlMat = eyeHlMat,
+            beakRedMat = beakRedMat,
+            beakBlackMat = beakBlackMat,
+            mouthLineMat = mouthLineMat,
+            nostrilMat = nostrilMat
+        };
 
         // ウミネコ全羽をまとめるコンテナ（一括で表示/非表示を切り替え可能）
         _birdsContainer = new GameObject("SoaringSeagullsContainer");
@@ -120,7 +156,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
 
             var bird = birdGo.AddComponent<SoaringBird>();
             // i < 3 は「わああ 見て Niko」以降にNikoの側まで舞い降りる近接エスコート鳥
-            bird.Initialize(i, center, altOffset, radiusX, radiusZ, speed, startAngle, featherMat, wingTipMat, beakMat, seagullCrySolo);
+            bird.Initialize(i, center, altOffset, radiusX, radiusZ, speed, startAngle, birdMats, seagullCrySolo);
             _birds.Add(bird);
         }
     }
@@ -337,7 +373,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
         float _closeBlend = 0f; // 0=通常オービット, 1=「見て、Niko」至近距離エスコート飛行
 
         public void Initialize(int role, Vector3 center, float altOffset, float rx, float rz, float spd, float initAngle,
-                               Material featherMat, Material wingTipMat, Material beakMat, AudioClip cryClip)
+                               BirdMaterials mats, AudioClip cryClip)
         {
             _roleIndex = role;
             _orbitCenter = center;
@@ -355,7 +391,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             float baseScale = (_roleIndex < 3) ? 1.35f : 1.7f;
             transform.localScale = Vector3.one * baseScale;
 
-            BuildBirdVisuals(featherMat, wingTipMat, beakMat);
+            BuildBirdVisuals(mats);
 
             _cryAudio = gameObject.AddComponent<AudioSource>();
             _cryAudio.spatialBlend = (_roleIndex < 3) ? 0.65f : 0.85f;
@@ -367,7 +403,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             UpdatePositionAndRotation(0f);
         }
 
-        void BuildBirdVisuals(Material bodyMat, Material wingMat, Material beakMat)
+        void BuildBirdVisuals(BirdMaterials mats)
         {
             // 1. 胴体（滑らかな有機的流線型・紡錘形プロシージャルメッシュ）
             var bodyGo = new GameObject("Body");
@@ -377,7 +413,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             var bodyMf = bodyGo.AddComponent<MeshFilter>();
             bodyMf.sharedMesh = CreateBirdBodyMesh();
             var bodyMr = bodyGo.AddComponent<MeshRenderer>();
-            bodyMr.sharedMaterial = bodyMat;
+            bodyMr.sharedMaterial = mats.featherMat;
             _body = bodyGo.transform;
 
             // 2. 頭部（Head）
@@ -386,7 +422,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             headGo.transform.SetParent(transform, false);
             headGo.transform.localScale = new Vector3(0.25f, 0.25f, 0.28f);
             headGo.transform.localPosition = new Vector3(0f, 0.16f, 0.38f);
-            headGo.GetComponent<Renderer>().sharedMaterial = bodyMat;
+            headGo.GetComponent<Renderer>().sharedMaterial = mats.featherMat;
             Object.Destroy(headGo.GetComponent<Collider>());
             _head = headGo.transform;
 
@@ -398,7 +434,10 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             var beakMf = beakGo.AddComponent<MeshFilter>();
             beakMf.sharedMesh = CreateConeMesh(10);
             var beakMr = beakGo.AddComponent<MeshRenderer>();
-            beakMr.sharedMaterial = beakMat;
+            beakMr.sharedMaterial = mats.beakMat;
+
+            // 3-1. 目・口・鼻の精緻なフェイシャルパーツ構築
+            BuildBirdFace(_head, beakGo.transform, mats);
 
             // 4. 左右の翼（カモメの雄大な翼幅：翼長1.45m）
             var rWingGo = new GameObject("RightWing");
@@ -408,7 +447,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             var rMf = rWingGo.AddComponent<MeshFilter>();
             rMf.sharedMesh = CreateBirdWingMesh(true);
             var rMr = rWingGo.AddComponent<MeshRenderer>();
-            rMr.sharedMaterial = wingMat;
+            rMr.sharedMaterial = mats.wingTipMat;
             _rightWing = rWingGo.transform;
 
             var lWingGo = new GameObject("LeftWing");
@@ -418,7 +457,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             var lMf = lWingGo.AddComponent<MeshFilter>();
             lMf.sharedMesh = CreateBirdWingMesh(false);
             var lMr = lWingGo.AddComponent<MeshRenderer>();
-            lMr.sharedMaterial = wingMat;
+            lMr.sharedMaterial = mats.wingTipMat;
             _leftWing = lWingGo.transform;
 
             // 5. 尾羽（扇状ファン）
@@ -429,7 +468,7 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
             var tMf = tailGo.AddComponent<MeshFilter>();
             tMf.sharedMesh = CreateTailFanMesh();
             var tMr = tailGo.AddComponent<MeshRenderer>();
-            tMr.sharedMaterial = bodyMat;
+            tMr.sharedMaterial = mats.featherMat;
             _tail = tailGo.transform;
         }
 
@@ -879,4 +918,107 @@ public class AdventureSoaringSeagullsManager : MonoBehaviour
         return clip;
     }
     #endregion
+    /// <summary>ウミネコ用レンダリングマテリアル一式</summary>
+    public struct BirdMaterials
+    {
+        public Material featherMat;
+        public Material wingTipMat;
+        public Material beakMat;
+        public Material eyeIrisMat;
+        public Material eyePupilMat;
+        public Material eyeHlMat;
+        public Material beakRedMat;
+        public Material beakBlackMat;
+        public Material mouthLineMat;
+        public Material nostrilMat;
+    }
+
+    static void BuildBirdFace(Transform head, Transform beak, BirdMaterials mats)
+    {
+        // 1. 左右の目（黄色い虹彩 + つぶらな黒瞳 + 澄んだハイライト）
+        BuildEye(head, true, mats.eyeIrisMat, mats.eyePupilMat, mats.eyeHlMat);
+        BuildEye(head, false, mats.eyeIrisMat, mats.eyePupilMat, mats.eyeHlMat);
+
+        // 2. 口（クチバシの開口・合わせ目ライン）
+        var mouthGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        mouthGo.name = "MouthLine";
+        mouthGo.transform.SetParent(beak, false);
+        mouthGo.transform.localPosition = new Vector3(0f, 0f, 0.48f);
+        mouthGo.transform.localScale = new Vector3(1.02f, 0.04f, 0.90f);
+        mouthGo.transform.localRotation = Quaternion.identity;
+        mouthGo.GetComponent<Renderer>().sharedMaterial = mats.mouthLineMat;
+        Object.Destroy(mouthGo.GetComponent<Collider>());
+
+        // 3. ウミネコ特有のクチバシ先端の赤黒斑紋（象徴的アイデンティティ）
+        // 黒帯（先端手前の黒いバンド）
+        var blackBandGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        blackBandGo.name = "BeakBlackBand";
+        blackBandGo.transform.SetParent(beak, false);
+        blackBandGo.transform.localPosition = new Vector3(0f, 0f, 0.72f);
+        blackBandGo.transform.localScale = new Vector3(0.36f, 0.36f, 0.14f);
+        blackBandGo.transform.localRotation = Quaternion.identity;
+        blackBandGo.GetComponent<Renderer>().sharedMaterial = mats.beakBlackMat;
+        Object.Destroy(blackBandGo.GetComponent<Collider>());
+
+        // 赤斑（下嘴先端の鮮やかな赤色スポット）
+        var redSpotGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        redSpotGo.name = "BeakRedSpot";
+        redSpotGo.transform.SetParent(beak, false);
+        redSpotGo.transform.localPosition = new Vector3(0f, -0.06f, 0.84f);
+        redSpotGo.transform.localScale = new Vector3(0.24f, 0.20f, 0.16f);
+        redSpotGo.transform.localRotation = Quaternion.identity;
+        redSpotGo.GetComponent<Renderer>().sharedMaterial = mats.beakRedMat;
+        Object.Destroy(redSpotGo.GetComponent<Collider>());
+
+        // 4. 左右の鼻（クチバシ根元上面の鼻孔スリット）
+        BuildNostril(beak, true, mats.nostrilMat);
+        BuildNostril(beak, false, mats.nostrilMat);
+    }
+
+    static void BuildEye(Transform head, bool isRight, Material irisMat, Material pupilMat, Material hlMat)
+    {
+        float side = isRight ? 1f : -1f;
+
+        // 虹彩（黄色いアイリング）
+        var irisGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        irisGo.name = isRight ? "RightEye_Iris" : "LeftEye_Iris";
+        irisGo.transform.SetParent(head, false);
+        irisGo.transform.localPosition = new Vector3(side * 0.46f, 0.12f, 0.26f);
+        irisGo.transform.localScale = new Vector3(0.10f, 0.14f, 0.14f);
+        irisGo.transform.localRotation = Quaternion.Euler(0f, side * 35f, 0f);
+        irisGo.GetComponent<Renderer>().sharedMaterial = irisMat;
+        Object.Destroy(irisGo.GetComponent<Collider>());
+
+        // 瞳孔（黒目）
+        var pupilGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        pupilGo.name = isRight ? "RightEye_Pupil" : "LeftEye_Pupil";
+        pupilGo.transform.SetParent(irisGo.transform, false);
+        pupilGo.transform.localPosition = new Vector3(side * 0.22f, 0f, 0.15f);
+        pupilGo.transform.localScale = new Vector3(0.85f, 0.75f, 0.75f);
+        pupilGo.GetComponent<Renderer>().sharedMaterial = pupilMat;
+        Object.Destroy(pupilGo.GetComponent<Collider>());
+
+        // ハイライト（澄んだ光の反射）
+        var hlGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        hlGo.name = isRight ? "RightEye_Highlight" : "LeftEye_Highlight";
+        hlGo.transform.SetParent(pupilGo.transform, false);
+        hlGo.transform.localPosition = new Vector3(side * 0.20f, 0.32f, 0.35f);
+        hlGo.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
+        hlGo.GetComponent<Renderer>().sharedMaterial = hlMat;
+        Object.Destroy(hlGo.GetComponent<Collider>());
+    }
+
+    static void BuildNostril(Transform beak, bool isRight, Material nostrilMat)
+    {
+        float side = isRight ? 1f : -1f;
+        var nostrilGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        nostrilGo.name = isRight ? "RightNostril" : "LeftNostril";
+        nostrilGo.transform.SetParent(beak, false);
+        nostrilGo.transform.localPosition = new Vector3(side * 0.18f, 0.22f, 0.20f);
+        nostrilGo.transform.localScale = new Vector3(0.08f, 0.05f, 0.22f);
+        nostrilGo.transform.localRotation = Quaternion.Euler(-6f, side * 10f, 0f);
+        nostrilGo.GetComponent<Renderer>().sharedMaterial = nostrilMat;
+        Object.Destroy(nostrilGo.GetComponent<Collider>());
+    }
+
 }

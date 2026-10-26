@@ -33,6 +33,8 @@ public class AdventurePrologueDrama : MonoBehaviour
     float _dashBoardOpenTime;
     bool _secondGearDone;
     bool _skipAwakening;
+    bool _skipToWakeup;
+    bool _inGroggySequence;
     bool _advanceSubtitle; // クリックやキー入力によるセリフ送り
 
     float _awakeningStartTime = 0f;
@@ -98,11 +100,9 @@ public class AdventurePrologueDrama : MonoBehaviour
         {
             if (Time.unscaledTime - _awakeningStartTime >= WAKEUP_INPUT_GUARD_SEC)
             {
-                if (CheckAdvanceInput())
-                {
-                    _advanceSubtitle = true;
-                }
-                if (CheckWakeupInput())
+                // 目覚め前の暗闇・朦朧シーン中にクリックまたはキー入力された場合、
+                // コルーチンの各フェーズを早送りせず、即座に目覚め完了（またはスキップ）へ直行させる
+                if (CheckAdvanceInput() || CheckWakeupInput())
                 {
                     SkipAwakening();
                 }
@@ -164,6 +164,8 @@ public class AdventurePrologueDrama : MonoBehaviour
         _showDashBoard = false;
         _secondGearDone = false;
         _skipAwakening = false;
+        _skipToWakeup = false;
+        _inGroggySequence = false;
         _awakeningStartTime = Time.unscaledTime;
         StartCoroutine(PrologueRoutine());
     }
@@ -177,6 +179,8 @@ public class AdventurePrologueDrama : MonoBehaviour
         _dashBoardAdvance = false;
         _secondGearDone = false;
         _skipAwakening = false;
+        _skipToWakeup = false;
+        _inGroggySequence = false;
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         drone?.EndPrologueDistress();
 
@@ -659,9 +663,11 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
+        _inGroggySequence = true;
+
         // --- シーン1: 暗闇の中で波の音と遠い意識 ---
         float fadeT = 0f;
-        while (fadeT < 1.2f && !_skipAwakening && !_advanceSubtitle)
+        while (fadeT < 1.2f && !_skipAwakening && !_skipToWakeup)
         {
             fadeT += Time.unscaledDeltaTime;
             if (waveSource != null)
@@ -669,30 +675,38 @@ public class AdventurePrologueDrama : MonoBehaviour
             yield return null;
         }
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
         _advanceSubtitle = false;
 
         yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
         yield return ShowSubtitle(subtitleText, subtitleCg, "……ザザァ……ザザァ……", 1.6f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
         yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
         yield return ShowSubtitle(subtitleText, subtitleCg, "……遠くで、波の音が聴こえる。", 1.8f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
         yield return WaitOrSkip(0.4f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
 
         // Rustの遠い呼びかけ
         if (drone != null)
             drone.SpeakCustom("……Float？　……Float……？", 2.5f);
         yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「……Float？　……Float……？」", 1.8f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
         yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
 
         // --- シーン2: 薄目を開けるが力尽きてまた閉じる ---
         float eyeT = 0f;
-        while (eyeT < 0.8f && !_skipAwakening && !_advanceSubtitle)
+        while (eyeT < 0.8f && !_skipAwakening && !_skipToWakeup)
         {
             eyeT += Time.unscaledDeltaTime;
             float factor = Mathf.SmoothStep(0f, 0.35f, eyeT / 0.8f);
@@ -700,14 +714,16 @@ public class AdventurePrologueDrama : MonoBehaviour
             yield return null;
         }
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
         _advanceSubtitle = false;
 
         yield return WaitOrSkip(0.5f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
 
         // 再び意識が途切れ、まぶたが閉じる
         eyeT = 0f;
-        while (eyeT < 0.6f && !_skipAwakening && !_advanceSubtitle)
+        while (eyeT < 0.6f && !_skipAwakening && !_skipToWakeup)
         {
             eyeT += Time.unscaledDeltaTime;
             float factor = Mathf.SmoothStep(0.35f, 0f, eyeT / 0.6f);
@@ -715,10 +731,12 @@ public class AdventurePrologueDrama : MonoBehaviour
             yield return null;
         }
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
         _advanceSubtitle = false;
 
         yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
 
         // Rustがさらに顔に近づき必死に呼びかける
         if (drone != null)
@@ -729,8 +747,22 @@ public class AdventurePrologueDrama : MonoBehaviour
         }
         yield return ShowSubtitle(subtitleText, subtitleCg, "Rust 「Float……！　目を覚まして、Float……！！」", 2.0f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+        if (_skipToWakeup) goto DirectWakeup;
         yield return WaitOrSkip(0.3f);
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
+
+    DirectWakeup:
+        _inGroggySequence = false;
+        _skipToWakeup = false;
+        _advanceSubtitle = false;
+
+        // 字幕表示を即時クリア
+        if (subtitleCg != null)
+            subtitleCg.alpha = 0f;
+        if (drone != null)
+            drone.ClearSpeech();
+        if (waveSource != null)
+            waveSource.volume = 0.72f;
 
         // --- シーン3: 完全開眼と起き上がりカメラワーク ---
         Vector3 targetCamPos = playerPos + Vector3.up * 1.55f - playerForward * 3.6f;
@@ -923,7 +955,7 @@ public class AdventurePrologueDrama : MonoBehaviour
             cg.alpha = Mathf.Lerp(1f, 0f, t / 0.20f);
             yield return null;
         }
-        cg.alpha = 0f;
+        if (cg != null) cg.alpha = 0f;
     }
 
     IEnumerator FadeInBgmAndFadeOutWave(AudioSource waveSource)

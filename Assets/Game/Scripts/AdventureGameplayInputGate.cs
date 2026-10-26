@@ -21,6 +21,13 @@ public static class AdventureGameplayInputGate
     /// <summary>毎フレーム先頭で呼ぶ。古いブロック状態を自動復旧する。</summary>
     public static void TickRecovery()
     {
+        if (!AdventureRustFloatOpening.IsGameStarted)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            return;
+        }
+
         AdventurePrologueDrama.Instance?.TryApplyOilFromInputGate();
 
         if (AdventureRustFloatOpening.IsGameStarted && AdventureRustFloatOpening.IsInputGuarded)
@@ -73,13 +80,18 @@ public static class AdventureGameplayInputGate
     public static bool TryEarlyExitForTitleOrPrologue()
     {
         var opening = AdventureRustFloatOpening.Instance;
-        if (opening != null && opening.IsModalBoardOpen())
+        if (opening != null && (opening.IsModalBoardOpen() || !AdventureRustFloatOpening.IsGameStarted))
             return true;
 
         if (opening != null && AdventureRustFloatOpening.IsInputGuarded)
         {
             if (AdventureStoryFlow.ShouldSkipOpening)
-                opening.ForceDismissForGameplay();
+            {
+                if (AdventureRustFloatOpening.IsGameStarted)
+                    opening.ForceDismissForGameplay();
+                else
+                    return true;
+            }
             else if (AdventureInputReader.HasAnyMove)
                 AdventureRustFloatOpening.DismissInputGuard();
             else

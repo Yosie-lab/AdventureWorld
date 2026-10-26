@@ -218,8 +218,10 @@ public class AdventureCameraFollow : MonoBehaviour
         }
         else
         {
-            SetIslandOverviewMode(false);
-            SetCinematicMode(false);
+            // 残留ブレンドを即時ゼロ化（カメラ無効中は減衰せず、再有効化後に回転暴走するため）
+            SetIslandOverviewMode(false, instant: true);
+            SetCinematicMode(false, instant: true);
+            _skyWideSideBias = 0f;
             if (_savedFollowTarget != null)
                 target = _savedFollowTarget;
             _savedFollowTarget = null;

@@ -1595,10 +1595,10 @@ public static class AdventureLocalizationManager
             "¡Uau! ¡Una corriente térmica cálida! ¡Volemos al cielo, Float!"
         } },
         { "awakening_skip_hint", new[] {
-            "【クリック / Space】で進む　【Escape】でスキップ",
-            "[Click / Space] Advance  [Escape] Skip",
-            "【点击 / Space】继续　【Escape】跳过",
-            "[Clic / Espacio] Avanzar  [Escape] Saltar"
+            "【クリック / Space】で今すぐ目覚める",
+            "[Click / Space] Wake Up Now",
+            "【点击 / Space】立即醒来",
+            "[Clic / Espacio] Despertar ahora"
         } },
         { "……ザザァ……ザザァ……", new[] {
             "……ザザァ……ザザァ……",

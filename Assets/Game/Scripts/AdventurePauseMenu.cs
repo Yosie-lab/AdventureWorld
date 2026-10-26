@@ -651,7 +651,7 @@ public class AdventurePauseMenu : MonoBehaviour
             if (_openedFromTitle)
             {
                 if (_restartBtnGo != null) _restartBtnGo.SetActive(false);
-                if (_returnTitleBtnGo != null) _returnTitleBtnGo.SetActive(false);
+                if (_returnTitleBtnGo != null) _returnTitleBtnGo.SetActive(true);
             }
             else
             {
@@ -923,6 +923,12 @@ public class AdventurePauseMenu : MonoBehaviour
 
     void OnReturnToTitleClicked()
     {
+        if (_openedFromTitle)
+        {
+            SetMenuVisible(false);
+            return;
+        }
+
         if (_returnTitleConfirmModal != null)
             _returnTitleConfirmModal.SetActive(true);
     }
@@ -931,6 +937,12 @@ public class AdventurePauseMenu : MonoBehaviour
     {
         if (_returnTitleConfirmModal != null)
             _returnTitleConfirmModal.SetActive(false);
+
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null)
+        {
+            tower.AbortEndingForEmergencyReset();
+        }
 
         if (AdventureSaveManager.Instance != null)
         {
@@ -1498,7 +1510,7 @@ public class AdventurePauseMenu : MonoBehaviour
         if (_tabCreditsBtnLabel != null) _tabCreditsBtnLabel.text = AdventureLocalizationManager.Get("tab_credits");
 
         if (_resumeBtnText != null)
-            _resumeBtnText.text = _openedFromTitle ? AdventureLocalizationManager.Get("pause_close") : AdventureLocalizationManager.Get("pause_resume");
+            _resumeBtnText.text = _openedFromTitle ? "✦ " + AdventureLocalizationManager.Get("pause_title_return") + " [ESC]" : AdventureLocalizationManager.Get("pause_resume");
         if (_restartBtnText != null)
             _restartBtnText.text = AdventureLocalizationManager.Get("pause_restart");
         if (_returnTitleBtnText != null)

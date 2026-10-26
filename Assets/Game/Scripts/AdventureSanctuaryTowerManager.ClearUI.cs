@@ -53,7 +53,7 @@ public partial class AdventureSanctuaryTowerManager
             if (PointerHitsClearModalButton(_clearCloseBtn, pointer))
             {
                 Debug.Log("[RustAndFloat] マウス【E 閉じる】→ CloseGameClearModalForFreeExplore");
-                CloseGameClearModalForFreeExplore();
+                CloseGameClearModalAndReturnToTitle();
                 return;
             }
         }
@@ -80,7 +80,7 @@ public partial class AdventureSanctuaryTowerManager
         if (closePressed)
         {
             Debug.Log("[RustAndFloat] キーボード【E/Esc】検知 → CloseGameClearModalForFreeExplore 実行");
-            CloseGameClearModalForFreeExplore();
+            CloseGameClearModalAndReturnToTitle();
             return;
         }
     }
@@ -89,11 +89,12 @@ public partial class AdventureSanctuaryTowerManager
     {
         try
         {
-            if (Input.GetKeyDown(KeyCode.E)) return true;
+            if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Escape)) return true;
         }
         catch { }
         var kb = AdventureInputReader.Keyboard;
-        return kb != null && kb.eKey.wasPressedThisFrame;
+        if (kb != null && (kb.eKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)) return true;
+        return AdventureInputReader.InteractDown || AdventureInputReader.EscapeDown || AdventureInputReader.DialogAdvanceDown;
     }
 
     static bool WasClearModalPointerPressedThisFrame(out Vector2 pointer)
@@ -120,7 +121,28 @@ public partial class AdventureSanctuaryTowerManager
     static bool PointerHitsClearModalButton(RectTransform rt, Vector2 screenPos)
     {
         if (rt == null || !rt.gameObject.activeInHierarchy) return false;
-        return RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);
+
+        var es = UnityEngine.EventSystems.EventSystem.current;
+        if (es != null)
+        {
+            var ped = new UnityEngine.EventSystems.PointerEventData(es) { position = screenPos };
+            var results = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+            es.RaycastAll(ped, results);
+            for (int i = 0; i < results.Count; i++)
+            {
+                if (results[i].gameObject == rt.gameObject || results[i].gameObject.transform.IsChildOf(rt))
+                    return true;
+            }
+        }
+
+        if (RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null))
+            return true;
+        if (RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos * 2f, null))
+            return true;
+        if (RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos * 0.5f, null))
+            return true;
+
+        return false;
     }
 
     void SetGameClearModalVisible(bool visible)
@@ -249,7 +271,7 @@ public partial class AdventureSanctuaryTowerManager
         _clearNewBtn = MakeClearModalButton(panelGo.transform, "NewBtn", new Vector2(0f, 36f), new Color(0.35f, 0.82f, 0.55f, 0.95f),
             AdventureLocalizationManager.Get("clear_btn_new"), font, StartNewGameFromClearModal, out _clearNewBtnText);
         _clearCloseBtn = MakeClearModalButton(panelGo.transform, "CloseBtn", new Vector2(300f, 36f), new Color(0.25f, 0.35f, 0.45f, 0.95f),
-            AdventureLocalizationManager.Get("clear_btn_close"), font, CloseGameClearModalForFreeExplore, out _clearCloseBtnText);
+            AdventureLocalizationManager.Get("clear_btn_close"), font, CloseGameClearModalAndReturnToTitle, out _clearCloseBtnText);
 
         RefreshClearModalLocalization();
         _clearUiRoot = canvasGo;
@@ -371,6 +393,47 @@ public partial class AdventureSanctuaryTowerManager
         AdventurePrologueDrama.Ensure();
         AdventurePrologueDrama.Instance?.BeginAfterOpening();
         AdventureStoryFlow.InvalidateCache();
+    }
+
+    void CloseGameClearModalAndReturnToTitle()
+    {
+        if (!ConsumeClearModalAction()) return;
+        Debug.Log("[RustAndFloat] ★ CloseGameClearModalAndReturnToTitle 実行（クリア保存してタイトルへ戻る）");
+        _showGameClearModal = false;
+        HideGameClearModalUI();
+        AdventureBiomeAmbienceManager.ReleaseWindLoopSuppressionForGameClear();
+        _endingSequenceActive = false;
+
+        IsGameCleared = true;
+        if (AdventureSaveManager.Instance != null)
+        {
+            AdventureSaveManager.Instance.SaveGame("ゲームクリア完了");
+        }
+
+        SetCinematicCamera(false);
+        var player = GetPlayer();
+        if (player != null)
+        {
+            player.SetAutoGlideMode(false);
+            player.ForceGroundReset();
+        }
+        var drone = GetDrone();
+        if (drone != null)
+        {
+            drone.StopSkybreakNestle();
+            drone.ResetClimaxState();
+        }
+
+        _epilogueTriggered = false;
+        _filmIndex = -1;
+        _filmPhase = 0;
+        AdventureStoryFlow.InvalidateCache();
+
+        var opening = AdventureRustFloatOpening.Instance;
+        if (opening != null)
+        {
+            opening.ShowTitleScreen();
+        }
     }
 
     void CloseGameClearModalForFreeExplore()

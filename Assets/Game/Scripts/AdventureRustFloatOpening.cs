@@ -114,6 +114,19 @@ public partial class AdventureRustFloatOpening : MonoBehaviour
         return !IsGameStarted && _modalBoard != null && _modalBoard.activeSelf;
     }
 
+    void ApplyTitleLiveBackdrop(bool enabled)
+    {
+        if (enabled)
+        {
+            AdventureTitleSplashScene.SetActive(true);
+            SetPreStartImageVisible(false);
+        }
+        else
+        {
+            AdventureTitleSplashScene.SetActive(false);
+        }
+    }
+
     /// <summary>レバー操作などゲームプレイ優先時にオープニングボードを強制閉じ</summary>
     public void ForceDismissForGameplay()
     {
@@ -123,8 +136,7 @@ public partial class AdventureRustFloatOpening : MonoBehaviour
         if (_overlayGo != null) _overlayGo.SetActive(false);
         if (_modalBoard != null) _modalBoard.SetActive(false);
         if (_modalCg != null) _modalCg.alpha = 0f;
-        AdventureTitleSplashScene.SetActive(false);
-        SetPreStartImageVisible(false);
+        ApplyTitleLiveBackdrop(false);
         if (_guideText != null) _guideText.gameObject.SetActive(true);
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -149,13 +161,19 @@ public partial class AdventureRustFloatOpening : MonoBehaviour
         StopAllCoroutines();
         _isClosing = false;
         _openTime = Time.realtimeSinceStartup;
+        _inputGuardUntil = 0f;
+
+        var tower = AdventureSanctuaryTowerManager.Instance;
+        if (tower != null)
+        {
+            tower.AbortEndingForEmergencyReset();
+        }
 
         if (_canvasGo == null)
             BuildHud();
 
         if (_overlayGo != null) _overlayGo.SetActive(true);
-        AdventureTitleSplashScene.SetActive(false);
-        SetPreStartImageVisible(true);
+        ApplyTitleLiveBackdrop(true);
         EnsureTitleStoryTextVisible();
         if (_modalBoard != null)
         {
@@ -321,8 +339,7 @@ public partial class AdventureRustFloatOpening : MonoBehaviour
             return;
         }
 
-        AdventureTitleSplashScene.SetActive(false);
-        SetPreStartImageVisible(true);
+        ApplyTitleLiveBackdrop(true);
 
         // タイトル画面のセーブ状況を更新して表示
         RefreshSaveDataStatus();
@@ -395,7 +412,6 @@ public partial class AdventureRustFloatOpening : MonoBehaviour
             bool titleMenuVisible = _modalBoard != null && _modalBoard.activeSelf;
             if (!titleMenuVisible)
             {
-                ForceDismissForGameplay();
                 return;
             }
         }
@@ -633,8 +649,7 @@ public partial class AdventureRustFloatOpening : MonoBehaviour
             _modalBoard.SetActive(false);
         if (_modalCg != null)
             _modalCg.alpha = 0f;
-        AdventureTitleSplashScene.SetActive(false);
-        SetPreStartImageVisible(false);
+        ApplyTitleLiveBackdrop(false);
         if (_preStartImage != null)
             _preStartImage.color = Color.white;
         IsGameStarted = true;
