@@ -33,8 +33,8 @@ public class AdventurePrologueDrama : MonoBehaviour
     float _dashBoardOpenTime;
     bool _secondGearDone;
     bool _skipAwakening;
+    float _oilInputGuardUntil;
     bool _skipToWakeup;
-    bool _inGroggySequence;
     bool _advanceSubtitle; // クリックやキー入力によるセリフ送り
 
     float _awakeningStartTime = 0f;
@@ -55,7 +55,7 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (_phase == Phase.Awakening)
         {
             _skipAwakening = true;
-            _advanceSubtitle = true;
+            _advanceSubtitle = false;
         }
     }
 
@@ -106,6 +106,13 @@ public class AdventurePrologueDrama : MonoBehaviour
                 {
                     SkipAwakening();
                 }
+            }
+        }
+        else if (_phase != Phase.Idle && _phase != Phase.Complete)
+        {
+            if (CheckAdvanceInput())
+            {
+                _advanceSubtitle = true;
             }
         }
 
@@ -165,7 +172,6 @@ public class AdventurePrologueDrama : MonoBehaviour
         _secondGearDone = false;
         _skipAwakening = false;
         _skipToWakeup = false;
-        _inGroggySequence = false;
         _awakeningStartTime = Time.unscaledTime;
         StartCoroutine(PrologueRoutine());
     }
@@ -180,7 +186,6 @@ public class AdventurePrologueDrama : MonoBehaviour
         _secondGearDone = false;
         _skipAwakening = false;
         _skipToWakeup = false;
-        _inGroggySequence = false;
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         drone?.EndPrologueDistress();
 
@@ -219,7 +224,10 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (drone == null) yield break;
         string loc = AdventureLocalizationManager.Get(text);
         drone.SpeakCustom(loc, hold);
-        yield return WaitDistressHoldOrOil(drone, hold);
+        if (_phase == Phase.WaitOil && !_oilReceived)
+            yield return WaitDistressHoldOrOil(drone, hold);
+        else
+            yield return WaitDialogueHold(drone, hold);
     }
 
     IEnumerator SpeakNiko(AdventureRustDrone drone, string text, float hold)
@@ -227,10 +235,13 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (drone == null) yield break;
         string loc = AdventureLocalizationManager.Get(text);
         drone.SpeakAsNiko(loc, hold);
-        yield return WaitDistressHoldOrOil(drone, hold);
+        if (_phase == Phase.WaitOil && !_oilReceived)
+            yield return WaitDistressHoldOrOil(drone, hold);
+        else
+            yield return WaitDialogueHold(drone, hold);
     }
 
-    /// <summary>台詞表示時間中も毎フレーム注油入力を拾う（WaitForSeconds 単独だと取りこぼす）</summary>
+    /// <summary>注油待ち中の台詞表示（注油されたら即中断して蘇生へ進む）</summary>
     IEnumerator WaitDistressHoldOrOil(AdventureRustDrone drone, float hold)
     {
         float elapsed = 0f;
@@ -243,12 +254,34 @@ public class AdventurePrologueDrama : MonoBehaviour
         }
     }
 
+    /// <summary>通常台詞表示（注油完了後・ギア獲得後の会話用。最低表示時間を保証し早送りを防ぐ）</summary>
+    IEnumerator WaitDialogueHold(AdventureRustDrone drone, float hold)
+    {
+        float elapsed = 0f;
+        _advanceSubtitle = false;
+        while (elapsed < hold)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            // 最低 0.35 秒表示してからクリック送りを受け付ける（連打による一括スキップを防止）
+            if (elapsed >= 0.35f && _advanceSubtitle)
+            {
+                _advanceSubtitle = false;
+                break;
+            }
+            yield return null;
+        }
+        _advanceSubtitle = false;
+    }
+
     IEnumerator PrologueRoutine()
     {
         // 遭難直後の波音とRustが心配そうに覗き込んで起こしに来る目覚めシークエンス
         yield return StartCoroutine(AwakeningSequence());
 
         _phase = Phase.Act1Distress;
+        _skipAwakening = false;
+        _advanceSubtitle = false;
+        _oilInputGuardUntil = Time.unscaledTime + 0.6f; // スキップ時のクリック貫通を確実に防ぐ
         yield return null;
 
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
@@ -333,6 +366,7 @@ public class AdventurePrologueDrama : MonoBehaviour
     void PollOilInput(AdventureRustDrone drone)
     {
         if (drone == null || _phase != Phase.WaitOil || _oilReceived) return;
+        if (Time.unscaledTime < _oilInputGuardUntil) return; // 目覚めスキップクリック等の誤爆防止
         if (!IsPrologueOilInputPressed()) return;
         if (!IsInPrologueOilRange(drone)) return;
         ApplyPrologueOilSuccess(drone);
@@ -628,7 +662,12 @@ public class AdventurePrologueDrama : MonoBehaviour
         void QuickWakeupCleanup()
         {
             if (eyelidCanvasGo != null)
+            {
+                eyelidCanvasGo.SetActive(false);
                 Destroy(eyelidCanvasGo);
+            }
+            if (subtitleCg != null)
+                subtitleCg.alpha = 0f;
             if (waveSource != null)
             {
                 waveSource.Stop();
@@ -644,6 +683,7 @@ public class AdventurePrologueDrama : MonoBehaviour
             AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
             if (drone != null)
             {
+                drone.ClearSpeech();
                 Vector3 rustGoalPos = playerPos + playerForward * 1.2f + Vector3.up * 1.2f;
                 drone.transform.position = rustGoalPos;
                 drone.transform.rotation = Quaternion.LookRotation(playerPos + Vector3.up * 1.2f - rustGoalPos);
@@ -663,7 +703,6 @@ public class AdventurePrologueDrama : MonoBehaviour
 
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
-        _inGroggySequence = true;
 
         // --- シーン1: 暗闇の中で波の音と遠い意識 ---
         float fadeT = 0f;
@@ -752,7 +791,6 @@ public class AdventurePrologueDrama : MonoBehaviour
         if (_skipAwakening) { QuickWakeupCleanup(); yield break; }
 
     DirectWakeup:
-        _inGroggySequence = false;
         _skipToWakeup = false;
         _advanceSubtitle = false;
 
