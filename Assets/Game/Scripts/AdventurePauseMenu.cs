@@ -1514,12 +1514,12 @@ public class AdventurePauseMenu : MonoBehaviour
         var bg = _tabCreditsPanel.AddComponent<Image>();
         bg.color = new Color(0.015f, 0.04f, 0.08f, 0.65f);
 
-        _creditsLeftText = MakeLabel(_tabCreditsPanel.transform, "CreditsLeft", new Vector2(25f, -15f), new Vector2(380f, 320f), "", 12, new Color(0.95f, 0.97f, 1f, 0.95f));
+        _creditsLeftText = MakeLabel(_tabCreditsPanel.transform, "CreditsLeft", new Vector2(20f, -15f), new Vector2(390f, 330f), "", 12, new Color(0.95f, 0.97f, 1f, 0.95f));
         _creditsLeftText.lineSpacing = 1.30f;
         _creditsLeftText.alignment = TextAnchor.UpperLeft;
         _creditsLeftText.supportRichText = true;
 
-        _creditsRightText = MakeLabel(_tabCreditsPanel.transform, "CreditsRight", new Vector2(430f, -15f), new Vector2(380f, 320f), "", 12, new Color(0.95f, 0.97f, 1f, 0.95f));
+        _creditsRightText = MakeLabel(_tabCreditsPanel.transform, "CreditsRight", new Vector2(430f, -15f), new Vector2(390f, 330f), "", 12, new Color(0.95f, 0.97f, 1f, 0.95f));
         _creditsRightText.lineSpacing = 1.30f;
         _creditsRightText.alignment = TextAnchor.UpperLeft;
         _creditsRightText.supportRichText = true;
@@ -1923,7 +1923,7 @@ public class AdventurePauseMenu : MonoBehaviour
         else
         {
             rt.anchorMin = new Vector2(0f, 1f);
-            rt.anchorMax = new Vector2(1f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
             rt.pivot = new Vector2(0f, 1f);
             rt.anchoredPosition = pos;
             rt.sizeDelta = size;
