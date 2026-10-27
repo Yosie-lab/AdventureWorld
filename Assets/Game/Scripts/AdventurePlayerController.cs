@@ -1435,6 +1435,12 @@ public partial class AdventurePlayerController : MonoBehaviour
             }
         }
 
+        // タワー台座周辺（中心512,512から半径50m以内）はテラスへの登坂アプローチエリアのためTerrain急斜面滑落を無効化
+        float dxTower = transform.position.x - 512f;
+        float dzTower = transform.position.z - 512f;
+        if (dxTower * dxTower + dzTower * dzTower <= 50f * 50f && transform.position.y >= 50f)
+            return false;
+
         if (_land == null || _land.terrainData == null) return false;
         Vector3 origin = _land.transform.position;
         Vector3 size   = _land.terrainData.size;

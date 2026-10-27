@@ -489,8 +489,10 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         BuildTowerLever();
         var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
         BuildTowerStairs(transform, land);
-        // シーン岩の遅延生成にも対応してもう一度歩行阻害を緩和
-        Invoke(nameof(ReapplyTowerStreamWalkClear), 0.4f);
+        // 遅延生成されるシーンオブジェクト（草木・岩・装飾）にも対応し、テラススロープと歩行阻害緩和を複数回再適用
+        Invoke(nameof(ReapplyTowerStreamWalkClear), 0.2f);
+        Invoke(nameof(ReapplyTowerStreamWalkClear), 0.8f);
+        Invoke(nameof(ReapplyTowerStreamWalkClear), 2.0f);
 
         // 天蓋破壊済みなら、ハイパー上昇気流光柱を即座に再配置
         if (IsCanopyBroken)
@@ -501,6 +503,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
 
     void ReapplyTowerStreamWalkClear()
     {
+        FixPodiumColliders();
         Vector3 startP = new Vector3(472f, 48.5f, 455f);
         Vector3 endP = new Vector3(512f, TerraceTopY, 478f);
         var land = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
@@ -541,7 +544,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             var mc = podium.AddComponent<MeshCollider>();
             var mf = podium.GetComponent<MeshFilter>();
             if (mf != null && mf.sharedMesh != null) mc.sharedMesh = mf.sharedMesh;
-            mc.convex = true; // 内部が詰まったソリッドな凸型とし、CharacterControllerの中空内部への侵入・頭突き抜けを完全防止
+            mc.convex = false; // 水平な上面メッシュのみを正確に判定し、外周の垂直壁で登坂が弾かれないようにする
 
             // 過去の古い基壇コライダー・余計な外壁をクリーンアップ
             var oldBase = tower.transform.Find("WhiteMarblePodium_SolidBase");
@@ -551,9 +554,8 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         // 台座東側〜南東側の崖下空洞を大理石基壇外壁＋コライダーで密閉（下からの突き抜けを物理的にも遮断）
         EnsurePodiumCliffFoundation(tower);
 
-        // 余計な空中スロープコライダー（台座外周で宙に浮く原因）を完全に破棄
-        var oldRamps = tower.transform.Find("PodiumEntryRamps");
-        if (oldRamps != null) Destroy(oldRamps.gameObject);
+        // 周囲の地面からテラス上面へ段差なくスムーズに登れる全周進入スロープを生成
+        BuildPodiumEntryRamps(tower.transform);
 
         // SanctuaryGridFloor（金属格子床）はコライダーを削除（テラス面と18cm重複してジッターするのを防止）
         var grid = tower.transform.Find("SanctuaryGridFloor")?.gameObject;
