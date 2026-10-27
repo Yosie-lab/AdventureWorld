@@ -380,6 +380,14 @@ public partial class AdventureSanctuaryTowerManager
             player.ForceGroundReset();
         }
         SetCinematicCamera(false);
+        var camFollow = AdventureCameraFollow.InstanceOrFind();
+        if (camFollow != null)
+        {
+            camFollow.SetIslandOverviewMode(false, instant: true);
+            camFollow.SetCinematicMode(false, instant: true);
+            camFollow.SetClimaxCinematicPhase(0);
+            camFollow.SnapBehindTarget();
+        }
         var drone = GetDrone();
         if (drone != null)
         {

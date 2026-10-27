@@ -826,7 +826,9 @@ public class AdventureSaveManager : MonoBehaviour
         var camFollow = AdventureCameraFollow.InstanceOrFind();
         if (camFollow != null)
         {
-            camFollow.SetCinematicMode(false);
+            camFollow.SetIslandOverviewMode(false, instant: true);
+            camFollow.SetCinematicMode(false, instant: true);
+            camFollow.SetClimaxCinematicPhase(0);
             camFollow.SnapBehindTarget();
         }
 

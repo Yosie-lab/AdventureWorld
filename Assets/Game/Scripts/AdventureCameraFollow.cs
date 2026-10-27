@@ -293,6 +293,9 @@ public class AdventureCameraFollow : MonoBehaviour
     public void SnapBehindTarget()
     {
         if (target == null) return;
+        SetIslandOverviewMode(false, instant: true);
+        SetCinematicMode(false, instant: true);
+        _skyWideSideBias = 0f;
         _yaw = target.eulerAngles.y;
         _targetYaw = _yaw;
         _pitch = WalkPitch;

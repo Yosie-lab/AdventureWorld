@@ -556,11 +556,12 @@ public partial class AdventureSanctuaryTowerManager
         var follow = AdventureCameraFollow.Instance;
         if (follow != null)
         {
-            follow.SetCinematicMode(enabled);
+            follow.SetCinematicMode(enabled, instant: !enabled);
             if (!enabled)
             {
-                follow.SetIslandOverviewMode(false);
+                follow.SetIslandOverviewMode(false, instant: true);
                 follow.SetClimaxCinematicPhase(0);
+                follow.SnapBehindTarget();
             }
         }
 

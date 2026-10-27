@@ -169,9 +169,12 @@ public class AdventurePrologueDrama : MonoBehaviour
         _phase = Phase.Idle;
         _oilReceived = false;
         _showDashBoard = false;
+        _dashBoardAdvance = false;
         _secondGearDone = false;
         _skipAwakening = false;
         _skipToWakeup = false;
+        _advanceSubtitle = false;
+        _oilInputGuardUntil = 0f;
         _awakeningStartTime = Time.unscaledTime;
         StartCoroutine(PrologueRoutine());
     }
@@ -186,6 +189,8 @@ public class AdventurePrologueDrama : MonoBehaviour
         _secondGearDone = false;
         _skipAwakening = false;
         _skipToWakeup = false;
+        _advanceSubtitle = false;
+        _oilInputGuardUntil = 0f;
         var drone = AdventureRustDrone.Instance ?? Object.FindAnyObjectByType<AdventureRustDrone>();
         drone?.EndPrologueDistress();
 
@@ -194,6 +199,8 @@ public class AdventurePrologueDrama : MonoBehaviour
         var camFollow = AdventureCameraFollow.InstanceOrFind();
         if (camFollow != null)
         {
+            camFollow.SetIslandOverviewMode(false, instant: true);
+            camFollow.SetCinematicMode(false, instant: true);
             camFollow.enabled = true;
             camFollow.SnapBehindTarget();
         }
