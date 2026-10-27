@@ -163,7 +163,6 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Float！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
         new CanopyBeat("", "✦ Float", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f), autoSec: 4.2f),
         new CanopyBeat("", "✦ 相棒 Rust", "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Float！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 4.2f),
-        new CanopyBeat("", "", "タワー中央の光の柱へ飛び込み、\n空の裂け目へ突き抜ける。", new Color(0.85f, 0.95f, 1f, 1f), autoSec: 3.5f),
         new CanopyBeat("空の裂け目へ", "", "【Space長押し / クリック】でダイブする", new Color(1f, 0.88f, 0.4f, 1f), autoSec: 6.0f, isDive: true),
     };
 

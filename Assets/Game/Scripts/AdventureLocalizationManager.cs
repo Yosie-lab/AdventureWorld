@@ -739,14 +739,8 @@ public static class AdventureLocalizationManager
             "那就是真正的天空……！乘上风势，向那道裂缝跃进吧，Float！！",
             "¡Ese es el cielo real...! ¡Coge el viento y salta a la grieta, Float!!"
         } },
+        { "canopy_5_title", new[] { "空の裂け目へ", "Into the Sky Rift", "向天空裂缝飞跃", "Hacia la Brecha del Cielo" } },
         { "canopy_5_body", new[] {
-            "タワー中央の光の柱へ飛び込み、\n空の裂け目へ突き抜ける。",
-            "Dive into the light pillar at the tower's center\nand break through the rift in the sky.",
-            "跃入高塔中央的光之光柱，\n一举冲破天空的裂缝吧。",
-            "Lánzate al pilar de luz del centro de la torre\ny atraviesa la brecha en el cielo."
-        } },
-        { "canopy_6_title", new[] { "空の裂け目へ", "Into the Sky Rift", "向天空裂缝飞跃", "Hacia la Brecha del Cielo" } },
-        { "canopy_6_body", new[] {
             "【Space長押し / クリック】でダイブする",
             "【Hold Space / Click】to Dive",
             "【按住Space / 点击】进行飞跃",
