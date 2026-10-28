@@ -141,6 +141,10 @@ public class AdventureThermalUpdraft : MonoBehaviour
 
     void CreateWindFx()
     {
+        // 天空光柱（autoLaunch）の場合は専用の光柱ビジュアル（SkybreakHyperBeam）があるため、
+        // らせん回転ノイズ付きの煙パーティクルの生成をスキップしてわざとらしさを排除
+        if (autoLaunch) return;
+
         var pGo = new GameObject("ThermalParticles");
         pGo.transform.SetParent(transform, false);
         pGo.transform.localPosition = Vector3.zero;

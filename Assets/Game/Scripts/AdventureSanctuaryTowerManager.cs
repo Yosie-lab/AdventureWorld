@@ -1659,7 +1659,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         {
             outerMat = new Material(pShader);
             // 押し付けがましくない、白銀ベースに澄んだ淡い空色が溶け込む上品な光
-            var outerColor = new Color(0.72f, 0.90f, 1.0f, 0.40f);
+            var outerColor = new Color(0.75f, 0.92f, 1.0f, 0.16f);
             outerMat.color = outerColor;
             outerMat.SetColor("_BaseColor", outerColor);
             outerMat.SetColor("_Color", outerColor);
@@ -1696,7 +1696,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         coreGo.name = "SkybreakHyperBeam_Core";
         coreGo.transform.SetParent(_hyperUpdraftGo.transform, false);
         coreGo.transform.localPosition = new Vector3(0f, 120f, 0f);
-        coreGo.transform.localScale = new Vector3(10f, 120f, 10f);
+        coreGo.transform.localScale = new Vector3(8f, 120f, 8f);
 
         var cCol = coreGo.GetComponent<Collider>();
         if (cCol != null) Destroy(cCol);
@@ -1706,7 +1706,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         if (cRend != null)
         {
             coreMat = new Material(pShader);
-            var coreColor = new Color(1.0f, 0.98f, 0.88f, 0.55f);
+            var coreColor = new Color(1.0f, 0.98f, 0.90f, 0.22f);
             coreMat.color = coreColor;
             coreMat.SetColor("_BaseColor", coreColor);
             coreMat.SetColor("_Color", coreColor);
@@ -1743,14 +1743,14 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         fxAnimator.outerMat = outerMat;
         fxAnimator.coreMat = coreMat;
 
-        // 4. 光柱の中心コアライト（自然で温かみのある白銀〜シャンパンライト）
+        // 4. 光柱の中心コアライト（タワー全体を過剰に白飛びさせない自然な弱グロー光）
         var lightGo = new GameObject("SkybreakBeamLight");
         lightGo.transform.SetParent(_hyperUpdraftGo.transform, false);
         lightGo.transform.localPosition = new Vector3(0f, 18f, 0f);
         var bLight = lightGo.AddComponent<Light>();
         bLight.type = LightType.Point;
-        bLight.range = 75f;
-        bLight.intensity = 6.0f;
+        bLight.range = 35f;
+        bLight.intensity = 1.6f;
         bLight.color = new Color(0.85f, 0.94f, 1.0f);
     }
 
@@ -1758,7 +1758,9 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     static void ClearSkybreakAscentBlockers()
     {
         DisableCollidersOn("SanctuaryTopLeverStructure");
-        // 四方レバーのビーコン等は柱外だが、中央付近の固体も念のため
+        // レバー台座のビーコン柱・外周オーラ・インジケーターライトを消去し、光柱との重複やタワーへの過剰発光を防止
+        DeactivateLeverSkyBeacons();
+
         var top = GameObject.Find("SanctuaryTopLeverStructure");
         if (top != null)
             top.SetActive(false);
@@ -1820,6 +1822,27 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         }
 
         EnsureLandTerrainColliderEnabled();
+    }
+
+    /// <summary>レバー台座のビーコン光柱・外周オーラ・インジケーターライトを消去</summary>
+    static void DeactivateLeverSkyBeacons()
+    {
+        var beacons = GameObject.FindObjectsByType<Transform>(FindObjectsInactive.Include);
+        for (int i = 0; i < beacons.Length; i++)
+        {
+            var t = beacons[i];
+            if (t == null) continue;
+            string n = t.name;
+            if (n == "LeverSkyBeacon" || n == "LeverSkyBeaconAura")
+            {
+                t.gameObject.SetActive(false);
+            }
+            else if (n == "LeverIndicatorLight" || n == "LeverRimLight")
+            {
+                var l = t.GetComponent<Light>();
+                if (l != null) l.enabled = false;
+            }
+        }
     }
 
     /// <summary>島の歩行面コライダーが誤って落ちていたら復帰させる</summary>
@@ -1930,8 +1953,8 @@ public class AdventureSkybreakPillarFx : MonoBehaviour
             else if (outerMat.HasProperty("_MainTex"))
                 outerMat.SetTextureOffset("_MainTex", _outerOffset);
             // 呼吸のような静かで落ち着いた輝度変化
-            float pulse = 0.38f + Mathf.Sin(Time.unscaledTime * 2.2f) * 0.08f;
-            Color c = new Color(0.72f, 0.90f, 1.0f, pulse);
+            float pulse = 0.16f + Mathf.Sin(Time.unscaledTime * 2.0f) * 0.04f;
+            Color c = new Color(0.75f, 0.92f, 1.0f, pulse);
             outerMat.SetColor("_BaseColor", c);
             outerMat.SetColor("_Color", c);
         }
@@ -1942,8 +1965,8 @@ public class AdventureSkybreakPillarFx : MonoBehaviour
                 coreMat.SetTextureOffset("_BaseMap", _coreOffset);
             else if (coreMat.HasProperty("_MainTex"))
                 coreMat.SetTextureOffset("_MainTex", _coreOffset);
-            float corePulse = 0.52f + Mathf.Sin(Time.unscaledTime * 3.5f) * 0.10f;
-            Color cc = new Color(1.0f, 0.98f, 0.88f, corePulse);
+            float corePulse = 0.22f + Mathf.Sin(Time.unscaledTime * 3.0f) * 0.05f;
+            Color cc = new Color(1.0f, 0.98f, 0.90f, corePulse);
             coreMat.SetColor("_BaseColor", cc);
             coreMat.SetColor("_Color", cc);
         }
