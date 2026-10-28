@@ -8,12 +8,12 @@ public partial class AdventureRustDrone
 {
     #region Climax motion & FX
 
-    // 柱上昇追従（かかと直後）パラメータ
-    const float ClimaxPillarFeetBackOffset = 0.7f;
-    const float ClimaxPillarFeetSideOffset = 0.5f;
-    const float ClimaxPillarFeetUpOffset = 0.2f;
-    const float ClimaxPillarFeetWobbleSpeed = 9f;
-    const float ClimaxPillarFeetWobbleAmount = 0.05f;
+    // 柱上昇追従（Floatの右肩〜頭部斜め横で堂々と並走上昇）パラメータ
+    const float ClimaxPillarFeetBackOffset = 0.55f;
+    const float ClimaxPillarFeetSideOffset = 0.95f;
+    const float ClimaxPillarFeetUpOffset = 1.05f;
+    const float ClimaxPillarFeetWobbleSpeed = 6f;
+    const float ClimaxPillarFeetWobbleAmount = 0.04f;
 
     // 正面注油（Face to Face）パラメータ
     const float ClimaxFaceToFaceForwardOffset = 0.85f;

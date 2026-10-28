@@ -713,7 +713,7 @@ public static class AdventureLocalizationManager
         } },
         { "canopy_1_speaker", new[] { "✦ 相棒 Rust", "✦ Companion Rust", "✦ 伙伴 Rust", "✦ Compañero Rust" } },
         { "canopy_1_body", new[] {
-            "この楽園もAIに最適化された虚構の島だったんだ!!",
+            "この島もAIに最適化された虚構の楽園だったんだ!!",
             "This paradise was nothing more than an AI-optimized illusion!!",
             "原来这座乐园也是被AI最优化过的虚构之岛！！",
             "¡¡Este paraíso no era más que una ilusión optimizada por una IA!!"

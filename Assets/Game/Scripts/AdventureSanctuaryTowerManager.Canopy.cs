@@ -227,6 +227,22 @@ public partial class AdventureSanctuaryTowerManager
             StartSkybreakAftershockLoop();
         }
 
+        // ビート4「あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Float！！」
+        // 地上から天を衝く光の柱と上空の裂け目（高度150m）をダイナミックに見上げる仰角シネマティックカメラを発動
+        if (index == 4)
+        {
+            BuildSkybreakHyperUpdraft(new Vector3(512f, 62f, 512f));
+            AdventureCameraFollow.Instance?.SetCanopyLookUpMode(true);
+            // 後半：ダイヤモンドダストの圧倒的な美麗さを維持しつつ、光の柱と上空の視界を確保するためほんの少しだけ減衰（80%）
+            AdventureSkybreakVisuals.SetSkybreakDiamondDustScale(0.80f, 2.5f);
+        }
+        else if (index == 5)
+        {
+            // ビート5「空の裂け目へ（ダイブする）」でも光の柱を見渡しやすくするため仰角カメラを継続
+            AdventureCameraFollow.Instance?.SetCanopyLookUpMode(true);
+            AdventureSkybreakVisuals.SetSkybreakDiamondDustScale(0.75f, 2.0f);
+        }
+
         Debug.Log($"[RustAndFloat] スクリーンスクリプト {index + 1}/{CanopyBeats.Length}: {beat.Title} {beat.Speaker}");
     }
 
@@ -446,6 +462,7 @@ public partial class AdventureSanctuaryTowerManager
         _scriptBoardSpeaker = "";
         _scriptBoardBody = "";
         StopSkybreakAftershockLoop();
+        AdventureCameraFollow.Instance?.SetCanopyLookUpMode(false);
         ClearFilmSubtitle();
         if (_scriptUiRoot != null)
             _scriptUiRoot.SetActive(false);
@@ -482,6 +499,7 @@ public partial class AdventureSanctuaryTowerManager
             player.BeginSkybreakPillarAscend(new Vector3(512f, 0f, 512f), 18f, 156f);
             if (player.IsSkybreakPillarAscending)
                 player.ArmClimaxSkyHold(156f);
+            AdventureCameraFollow.Instance?.SnapPillarAscentCam();
             if (drone != null)
                 drone.SnapPillarFeetFollow();
         }

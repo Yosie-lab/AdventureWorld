@@ -142,6 +142,8 @@ public partial class AdventureSanctuaryTowerManager
             var drone = GetDrone();
             if (drone != null)
                 drone.BeginClimaxFaceToFaceOilReady();
+            // 後半：Rustとの対面・注油直前シーンでダストをほんの少しだけ減衰（75%）し、表情とUIをクリアに
+            AdventureSkybreakVisuals.SetSkybreakDiamondDustScale(0.75f, 2.0f);
         }
 
         // 台本（ピピッ！……ありがとう、Float！）：全出力セリフと同時にオーバードライブ演出
@@ -210,6 +212,9 @@ public partial class AdventureSanctuaryTowerManager
         var drone = GetDrone();
         if (drone != null)
             drone.BeginClimaxFaceToFaceOilReady();
+
+        // 注油待機中：ダイヤモンドダストの美しいキラめきは保ちつつ、注油UIとRustの視認性を高めるため約30%微減（70%）
+        AdventureSkybreakVisuals.SetSkybreakDiamondDustScale(0.70f, 1.5f);
 
         Debug.Log("[RustAndFloat] 注油フェーズ開始（E/Space/クリック長押し）");
     }

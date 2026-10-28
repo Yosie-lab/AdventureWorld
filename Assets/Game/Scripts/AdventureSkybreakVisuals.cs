@@ -756,8 +756,8 @@ public static class AdventureSkybreakVisuals
         main.startLifetime = new ParticleSystem.MinMaxCurve(4.5f, 8f);
         main.startSize = new ParticleSystem.MinMaxCurve(1.0f, 2.5f);
         main.startColor = new ParticleSystem.MinMaxGradient(
-            new Color(0.85f, 0.94f, 1f, 0.12f),
-            new Color(0.70f, 0.85f, 1f, 0.05f));
+            new Color(0.85f, 0.94f, 1f, 0.05f),
+            new Color(0.70f, 0.85f, 1f, 0.02f));
         main.startSpeed = new ParticleSystem.MinMaxCurve(1.5f, 5f);
         main.maxParticles = 80;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
@@ -889,11 +889,11 @@ public static class AdventureSkybreakVisuals
             _coldAtmosphereActive = true;
         }
 
-        // 1. 環境フォグ＆アンビエント（手前のNiko/Rustが黒く潰れないようアンビエント光を明るく確保）
+        // 1. 環境フォグ＆アンビエント（手前のNiko/Rustが黒く潰れないようアンビエント光を明るく確保、白被り防止のためフォグ密度を半減以下に緩和）
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogColor = new Color(0.70f, 0.84f, 0.98f);
-        RenderSettings.fogDensity = 0.0018f;
+        RenderSettings.fogColor = new Color(0.72f, 0.86f, 0.98f);
+        RenderSettings.fogDensity = 0.00075f; // 0.0018fから大幅に緩和し、白く曇ったフィルター感を解消
         RenderSettings.ambientLight = new Color(0.78f, 0.86f, 0.98f);
 
         // 2. 太陽光の特定と極寒化（青白く冴えつつ、暗部を潰さない明るさを維持）
@@ -915,7 +915,7 @@ public static class AdventureSkybreakVisuals
         Color originalSunColor = new Color(1.0f, 0.99f, 0.96f); // 澄み渡るクリアな自然陽光
         float originalSunIntensity = 2.15f; // 燦々と降り注ぐ力強い光量
 
-        Color coldSunColor = new Color(0.92f, 0.96f, 1.0f);
+        Color coldSunColor = new Color(0.95f, 0.98f, 1.0f);
         float coldSunIntensity = 2.05f;
 
         if (_cachedSun != null)
@@ -938,37 +938,37 @@ public static class AdventureSkybreakVisuals
         if (!profile.TryGet<WhiteBalance>(out var wb))
             wb = profile.Add<WhiteBalance>(true);
         wb.temperature.overrideState = true;
-        wb.temperature.value = -30f; // 自然で澄んだ極寒色温度
+        wb.temperature.value = -18f; // 白飛び・曇り感を抑え、透き通った冷涼感へ緩和
         wb.tint.overrideState = true;
-        wb.tint.value = -4f;
+        wb.tint.value = -2f;
 
         if (!profile.TryGet<ColorAdjustments>(out var ca))
             ca = profile.Add<ColorAdjustments>(true);
         ca.saturation.overrideState = true;
-        ca.saturation.value = -6f; // 金属本来の色を失わせない適度な冷涼感
+        ca.saturation.value = -4f;
         ca.contrast.overrideState = true;
-        ca.contrast.value = 4f; // 影が黒く潰れない自然なコントラスト
+        ca.contrast.value = 6f; // 白浮きを防ぎ、引き締まったクリアな視界へ
         ca.postExposure.overrideState = true;
-        ca.postExposure.value = 0.08f; // 全体の明度をわずかに底上げ
+        ca.postExposure.value = 0.02f;
         ca.colorFilter.overrideState = true;
-        ca.colorFilter.value = new Color(0.92f, 0.96f, 1.0f);
+        ca.colorFilter.value = new Color(0.97f, 0.98f, 1.0f); // ほぼクリアな純白寄りに調整
 
-        // ダイヤモンドダストの強力なキラキラ発光を引き出すブルーム（輝きを最大限に強調）
+        // ダイヤモンドダストのブルーム（白飛び過熱を抑えクリアに）
         if (!profile.TryGet<Bloom>(out var bloom))
             bloom = profile.Add<Bloom>(true);
         bloom.intensity.overrideState = true;
-        bloom.intensity.value = 1.35f;
+        bloom.intensity.value = 0.75f; // 1.35fから0.75fへ緩和し、全体が白く霞むのを防止
         bloom.threshold.overrideState = true;
-        bloom.threshold.value = 1.01f;
+        bloom.threshold.value = 1.05f;
         bloom.scatter.overrideState = true;
-        bloom.scatter.value = 0.75f;
+        bloom.scatter.value = 0.65f;
 
         if (!profile.TryGet<Vignette>(out var vig))
             vig = profile.Add<Vignette>(true);
         vig.color.overrideState = true;
         vig.color.value = new Color(0.35f, 0.58f, 0.88f); // 画面端の青白い冷気
         vig.intensity.overrideState = true;
-        vig.intensity.value = 0.30f;
+        vig.intensity.value = 0.18f; // 0.30fから0.18fへ薄める
         vig.smoothness.overrideState = true;
         vig.smoothness.value = 0.60f;
 
@@ -1011,7 +1011,7 @@ public static class AdventureSkybreakVisuals
         // 1. 冷気ドライバーによる滑らかな雪解け＆色彩豊かな感動シネマ移行（3.0秒フェード）
         if (AdventureColdAtmosphereDriver.Instance != null)
         {
-            AdventureColdAtmosphereDriver.Instance.StartThaw(3.0f);
+            AdventureColdAtmosphereDriver.Instance.StartThaw(2.5f);
         }
         else
         {
@@ -1071,6 +1071,14 @@ public static class AdventureSkybreakVisuals
         }
     }
 
+    public static void SetSkybreakDiamondDustScale(float scale, float transitionDuration = 2.0f)
+    {
+        if (AdventureColdAtmosphereDriver.Instance != null)
+        {
+            AdventureColdAtmosphereDriver.Instance.SetDustScale(scale, transitionDuration);
+        }
+    }
+
     #endregion
 
     #region [5] Cold Atmosphere Driver ─ 落雷ループ・ダイヤモンドダスト追従・解凍シネマ
@@ -1101,6 +1109,11 @@ public static class AdventureSkybreakVisuals
         private bool _isFinalClearing;
         private float _finalClearProgress;
         private float _finalClearDuration = 1.2f;
+
+        private float _targetDustScale = 1.0f;
+        private float _currentDustScale = 1.0f;
+        private float _dustScaleTransitionDuration = 2.0f;
+        private const float BaseDustEmissionRate = 1100f;
 
         private Coroutine _lightningRoutine;
         private AudioSource _audio;
@@ -1203,6 +1216,18 @@ public static class AdventureSkybreakVisuals
                 }
             }
 
+            // 後半のダイヤモンドダスト微減など、通常時の放出量スケール制御
+            if (!_isThawing && !_isFinalClearing && _dustPs != null)
+            {
+                if (Mathf.Abs(_currentDustScale - _targetDustScale) > 0.001f)
+                {
+                    float step = Time.deltaTime / Mathf.Max(0.05f, _dustScaleTransitionDuration);
+                    _currentDustScale = Mathf.MoveTowards(_currentDustScale, _targetDustScale, step);
+                    var em = _dustPs.emission;
+                    em.rateOverTime = BaseDustEmissionRate * _currentDustScale;
+                }
+            }
+
             if (_isThawing)
             {
                 // 注油回復時：暖かな日光と色彩豊かな美しい自然景色へ移行
@@ -1293,7 +1318,7 @@ public static class AdventureSkybreakVisuals
 
                 // フォグ密度：透明感のある澄んだ南国の空気（0.0006f）
                 RenderSettings.fogColor = Color.Lerp(ColdFogColor, WarmFogColor, smoothT);
-                RenderSettings.fogDensity = Mathf.Lerp(0.0018f, 0.0006f, smoothT);
+                RenderSettings.fogDensity = Mathf.Lerp(0.00075f, 0.0006f, smoothT);
 
                 // 解凍完了時（まだ最終消去前であれば、ダイヤモンドダストを破棄せず淡い余韻をキープ）
                 if (t >= 1f && _foliageDone && !_isFinalClearing)
@@ -1301,6 +1326,13 @@ public static class AdventureSkybreakVisuals
                     // ダイヤモンドダストは残し、ドライバー自体も最終消去指示を待つため維持
                 }
             }
+        }
+
+        /// <summary>ダイヤモンドダストの放出量スケールを滑らかに調整（後半の密度微減など）</summary>
+        public void SetDustScale(float scale, float duration = 2.0f)
+        {
+            _targetDustScale = Mathf.Clamp(scale, 0f, 2.0f);
+            _dustScaleTransitionDuration = Mathf.Max(0.05f, duration);
         }
 
         /// <summary>次のシーンへ進んだ時に残りのダイヤモンドダストを完全消去</summary>

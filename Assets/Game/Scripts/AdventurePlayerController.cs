@@ -361,9 +361,9 @@ public partial class AdventurePlayerController : MonoBehaviour
         _cc.slopeLimit      = 86f;
         _cc.stepOffset      = StepOffsetGround;
         _cc.minMoveDistance = 0f;
-        _cc.skinWidth       = 0.038f;
+        _cc.skinWidth       = 0.02f;
         _cc.radius          = 0.28f;
-        _cc.center          = new Vector3(0f, 0.78f, 0f);
+        _cc.center          = new Vector3(0f, 0.755f, 0f);
         _cc.height          = 1.55f;
         _cc.enableOverlapRecovery = true;
     }

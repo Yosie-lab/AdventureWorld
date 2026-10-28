@@ -63,6 +63,9 @@ public class AdventureCameraFollow : MonoBehaviour
     bool _islandOverview;
     float _islandOverviewBlend;
     float _overviewProgress;
+    bool _canopyLookUp;
+    float _canopyLookUpBlend;
+    float _canopyLookUpProgress;
     /// <summary>クライマックス演出カメラのシーケンスフェーズ</summary>
     public enum ClimaxCameraPhase
     {
@@ -152,6 +155,47 @@ public class AdventureCameraFollow : MonoBehaviour
             _overviewProgress = enabled ? 1f : 0f;
             _islandOverviewBlend = _overviewProgress;
         }
+    }
+
+    /// <summary>「あれが本物の空だ……！」地上から上空の裂け目をダイナミックに見上げる仰角シネマティックカメラ</summary>
+    public void SetCanopyLookUpMode(bool enabled, bool instant = false)
+    {
+        _canopyLookUp = enabled;
+        if (instant)
+        {
+            _canopyLookUpProgress = enabled ? 1f : 0f;
+            _canopyLookUpBlend = _canopyLookUpProgress;
+        }
+    }
+
+    /// <summary>光の柱ダイブ開始時：FloatとRustが堂々と上昇するシネマティックカメラへ即座にアライメント</summary>
+    public void SnapPillarAscentCam()
+    {
+        EnsureTarget();
+        if (target == null) return;
+
+        // 見上げモードを直ちに終了
+        _canopyLookUp = false;
+        _canopyLookUpProgress = 0f;
+        _canopyLookUpBlend = 0f;
+
+        // Floatの胸・頭部（高さ1.2m）を基準にカメラピボットを初期化
+        _currentPivot = target.position + Vector3.up * 1.2f;
+
+        float yaw = target.eulerAngles.y + 24f;
+        _yaw = yaw;
+        _targetYaw = yaw;
+        _pitch = 18f;
+        _targetPitch = 18f;
+
+        const float dist = 6.2f;
+        _currentDistance = dist;
+
+        Quaternion rot = Quaternion.Euler(18f, yaw, 0f);
+        transform.position = _currentPivot + rot * new Vector3(0.35f, 0.05f, -dist);
+        transform.rotation = rot;
+        if (_cam != null)
+            _cam.fieldOfView = 68f;
     }
 
     /// <summary>柱抜け後の連続ショット。1追走 2接近 3正面注油 4大空。0で解除</summary>
@@ -656,6 +700,7 @@ public class AdventureCameraFollow : MonoBehaviour
     bool ShouldUseInstantLook(bool isAutoGlide, float cine, bool walkingGround, bool cursorLook)
     {
         if (_islandOverview || _islandOverviewBlend > 0.01f) return false; // エピローグ概要遷移時は常に極上のスムーズ補間
+        if (_canopyLookUp || _canopyLookUpBlend > 0.01f) return false;     // 天蓋見上げシネマティック遷移時もスムーズ補間
         if (walkingGround || cine < 0.02f) return true;
         if (cursorLook)
         {
@@ -726,6 +771,12 @@ public class AdventureCameraFollow : MonoBehaviour
             _targetYaw = playerYaw + 180f + _skyWideSideBias + sway;
             _targetPitch = Mathf.Lerp(_targetPitch, 4.5f, _islandOverviewBlend);
         }
+        else if (_canopyLookUpBlend > 0.02f && _climaxCamPhase <= ClimaxCameraPhase.None && target != null)
+        {
+            float playerYaw = target.eulerAngles.y;
+            _targetYaw = playerYaw;
+            _targetPitch = Mathf.Lerp(_targetPitch, -35f, _canopyLookUpBlend);
+        }
         else if (cine > 0.4f && !isAutoGlide && !cursorLook)
             _targetPitch = Mathf.Clamp(_targetPitch, -6f, 22f);
 
@@ -755,6 +806,11 @@ public class AdventureCameraFollow : MonoBehaviour
         _overviewProgress = Mathf.MoveTowards(
             _overviewProgress, overviewTarget, Time.unscaledDeltaTime * 0.48f);
         _islandOverviewBlend = EaseInOutCubic(_overviewProgress);
+
+        float canopyTarget = _canopyLookUp ? 1f : 0f;
+        _canopyLookUpProgress = Mathf.MoveTowards(
+            _canopyLookUpProgress, canopyTarget, Time.unscaledDeltaTime * 0.95f);
+        _canopyLookUpBlend = EaseInOutCubic(_canopyLookUpProgress);
 
         var player = AdventurePlayerController.InstanceOrFind();
         bool isGliding = player != null && player.IsGliding;
@@ -885,15 +941,17 @@ public class AdventureCameraFollow : MonoBehaviour
         if (pillarFeetCam && target != null)
         {
             float dt = Time.unscaledDeltaTime;
+            // FloatとRustの二人を美しく捉える斜め後方〜サイドのアングル
             float yaw = target.eulerAngles.y + 24f + Mathf.Sin(Time.unscaledTime * 0.35f) * 2f;
-            currentRot = Quaternion.Euler(17f, yaw, 0f);
-            Vector3 pivot = target.position + Vector3.up * 0.85f;
-            _currentPivot = Vector3.Lerp(_currentPivot, pivot, 1f - Mathf.Exp(-6f * dt));
-            const float dist = 6.8f;
+            currentRot = Quaternion.Euler(18f, yaw, 0f);
+            // ピボットを足元(0.85m)から胸・頭部(1.20m)へ引き上げ、FloatとRust（頭部右斜め後ろ〜横で羽ばたく相棒）を黄金比でフレームに収める
+            Vector3 pivot = target.position + Vector3.up * 1.20f;
+            _currentPivot = Vector3.Lerp(_currentPivot, pivot, 1f - Mathf.Exp(-9f * dt));
+            const float dist = 6.2f;
             targetPos = _currentPivot + currentRot * new Vector3(0.35f, 0.05f, -dist);
             _currentDistance = dist;
             if (_cam != null)
-                _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, 66f, 22f * dt);
+                _cam.fieldOfView = Mathf.MoveTowards(_cam.fieldOfView, 68f, 22f * dt);
         }
         else if (_climaxCamPhase > ClimaxCameraPhase.None && target != null)
         {
@@ -923,8 +981,36 @@ public class AdventureCameraFollow : MonoBehaviour
             targetPos = _currentPivot + currentRot * new Vector3(0f, 0.15f * smoothB, -dist);
             _currentDistance = dist;
         }
+        else if (_canopyLookUpBlend > 0.01f && target != null)
+        {
+            float b = _canopyLookUpBlend;
+            float smoothB = EaseInOutCubic(b);
 
-        if (!inAir && _islandOverviewBlend < 0.25f)
+            // プレイヤー（Float & Niko）の背後・高さ2.2mから前上方の大空・光の柱を見上げるアングル
+            Vector3 playerPos = target.position;
+            Vector3 forwardFlat = target.forward;
+            forwardFlat.y = 0f;
+            if (forwardFlat.sqrMagnitude < 0.01f) forwardFlat = Vector3.forward;
+            forwardFlat.Normalize();
+
+            // プレイヤーの後方7.0m、高さ2.4mにカメラを安全に配置（床埋没を完全に防止）
+            Vector3 safeCamPos = playerPos - forwardFlat * 7.0f + Vector3.up * 2.4f;
+            float minSafeY = Mathf.Max(playerPos.y + 1.2f, 65.5f);
+            if (safeCamPos.y < minSafeY) safeCamPos.y = minSafeY;
+
+            // 上空の割れ目・光の柱中心（高度140m〜150m）を堂々と見上げる回転
+            Vector3 skyLookTarget = new Vector3(512f, 140f, 512f);
+            Quaternion skyRot = Quaternion.LookRotation(skyLookTarget - safeCamPos, Vector3.up);
+
+            _currentPivot = Vector3.Lerp(_currentPivot, playerPos + Vector3.up * 1.5f, 1f - Mathf.Exp(-5f * Time.unscaledDeltaTime));
+            currentRot = Quaternion.Slerp(currentRot, skyRot, smoothB);
+            targetPos = Vector3.Lerp(targetPos, safeCamPos, smoothB);
+            _currentDistance = 7.0f;
+            if (_cam != null)
+                _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, 80f, smoothB);
+        }
+
+        if (!inAir && _islandOverviewBlend < 0.25f && _canopyLookUpBlend < 0.25f)
         {
             float minCamY = Mathf.Lerp(1.15f, 1.35f, cine);
             targetPos.y = Mathf.Max(targetPos.y, target.position.y + minCamY);
@@ -932,7 +1018,7 @@ public class AdventureCameraFollow : MonoBehaviour
 
         if (_land == null)
             _land = AdventureQuestLocations.FindLand();
-        if (_land != null && _islandOverviewBlend < 0.35f)
+        if (_land != null && _islandOverviewBlend < 0.35f && _canopyLookUpBlend < 0.35f)
         {
             float groundY = AdventureQuestLocations.GroundY(_land, targetPos.x, targetPos.z) + 0.85f;
             float groundSmooth = walkingGround ? 0.14f : 0.06f;

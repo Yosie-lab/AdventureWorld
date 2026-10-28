@@ -159,7 +159,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     static readonly CanopyBeat[] CanopyBeats =
     {
         new CanopyBeat("天蓋崩壊　未知の荒野への眺望", "", "空が割れた。\n冷たいリアルな風が頬を打つ。", new Color(1f, 0.9f, 0.45f, 1f), autoSec: 2.0f),
-        new CanopyBeat("", "✦ 相棒 Rust", "この楽園もAIに最適化された虚構の島だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
+        new CanopyBeat("", "✦ 相棒 Rust", "この島もAIに最適化された虚構の楽園だったんだ!!", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
         new CanopyBeat("", "✦ 相棒 Rust", "空が……割れるよ、Float！　つかまって！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 5.2f),
         new CanopyBeat("", "✦ Float", "ありがとうRust…！あなたのおかげでここまでたどり着くことができた。", new Color(1f, 0.88f, 0.45f, 1f), autoSec: 4.2f),
         new CanopyBeat("", "✦ 相棒 Rust", "あれが本物の空だ……！風に乗って、あの裂け目へ飛び込もう、Float！！", new Color(0.35f, 0.92f, 0.98f, 1f), autoSec: 4.2f),
@@ -1578,6 +1578,45 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         ps.Play();
     }
 
+    // ── 天空光柱（Skybreak Hyper Beam）用のプロシージャルテクスチャ ──
+    static Texture2D _pillarBeamTexture;
+
+    static Texture2D GetPillarBeamTexture()
+    {
+        if (_pillarBeamTexture != null) return _pillarBeamTexture;
+
+        const int resX = 64;
+        const int resY = 128;
+        _pillarBeamTexture = new Texture2D(resX, resY, TextureFormat.RGBA32, false);
+        _pillarBeamTexture.wrapModeU = TextureWrapMode.Repeat;
+        _pillarBeamTexture.wrapModeV = TextureWrapMode.Repeat;
+        _pillarBeamTexture.filterMode = FilterMode.Bilinear;
+
+        Color[] cols = new Color[resX * resY];
+        for (int y = 0; y < resY; y++)
+        {
+            float v = (float)y / resY;
+            // 上下端でソフトにフェード
+            float edgeFade = Mathf.Sin(v * Mathf.PI);
+
+            for (int x = 0; x < resX; x++)
+            {
+                float u = (float)x / resX;
+                // 垂直ストリーム光筋（多重サイン波による縦縞の光）
+                float s1 = Mathf.Sin(u * Mathf.PI * 8f) * 0.5f + 0.5f;
+                float s2 = Mathf.Sin(u * Mathf.PI * 14f + 1.2f) * 0.5f + 0.5f;
+                float streams = Mathf.Lerp(s1, s2, 0.4f);
+
+                float alpha = Mathf.Clamp01((0.45f + 0.55f * streams) * edgeFade);
+                cols[y * resX + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+
+        _pillarBeamTexture.SetPixels(cols);
+        _pillarBeamTexture.Apply();
+        return _pillarBeamTexture;
+    }
+
     void BuildSkybreakHyperUpdraft(Vector3 basePos)
     {
         if (_hyperUpdraftGo != null)
@@ -1598,98 +1637,121 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         updraft.liftSpeed = 36.0f;
         updraft.pullToCenter = true;
 
-        // 天を衝く超巨大な天空光柱（シアン＆黄金に輝く美しい半透明ビーム）
-        var pShader = Shader.Find("Universal Render Pipeline/Unlit")
-                      ?? Shader.Find("Sprites/Default")
-                      ?? Shader.Find("RustAndFloat/WhiteSmoke");
-        var smokeTex = AdventureRustDrone.GetSoftSmokeTexture();
+        // 天を衝く超巨大な天空光柱（完全加算ブレンドで白銀〜神聖シアン〜黄金に眩く輝くビーム）
+        var pShader = Shader.Find("RustAndFloat/FireGlow")
+                      ?? Shader.Find("Universal Render Pipeline/Unlit")
+                      ?? Shader.Find("Sprites/Default");
+        var beamTex = GetPillarBeamTexture();
 
-        // 1. 外周の天空光柱（半透明加算で背後の空やタワーが美しく透ける）
+        // 1. 外周の天空光柱（幅24m、高さ240mの雄大で透明感ある光のヴェール）
         var pillarGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         pillarGo.name = "SkybreakHyperBeam";
         pillarGo.transform.SetParent(_hyperUpdraftGo.transform, false);
         pillarGo.transform.localPosition = new Vector3(0f, 120f, 0f);
-        pillarGo.transform.localScale = new Vector3(22f, 120f, 22f);
+        pillarGo.transform.localScale = new Vector3(24f, 120f, 24f);
 
-        // コライダーは不要（UpdraftのTriggerのみ使用）
         var pCol = pillarGo.GetComponent<Collider>();
         if (pCol != null) Destroy(pCol);
 
         var pRend = pillarGo.GetComponent<Renderer>();
+        Material outerMat = null;
         if (pRend != null)
         {
-            var pMat = new Material(pShader);
-            var outerColor = new Color(0.40f, 0.95f, 1.0f, 0.20f); // 透き通る淡いシアン半透明
-            pMat.color = outerColor;
-            pMat.SetColor("_BaseColor", outerColor);
-            pMat.SetColor("_Color", outerColor);
-            if (smokeTex != null)
+            outerMat = new Material(pShader);
+            // 押し付けがましくない、白銀ベースに澄んだ淡い空色が溶け込む上品な光
+            var outerColor = new Color(0.72f, 0.90f, 1.0f, 0.40f);
+            outerMat.color = outerColor;
+            outerMat.SetColor("_BaseColor", outerColor);
+            outerMat.SetColor("_Color", outerColor);
+            if (beamTex != null)
             {
-                pMat.mainTexture = smokeTex;
-                pMat.SetTexture("_BaseMap", smokeTex);
-                pMat.SetTexture("_MainTex", smokeTex);
+                outerMat.mainTexture = beamTex;
+                if (outerMat.HasProperty("_BaseMap"))
+                {
+                    outerMat.SetTexture("_BaseMap", beamTex);
+                    outerMat.SetTextureScale("_BaseMap", new Vector2(3f, 8f));
+                }
+                if (outerMat.HasProperty("_MainTex"))
+                {
+                    outerMat.SetTexture("_MainTex", beamTex);
+                    outerMat.SetTextureScale("_MainTex", new Vector2(3f, 8f));
+                }
             }
-            if (pMat.HasProperty("_Surface")) pMat.SetFloat("_Surface", 1f); // 1 = Transparent
-            if (pMat.HasProperty("_Blend")) pMat.SetFloat("_Blend", 1f); // 1 = Additive
-            if (pMat.HasProperty("_Cull")) pMat.SetFloat("_Cull", 0f); // Double Sided (両面描画で中に入っても透ける)
-            if (pMat.HasProperty("_ZWrite")) pMat.SetFloat("_ZWrite", 0f); // 半透明ZWriteオフ
-            pMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            pMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
-            pMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            pMat.EnableKeyword("_BLENDMODE_ADD");
-            pMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 150;
-            pRend.material = pMat;
+            if (outerMat.HasProperty("_Surface")) outerMat.SetFloat("_Surface", 1f);
+            if (outerMat.HasProperty("_Blend")) outerMat.SetFloat("_Blend", 1f);
+            if (outerMat.HasProperty("_Cull")) outerMat.SetFloat("_Cull", 0f);
+            if (outerMat.HasProperty("_ZWrite")) outerMat.SetFloat("_ZWrite", 0f);
+            outerMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            outerMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            outerMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            outerMat.EnableKeyword("_BLENDMODE_ADD");
+            outerMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 150;
+            pRend.material = outerMat;
             pRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             pRend.receiveShadows = false;
         }
 
-        // 2. 内側のコア光柱（中心部がほのかに黄金色に透き通る多層半透明構造）
+        // 2. 内側のコア光柱（中心部で静かに灯る温かな純白〜シャンパンゴールドの芯）
         var coreGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         coreGo.name = "SkybreakHyperBeam_Core";
         coreGo.transform.SetParent(_hyperUpdraftGo.transform, false);
         coreGo.transform.localPosition = new Vector3(0f, 120f, 0f);
-        coreGo.transform.localScale = new Vector3(9f, 120f, 9f);
+        coreGo.transform.localScale = new Vector3(10f, 120f, 10f);
 
         var cCol = coreGo.GetComponent<Collider>();
         if (cCol != null) Destroy(cCol);
 
         var cRend = coreGo.GetComponent<Renderer>();
+        Material coreMat = null;
         if (cRend != null)
         {
-            var cMat = new Material(pShader);
-            var coreColor = new Color(1.0f, 0.95f, 0.70f, 0.22f); // 柔らかく透ける温かいゴールド半透明
-            cMat.color = coreColor;
-            cMat.SetColor("_BaseColor", coreColor);
-            cMat.SetColor("_Color", coreColor);
-            if (smokeTex != null)
+            coreMat = new Material(pShader);
+            var coreColor = new Color(1.0f, 0.98f, 0.88f, 0.55f);
+            coreMat.color = coreColor;
+            coreMat.SetColor("_BaseColor", coreColor);
+            coreMat.SetColor("_Color", coreColor);
+            if (beamTex != null)
             {
-                cMat.mainTexture = smokeTex;
-                cMat.SetTexture("_BaseMap", smokeTex);
-                cMat.SetTexture("_MainTex", smokeTex);
+                coreMat.mainTexture = beamTex;
+                if (coreMat.HasProperty("_BaseMap"))
+                {
+                    coreMat.SetTexture("_BaseMap", beamTex);
+                    coreMat.SetTextureScale("_BaseMap", new Vector2(2f, 6f));
+                }
+                if (coreMat.HasProperty("_MainTex"))
+                {
+                    coreMat.SetTexture("_MainTex", beamTex);
+                    coreMat.SetTextureScale("_MainTex", new Vector2(2f, 6f));
+                }
             }
-            if (cMat.HasProperty("_Surface")) cMat.SetFloat("_Surface", 1f);
-            if (cMat.HasProperty("_Blend")) cMat.SetFloat("_Blend", 1f);
-            if (cMat.HasProperty("_Cull")) cMat.SetFloat("_Cull", 0f);
-            if (cMat.HasProperty("_ZWrite")) cMat.SetFloat("_ZWrite", 0f);
-            cMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            cMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
-            cMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            cMat.EnableKeyword("_BLENDMODE_ADD");
-            cMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 160;
-            cRend.material = cMat;
+            if (coreMat.HasProperty("_Surface")) coreMat.SetFloat("_Surface", 1f);
+            if (coreMat.HasProperty("_Blend")) coreMat.SetFloat("_Blend", 1f);
+            if (coreMat.HasProperty("_Cull")) coreMat.SetFloat("_Cull", 0f);
+            if (coreMat.HasProperty("_ZWrite")) coreMat.SetFloat("_ZWrite", 0f);
+            coreMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            coreMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            coreMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            coreMat.EnableKeyword("_BLENDMODE_ADD");
+            coreMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 160;
+            cRend.material = coreMat;
             cRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             cRend.receiveShadows = false;
         }
 
-        // 光柱の中心コアライト
+        // 3. 上昇アニメーション＆パルス制御コンポーネントをアタッチ
+        var fxAnimator = _hyperUpdraftGo.AddComponent<AdventureSkybreakPillarFx>();
+        fxAnimator.outerMat = outerMat;
+        fxAnimator.coreMat = coreMat;
+
+        // 4. 光柱の中心コアライト（自然で温かみのある白銀〜シャンパンライト）
         var lightGo = new GameObject("SkybreakBeamLight");
         lightGo.transform.SetParent(_hyperUpdraftGo.transform, false);
-        lightGo.transform.localPosition = new Vector3(0f, 15f, 0f);
+        lightGo.transform.localPosition = new Vector3(0f, 18f, 0f);
         var bLight = lightGo.AddComponent<Light>();
         bLight.type = LightType.Point;
-        bLight.range = 65f;
-        bLight.intensity = 6.5f;
-        bLight.color = new Color(0.4f, 0.95f, 1.0f);
+        bLight.range = 75f;
+        bLight.intensity = 6.0f;
+        bLight.color = new Color(0.85f, 0.94f, 1.0f);
     }
 
     /// <summary>光の柱上昇を塞ぐコライダーを徹底除去（中央オベリスク／頂上レバー／柱内障害）</summary>
@@ -1840,4 +1902,50 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
     #region 13. 古代アプローチ階段 & 効果音合成
     // (古代アプローチ階段・岩場緩和は Structure.cs、効果音・祝祭チャイム合成は Audio.cs へ分離)
     #endregion
+}
+
+/// <summary>
+/// 光の柱（Skybreak Hyper Beam）のプロシージャルアニメーション（UVスクロール＆パルス脈動）
+/// </summary>
+public class AdventureSkybreakPillarFx : MonoBehaviour
+{
+    public Material outerMat;
+    public Material coreMat;
+
+    Vector2 _outerOffset;
+    Vector2 _coreOffset;
+
+    void Update()
+    {
+        float dt = Time.unscaledDeltaTime;
+
+        // 上空への自然で滑らかなエナジーストリーム流動（垂直UVスクロール）
+        _outerOffset.y -= dt * 0.40f;
+        _coreOffset.y -= dt * 0.70f;
+
+        if (outerMat != null)
+        {
+            if (outerMat.HasProperty("_BaseMap"))
+                outerMat.SetTextureOffset("_BaseMap", _outerOffset);
+            else if (outerMat.HasProperty("_MainTex"))
+                outerMat.SetTextureOffset("_MainTex", _outerOffset);
+            // 呼吸のような静かで落ち着いた輝度変化
+            float pulse = 0.38f + Mathf.Sin(Time.unscaledTime * 2.2f) * 0.08f;
+            Color c = new Color(0.72f, 0.90f, 1.0f, pulse);
+            outerMat.SetColor("_BaseColor", c);
+            outerMat.SetColor("_Color", c);
+        }
+
+        if (coreMat != null)
+        {
+            if (coreMat.HasProperty("_BaseMap"))
+                coreMat.SetTextureOffset("_BaseMap", _coreOffset);
+            else if (coreMat.HasProperty("_MainTex"))
+                coreMat.SetTextureOffset("_MainTex", _coreOffset);
+            float corePulse = 0.52f + Mathf.Sin(Time.unscaledTime * 3.5f) * 0.10f;
+            Color cc = new Color(1.0f, 0.98f, 0.88f, corePulse);
+            coreMat.SetColor("_BaseColor", cc);
+            coreMat.SetColor("_Color", cc);
+        }
+    }
 }
