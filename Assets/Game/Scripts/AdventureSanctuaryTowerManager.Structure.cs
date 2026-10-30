@@ -18,17 +18,17 @@ public partial class AdventureSanctuaryTowerManager
         rampsRoot.transform.SetParent(towerRoot, false);
         rampsRoot.transform.position = Vector3.zero;
 
-        // テラス中心: (512, 63.0, 512)、半径35.0m
+        // テラス中心: (512, 63.0, 512)、半径34.8m
         const float terraceTopY  = 63.0f;   // テラス上面
-        const float rampLength   = 9.5f;    // スロープの斜面長（XZ投影、なだらかなロングスロープ）
-        const float rampThickness = 1.2f;   // コライダーの物理厚み
-        const float terraceRadius = 35.0f;
+        const float rampLength   = 6.5f;    // スロープの斜面長（XZ投影）
+        const float rampThickness = 1.6f;   // コライダーの物理厚み（段差スタック・下抜け完全防止）
+        const float terraceRadius = 34.5f;
 
         var terrain = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
 
-        // 全周24方向（各15°）にスロープを配置。
+        // 全周16方向（各22.5°）にスロープを配置。
         // 南側階段出口（degが160°〜200°付近、z < 482 かつ |x-512| < 5.5m）は階段通路のため除外
-        const int rampCount = 24;
+        const int rampCount = 16;
         for (int i = 0; i < rampCount; i++)
         {
             float outDeg = i * (360f / rampCount);
@@ -36,7 +36,7 @@ public partial class AdventureSanctuaryTowerManager
             Vector3 outDir = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad));
 
             // テラス縁の位置と、スロープ外端の位置
-            Vector3 innerP = new Vector3(512f, terraceTopY, 512f) + outDir * (terraceRadius - 0.2f);
+            Vector3 innerP = new Vector3(512f, terraceTopY, 512f) + outDir * terraceRadius;
             Vector3 outerP = new Vector3(512f, 0f, 512f) + outDir * (terraceRadius + rampLength);
 
             // 南側階段出口（x∈[506.5, 517.5], z <= 483）は専用大理石階段が通るため除外
@@ -47,7 +47,6 @@ public partial class AdventureSanctuaryTowerManager
             float groundY = 62.0f;
             if (terrain != null)
                 groundY = terrain.SampleHeight(outerP) + terrain.transform.position.y;
-            // 外端は地面の高さにぴったり合わせて地面下0.15mまで潜り込ませ、段差ゼロで滑らかに進入させる
             outerP.y = Mathf.Min(terraceTopY - 0.1f, groundY - 0.15f);
 
             // スロープの中心位置
@@ -60,81 +59,59 @@ public partial class AdventureSanctuaryTowerManager
             float slopeAngle = Mathf.Atan2(terraceTopY - outerP.y, rampLength) * Mathf.Rad2Deg;
             Quaternion rot = Quaternion.LookRotation(outDir, Vector3.up);
 
-            // 幅（24分割の円周に合わせて隙間なく接続）
-            float segWidth = 2f * (terraceRadius + rampLength * 0.5f) * Mathf.Sin((360f / rampCount * 0.5f) * Mathf.Deg2Rad) * 1.18f;
+            // 幅（16分割の円周に合わせて隙間なく接続）
+            float segWidth = 2f * (terraceRadius + rampLength * 0.5f) * Mathf.Sin((360f / rampCount * 0.5f) * Mathf.Deg2Rad) * 1.12f;
 
             var rampGo = new GameObject($"PodiumRamp_{outDeg:F0}deg");
             rampGo.transform.SetParent(rampsRoot.transform, false);
-            // コライダー上面がinnerP〜outerPの上面線に一致するよう、厚みの半分だけ下げる
             rampGo.transform.position = slopeMid;
             rampGo.transform.rotation = rot * Quaternion.Euler(-slopeAngle, 0f, 0f);
 
             var box = rampGo.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, -rampThickness * 0.5f, 0f);
+            box.center = Vector3.zero;
             box.size   = new Vector3(segWidth, rampThickness, actualLen * 1.15f);
         }
     }
 
-    /// <summary>タワー白亜テラス上（またはレバー基壇上、全周スロープ上）なら歩行面Y、それ以外は負の無限大</summary>
+    /// <summary>タワー白亜テラス上（またはレバー基壇上、スロープ上）なら歩行面Y、それ以外は負の無限大</summary>
     public static float GetTerraceSurfaceY(Vector3 worldPos)
     {
+        // 台座天面は 63.00m。台座上面に乗っている／踏み込んでいる高度（62.85m以上）のみ有効。
+        // 台座下層（62.85m未満）や東側崖下にいるプレイヤーを誤って台座上面に吸着させてはならない。
+        if (worldPos.y < 62.85f || worldPos.y > 68.0f)
+            return float.NegativeInfinity;
+
         Vector2 posXZ = new Vector2(worldPos.x, worldPos.z);
-        Vector2 towerCenter = new Vector2(512f, 512f);
-        float distCenter = Vector2.Distance(posXZ, towerCenter);
 
         // 1. 南正面メインレバー台座の範囲（上面 64.02m、半径3.2m）
         Vector2 mainLeverCenter = new Vector2(512f, 501.5f);
         if (Vector2.SqrMagnitude(posXZ - mainLeverCenter) <= 3.2f * 3.2f)
         {
-            if (worldPos.y >= 62.0f && worldPos.y <= 68.0f)
-                return 64.02f; // レバー台座の上面
+            return 64.02f; // レバー台座の上面
         }
 
         // 1b. レバー台座アプローチスロープ（台座南側、テラス上面63m → 台座上64.02m）
         if (posXZ.x >= 508f && posXZ.x <= 516f && posXZ.y >= 476f && posXZ.y <= 501.5f)
         {
-            if (worldPos.y >= 61.5f && worldPos.y <= 68.0f)
+            if (posXZ.y >= 490f)
             {
-                if (posXZ.y >= 490f)
-                {
-                    float stepT = Mathf.InverseLerp(490f, 501.5f, posXZ.y);
-                    return Mathf.Lerp(63.00f, 64.02f, stepT);
-                }
-                return 63.00f;
+                float stepT = Mathf.InverseLerp(490f, 501.5f, posXZ.y);
+                return Mathf.Lerp(63.00f, 64.02f, stepT);
             }
+            return 63.00f;
         }
 
-        // 南側アプローチ階段の回廊（x∈[507.5, 516.5], z <= 481）は専用階段スロープが処理
+        // 2. 白大理石円盤テラスの範囲（中心 512, 512、半径 35.0m、上面 63.00m）
+        // ※南側アプローチ階段の回廊（x∈[507.5, 516.5], z <= 481）は専用階段スロープが処理
         if (posXZ.x >= 507.5f && posXZ.x <= 516.5f && posXZ.y <= 481f)
         {
             return float.NegativeInfinity;
         }
 
-        // 2. 白大理石円盤テラス本体（半径 35.0m、上面 63.00m）
-        if (distCenter <= 35.0f)
+        Vector2 towerCenter = new Vector2(512f, 512f);
+        if (Vector2.SqrMagnitude(posXZ - towerCenter) <= 35.0f * 35.0f)
         {
-            // テラス上面（60.5m〜68.0m）にいればテラス床面63.00mへスムーズに接地
-            if (worldPos.y >= 60.5f && worldPos.y <= 68.0f)
-            {
-                return 63.00f;
-            }
-        }
-
-        // 3. 全周アプローチスロープ帯（半径 35.0m 〜 45.0m、周囲地面からテラス上面63.0mへ連続登坂）
-        if (distCenter > 35.0f && distCenter <= 45.0f)
-        {
-            var terr = Terrain.activeTerrain ?? UnityEngine.Object.FindAnyObjectByType<Terrain>();
-            float groundY = 60.0f;
-            if (terr != null)
-                groundY = terr.SampleHeight(worldPos) + terr.transform.position.y;
-
-            // 周囲の地面が55m以上の高台・斜面である場合、テラス床面への連続坂道高さを計算
-            if (groundY >= 55.0f && worldPos.y >= groundY - 1.0f && worldPos.y <= 68.0f)
-            {
-                float tRamp = Mathf.InverseLerp(45.0f, 35.0f, distCenter);
-                float rampWalkY = Mathf.Lerp(groundY, 63.00f, tRamp);
-                return rampWalkY;
-            }
+            return 63.00f; // テラス上面
         }
 
         return float.NegativeInfinity;
@@ -546,7 +523,7 @@ public partial class AdventureSanctuaryTowerManager
             endP.y = Mathf.Max(TerraceFloorY, land.SampleHeight(endP) + land.transform.position.y + 0.10f);
         }
 
-        int steps = 28;
+        int steps = 22;
         float width = 4.8f;
         var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
         var marbleMat = new Material(shader);
@@ -565,8 +542,6 @@ public partial class AdventureSanctuaryTowerManager
         bridgeObj.transform.localScale = new Vector3(width, 3.0f, 3.8f);
         var bridgeMr = bridgeObj.GetComponent<MeshRenderer>();
         if (bridgeMr != null) bridgeMr.material = marbleMat;
-        var bridgeCol = bridgeObj.GetComponent<Collider>();
-        if (bridgeCol != null) Object.Destroy(bridgeCol);
 
         Vector3[] stepPoints = new Vector3[steps + 1];
         for (int i = 0; i <= steps; i++)
@@ -603,11 +578,11 @@ public partial class AdventureSanctuaryTowerManager
             var mr = stepObj.GetComponent<MeshRenderer>();
             if (mr != null) mr.material = marbleMat;
 
-            // ステップ自体の角張ったBoxColliderは削除し、滑らかなStairRampスロープコライダーで登坂させる
+            // ステップ自体のBoxColliderを保持（下から頭や体が板の中にめり込むのを完全阻止）
             var stepCol = stepObj.GetComponent<BoxCollider>();
             if (stepCol != null)
             {
-                Object.Destroy(stepCol);
+                stepCol.size = Vector3.one;
             }
 
             // 全段に地面深くまで届く白亜大理石の石造り基礎壁（基壇）を隙間なく配置
@@ -631,8 +606,6 @@ public partial class AdventureSanctuaryTowerManager
 
             var bmr = baseObj.GetComponent<MeshRenderer>();
             if (bmr != null) bmr.material = marbleMat;
-            var bCol = baseObj.GetComponent<Collider>();
-            if (bCol != null) Object.Destroy(bCol);
 
             // 階段の左右両脇から下へ潜り込まないよう、両サイドに地面まで届く側壁ガードを配置
             // （最上段はテラスへスムーズに抜けるため上面の高さをステップ天面に揃える）
@@ -649,8 +622,6 @@ public partial class AdventureSanctuaryTowerManager
                 sideWall.transform.localScale = new Vector3(0.5f, wallH, len * 1.08f);
                 var swMr = sideWall.GetComponent<MeshRenderer>();
                 if (swMr != null) swMr.material = marbleMat;
-                var swCol = sideWall.GetComponent<Collider>();
-                if (swCol != null) Object.Destroy(swCol);
             }
 
             // 4段ごとに両脇に白亜の装飾オベリスク支柱を配置
@@ -739,10 +710,10 @@ public partial class AdventureSanctuaryTowerManager
     {
         Vector3 oasis = new Vector3(480f, 48.2f, 455f);
         SoftenOrThinRocksAlongPath(startP, endP, corridorHalfWidth: 8.0f, thinHalfWidth: 4.0f, alongTMax: 0.85f);
-        SoftenRockRootNearPoint("SanctuarySpringPond_Rocks", oasis, softRadius: 55f, thinRadius: 24f);
-        SoftenRockRootNearPoint("MountainGorgeProps", oasis, softRadius: 65f, thinRadius: 28f);
-        SoftenRockRootNearPoint("UpperParadiseStream", oasis, softRadius: 65f, thinRadius: 18f);
-        SoftenRockRootNearPoint("BeachStepPonds_Rocks", oasis, softRadius: 50f, thinRadius: 0f);
+        SoftenRockRootNearPoint("SanctuarySpringPond_Rocks", oasis, softRadius: 36f, thinRadius: 18f);
+        SoftenRockRootNearPoint("MountainGorgeProps", oasis, softRadius: 44f, thinRadius: 20f);
+        SoftenRockRootNearPoint("UpperParadiseStream", oasis, softRadius: 48f, thinRadius: 0f);
+        SoftenRockRootNearPoint("BeachStepPonds_Rocks", oasis, softRadius: 36f, thinRadius: 0f);
 
         // 階段足元・池〜階段アプローチ全域の岩を強制トリガー化
         SoftenRocksNearStairFoot(startP);
@@ -784,14 +755,10 @@ public partial class AdventureSanctuaryTowerManager
             float dx = c.x - stairStart.x;
             float dz = c.z - stairStart.z;
             float dist = Mathf.Sqrt(dx * dx + dz * dz);
-            // 階段入口の足元（12.0m以内）にある岩は歩行の引っ掛かり・めり込み防止のため非アクティブ化、24m以内はトリガー化
-            if (dist < 12.0f)
+            // 階段入口の足元（6.0m以内）にある岩は歩行の引っ掛かり・めり込み防止のため非アクティブ化
+            if (dist < 6.0f)
             {
                 col.gameObject.SetActive(false);
-            }
-            else if (dist < 24.0f)
-            {
-                MakeColliderPassable(col);
             }
         }
     }
@@ -811,24 +778,19 @@ public partial class AdventureSanctuaryTowerManager
             Vector3 c = col.bounds.center;
             float distPath = DistancePointToSegment(c, startP, endP);
 
-            // 1. 階段回廊およびアプローチ進路周辺（幅9.0m以内）に重なる岩は非アクティブ化して完全な登坂空間を確保
-            if (distPath < 9.0f)
+            // 1. 階段回廊およびアプローチ進路周辺（幅6.5m以内）に重なる岩は非アクティブ化して完全な登坂空間を確保
+            if (distPath < 6.5f)
             {
                 col.gameObject.SetActive(false);
                 continue;
             }
-            else if (distPath < 16.0f)
-            {
-                MakeColliderPassable(col);
-                continue;
-            }
 
-            // 2. タワー横の崖・台座外周全域（東側断崖・南東・南・南西・階段横、中心(512,512)から半径75m以内、Y∈[20, 68]）にある岩は
-            //    渓流からタワーへ登るアプローチ全域で挟まったりスタックしないよう完全通行可能（トリガー化／通過許可）にする
+            // 2. タワー横の崖・台座外周全域（東側断崖・南東・南・南西・階段横、中心(512,512)から半径55m以内、Y∈[28, 65]）にある岩は
+            //    プレイヤーが崖下やテラス横で挟まったりスタックしないよう完全通行可能（トリガー化／通過許可）にする
             float dxTower = c.x - 512f;
             float dzTower = c.z - 512f;
             float distTowerSq = dxTower * dxTower + dzTower * dzTower;
-            if (distTowerSq <= 75f * 75f && c.y >= 20f && c.y <= 68f)
+            if (distTowerSq <= 55f * 55f && c.y >= 28f && c.y <= 65f)
             {
                 MakeColliderPassable(col);
             }
@@ -981,9 +943,21 @@ public partial class AdventureSanctuaryTowerManager
             // 歩行床スロープ（上面はステップ天面、下面は地面深く食い込み隙間ゼロ・下抜け100%遮断）
             var box = rampGo.AddComponent<BoxCollider>();
             box.center = new Vector3(0f, stepHalfHeight - actualThickness * 0.5f, 0f);
-            box.size   = new Vector3(width * 1.45f, actualThickness, segLen * 1.18f);
+            box.size   = new Vector3(width, actualThickness, segLen * (s == segCount - 1 ? 1.15f : 1.08f));
 
-            // 両脇の見えないガード壁コライダーは歩行者の自由な横抜け・乗り入れを阻害するため配置しない
+            // 3. 両脇の見えない安全ガード壁コライダー（階段からの滑落・岩隙間挟まり防止）
+            // 最上段（s == segCount - 1）はテラス出口のため、手すり壁がテラス進入を妨げないよう除外
+            if (s < segCount - 1)
+            {
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    var guardGo = new GameObject($"SideGuard_{s}_{(side < 0 ? "L" : "R")}");
+                    guardGo.transform.SetParent(rampGo.transform, false);
+                    guardGo.transform.localPosition = new Vector3((width * 0.5f + guardThickness * 0.5f) * side, stepHalfHeight + guardHeight * 0.5f - 0.2f, 0f);
+                    var guardBox = guardGo.AddComponent<BoxCollider>();
+                    guardBox.size = new Vector3(guardThickness, guardHeight, segLen * 1.08f);
+                }
+            }
         }
     }
 
@@ -1023,23 +997,12 @@ public partial class AdventureSanctuaryTowerManager
 #endif
         }
 
-        // 東側崖下からの侵入・頭突き抜け防止（東側深谷エリアのみ限定配置）
-        // ※南・南西・西側（120°〜240°）はアプローチ斜面のため壁コライダーは配置しない
+        // 東側崖下の空洞遮断壁（SolidWallColliders）は登坂ルート（西〜南西・オアシス側）の誤ブロック防止のため完全撤廃
         var wallBoxes = found.Find("SolidWallColliders");
         if (wallBoxes != null)
         {
             Destroy(wallBoxes.gameObject);
         }
-        var wallRoot = new GameObject("SolidWallColliders");
-        wallRoot.transform.SetParent(found, false);
-        wallRoot.transform.localPosition = Vector3.zero;
-        wallRoot.transform.localRotation = Quaternion.identity;
-
-        var terr = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
-        const float radius = 33.5f;
-        const float thickness = 1.5f;
-
-        // 東側崖下の空洞遮断壁は登坂ルートの誤ブロック防止のため完全撤廃
     }
 
     #endregion
