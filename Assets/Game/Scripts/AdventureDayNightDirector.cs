@@ -113,9 +113,15 @@ public class AdventureDayNightDirector : MonoBehaviour
             if (_mainSunLight == null) return;
         }
 
-        // 【Tキー】で時間帯モードをトグル切り替え（情緒的な鑑賞用）
+        // 【Shift + Tキー】で時間帯モードをトグル切り替え（情緒的な鑑賞用、T単体はスカイダイブスタート台へのワープと競合するためShift併用に分離）
         var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && kb.tKey.wasPressedThisFrame)
+        bool shiftHeld = (kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed));
+        try { if (!shiftHeld && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))) shiftHeld = true; } catch { }
+
+        bool tPressed = (kb != null && kb.tKey.wasPressedThisFrame);
+        try { if (!tPressed && Input.GetKeyDown(KeyCode.T)) tPressed = true; } catch { }
+
+        if (shiftHeld && tPressed)
         {
             ToggleDayNightMode();
         }

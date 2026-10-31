@@ -416,6 +416,7 @@ public partial class AdventurePlayerController : MonoBehaviour
         AdventureCapytaBlessing.Ensure();
         AdventureCapytaBodyCollider.EnsureAllCapytasInScene();
         AdventureFieldLesson.Ensure();
+        AdventureGlidingTimeAttackManager.Ensure();
 
         if (GetComponent<AdventureNikoFootsteps>() == null)
             gameObject.AddComponent<AdventureNikoFootsteps>();
@@ -463,10 +464,7 @@ public partial class AdventurePlayerController : MonoBehaviour
     bool TryHandleResetKey()
     {
         // [T]キーでいつでもスカイダイブスタート台へテレポート
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        bool tPressed = (kb != null && kb.tKey.wasPressedThisFrame);
-        try { if (!tPressed && Input.GetKeyDown(KeyCode.T)) tPressed = true; } catch { }
-        if (tPressed)
+        if (AdventureInputReader.TDown)
         {
             var glidingMgr = AdventureGlidingTimeAttackManager.Instance;
             if (glidingMgr != null)
@@ -1441,6 +1439,10 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (dxTower * dxTower + dzTower * dzTower <= 50f * 50f && transform.position.y >= 50f)
             return false;
 
+        // 北のスカイダイブスタート台（フライトデッキ）上にいる場合も急斜面判定を無効化
+        if (AdventureGlidingTimeAttackManager.GetFlightDeckSurfaceY(transform.position) > float.NegativeInfinity)
+            return false;
+
         if (_land == null || _land.terrainData == null) return false;
         Vector3 origin = _land.transform.position;
         Vector3 size   = _land.terrainData.size;
@@ -1491,6 +1493,11 @@ public partial class AdventurePlayerController : MonoBehaviour
         float terrace = AdventureSanctuaryTowerManager.GetTerraceSurfaceY(pos);
         if (terrace > float.NegativeInfinity)
             baseY = Mathf.Max(baseY, terrace);
+
+        // 北のスカイダイブスタート台（フライトデッキ）も地形より高い木製床。地形Yへの吸着埋まりを防止
+        float deck = AdventureGlidingTimeAttackManager.GetFlightDeckSurfaceY(pos);
+        if (deck > float.NegativeInfinity)
+            baseY = Mathf.Max(baseY, deck);
 
         return baseY;
     }
@@ -1546,6 +1553,8 @@ public partial class AdventurePlayerController : MonoBehaviour
         _doubleJumpUsed      = false;
         _updraftTimer        = 0f;
         _updraftLift         = 0f;
+        _rockStuckFrames     = 0;
+        _cliffStuckFrames    = 0;
         ResetGlideSmoothing();
 
         // 低高度で地面より下に潜っているときだけ引き上げ（階段・台座から引きずり下ろさない）
@@ -2225,6 +2234,10 @@ public partial class AdventurePlayerController : MonoBehaviour
 
         Vector3 myPos  = transform.position;
         float   curY   = myPos.y;
+
+        // 0. スカイダイブスタート台（フライトデッキ）上にいる場合は崖脱出スーパージャンプを無効化（誤爆防止）
+        if (AdventureGlidingTimeAttackManager.GetFlightDeckSurfaceY(myPos) > float.NegativeInfinity)
+            return false;
 
         // 1. タワー横の崖（Sanctuary Tower 白亜テラス崖下）の特別保証：
         // タワー中心 (512, 512) 付近で、現在地がテラス上面（約62.5m）より下（Y < 62m）にある場合

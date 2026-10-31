@@ -108,6 +108,19 @@ public static class AdventureTerrainSnap
     public const float NorthEastMinZ = 175f;
     public const float NorthEastMaxZ = 275f;
 
+    // 北のスカイダイブスタート台（フライトデッキ）周辺の草花除去エリア
+    public const float FlightDeckMinX = 490f;
+    public const float FlightDeckMaxX = 525f;
+    public const float FlightDeckMinZ = 640f;
+    public const float FlightDeckMaxZ = 675f;
+
+    public static void FixFlightDeckGrass()
+    {
+        Terrain land = FindLand();
+        if (land == null) return;
+        CleanTerrainDetailsInRegion(land, FindWater(), FlightDeckMinX, FlightDeckMaxX, FlightDeckMinZ, FlightDeckMaxZ, aggressive: true);
+    }
+
     public static void FixNorthEastGrassland()
     {
         Terrain land = FindLand();

@@ -10,7 +10,21 @@ using System.Collections.Generic;
 public class AdventureGlidingTimeAttackManager : MonoBehaviour
 {
     private static AdventureGlidingTimeAttackManager _instance;
-    public static AdventureGlidingTimeAttackManager Instance => _instance;
+    public static AdventureGlidingTimeAttackManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = Object.FindAnyObjectByType<AdventureGlidingTimeAttackManager>();
+                if (_instance == null)
+                {
+                    _instance = Ensure();
+                }
+            }
+            return _instance;
+        }
+    }
 
     [Header("コース構成")]
     public Transform startPlatform;
@@ -32,8 +46,24 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
     private bool _isNewRecord = false;
 
     // スタート台の位置と向き（北の最高峰絶壁エッジ・南西方向を見下ろす大パノラマ絶景）
-    private static readonly Vector3 START_POS = new Vector3(508f, 94.5f, 656f);
-    private static readonly Quaternion START_ROT = Quaternion.Euler(0f, 205f, 0f); // 南西向き（西ビーチ方向）
+    // 木製床天面(96.525m)に対し、安全に着地・助走できる滑走路中央位置
+    public static readonly Vector3 START_POS = new Vector3(506.52f, 96.65f, 654.83f);
+    public static readonly Quaternion START_ROT = Quaternion.Euler(0f, 205f, 0f); // 南西向き（西ビーチ方向）
+
+    /// <summary>
+    /// スタートフライトデッキ上（上面96.525m）にいればその表面Yを返す（テレポート時の足元スナップ・埋まり防止用）
+    /// </summary>
+    public static float GetFlightDeckSurfaceY(Vector3 worldPos)
+    {
+        // フライトデッキ中心付近 (505, 652) かつ 高度 80m〜105m
+        float dx = worldPos.x - 505f;
+        float dz = worldPos.z - 652f;
+        if (dx * dx + dz * dz <= 18f * 18f && worldPos.y >= 80f && worldPos.y <= 105f)
+        {
+            return 96.525f;
+        }
+        return float.NegativeInfinity;
+    }
 
     // ゴールターゲット位置
     private static readonly Vector3 GOAL_POS = new Vector3(150f, 6.5f, 240f);
@@ -105,18 +135,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
     void Update()
     {
         // [R]キーまたは[T]キーでいつでもスタート地点へ即時リトライ（新旧InputSystem両対応）
-        bool rPressed = false;
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb != null && (kb.rKey.wasPressedThisFrame || kb.tKey.wasPressedThisFrame))
-        {
-            rPressed = true;
-        }
-        else
-        {
-            try { if (Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.T)) rPressed = true; } catch { }
-        }
-
-        if (rPressed)
+        if (AdventureInputReader.ResetDown || AdventureInputReader.TDown)
         {
             RetryAtStart();
         }
@@ -147,7 +166,9 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
 
             if (cc != null) cc.enabled = true;
 
-            // 速度と滑空状態をリセット
+            // 速度と滑空状態・接地状態を完全リセット
+            player.ForceGroundReset();
+
             var rb = player.GetComponent<Rigidbody>();
             if (rb != null)
             {
@@ -155,9 +176,16 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
                 rb.angularVelocity = Vector3.zero;
             }
 
-            // カメラの向きもプレイヤー背後にスナップ
+            // カメラの向きもプレイヤー背後へスナップ（スタート台では見下ろし角21°で草の被りを避け絶景を見渡す）
             var cam = Object.FindAnyObjectByType<AdventureCameraFollow>();
-            if (cam != null) cam.SnapBehindTarget();
+            if (cam != null) cam.SnapBehindTarget(21f);
+
+            // 相棒Rustもプレイヤーの元へ即座に合流
+            var rust = AdventureRustDrone.Instance;
+            if (rust != null) rust.TeleportNearPlayer();
+
+            // ゲームプレイ入力およびカーソル状態を即時復帰
+            AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
         }
 
         ResetTrial();
@@ -617,6 +645,344 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         clip.SetData(data, 0);
         return clip;
     }
+    #endregion
+
+    #region 実行時自動保証 (Ensure)
+
+    public const string COURSE_ROOT_NAME = "GlidingTimeAttackCourse";
+
+    /// <summary>
+    /// シーン内にタイムアタックコースおよびマネージャーが存在することを保証する
+    /// </summary>
+    public static AdventureGlidingTimeAttackManager Ensure()
+    {
+        if (_instance != null) return _instance;
+
+        var existing = Object.FindAnyObjectByType<AdventureGlidingTimeAttackManager>();
+        if (existing != null)
+        {
+            _instance = existing;
+            return _instance;
+        }
+
+        var courseRoot = GameObject.Find(COURSE_ROOT_NAME);
+        if (courseRoot == null)
+        {
+            courseRoot = new GameObject(COURSE_ROOT_NAME);
+        }
+
+        var mgr = courseRoot.GetComponent<AdventureGlidingTimeAttackManager>();
+        if (mgr == null)
+        {
+            mgr = courseRoot.AddComponent<AdventureGlidingTimeAttackManager>();
+        }
+        _instance = mgr;
+
+        // コースオブジェクト（デッキ、ゲート、リング10基、ゴール）が未構築なら動的生成
+        mgr.BuildCourseIfMissing();
+
+        // スタート台周辺の草花をクリア（視界確保）
+        AdventureTerrainSnap.FixFlightDeckGrass();
+
+        return mgr;
+    }
+
+    private void BuildCourseIfMissing()
+    {
+        // 既存オブジェクトの更新（位置や高さの更新を確実に反映）
+        var oldPlatform = transform.Find("StartFlightDeck");
+        if (oldPlatform != null && startPlatform == null)
+        {
+            if (Application.isPlaying) Destroy(oldPlatform.gameObject);
+            else DestroyImmediate(oldPlatform.gameObject);
+        }
+        if (startPlatform == null)
+        {
+            startPlatform = BuildStartPlatformRuntime(transform).transform;
+        }
+
+        var oldGate = transform.Find("StartGate");
+        if (oldGate != null && startGate == null)
+        {
+            if (Application.isPlaying) Destroy(oldGate.gameObject);
+            else DestroyImmediate(oldGate.gameObject);
+        }
+        if (startGate == null)
+        {
+            startGate = BuildStartGateRuntime(transform).transform;
+        }
+
+        if (courseRings == null || courseRings.Count < 15)
+        {
+            var r = transform.Find("Rings");
+            if (r != null)
+            {
+                if (Application.isPlaying) Destroy(r.gameObject);
+                else DestroyImmediate(r.gameObject);
+            }
+            courseRings = BuildCourseRingsRuntime(transform);
+        }
+
+        if (finishTarget == null)
+        {
+            var f = transform.Find("FinishTarget");
+            finishTarget = f != null ? f : BuildFinishTargetRuntime(transform).transform;
+        }
+    }
+
+    private static GameObject BuildStartPlatformRuntime(Transform parent)
+    {
+        var platformRoot = new GameObject("StartFlightDeck");
+        platformRoot.transform.SetParent(parent, false);
+        platformRoot.transform.position = new Vector3(508f, 96.5f, 658f);
+        platformRoot.transform.rotation = Quaternion.Euler(0f, 205f, 0f);
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+
+        var deck = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        deck.name = "DeckPlanks";
+        deck.transform.SetParent(platformRoot.transform, false);
+        deck.transform.localPosition = new Vector3(0f, -0.2f, 5.5f);
+        deck.transform.localScale = new Vector3(6.0f, 0.45f, 12.0f);
+
+        // CharacterController の引っ掛かりを防止し、確実な足場として機能するボックスコライダー
+        var deckCol = deck.GetComponent<BoxCollider>();
+        if (deckCol != null)
+        {
+            deckCol.size = new Vector3(1f, 1f, 1f);
+            deckCol.center = Vector3.zero;
+        }
+
+        var deckMat = new Material(shader);
+        deckMat.color = new Color(0.42f, 0.30f, 0.20f);
+        var r = deck.GetComponent<Renderer>();
+        if (r != null) r.material = deckMat;
+
+        var runway = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        runway.name = "RunwayStripe";
+        runway.transform.SetParent(platformRoot.transform, false);
+        runway.transform.localPosition = new Vector3(0f, 0.05f, 5.5f);
+        runway.transform.localScale = new Vector3(0.65f, 0.08f, 10.5f);
+        var col = runway.GetComponent<Collider>();
+        if (col != null)
+        {
+            if (Application.isPlaying) Destroy(col);
+            else DestroyImmediate(col);
+        }
+
+        var runMat = new Material(shader);
+        runMat.color = new Color(0.15f, 0.95f, 1.0f);
+        runMat.EnableKeyword("_EMISSION");
+        runMat.SetColor("_EmissionColor", new Color(0.15f, 0.95f, 1.0f) * 2.5f);
+        var runR = runway.GetComponent<Renderer>();
+        if (runR != null) runR.material = runMat;
+
+        for (int side = -1; side <= 1; side += 2)
+        {
+            var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pillar.name = $"DeckPillar_{side}";
+            pillar.transform.SetParent(platformRoot.transform, false);
+            pillar.transform.localPosition = new Vector3(side * 2.6f, 1.5f, 1.0f);
+            pillar.transform.localScale = new Vector3(0.18f, 1.5f, 0.18f);
+            var pCol = pillar.GetComponent<Collider>();
+            if (pCol != null)
+            {
+                if (Application.isPlaying) Destroy(pCol);
+                else DestroyImmediate(pCol);
+            }
+
+            var pMat = new Material(shader);
+            pMat.color = new Color(0.3f, 0.22f, 0.15f);
+            var pR = pillar.GetComponent<Renderer>();
+            if (pR != null) pR.material = pMat;
+        }
+
+        return platformRoot;
+    }
+
+    private static GameObject BuildStartGateRuntime(Transform parent)
+    {
+        var gateRoot = new GameObject("StartGate");
+        gateRoot.transform.SetParent(parent, false);
+        gateRoot.transform.position = new Vector3(503.98f, 98.0f, 649.39f);
+        gateRoot.transform.rotation = Quaternion.Euler(0f, 205f, 0f);
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        var gateMat = new Material(shader);
+        Color gateCol = new Color(0.1f, 0.95f, 1.0f);
+        gateMat.color = gateCol;
+        gateMat.EnableKeyword("_EMISSION");
+        gateMat.SetColor("_EmissionColor", gateCol * 3.5f);
+
+        int segments = 18;
+        float radius = 5.0f;
+        for (int i = 0; i < segments; i++)
+        {
+            float angle = i * (Mathf.PI * 2f / segments);
+            Vector3 pos = new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0f);
+            var seg = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            seg.name = "GateSeg_" + i;
+            seg.transform.SetParent(gateRoot.transform, false);
+            seg.transform.localPosition = pos;
+            seg.transform.localScale = new Vector3(0.55f, 0.9f, 0.55f);
+
+            float deg = angle * Mathf.Rad2Deg;
+            seg.transform.localRotation = Quaternion.Euler(0f, 0f, deg + 90f);
+            var sCol = seg.GetComponent<Collider>();
+            if (sCol != null) Destroy(sCol);
+            var sR = seg.GetComponent<Renderer>();
+            if (sR != null) sR.material = gateMat;
+        }
+
+        var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        beacon.name = "StartBeacon";
+        beacon.transform.SetParent(gateRoot.transform, false);
+        beacon.transform.localPosition = new Vector3(0f, 25f, 0f);
+        beacon.transform.localScale = new Vector3(0.35f, 25f, 0.35f);
+        var bCol = beacon.GetComponent<Collider>();
+        if (bCol != null) Destroy(bCol);
+        var bR = beacon.GetComponent<Renderer>();
+        if (bR != null) bR.material = gateMat;
+
+        var trigger = gateRoot.AddComponent<BoxCollider>();
+        trigger.isTrigger = true;
+        trigger.size = new Vector3(10f, 10f, 3.5f);
+
+        gateRoot.AddComponent<GlidingStartTriggerHelper>();
+
+        return gateRoot;
+    }
+
+    private static List<AdventureWindRing> BuildCourseRingsRuntime(Transform parent)
+    {
+        var ringsRoot = new GameObject("Rings");
+        ringsRoot.transform.SetParent(parent, false);
+
+        Vector3[] waypoints = new Vector3[]
+        {
+            new Vector3(502f, 88.5f, 642f), // Ring 01: 飛び出し加速
+            new Vector3(488f, 83.5f, 615f), // Ring 02: 谷間へ進入
+            new Vector3(472f, 78.0f, 585f), // Ring 03: 谷間中央
+            new Vector3(455f, 72.5f, 555f), // Ring 04: 西の森頭上
+            new Vector3(435f, 66.5f, 520f), // Ring 05: 遺跡頭上
+            new Vector3(410f, 60.0f, 485f), // Ring 06: 大草原花畑上空
+            new Vector3(385f, 54.0f, 455f), // Ring 07: 草原中央
+            new Vector3(355f, 47.5f, 425f), // Ring 08: 丘陵尾根スルー
+            new Vector3(325f, 41.0f, 395f), // Ring 09: 西風車頭上
+            new Vector3(295f, 35.0f, 365f), // Ring 10: 西海岸アプローチ
+            new Vector3(265f, 29.0f, 335f), // Ring 11: 海岸崖への旋回
+            new Vector3(230f, 22.5f, 305f), // Ring 12: 海が見える急降下
+            new Vector3(195f, 16.5f, 278f), // Ring 13: 西ビーチ白砂直上
+            new Vector3(170f, 12.0f, 258f), // Ring 14: 座礁艇前ラストスパート
+            new Vector3(155f,  9.0f, 245f)  // Ring 15: 着地サークル手前
+        };
+
+        var list = new List<AdventureWindRing>();
+
+        for (int i = 0; i < waypoints.Length; i++)
+        {
+            var ringGo = new GameObject($"FlightRing_{i + 1:D2}");
+            ringGo.transform.SetParent(ringsRoot.transform, false);
+            ringGo.transform.position = waypoints[i];
+
+            Vector3 targetNext = (i < waypoints.Length - 1) ? waypoints[i + 1] : new Vector3(150f, 6.35f, 235f);
+            Vector3 forwardDir = (targetNext - waypoints[i]).normalized;
+            if (forwardDir.sqrMagnitude > 0.01f)
+            {
+                ringGo.transform.rotation = Quaternion.LookRotation(forwardDir);
+            }
+
+            var ringComp = ringGo.AddComponent<AdventureWindRing>();
+            ringComp.boostMultiplier = 1.95f;
+            ringComp.boostDuration = 3.2f;
+
+            float t = (float)i / (waypoints.Length - 1);
+            ringComp.ringColor = Color.Lerp(
+                new Color(0.15f, 1.0f, 0.70f),
+                new Color(0.20f, 0.85f, 1.0f),
+                t
+            );
+
+            ringComp.CreateRingVisual();
+            list.Add(ringComp);
+        }
+
+        return list;
+    }
+
+    private static GameObject BuildFinishTargetRuntime(Transform parent)
+    {
+        var targetRoot = new GameObject("FinishTarget");
+        targetRoot.transform.SetParent(parent, false);
+        targetRoot.transform.position = new Vector3(150f, 6.35f, 235f);
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+
+        float[] radii = { 7.5f, 5.0f, 2.5f };
+        Color[] colors = {
+            new Color(0.1f, 0.85f, 1.0f),
+            new Color(0.2f, 1.0f, 0.7f),
+            new Color(1.0f, 0.9f, 0.2f)
+        };
+
+        for (int r = 0; r < radii.Length; r++)
+        {
+            int segments = 24;
+            float radius = radii[r];
+            Color c = colors[r];
+
+            var ringMat = new Material(shader);
+            ringMat.color = c;
+            ringMat.EnableKeyword("_EMISSION");
+            ringMat.SetColor("_EmissionColor", c * 2.5f);
+
+            var cRoot = new GameObject($"Circle_{r}");
+            cRoot.transform.SetParent(targetRoot.transform, false);
+
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = i * (Mathf.PI * 2f / segments);
+                Vector3 pos = new Vector3(Mathf.Cos(angle) * radius, 0.05f, Mathf.Sin(angle) * radius);
+                var seg = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                seg.name = $"Seg_{i}";
+                seg.transform.SetParent(cRoot.transform, false);
+                seg.transform.localPosition = pos;
+                seg.transform.localScale = new Vector3(0.4f, 0.05f, 0.75f);
+
+                float deg = angle * Mathf.Rad2Deg;
+                seg.transform.localRotation = Quaternion.Euler(0f, -deg + 90f, 0f);
+                var sCol = seg.GetComponent<Collider>();
+                if (sCol != null) Destroy(sCol);
+                var sR = seg.GetComponent<Renderer>();
+                if (sR != null) sR.material = ringMat;
+            }
+        }
+
+        var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        beacon.name = "GoalBeaconPillar";
+        beacon.transform.SetParent(targetRoot.transform, false);
+        beacon.transform.localPosition = new Vector3(0f, 17.5f, 0f);
+        beacon.transform.localScale = new Vector3(0.4f, 17.5f, 0.4f);
+        var bCol = beacon.GetComponent<Collider>();
+        if (bCol != null) Destroy(bCol);
+
+        var bMat = new Material(shader);
+        Color bColVal = new Color(1.0f, 0.85f, 0.2f, 0.45f);
+        bMat.color = bColVal;
+        bMat.EnableKeyword("_EMISSION");
+        bMat.SetColor("_EmissionColor", bColVal * 2.2f);
+        var bR = beacon.GetComponent<Renderer>();
+        if (bR != null) bR.material = bMat;
+
+        var trigger = targetRoot.AddComponent<SphereCollider>();
+        trigger.isTrigger = true;
+        trigger.radius = 9.0f;
+
+        targetRoot.AddComponent<GlidingGoalTriggerHelper>();
+
+        return targetRoot;
+    }
+
     #endregion
 }
 

@@ -284,6 +284,17 @@ public static class AdventureInputReader
         }
     }
 
+    /// <summary>Tキーがこのフレームに押された（スカイダイブ台・タイムアタックへの即時ワープ）</summary>
+    public static bool TDown
+    {
+        get
+        {
+            try { if (Input.GetKeyDown(KeyCode.T)) return true; } catch { }
+            var kb = Keyboard;
+            return kb != null && kb.tKey.wasPressedThisFrame;
+        }
+    }
+
     /// <summary>Rキーが押されている（リセット誤爆防止の長押し判定用）</summary>
     public static bool ResetHeld
     {

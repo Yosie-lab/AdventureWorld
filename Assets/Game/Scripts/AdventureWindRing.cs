@@ -37,7 +37,7 @@ public class AdventureWindRing : MonoBehaviour
         {
             var col = gameObject.AddComponent<SphereCollider>();
             col.isTrigger = true;
-            col.radius = 4.2f;
+            col.radius = 5.8f;
         }
 
         if (GetComponent<Rigidbody>() == null)
@@ -71,10 +71,10 @@ public class AdventureWindRing : MonoBehaviour
         _ringMat.SetFloat("_Metallic", 0.5f);
         _ringMat.SetFloat("_Smoothness", 0.95f);
 
-        // 継ぎ目やカクカクのない滑らかな真円トーラス（外径約3.8m、太さ0.24m）
+        // 継ぎ目やカクカクのない滑らかな真円トーラス（外径約5.2m、太さ0.30m・くぐり抜けの視認性と爽快感を向上）
         var mf = visualGo.AddComponent<MeshFilter>();
         var mr = visualGo.AddComponent<MeshRenderer>();
-        mf.sharedMesh = CreateTorusMesh(3.8f, 0.24f, 48, 16);
+        mf.sharedMesh = CreateTorusMesh(5.2f, 0.30f, 48, 16);
         mr.sharedMaterial = _ringMat;
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
@@ -105,7 +105,7 @@ public class AdventureWindRing : MonoBehaviour
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Circle;
-        shape.radius = 3.8f;
+        shape.radius = 5.2f;
 
         var rendPs = pGo.GetComponent<ParticleSystemRenderer>();
         if (rendPs != null)
@@ -254,9 +254,9 @@ public class AdventureWindRing : MonoBehaviour
         Vector3 radialOffset = playerPos - onAxis;
         float radialDist = radialOffset.magnitude;
 
-        // 吸引ゾーン：リング手前・奥 18m、半径 10.5m の気流ファネル（連鎖しやすい余裕）
-        const float maxAxial = 18.0f;
-        const float maxRadial = 10.5f;
+        // 吸引ゾーン：リング手前・奥 28m、半径 16.0m の気流ファネル（連鎖・吸い込みやすさを大幅向上）
+        const float maxAxial = 28.0f;
+        const float maxRadial = 16.0f;
 
         if (Mathf.Abs(axialDist) > maxAxial || radialDist > maxRadial) return;
 
@@ -266,7 +266,7 @@ public class AdventureWindRing : MonoBehaviour
         float radialFactor = 1.0f - Mathf.Clamp01(radialDist / maxRadial);
         float axialFactor = 1.0f - Mathf.Clamp01(Mathf.Abs(axialDist) / maxAxial);
         float urgency = radialFactor * axialFactor;
-        urgency = Mathf.Pow(urgency, 0.6f) + 0.35f;
+        urgency = Mathf.Pow(urgency, 0.5f) + 0.45f;
 
         float dt = Time.deltaTime;
         Vector3 pullDelta = Vector3.zero;
@@ -275,13 +275,13 @@ public class AdventureWindRing : MonoBehaviour
         if (radialDist > 0.15f)
         {
             Vector3 toAxis = -radialOffset.normalized;
-            float pullSpeed = inGate ? 4.5f : 13.5f;
+            float pullSpeed = inGate ? 6.5f : 19.5f;
             pullDelta += toAxis * (pullSpeed * urgency * dt);
         }
 
         // 2. リング開口部をくぐり抜ける進行方向への気流ガイド
         Vector3 through = ResolveBoostDirection(player);
-        float pushSpeed = inGate ? 3.5f : 9.0f;
+        float pushSpeed = inGate ? 5.0f : 13.5f;
         pullDelta += through * (pushSpeed * urgency * dt);
 
         if (pullDelta.sqrMagnitude > 0.000001f)
@@ -297,11 +297,11 @@ public class AdventureWindRing : MonoBehaviour
 
     bool IsPlayerInsideGate(AdventurePlayerController player)
     {
-        // 進入角度や高速滑空時でも確実に感知できるよう判定を適正拡大（半径5.2m、厚さ2.5m）
+        // 進入角度や高速滑空時でも確実に感知できるよう判定を拡大（半径7.0m、厚さ4.0m）
         Vector3[] samplePoints =
         {
-            player.transform.position + Vector3.up * 0.5f,
-            player.transform.position + Vector3.up * 1.0f,
+            player.transform.position + Vector3.up * 0.4f,
+            player.transform.position + Vector3.up * 0.9f,
             player.transform.position + Vector3.up * 1.5f,
         };
 
@@ -310,7 +310,7 @@ public class AdventureWindRing : MonoBehaviour
             Vector3 localPos = transform.InverseTransformPoint(samplePoints[i]);
             float radiusDist = Mathf.Sqrt(localPos.x * localPos.x + localPos.y * localPos.y);
             float zDist = Mathf.Abs(localPos.z);
-            if (radiusDist <= 5.6f && zDist <= 2.85f)
+            if (radiusDist <= 7.2f && zDist <= 4.0f)
                 return true;
         }
         return false;
@@ -337,7 +337,8 @@ public class AdventureWindRing : MonoBehaviour
         Vector3 through = ResolveBoostDirection(player);
         float mult = player.IsGliding ? boostMultiplier : Mathf.Lerp(1.35f, boostMultiplier, 0.55f);
         float dur = player.IsGliding ? boostDuration : 2.2f;
-        player.ApplyGlideBoost(mult, dur, through);
+        // 次のリングへの到達を容易にするため、微小な上昇リフト(2.2m)を与えて高度維持
+        player.ApplyGlideBoost(mult, dur, through, minUpwardHop: 2.2f);
 
         // ゲームパッド触覚ハプティクス（気流突入のスイープパルス）
         AdventureInputHaptics.PlayWindStreamEntry();

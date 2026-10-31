@@ -50,6 +50,7 @@ public static class AdventureWorldBoot
 
             AdventureTerrainSnap.FixNorthWestGrassland();
             AdventureTerrainSnap.FixNorthEastGrassland();
+            AdventureTerrainSnap.FixFlightDeckGrass();
             AdventureTerrainSnap.CarveStartPlateauRamp();
             AdventureTerrainSnap.RemoveUnintendedPuddles();
         }
@@ -61,6 +62,7 @@ public static class AdventureWorldBoot
         SnapAllLostPets();
         AdventureTerrainSnap.FixNorthWestGrassland();
         AdventureTerrainSnap.FixNorthEastGrassland();
+        AdventureTerrainSnap.FixFlightDeckGrass();
         AdventureTerrainSnap.CarveStartPlateauRamp();
         AdventureTerrainSnap.RemoveUnintendedPuddles();
         AdventureTerrainSnap.ApplyNaturalLandscape();

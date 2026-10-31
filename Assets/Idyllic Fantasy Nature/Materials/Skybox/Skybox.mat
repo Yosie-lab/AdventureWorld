@@ -173,7 +173,7 @@ Material:
     - _DstBlend: 0
     - _ENABLE_COVERAGE: 0
     - _EnvironmentReflections: 1
-    - _Exposure: 1
+    - _Exposure: 0.7931137
     - _Fade: 0
     - _GlossMapScale: 0
     - _Glossiness: 0

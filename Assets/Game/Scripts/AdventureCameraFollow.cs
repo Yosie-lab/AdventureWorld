@@ -336,14 +336,20 @@ public class AdventureCameraFollow : MonoBehaviour
     /// <summary>Rキー／リセット時／ダイブ発進時：標準後方カメラへ即復帰</summary>
     public void SnapBehindTarget()
     {
+        SnapBehindTarget(WalkPitch);
+    }
+
+    /// <summary>指定ピッチ（見下ろし角度）で後方カメラへ即スナップ</summary>
+    public void SnapBehindTarget(float targetPitchAngle)
+    {
         if (target == null) return;
         SetIslandOverviewMode(false, instant: true);
         SetCinematicMode(false, instant: true);
         _skyWideSideBias = 0f;
         _yaw = target.eulerAngles.y;
         _targetYaw = _yaw;
-        _pitch = WalkPitch;
-        _targetPitch = WalkPitch;
+        _pitch = targetPitchAngle;
+        _targetPitch = targetPitchAngle;
         _yawVel = 0f;
         _pitchVel = 0f;
         _lastMouseInputTime = Time.time;
@@ -352,7 +358,7 @@ public class AdventureCameraFollow : MonoBehaviour
         _currentDistance = distance;
         _distVel = 0f;
         _walkGroundBlend = 1f;
-        _framedPitch = WalkPitch;
+        _framedPitch = targetPitchAngle;
         CurrentYaw = _yaw;
     }
 

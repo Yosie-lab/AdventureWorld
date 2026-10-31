@@ -91,6 +91,13 @@ public partial class AdventurePlayerController
             return;
         }
 
+        // 北のスカイダイブスタート台（フライトデッキ）上にいる場合は自動スライディングを防止
+        if (AdventureGlidingTimeAttackManager.GetFlightDeckSurfaceY(transform.position) > float.NegativeInfinity)
+        {
+            if (_isSliding) StopSliding();
+            return;
+        }
+
         Vector3 groundNormal = GetGroundNormal();
         float slopeAngle = Vector3.Angle(Vector3.up, groundNormal);
 
