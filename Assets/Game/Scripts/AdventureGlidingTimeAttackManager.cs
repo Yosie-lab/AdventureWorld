@@ -307,6 +307,9 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
     {
         _showResult = false;
         isRunning = false;
+        currentTimer = 0f;
+        ringsPassedCount = 0;
+        _passedRings.Clear();
         HideResultModalUI();
 
         // マウスカーソルをゲームプレイ用（非表示・ロック）に戻す
@@ -410,6 +413,13 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
     {
         if (!IsTimeAttackUnlocked || isRunning) return;
 
+        var player = AdventurePlayerController.Resolve();
+        // ★誤爆防止ガード：スタート台（北の絶壁）から100m以上離れた場所（浜辺など）では絶対にタイムアタックを開始しない！
+        if (player != null && Vector3.Distance(player.transform.position, START_POS) > 100f)
+        {
+            return;
+        }
+
         // 空路上の障害物を確実にクリアして離陸
         ClearCorridorObstacles();
 
@@ -439,10 +449,18 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
         // コース対象リングか判定
         if (!courseRings.Contains(ring)) return;
 
-        // まだ開始していない場合、最初のリングで自動スタート
+        // ★未開始時は、スタート台直後の最初のリング（courseRings[0]）かつスタート台近傍にいる時のみ自動スタート！
+        // （浜辺の Ring 13〜15 等に地上で触れてもタイムアタックを誤発火させない）
         if (!isRunning && !_showResult)
         {
-            StartTrial();
+            if (courseRings.Count > 0 && ring == courseRings[0])
+            {
+                StartTrial();
+            }
+            else
+            {
+                return; // コース途中リングでの勝手な開始を防止
+            }
         }
 
         if (!_passedRings.Contains(ring))
@@ -482,9 +500,9 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
         var player = AdventurePlayerController.Resolve();
         if (player == null) return;
 
-        // ★誤爆防止ガード：スタート台から実際に飛行開始後（最低4秒経過かつスタート台から80m以上離脱）のみゴール判定を許可
-        // （焚き火点火時や地上歩行中に勝手にゴール判定されてリザルトボードが出る不具合を完全に防止）
-        if (currentTimer < 4.0f || Vector3.Distance(player.transform.position, START_POS) < 80f)
+        // ★誤爆防止ガード：スタート台から実際にコース攻略を開始し、最低8秒経過・リングを3個以上くぐり・スタート台から200m以上離脱していること
+        // （浜辺での歩行・ジャンプ・探索中にリザルトボードが出る誤爆を物理的・論理的に完全遮断）
+        if (currentTimer < 8.0f || ringsPassedCount < 3 || Vector3.Distance(player.transform.position, START_POS) < 200f)
             return;
 
         Vector3 pPos = player.transform.position;
@@ -493,9 +511,9 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
         // 1. ゴール地点（着地サークル・ビーコン）周辺（半径32m以内、高度22m以下）
         bool nearGoal = distToGoal <= 32f && pPos.y <= 22f;
 
-        // 2. 西ビーチエリア（X: 120〜210, Z: 200〜295）への進入・着地（リングを少なくとも3つ以上通過していること）
+        // 2. 西ビーチエリア（X: 120〜210, Z: 200〜295）への進入・着地（リングを少なくとも4つ以上通過していること）
         bool inBeachArea = (pPos.x >= 120f && pPos.x <= 210f && pPos.z >= 200f && pPos.z <= 295f);
-        bool landedInBeach = inBeachArea && ringsPassedCount >= 3 && (!player.IsGliding || player.IsGrounded || pPos.y <= 14f);
+        bool landedInBeach = inBeachArea && ringsPassedCount >= 4 && (!player.IsGliding || player.IsGrounded || pPos.y <= 14f);
 
         // 3. 後半リング通過後、ビーチ側へ到達した瞬間
         bool finishedFlightLanding = (ringsPassedCount >= 6) && (distToGoal <= 45f || (inBeachArea && pPos.y <= 16f));

@@ -221,11 +221,11 @@ public class AdventurePettingAction : MonoBehaviour
         }
     }
 
-    /// <summary>「キュ〜…ン♪ ピピッ」と甘えたような温かいドローンの電子音</summary>
+    /// <summary>「グルルル…キュ〜…ン♪ ピピッ」と猫のように喉を鳴らして甘える温かいドローンのゴロゴロ電子音</summary>
     static AudioClip SynthesizeCuddleSound()
     {
         const int rate = 44100;
-        float dur = 0.85f;
+        float dur = 0.95f;
         int count = (int)(rate * dur);
         float[] data = new float[count];
 
@@ -235,26 +235,29 @@ public class AdventurePettingAction : MonoBehaviour
             float freq;
             float amp;
 
-            if (t < 0.55f)
+            // 1. 低周波の愛らしいゴロゴロ振動（Purr: 28Hzの振幅変調）
+            float purr = 0.75f + 0.25f * Mathf.Sin(2f * Mathf.PI * 28f * t);
+
+            if (t < 0.62f)
             {
-                // キュ〜ン（ピッチがゆっくり上昇して温かく落ち着く）
-                freq = Mathf.Lerp(480f, 720f, Mathf.Sin((t / 0.55f) * Mathf.PI * 0.5f));
-                amp = Mathf.Sin((t / 0.55f) * Mathf.PI) * 0.28f;
+                // グルルル…キュ〜ン（ピッチがゆっくり上昇して目を細めて甘える）
+                freq = Mathf.Lerp(440f, 680f, Mathf.Sin((t / 0.62f) * Mathf.PI * 0.5f));
+                amp = Mathf.Sin((t / 0.62f) * Mathf.PI) * 0.32f;
             }
             else
             {
-                // ピピッ♪（嬉しそうに小さく跳ねる）
-                float t2 = (t - 0.55f) / 0.30f;
-                freq = (t2 < 0.15f) ? 880f : 1174f;
-                amp = Mathf.Exp(-t2 * 8.0f) * 0.24f;
+                // ピピッ♪（嬉しそうに小さく跳ねる歓びのチャイム）
+                float t2 = (t - 0.62f) / 0.33f;
+                freq = (t2 < 0.16f) ? 880f : 1240f;
+                amp = Mathf.Exp(-t2 * 7.5f) * 0.26f;
             }
 
-            // サイン波＋柔らかな倍音
-            float wave = Mathf.Sin(2f * Mathf.PI * freq * t) + 0.2f * Mathf.Sin(4f * Mathf.PI * freq * t);
-            data[i] = wave * amp;
+            // サイン波＋柔らかな倍音＋ゴロゴロ変調
+            float wave = (Mathf.Sin(2f * Mathf.PI * freq * t) + 0.25f * Mathf.Sin(4f * Mathf.PI * freq * t)) * purr;
+            data[i] = Mathf.Clamp(wave * amp, -1f, 1f);
         }
 
-        var clip = AudioClip.Create("RustSweetCuddle", count, 1, rate, false);
+        var clip = AudioClip.Create("RustSweetCuddlePurr", count, 1, rate, false);
         clip.SetData(data, 0);
         return clip;
     }

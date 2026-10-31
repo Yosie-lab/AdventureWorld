@@ -1242,8 +1242,8 @@ public partial class AdventureRustDrone : MonoBehaviour
             TriggerGuideSignal();
         }
 
-        // Fキー（AdventureInputReader.CommandFetchDown 経由で新旧InputSystem + Gamepad統合）
-        bool fPressed = AdventureInputReader.CommandFetchDown;
+        // Fキー（AdventureInputReader.CommandFetchDown または長押し経由で新旧InputSystem + Gamepad統合）
+        bool fPressed = AdventureInputReader.CommandFetchDown || (AdventureInputReader.CommandFetchHeld && CurrentState != RustState.Petting);
 
         if (fPressed && canAcceptCommand)
         {
@@ -2672,9 +2672,9 @@ public partial class AdventureRustDrone : MonoBehaviour
         {
             case FlightReactionType.Dive:
                 string[] diveLines = {
-                    "わぁっ！すごいスピードで急降下だ！",
-                    "風を切り裂いてるよ！一気にいくよ、Float！",
-                    "ひゃ〜っ！視界が一気に迫ってくる！"
+                    "ひゃっほう！すごいスピードだ！",
+                    "最高ー！風を切り裂いてるよ！",
+                    "わぁっ！一気に急降下だ、Float！"
                 };
                 reactionLine = diveLines[Random.Range(0, diveLines.Length)];
                 _velocity += Vector3.down * 0.8f + transform.forward * 1.5f;

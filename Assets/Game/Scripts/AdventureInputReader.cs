@@ -245,7 +245,7 @@ public static class AdventureInputReader
         }
     }
 
-    /// <summary>FキーまたはゲームパッドY/△ボタンがこのフレームに押された（Rustへのパーツ回収・指示）</summary>
+    /// <summary>FキーまたはゲームパッドY/△ボタンがこのフレームに押された（Rustへのパーツ回収・指示・スキンシップ）</summary>
     public static bool CommandFetchDown
     {
         get
@@ -255,6 +255,19 @@ public static class AdventureInputReader
             if (kb != null && kb.fKey.wasPressedThisFrame) return true;
             var gp = Gamepad.current;
             return gp != null && gp.buttonNorth.wasPressedThisFrame;
+        }
+    }
+
+    /// <summary>FキーまたはゲームパッドY/△ボタンが押し続けられている（Rustへの長押しスキンシップ）</summary>
+    public static bool CommandFetchHeld
+    {
+        get
+        {
+            try { if (Input.GetKey(KeyCode.F)) return true; } catch { }
+            var kb = Keyboard;
+            if (kb != null && kb.fKey.isPressed) return true;
+            var gp = Gamepad.current;
+            return gp != null && gp.buttonNorth.isPressed;
         }
     }
 
