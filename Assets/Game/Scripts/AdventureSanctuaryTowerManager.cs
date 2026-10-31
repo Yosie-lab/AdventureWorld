@@ -544,7 +544,7 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
             var mc = podium.AddComponent<MeshCollider>();
             var mf = podium.GetComponent<MeshFilter>();
             if (mf != null && mf.sharedMesh != null) mc.sharedMesh = mf.sharedMesh;
-            mc.convex = false; // 水平な上面メッシュのみを正確に判定し、外周の垂直壁で登坂が弾かれないようにする
+            mc.convex = true; // 内部が詰まったソリッドな凸型とし、CharacterControllerの中空内部への侵入・頭突き抜けを完全防止
 
             // 過去の古い基壇コライダー・余計な外壁をクリーンアップ
             var oldBase = tower.transform.Find("WhiteMarblePodium_SolidBase");
@@ -554,8 +554,9 @@ public partial class AdventureSanctuaryTowerManager : MonoBehaviour
         // 台座東側〜南東側の崖下空洞を大理石基壇外壁＋コライダーで密閉（下からの突き抜けを物理的にも遮断）
         EnsurePodiumCliffFoundation(tower);
 
-        // 周囲の地面からテラス上面へ段差なくスムーズに登れる全周進入スロープを生成
-        BuildPodiumEntryRamps(tower.transform);
+        // 余計な空中スロープコライダー（台座外周で宙に浮く原因）を完全に破棄
+        var oldRamps = tower.transform.Find("PodiumEntryRamps");
+        if (oldRamps != null) Destroy(oldRamps.gameObject);
 
         // SanctuaryGridFloor（金属格子床）はコライダーを削除（テラス面と18cm重複してジッターするのを防止）
         var grid = tower.transform.Find("SanctuaryGridFloor")?.gameObject;

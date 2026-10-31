@@ -152,8 +152,19 @@ public partial class AdventureSanctuaryTowerManager
 
                 // テラス床面(63.0m)よりわずかに下（62.80m〜62.98m）の床板・メッシュ隙間に挟まった時のみ救出。
                 // 62.80m未満（床下・崖下・下からのジャンプ突入）は絶対に上面へワープさせない（下抜け・突き抜け防止）！
+                // かつ、足元に地形や有効な歩行面がある（正常に坂や斜面を歩いている）場合は誤救出テレポートを行わない
                 if (pos.y < 62.98f && pos.y >= 62.80f)
                 {
+                    if (Physics.Raycast(pos + Vector3.up * 0.30f, Vector3.down, out RaycastHit hit, 0.90f, ~0, QueryTriggerInteraction.Ignore))
+                    {
+                        // プレイヤー自身や相棒を除外した物理コライダーに足がついているなら正常歩行中
+                        if (hit.collider != null && !hit.collider.CompareTag("Player") && !hit.collider.name.Contains("Rust"))
+                        {
+                            // コライダー天面より潜っていないなら救出不要
+                            if (pos.y >= hit.point.y - 0.05f) return;
+                        }
+                    }
+
                     var cc = player.GetComponent<CharacterController>();
                     if (cc != null) cc.enabled = false;
                     player.transform.position = new Vector3(pos.x, 63.02f, pos.z);
