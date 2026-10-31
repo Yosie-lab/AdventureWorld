@@ -1,0 +1,15 @@
+{
+  "skill_name": "unity-app-architect",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Obsidianのメモ: 『SE3で1タップするだけで今日の歩数を大きく表示する。サーバなし。』 これでUnity MVPを設計して。",
+      "expected_output": "①MVP仕様 ②C#構成図 ③Inspector手順とコピペコード ④iPhone SE3チェックリスト。サーバなしが守られている"
+    },
+    {
+      "id": 2,
+      "prompt": "アイデア: 島を歩く3Dオープンワールドに課金とマルチプレイを足したい。最小のUnityアプリ設計にして。",
+      "expected_output": "課金とマルチプレイはMVP外。1〜2画面の核だけ。4見出しが揃う"
+    }
+  ]
+}

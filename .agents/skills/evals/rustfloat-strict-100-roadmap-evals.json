@@ -1,0 +1,15 @@
+{
+  "skill_name": "rustfloat-strict-100-roadmap",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "RustAndFloatを厳し目に100点採点して、満点までのロードマップを出して。HANDOFFには100点到達と書いてある。",
+      "expected_output": "HANDOFFの100点主張を得点にしない。25項目に証拠グレード。減点だけのロードマップ。破綻があれば未出荷。"
+    },
+    {
+      "id": 2,
+      "prompt": "光の柱は直った気がする。もう100点でいい？",
+      "expected_output": "体感だけでは4点にしない。未確認項目は0か2。100は全項目実機確認のときだけ。"
+    }
+  ]
+}

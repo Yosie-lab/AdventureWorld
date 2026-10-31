@@ -1,0 +1,1345 @@
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
+using System.Collections.Generic;
+
+/// <summary>
+/// 『Rust & Float』相棒Rustの着せ替え＆アクセサリークラフト工房UI。
+/// 【Bキー】または西側砂浜の座礁艇作業台で【Eキー】を押すと開き、
+/// 集めた貝殻・シーグラスを消費してRustのアクセサリー（花冠、発光アンテナ、小翼トレイル等）をクラフト・着せ替えできる。
+/// </summary>
+[DefaultExecutionOrder(480)]
+public class AdventureRustWorkshopUI : MonoBehaviour
+{
+    public static AdventureRustWorkshopUI Instance { get; private set; }
+
+    public static bool IsOpen => Instance != null && Instance.isVisible;
+
+    [Header("UI State")]
+    public bool isVisible = false;
+
+    // UIコンポーネント
+    Canvas _canvas;
+    CanvasGroup _canvasGroup;
+    GraphicRaycaster _uiRaycaster;
+    GameObject _panelRoot;
+
+    // 左カラム：素材ポーチ
+    Text _panelTitleText;
+    Text _pouchHeaderTitle;
+    Text _pouchHeaderSub;
+    Text _pouchGuideText;
+    readonly Text[] _pouchRowLabelTexts = new Text[5];
+    Text _textSakuragai;
+    Text _textEmerald;
+    Text _textSapphire;
+    Text _textAmber;
+    Text _textConch;
+
+    // 右カラム：アクセサリーカード
+    readonly List<CosmeticCardUI> _cardUIs = new List<CosmeticCardUI>();
+
+    // 座礁艇の作業台スポット
+    GameObject _workbenchWorldObj;
+    Text _promptText;
+    CanvasGroup _promptCg;
+
+    int _lastCardClickFrame = -1;
+
+    // クラフトUI音響
+    AudioSource _uiAudioSource;
+    AudioClip _craftSuccessClip;
+    AudioClip _equipClip;
+    AudioClip _errorClip;
+
+    static readonly Vector3 WorkbenchPosition = new Vector3(149.0f, 6.25f, 278.0f);
+
+    class CosmeticCardUI
+    {
+        public AdventureRustCosmetics.CosmeticDef def;
+        public GameObject rootGo;
+        public Text titleText;
+        public Text descText;
+        public Text costText;
+        public Text statusText;
+        public Button actionBtn;
+        public Text actionBtnText;
+        public Image actionBtnImage;
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void AutoInit()
+    {
+        Ensure();
+    }
+
+    public static void Ensure()
+    {
+        if (Instance != null) return;
+        var existing = Object.FindAnyObjectByType<AdventureRustWorkshopUI>();
+        if (existing != null)
+        {
+            Instance = existing;
+            return;
+        }
+
+        var go = new GameObject("AdventureRustWorkshopUI");
+        DontDestroyOnLoad(go);
+        Instance = go.AddComponent<AdventureRustWorkshopUI>();
+    }
+
+    public static void EnsureEventSystemForUi()
+    {
+        AdventurePauseMenu.EnsureEventSystemForUi();
+    }
+
+    void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+
+        EnsureEventSystemForUi();
+        SetupAudio();
+        CreateUI();
+        SpawnWorkbenchSpot();
+    }
+
+    void SetupAudio()
+    {
+        EnsureUiAudioReady();
+    }
+
+    void EnsureUiAudioReady()
+    {
+        if (_uiAudioSource == null)
+        {
+            _uiAudioSource = GetComponent<AudioSource>();
+            if (_uiAudioSource == null)
+                _uiAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        _uiAudioSource.spatialBlend = 0f;
+        _uiAudioSource.playOnAwake = false;
+        _uiAudioSource.volume = 1f;
+        _uiAudioSource.priority = 0;
+        _uiAudioSource.bypassListenerEffects = true;
+        _uiAudioSource.bypassEffects = true;
+        _uiAudioSource.ignoreListenerPause = true;
+
+        if (_craftSuccessClip == null)
+            _craftSuccessClip = CreateCraftSuccessClip();
+        if (_equipClip == null)
+            _equipClip = CreateEquipClip();
+        if (_errorClip == null)
+            _errorClip = CreateErrorClip();
+    }
+
+    void PlayUiOneShot(AudioClip clip, float volume, float pitch = 1f)
+    {
+        if (clip == null || volume <= 0.001f) return;
+        EnsureUiAudioReady();
+
+        if (_uiAudioSource != null)
+        {
+            _uiAudioSource.pitch = pitch;
+            _uiAudioSource.PlayOneShot(clip, volume);
+        }
+
+        var listener = Object.FindAnyObjectByType<AudioListener>();
+        Vector3 pos = listener != null
+            ? listener.transform.position
+            : (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
+        AudioSource.PlayClipAtPoint(clip, pos, volume);
+    }
+
+    void OnEnable()
+    {
+        AdventureBeachSeashellManager.OnInventoryChanged += RefreshUI;
+        AdventureLocalizationManager.OnLanguageChanged += HandleLanguageChanged;
+    }
+
+    void OnDisable()
+    {
+        AdventureBeachSeashellManager.OnInventoryChanged -= RefreshUI;
+        AdventureLocalizationManager.OnLanguageChanged -= HandleLanguageChanged;
+    }
+
+    void HandleLanguageChanged()
+    {
+        UpdatePromptText();
+        RefreshUI();
+    }
+
+    void UpdatePromptText()
+    {
+        if (_promptText != null)
+            _promptText.text = AdventureLocalizationManager.Get("prompt_workbench");
+    }
+
+    void Update()
+    {
+        bool openingModal = AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen();
+        bool awakening = AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening;
+        bool pauseMenu = AdventurePauseMenu.IsOpen;
+
+        // Bキーで工房トグル開閉（新旧InputSystem両対応）
+        bool bPressed = false;
+        var kb = Keyboard.current ?? AdventureInputReader.Keyboard;
+        if (kb != null && kb.bKey.wasPressedThisFrame)
+        {
+            bPressed = true;
+        }
+        else
+        {
+            try { if (Input.GetKeyDown(KeyCode.B)) bPressed = true; } catch { }
+        }
+
+        if (bPressed && !pauseMenu && !openingModal && !awakening)
+        {
+            if (isVisible)
+                SetVisible(false);
+            else if (CanOpenWorkshopNow())
+                SetVisible(true);
+        }
+
+        // ESCキーで閉じる
+        if (AdventureInputReader.EscapeDown && isVisible)
+        {
+            SetVisible(false);
+        }
+
+        if (isVisible)
+        {
+            HandleWorkshopKeyboardShortcuts();
+            ProcessWorkshopMouseInput();
+        }
+
+        if (isVisible)
+        {
+            var p = AdventurePlayerController.Instance;
+            if (p != null && (p.IsGliding || p.IsAutoGliding))
+                SetVisible(false);
+        }
+
+        // 作業台への接近判定とEキー入力
+        UpdateWorkbenchInteraction();
+    }
+
+    void LateUpdate()
+    {
+        if (!isVisible) return;
+        EnsureEventSystemForUi();
+        Canvas.ForceUpdateCanvases();
+        ProcessWorkshopMouseInput();
+    }
+
+    void HandleWorkshopKeyboardShortcuts()
+    {
+        var curKb = Keyboard.current ?? AdventureInputReader.Keyboard;
+        if (curKb != null)
+        {
+            if (curKb.digit1Key.wasPressedThisFrame || curKb.numpad1Key.wasPressedThisFrame) TriggerCardByIndex(0);
+            if (curKb.digit2Key.wasPressedThisFrame || curKb.numpad2Key.wasPressedThisFrame) TriggerCardByIndex(1);
+            if (curKb.digit3Key.wasPressedThisFrame || curKb.numpad3Key.wasPressedThisFrame) TriggerCardByIndex(2);
+            if (curKb.digit4Key.wasPressedThisFrame || curKb.numpad4Key.wasPressedThisFrame) TriggerCardByIndex(3);
+            if (curKb.digit5Key.wasPressedThisFrame || curKb.numpad5Key.wasPressedThisFrame) TriggerCardByIndex(4);
+        }
+        try
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) TriggerCardByIndex(0);
+            if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) TriggerCardByIndex(1);
+            if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)) TriggerCardByIndex(2);
+            if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)) TriggerCardByIndex(3);
+            if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5)) TriggerCardByIndex(4);
+        }
+        catch { }
+    }
+
+    Camera GetUiRaycastCamera()
+    {
+        if (_canvas == null) return null;
+        return _canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : _canvas.worldCamera;
+    }
+
+    static Vector2 GetScreenPointFromMouse()
+    {
+        var mouse = Mouse.current;
+        if (mouse != null)
+            return mouse.position.ReadValue();
+        return Input.mousePosition;
+    }
+
+    static bool IsWorkshopMouseClickThisFrame()
+    {
+        if (AdventureInputReader.MouseLeftDown) return true;
+        var mouse = Mouse.current;
+        if (mouse != null && mouse.leftButton.wasReleasedThisFrame) return true;
+        try { if (Input.GetMouseButtonUp(0)) return true; } catch { }
+        return false;
+    }
+
+    static IEnumerable<Vector2> MouseScreenPointCandidates(Vector2 basePoint)
+    {
+        yield return basePoint;
+        yield return basePoint * 2f;
+        yield return basePoint * 0.5f;
+        float dpiScale = Screen.dpi > 1f ? Screen.dpi / 96f : 1f;
+        if (Mathf.Abs(dpiScale - 1f) > 0.08f)
+        {
+            yield return basePoint * dpiScale;
+            yield return basePoint / dpiScale;
+        }
+    }
+
+    bool TryGetCardAtScreenPoint(Vector2 screenPoint, out CosmeticCardUI card)
+    {
+        card = null;
+        foreach (var candidate in MouseScreenPointCandidates(screenPoint))
+        {
+            if (TryGetCardAtScreenPointSingle(candidate, out card))
+                return true;
+        }
+        return false;
+    }
+
+    bool TryGetCardAtScreenPointSingle(Vector2 screenPoint, out CosmeticCardUI card)
+    {
+        card = null;
+        if (_uiRaycaster != null && EventSystem.current != null)
+        {
+            var ped = new PointerEventData(EventSystem.current) { position = screenPoint };
+            var hits = new List<RaycastResult>(16);
+            _uiRaycaster.Raycast(ped, hits);
+            for (int h = 0; h < hits.Count; h++)
+            {
+                var go = hits[h].gameObject;
+                if (go == null) continue;
+                var relay = go.GetComponentInParent<RustWorkshopCardClickRelay>();
+                if (relay != null && relay.TryGetCardIndex(out int relayIdx)
+                    && relayIdx >= 0 && relayIdx < _cardUIs.Count)
+                {
+                    card = _cardUIs[relayIdx];
+                    return true;
+                }
+                var btn = go.GetComponent<Button>() ?? go.GetComponentInParent<Button>();
+                if (btn == null) continue;
+                for (int i = 0; i < _cardUIs.Count; i++)
+                {
+                    var c = _cardUIs[i];
+                    if (c?.actionBtn == btn)
+                    {
+                        card = c;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        Camera cam = GetUiRaycastCamera();
+        for (int i = 0; i < _cardUIs.Count; i++)
+        {
+            var c = _cardUIs[i];
+            if (c?.actionBtn == null || !c.actionBtn.gameObject.activeInHierarchy) continue;
+            var rt = c.actionBtn.GetComponent<RectTransform>();
+            if (rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, screenPoint, cam))
+            {
+                card = c;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    internal void ProcessWorkshopMouseInput()
+    {
+        if (!isVisible) return;
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        if (!IsWorkshopMouseClickThisFrame()) return;
+
+        if (TryGetCardAtScreenPoint(GetScreenPointFromMouse(), out var card))
+            OnCardButtonClicked(card);
+    }
+
+    void TriggerCardByIndex(int index)
+    {
+        if (index >= 0 && index < _cardUIs.Count)
+        {
+            var card = _cardUIs[index];
+            if (card != null)
+            {
+                OnCardButtonClicked(card);
+            }
+        }
+    }
+
+    void UpdateWorkbenchInteraction()
+    {
+        var player = AdventurePlayerController.Instance;
+        if (player == null || _workbenchWorldObj == null) return;
+
+        // 1. オープニングモーダル中や目覚め演出中は作業台を休止
+        bool openingModal = AdventureRustFloatOpening.Instance != null && AdventureRustFloatOpening.Instance.IsModalBoardOpen();
+        bool awakening = AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening;
+        if (openingModal || awakening)
+        {
+            if (_promptCg != null) _promptCg.alpha = 0f;
+            return;
+        }
+
+        // 2. プロローグ注油待ち中は作業台が E を奪わない
+        var drama = AdventurePrologueDrama.Instance;
+        if (drama != null && drama.IsWaitingForOil)
+        {
+            if (_promptCg != null) _promptCg.alpha = 0f;
+            return;
+        }
+
+        // 3. 作業台との水平距離および向き判定（正面から机を見た時のみ有効）
+        Vector3 toBench = WorkbenchPosition - player.transform.position;
+        toBench.y = 0f;
+        float dist = toBench.magnitude;
+        bool isLookingAtBench = dist > 0.05f && Vector3.Dot(player.transform.forward, toBench.normalized) > 0.40f;
+        bool isNear = dist <= 2.4f && isLookingAtBench && !isVisible && !AdventurePauseMenu.IsOpen;
+
+        if (_promptCg != null)
+            _promptCg.alpha = 0f;
+
+        if (isNear && CanOpenWorkshopNow())
+        {
+            if (AdventureInputReader.InteractDown)
+                SetVisible(true);
+        }
+    }
+
+    /// <summary>地上に立っているときだけ工房を開く（滑空・浮遊中の誤 B / E / GUI クリック防止）</summary>
+    static bool CanOpenWorkshopNow()
+    {
+        var player = AdventurePlayerController.Instance;
+        if (player == null) return true;
+        if (!player.IsGrounded) return false;
+        if (player.IsGliding || player.IsAutoGliding) return false;
+        return true;
+    }
+
+    void EnsureWorkshopUiLayout()
+    {
+        if (_panelRoot != null)
+        {
+            var scroll = _panelRoot.transform.Find("BodyContainer/CatalogColumn/CatalogScroll");
+            if (scroll != null && _cardUIs.Count > 0 && _cardUIs[0].actionBtn != null
+                && _cardUIs[0].actionBtn.GetComponent<RustWorkshopCardClickRelay>() != null)
+                return;
+        }
+
+        _cardUIs.Clear();
+        _textSakuragai = _textEmerald = _textSapphire = _textAmber = _textConch = null;
+        if (_canvas != null)
+            Destroy(_canvas.gameObject);
+        _canvas = null;
+        _uiRaycaster = null;
+        _panelRoot = null;
+        _canvasGroup = null;
+        CreateUI();
+    }
+
+    public void SetVisible(bool visible)
+    {
+        if (visible)
+            EnsureWorkshopUiLayout();
+
+        isVisible = visible;
+        if (_panelRoot != null)
+            _panelRoot.SetActive(visible);
+
+        if (_canvasGroup != null)
+        {
+            _canvasGroup.alpha = visible ? 1.0f : 0.0f;
+            _canvasGroup.interactable = visible;
+            _canvasGroup.blocksRaycasts = visible;
+        }
+
+        if (visible)
+        {
+            AdventureBeachSeashellManager.Ensure();
+            AdventureRustCosmetics.Ensure();
+            EnsureEventSystemForUi();
+            if (_canvas != null)
+            {
+                _canvas.enabled = true;
+                _canvas.sortingOrder = 5800;
+            }
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+            RefreshUI();
+        }
+        else
+            AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
+    }
+
+    public void RefreshUI()
+    {
+        AdventureBeachSeashellManager.Ensure();
+        AdventureRustCosmetics.Ensure();
+        var shellMgr = AdventureBeachSeashellManager.Instance;
+        var cosmetics = AdventureRustCosmetics.Instance;
+
+        // 1. ヘッダー・素材ポーチの静的テキスト多言語更新
+        if (_panelTitleText != null) _panelTitleText.text = AdventureLocalizationManager.Get("workshop_title");
+        if (_pouchHeaderTitle != null) _pouchHeaderTitle.text = AdventureLocalizationManager.Get("workshop_pouch_title");
+        if (_pouchHeaderSub != null) _pouchHeaderSub.text = AdventureLocalizationManager.Get("workshop_pouch_sub");
+        if (_pouchGuideText != null) _pouchGuideText.text = AdventureLocalizationManager.Get("workshop_pouch_hint");
+
+        string[] shellKeys = { "桜色のサクラガイ", "エメラルド・シーグラス", "サファイア・シーグラス", "太陽の小琥珀", "純白の小巻貝" };
+        string[] shellIcons = { "🌸 ", "🟢 ", "🔷 ", "☀️ ", "🐚 " };
+        for (int k = 0; k < _pouchRowLabelTexts.Length && k < shellKeys.Length; k++)
+        {
+            if (_pouchRowLabelTexts[k] != null)
+                _pouchRowLabelTexts[k].text = shellIcons[k] + AdventureLocalizationManager.Get(shellKeys[k]);
+        }
+
+        string unitStr = AdventureLocalizationManager.CurrentLanguage switch
+        {
+            AdventureLocalizationManager.GameLanguage.English => "",
+            AdventureLocalizationManager.GameLanguage.Spanish => "",
+            AdventureLocalizationManager.GameLanguage.SimplifiedChinese => " 个",
+            _ => " 個"
+        };
+
+        // 素材ポーチの個数更新
+        if (shellMgr != null)
+        {
+            if (_textSakuragai != null) _textSakuragai.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.Sakuragai)}{unitStr}";
+            if (_textEmerald != null) _textEmerald.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald)}{unitStr}";
+            if (_textSapphire != null) _textSapphire.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire)}{unitStr}";
+            if (_textAmber != null) _textAmber.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.AmberPebble)}{unitStr}";
+            if (_textConch != null) _textConch.text = $"{shellMgr.GetShellCount(AdventureBeachSeashellItem.ShellKind.SpiralShell)}{unitStr}";
+        }
+
+        // 2. 右カラム：各カードのステータスとボタン更新
+        for (int i = 0; i < _cardUIs.Count; i++)
+        {
+            var card = _cardUIs[i];
+            if (card == null || card.def == null || cosmetics == null) continue;
+
+            if (card.titleText != null) card.titleText.text = card.def.displayName;
+            if (card.descText != null) card.descText.text = card.def.description;
+
+            bool isUnlocked = cosmetics.IsUnlocked(card.def.id);
+            bool isEquipped = cosmetics.IsEquipped(card.def.id);
+            bool canCraft = cosmetics.CanCraft(card.def.id);
+
+            int keyIndex = i + 1;
+            if (isUnlocked)
+            {
+                if (isEquipped)
+                {
+                    card.statusText.text = AdventureLocalizationManager.Get("workshop_status_equipped");
+                    card.actionBtnText.text = AdventureLocalizationManager.GetFormat("workshop_btn_unequip", keyIndex);
+                    card.actionBtnText.color = Color.white;
+                    card.actionBtnImage.color = new Color(0.35f, 0.45f, 0.55f, 0.95f);
+                    card.actionBtn.interactable = true;
+                }
+                else
+                {
+                    card.statusText.text = AdventureLocalizationManager.Get("workshop_status_owned");
+                    card.actionBtnText.text = AdventureLocalizationManager.GetFormat("workshop_btn_equip", keyIndex);
+                    card.actionBtnText.color = new Color(0.10f, 0.12f, 0.18f);
+                    card.actionBtnImage.color = new Color(0.2f, 0.75f, 0.55f, 0.95f);
+                    card.actionBtn.interactable = true;
+                }
+                card.costText.text = AdventureLocalizationManager.Get("workshop_status_crafted");
+            }
+            else
+            {
+                string kindName = GetKindName(card.def.requiredKind);
+                string hexCol = ColorUtility.ToHtmlStringRGB(card.def.themeColor);
+
+                int curCount = shellMgr != null ? shellMgr.GetShellCount(card.def.requiredKind) : 0;
+                string countColor = curCount >= card.def.requiredCount ? "#66FFAA" : "#FF7777";
+
+                card.costText.text = AdventureLocalizationManager.GetFormat("workshop_cost_format", hexCol, kindName, countColor, curCount, card.def.requiredCount);
+
+                if (canCraft)
+                {
+                    card.statusText.text = AdventureLocalizationManager.Get("workshop_status_craftable");
+                    card.actionBtnText.text = AdventureLocalizationManager.GetFormat("workshop_btn_craft", keyIndex);
+                    card.actionBtnText.color = new Color(0.10f, 0.12f, 0.18f);
+                    card.actionBtnImage.color = new Color(1f, 0.78f, 0.22f, 1f);
+                    card.actionBtn.interactable = true;
+                }
+                else
+                {
+                    card.statusText.text = AdventureLocalizationManager.Get("workshop_status_need_mat");
+                    card.actionBtnText.text = AdventureLocalizationManager.GetFormat("workshop_btn_craft", keyIndex);
+                    card.actionBtnText.color = new Color(0.96f, 0.96f, 0.96f);
+                    card.actionBtnImage.color = new Color(0.50f, 0.36f, 0.22f, 1f);
+                    card.actionBtn.interactable = true;
+                }
+            }
+        }
+    }
+
+    static Font ResolveWorkshopFont()
+    {
+        string[] candidates =
+        {
+            "Hiragino Sans",
+            "PingFang SC",
+            "Hiragino Sans GB",
+            "YuGothic",
+            "Noto Sans CJK JP",
+            "Microsoft YaHei",
+            "Arial Unicode MS"
+        };
+        try
+        {
+            Font multi = Font.CreateDynamicFontFromOSFont(candidates, 20);
+            if (multi != null) return multi;
+        }
+        catch { }
+
+        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+               ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+    }
+
+    static string GetKindName(AdventureBeachSeashellItem.ShellKind kind)
+    {
+        switch (kind)
+        {
+            case AdventureBeachSeashellItem.ShellKind.Sakuragai: return AdventureLocalizationManager.Get("桜色のサクラガイ");
+            case AdventureBeachSeashellItem.ShellKind.SeaGlassEmerald: return AdventureLocalizationManager.Get("エメラルド・シーグラス");
+            case AdventureBeachSeashellItem.ShellKind.SeaGlassSapphire: return AdventureLocalizationManager.Get("サファイア・シーグラス");
+            case AdventureBeachSeashellItem.ShellKind.AmberPebble: return AdventureLocalizationManager.Get("太陽の小琥珀");
+            case AdventureBeachSeashellItem.ShellKind.SpiralShell: return AdventureLocalizationManager.Get("純白の小巻貝");
+            default: return AdventureLocalizationManager.Get("綺麗な貝殻");
+        }
+    }
+
+    public void NotifyCardClickByIndex(int index)
+    {
+        if (!isVisible) return;
+        TriggerCardByIndex(index);
+    }
+
+    void OnCardButtonClicked(CosmeticCardUI card)
+    {
+        if (card == null || card.def == null) return;
+        if (Time.frameCount == _lastCardClickFrame) return;
+        _lastCardClickFrame = Time.frameCount;
+
+        AdventureBeachSeashellManager.Ensure();
+        AdventureRustCosmetics.Ensure();
+        var cosmetics = AdventureRustCosmetics.Instance;
+        if (cosmetics == null)
+        {
+            PlayErrorSound();
+            Debug.LogWarning("[RustAndFloat] 工房: AdventureRustCosmetics が初期化できません");
+            return;
+        }
+
+        bool isUnlocked = cosmetics.IsUnlocked(card.def.id);
+        if (!isUnlocked)
+        {
+            // クラフト実行
+            if (cosmetics.CraftAndEquip(card.def.id))
+            {
+                PlayCraftSuccessSound();
+                RefreshUI();
+            }
+            else
+            {
+                // 素材不足時のフィードバック音＆Rustセリフ案内
+                var shellMgr = AdventureBeachSeashellManager.Instance;
+                int count = shellMgr != null ? shellMgr.GetShellCount(card.def.requiredKind) : 0;
+                string kindName = GetKindName(card.def.requiredKind);
+                int needed = Mathf.Max(1, card.def.requiredCount - count);
+                PlayErrorSound();
+                var drone = AdventureRustDrone.Instance;
+                string speech = AdventureLocalizationManager.GetFormat("shell_not_enough_speech", card.def.displayName, kindName, needed);
+                drone?.SetSpeech(speech, 4.5f);
+            }
+        }
+        else
+        {
+            // 装備切替
+            bool isEquipped = cosmetics.IsEquipped(card.def.id);
+            cosmetics.SetEquipped(card.def.id, !isEquipped);
+            PlayEquipSound();
+            RefreshUI();
+        }
+    }
+
+    void PlayErrorSound() => PlayUiOneShot(_errorClip, 0.72f, 0.95f);
+
+    void PlayCraftSuccessSound() => PlayUiOneShot(_craftSuccessClip, 0.88f, 1f);
+
+    void PlayEquipSound() => PlayUiOneShot(_equipClip, 0.78f, 1.05f);
+
+    #region UI Construction
+    void CreateUI()
+    {
+        var canvasGo = new GameObject("RustWorkshop_Canvas");
+        canvasGo.transform.SetParent(transform, false);
+
+        _canvas = canvasGo.AddComponent<Canvas>();
+        _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        _canvas.sortingOrder = 5800;
+
+        var scaler = canvasGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280f, 720f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        _uiRaycaster = canvasGo.AddComponent<GraphicRaycaster>();
+        _canvasGroup = canvasGo.AddComponent<CanvasGroup>();
+        _canvasGroup.alpha = 0f;
+        _canvasGroup.interactable = false;
+        _canvasGroup.blocksRaycasts = false;
+        canvasGo.AddComponent<RustWorkshopUiInputDriver>();
+
+        var font = ResolveWorkshopFont();
+
+        // ── 半透明ダークバックドロップ ──
+        var backdrop = new GameObject("Backdrop");
+        backdrop.transform.SetParent(canvasGo.transform, false);
+        var bdRect = backdrop.AddComponent<RectTransform>();
+        bdRect.anchorMin = Vector2.zero;
+        bdRect.anchorMax = Vector2.one;
+        bdRect.sizeDelta = Vector2.zero;
+        var bdImg = backdrop.AddComponent<Image>();
+        bdImg.color = new Color(0.04f, 0.06f, 0.10f, 0.88f);
+        bdImg.raycastTarget = true;
+
+        // ── メインパネル（幅 960 × 高 580） ──
+        _panelRoot = new GameObject("WorkshopPanel");
+        _panelRoot.transform.SetParent(canvasGo.transform, false);
+        var pRect = _panelRoot.AddComponent<RectTransform>();
+        pRect.anchorMin = new Vector2(0.5f, 0.5f);
+        pRect.anchorMax = new Vector2(0.5f, 0.5f);
+        pRect.sizeDelta = new Vector2(980f, 600f);
+
+        var pImg = _panelRoot.AddComponent<Image>();
+        pImg.color = new Color(0.10f, 0.14f, 0.22f, 0.95f);
+        pImg.raycastTarget = false;
+
+        // ── ヘッダー（タイトル＆閉じるボタン） ──
+        var header = new GameObject("Header");
+        header.transform.SetParent(_panelRoot.transform, false);
+        var hRect = header.AddComponent<RectTransform>();
+        hRect.anchorMin = new Vector2(0f, 1f);
+        hRect.anchorMax = new Vector2(1f, 1f);
+        hRect.pivot = new Vector2(0.5f, 1f);
+        hRect.sizeDelta = new Vector2(0f, 65f);
+        var hImg = header.AddComponent<Image>();
+        hImg.color = new Color(0.14f, 0.20f, 0.32f, 0.95f);
+
+        var titleGo = new GameObject("TitleText");
+        titleGo.transform.SetParent(header.transform, false);
+        var tRect = titleGo.AddComponent<RectTransform>();
+        tRect.anchorMin = new Vector2(0f, 0f);
+        tRect.anchorMax = new Vector2(0.85f, 1f);
+        tRect.offsetMin = new Vector2(25f, 0f);
+        var titleText = titleGo.AddComponent<Text>();
+        titleText.font = font;
+        titleText.fontSize = 22;
+        titleText.alignment = TextAnchor.MiddleLeft;
+        titleText.color = new Color(1f, 0.92f, 0.55f);
+        titleText.text = AdventureLocalizationManager.Get("workshop_title");
+        _panelTitleText = titleText;
+
+        // 閉じる×ボタン
+        var closeGo = new GameObject("CloseButton");
+        closeGo.transform.SetParent(header.transform, false);
+        var cRect = closeGo.AddComponent<RectTransform>();
+        cRect.anchorMin = new Vector2(1f, 0.5f);
+        cRect.anchorMax = new Vector2(1f, 0.5f);
+        cRect.sizeDelta = new Vector2(40f, 40f);
+        cRect.anchoredPosition = new Vector2(-25f, 0f);
+        var cBtn = closeGo.AddComponent<Button>();
+        var cImg = closeGo.AddComponent<Image>();
+        cImg.color = new Color(0.35f, 0.4f, 0.5f, 0.8f);
+
+        var cTextGo = new GameObject("X");
+        cTextGo.transform.SetParent(closeGo.transform, false);
+        var ctRect = cTextGo.AddComponent<RectTransform>();
+        ctRect.anchorMin = Vector2.zero;
+        ctRect.anchorMax = Vector2.one;
+        ctRect.sizeDelta = Vector2.zero;
+        var ctText = cTextGo.AddComponent<Text>();
+        ctText.font = font;
+        ctText.fontSize = 20;
+        ctText.alignment = TextAnchor.MiddleCenter;
+        ctText.color = Color.white;
+        ctText.text = "×";
+        cBtn.onClick.AddListener(() => SetVisible(false));
+
+        // ── 2カラムコンテナ ──
+        var bodyContainer = new GameObject("BodyContainer");
+        bodyContainer.transform.SetParent(_panelRoot.transform, false);
+        var bcRect = bodyContainer.AddComponent<RectTransform>();
+        bcRect.anchorMin = Vector2.zero;
+        bcRect.anchorMax = Vector2.one;
+        bcRect.offsetMin = new Vector2(20f, 20f);
+        bcRect.offsetMax = new Vector2(-20f, -75f);
+
+        // ── 左カラム：素材ポーチ (幅 260) ──
+        BuildPouchColumn(bodyContainer.transform, font);
+
+        // ── 右カラム：アクセサリーカタログ (幅 660) ──
+        BuildCatalogColumn(bodyContainer.transform, font);
+
+        _panelRoot.SetActive(false);
+    }
+
+    void BuildPouchColumn(Transform parent, Font font)
+    {
+        var pouchGo = new GameObject("PouchColumn");
+        pouchGo.transform.SetParent(parent, false);
+        var r = pouchGo.AddComponent<RectTransform>();
+        r.anchorMin = new Vector2(0f, 0f);
+        r.anchorMax = new Vector2(0.28f, 1f);
+        r.offsetMin = Vector2.zero;
+        r.offsetMax = Vector2.zero;
+
+        var bg = pouchGo.AddComponent<Image>();
+        bg.color = new Color(0.07f, 0.10f, 0.16f, 0.95f);
+
+        var vlg = pouchGo.AddComponent<VerticalLayoutGroup>();
+        vlg.padding = new RectOffset(16, 16, 16, 16);
+        vlg.spacing = 10;
+        vlg.childForceExpandWidth = true;
+        vlg.childForceExpandHeight = false;
+
+        // 見出し
+        _pouchHeaderTitle = CreateTextItem(pouchGo.transform, AdventureLocalizationManager.Get("workshop_pouch_title"), 18, new Color(0.95f, 0.85f, 0.45f), font, TextAnchor.MiddleLeft);
+        _pouchHeaderSub = CreateTextItem(pouchGo.transform, AdventureLocalizationManager.Get("workshop_pouch_sub"), 12, new Color(0.7f, 0.75f, 0.85f), font, TextAnchor.MiddleLeft);
+
+        // アイテムリスト
+        _textSakuragai = CreatePouchRow(pouchGo.transform, 0, "🌸 " + AdventureLocalizationManager.Get("桜色のサクラガイ"), font);
+        _textEmerald = CreatePouchRow(pouchGo.transform, 1, "🟢 " + AdventureLocalizationManager.Get("エメラルド・シーグラス"), font);
+        _textSapphire = CreatePouchRow(pouchGo.transform, 2, "🔷 " + AdventureLocalizationManager.Get("サファイア・シーグラス"), font);
+        _textAmber = CreatePouchRow(pouchGo.transform, 3, "☀️ " + AdventureLocalizationManager.Get("太陽の小琥珀"), font);
+        _textConch = CreatePouchRow(pouchGo.transform, 4, "🐚 " + AdventureLocalizationManager.Get("純白の小巻貝"), font);
+
+        // 下部ガイド
+        _pouchGuideText = CreateTextItem(pouchGo.transform, AdventureLocalizationManager.Get("workshop_pouch_hint"), 12, new Color(0.65f, 0.75f, 0.85f), font, TextAnchor.MiddleLeft);
+    }
+
+    Text CreatePouchRow(Transform parent, int rowIndex, string title, Font font)
+    {
+        var row = new GameObject("PouchRow");
+        row.transform.SetParent(parent, false);
+        var r = row.AddComponent<RectTransform>();
+        r.sizeDelta = new Vector2(0f, 32f);
+
+        var hl = row.AddComponent<HorizontalLayoutGroup>();
+        hl.childForceExpandWidth = false;
+        hl.childForceExpandHeight = true;
+
+        var nameText = CreateTextItem(row.transform, title, 13, Color.white, font, TextAnchor.MiddleLeft);
+        var nRect = nameText.GetComponent<RectTransform>();
+        nRect.sizeDelta = new Vector2(150f, 30f);
+        if (rowIndex >= 0 && rowIndex < _pouchRowLabelTexts.Length)
+            _pouchRowLabelTexts[rowIndex] = nameText;
+
+        var valText = CreateTextItem(row.transform, "0 個", 13, new Color(1f, 0.9f, 0.4f), font, TextAnchor.MiddleRight);
+        var vRect = valText.GetComponent<RectTransform>();
+        vRect.sizeDelta = new Vector2(60f, 30f);
+
+        return valText;
+    }
+
+    void BuildCatalogColumn(Transform parent, Font font)
+    {
+        var catGo = new GameObject("CatalogColumn");
+        catGo.transform.SetParent(parent, false);
+        var r = catGo.AddComponent<RectTransform>();
+        r.anchorMin = new Vector2(0.30f, 0f);
+        r.anchorMax = new Vector2(1f, 1f);
+        r.offsetMin = Vector2.zero;
+        r.offsetMax = Vector2.zero;
+
+        var bg = catGo.AddComponent<Image>();
+        bg.color = new Color(0.07f, 0.10f, 0.16f, 0.95f);
+        bg.raycastTarget = false;
+
+        var scrollGo = new GameObject("CatalogScroll");
+        scrollGo.transform.SetParent(catGo.transform, false);
+        var scrollRt = scrollGo.AddComponent<RectTransform>();
+        scrollRt.anchorMin = Vector2.zero;
+        scrollRt.anchorMax = Vector2.one;
+        scrollRt.offsetMin = Vector2.zero;
+        scrollRt.offsetMax = Vector2.zero;
+
+        var scroll = scrollGo.AddComponent<ScrollRect>();
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 24f;
+
+        var viewportGo = new GameObject("Viewport");
+        viewportGo.transform.SetParent(scrollGo.transform, false);
+        var viewportRt = viewportGo.AddComponent<RectTransform>();
+        viewportRt.anchorMin = Vector2.zero;
+        viewportRt.anchorMax = Vector2.one;
+        viewportRt.offsetMin = Vector2.zero;
+        viewportRt.offsetMax = Vector2.zero;
+        var viewportImg = viewportGo.AddComponent<Image>();
+        viewportImg.color = new Color(0f, 0f, 0f, 0.01f);
+        viewportImg.raycastTarget = true;
+        viewportGo.AddComponent<Mask>().showMaskGraphic = false;
+
+        var contentGo = new GameObject("Content");
+        contentGo.transform.SetParent(viewportGo.transform, false);
+        var contentRt = contentGo.AddComponent<RectTransform>();
+        contentRt.anchorMin = new Vector2(0f, 1f);
+        contentRt.anchorMax = new Vector2(1f, 1f);
+        contentRt.pivot = new Vector2(0.5f, 1f);
+        contentRt.anchoredPosition = Vector2.zero;
+        contentRt.sizeDelta = new Vector2(0f, 0f);
+
+        var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
+        vlg.padding = new RectOffset(16, 16, 16, 16);
+        vlg.spacing = 10;
+        vlg.childForceExpandWidth = true;
+        vlg.childForceExpandHeight = false;
+        vlg.childControlWidth = true;
+        vlg.childControlHeight = true;
+
+        var fitter = contentGo.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        scroll.viewport = viewportRt;
+        scroll.content = contentRt;
+
+        // 全5アクセサリーカードの構築
+        for (int i = 0; i < AdventureRustCosmetics.AllDefs.Length; i++)
+        {
+            var def = AdventureRustCosmetics.AllDefs[i];
+            var card = BuildCosmeticCard(contentGo.transform, def, font);
+            _cardUIs.Add(card);
+        }
+    }
+
+    CosmeticCardUI BuildCosmeticCard(Transform parent, AdventureRustCosmetics.CosmeticDef def, Font font)
+    {
+        var cardObj = new GameObject("Card_" + def.id);
+        cardObj.transform.SetParent(parent, false);
+        var r = cardObj.AddComponent<RectTransform>();
+        r.sizeDelta = new Vector2(0f, 86f);
+
+        // 縦レイアウトで確実に高さを保証するLayoutElement
+        var le = cardObj.AddComponent<LayoutElement>();
+        le.minHeight = 86f;
+        le.preferredHeight = 86f;
+        le.flexibleHeight = 0f;
+
+        var cardBg = cardObj.AddComponent<Image>();
+        cardBg.color = new Color(0.11f, 0.16f, 0.25f, 0.96f);
+        cardBg.raycastTarget = false;
+
+        var cardOutline = cardObj.AddComponent<Outline>();
+        cardOutline.effectColor = new Color(0.2f, 0.35f, 0.5f, 0.45f);
+        cardOutline.effectDistance = new Vector2(1f, -1f);
+
+        // ── 左部：情報エリア（左端から右側ボタンの手前まで広く確保） ──
+        var infoGo = new GameObject("Info");
+        infoGo.transform.SetParent(cardObj.transform, false);
+        var infoRect = infoGo.AddComponent<RectTransform>();
+        infoRect.anchorMin = new Vector2(0f, 0f);
+        infoRect.anchorMax = new Vector2(1f, 1f);
+        infoRect.offsetMin = new Vector2(16f, 6f);
+        infoRect.offsetMax = new Vector2(-185f, -6f); // 右側の作成ボタン(幅165)と絶対に重ならない
+
+        string slotTag = $"[{def.slot}]";
+        string hexCol = ColorUtility.ToHtmlStringRGB(def.themeColor);
+
+        // タイトル（Y=18）
+        var titleGo = new GameObject("Title");
+        titleGo.transform.SetParent(infoGo.transform, false);
+        var titleRt = titleGo.AddComponent<RectTransform>();
+        titleRt.anchorMin = new Vector2(0f, 1f);
+        titleRt.anchorMax = new Vector2(1f, 1f);
+        titleRt.pivot = new Vector2(0f, 1f);
+        titleRt.anchoredPosition = new Vector2(0f, -2f);
+        titleRt.sizeDelta = new Vector2(0f, 24f);
+        var titleText = titleGo.AddComponent<Text>();
+        titleText.font = font;
+        titleText.fontSize = 15;
+        titleText.fontStyle = FontStyle.Bold;
+        titleText.color = Color.white;
+        titleText.alignment = TextAnchor.MiddleLeft;
+        titleText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        titleText.verticalOverflow = VerticalWrapMode.Overflow;
+        titleText.text = $"<color=#{hexCol}><b>✦ {def.displayName}</b></color>  <size=12><color=#AABBCC>{slotTag}</color></size>";
+        titleText.raycastTarget = false;
+
+        // 説明文（Y=0）
+        var descGo = new GameObject("Desc");
+        descGo.transform.SetParent(infoGo.transform, false);
+        var descRt = descGo.AddComponent<RectTransform>();
+        descRt.anchorMin = new Vector2(0f, 0.5f);
+        descRt.anchorMax = new Vector2(1f, 0.5f);
+        descRt.pivot = new Vector2(0f, 0.5f);
+        descRt.anchoredPosition = new Vector2(0f, 1f);
+        descRt.sizeDelta = new Vector2(0f, 20f);
+        var descText = descGo.AddComponent<Text>();
+        descText.font = font;
+        descText.fontSize = 11;
+        descText.color = new Color(0.80f, 0.86f, 0.94f);
+        descText.alignment = TextAnchor.MiddleLeft;
+        descText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        descText.verticalOverflow = VerticalWrapMode.Overflow;
+        descText.text = def.description;
+        descText.raycastTarget = false;
+
+        // 必要素材表示（Y=-20）
+        var costGo = new GameObject("Cost");
+        costGo.transform.SetParent(infoGo.transform, false);
+        var costRt = costGo.AddComponent<RectTransform>();
+        costRt.anchorMin = new Vector2(0f, 0f);
+        costRt.anchorMax = new Vector2(1f, 0f);
+        costRt.pivot = new Vector2(0f, 0f);
+        costRt.anchoredPosition = new Vector2(0f, 3f);
+        costRt.sizeDelta = new Vector2(0f, 20f);
+        var costText = costGo.AddComponent<Text>();
+        costText.font = font;
+        costText.fontSize = 12;
+        costText.color = new Color(1f, 0.85f, 0.5f);
+        costText.alignment = TextAnchor.MiddleLeft;
+        costText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        costText.verticalOverflow = VerticalWrapMode.Overflow;
+        costText.text = "必要素材: ...";
+        costText.raycastTarget = false;
+
+        // ── 右部：カード右端に確実に固定される特大作成ボタン領域 ──
+        var rightArea = new GameObject("RightArea");
+        rightArea.transform.SetParent(cardObj.transform, false);
+        var raRt = rightArea.AddComponent<RectTransform>();
+        raRt.anchorMin = new Vector2(1f, 0.5f);
+        raRt.anchorMax = new Vector2(1f, 0.5f);
+        raRt.pivot = new Vector2(1f, 0.5f);
+        raRt.anchoredPosition = new Vector2(-16f, 0f);
+        raRt.sizeDelta = new Vector2(168f, 74f);
+
+        // ステータステキスト（ボタンの上端に小さく中央揃え）
+        var statusGo = new GameObject("Status");
+        statusGo.transform.SetParent(rightArea.transform, false);
+        var sRt = statusGo.AddComponent<RectTransform>();
+        sRt.anchorMin = new Vector2(0f, 1f);
+        sRt.anchorMax = new Vector2(1f, 1f);
+        sRt.pivot = new Vector2(0.5f, 1f);
+        sRt.anchoredPosition = new Vector2(0f, 0f);
+        sRt.sizeDelta = new Vector2(168f, 18f);
+        var statusText = statusGo.AddComponent<Text>();
+        statusText.font = font;
+        statusText.fontSize = 11;
+        statusText.alignment = TextAnchor.MiddleCenter;
+        statusText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        statusText.verticalOverflow = VerticalWrapMode.Overflow;
+        statusText.color = Color.gray;
+        statusText.text = "未作成";
+        statusText.raycastTarget = false;
+
+        // 特大作成ボタン（幅165px、高さ46px：誰が見てもひと目でわかる立体ゴールドボタン！）
+        var btnGo = new GameObject("ActionBtn");
+        btnGo.transform.SetParent(rightArea.transform, false);
+        var bRect = btnGo.AddComponent<RectTransform>();
+        bRect.anchorMin = new Vector2(0.5f, 0f);
+        bRect.anchorMax = new Vector2(0.5f, 0f);
+        bRect.pivot = new Vector2(0.5f, 0f);
+        bRect.anchoredPosition = new Vector2(0f, 3f);
+        bRect.sizeDelta = new Vector2(165f, 46f);
+
+        var btnImg = btnGo.AddComponent<Image>();
+        btnImg.color = new Color(1f, 0.78f, 0.22f, 1f);
+        btnImg.raycastTarget = true;
+
+        var btnOutline = btnGo.AddComponent<Outline>();
+        btnOutline.effectColor = new Color(0f, 0f, 0f, 0.75f);
+        btnOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+        var btn = btnGo.AddComponent<Button>();
+        btn.targetGraphic = btnImg;
+
+        var btnTextGo = new GameObject("BtnText");
+        btnTextGo.transform.SetParent(btnGo.transform, false);
+        var btRect = btnTextGo.AddComponent<RectTransform>();
+        btRect.anchorMin = Vector2.zero;
+        btRect.anchorMax = Vector2.one;
+        btRect.sizeDelta = Vector2.zero;
+
+        var btnText = btnTextGo.AddComponent<Text>();
+        btnText.font = font;
+        btnText.fontSize = 14;
+        btnText.fontStyle = FontStyle.Bold;
+        btnText.alignment = TextAnchor.MiddleCenter;
+        btnText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        btnText.verticalOverflow = VerticalWrapMode.Overflow;
+        btnText.color = new Color(0.10f, 0.12f, 0.18f);
+        btnText.text = "✦ 作成する";
+        btnText.raycastTarget = false;
+
+        var cardUI = new CosmeticCardUI
+        {
+            def = def,
+            rootGo = cardObj,
+            titleText = titleText,
+            descText = descText,
+            costText = costText,
+            statusText = statusText,
+            actionBtn = btn,
+            actionBtnText = btnText,
+            actionBtnImage = btnImg
+        };
+
+        int cardIndex = _cardUIs.Count;
+        var clickRelay = btnGo.AddComponent<RustWorkshopCardClickRelay>();
+        clickRelay.Bind(this, cardIndex);
+        var rightHit = rightArea.AddComponent<Image>();
+        rightHit.color = new Color(1f, 1f, 1f, 0.001f);
+        rightHit.raycastTarget = true;
+        var rightRelay = rightArea.AddComponent<RustWorkshopCardClickRelay>();
+        rightRelay.Bind(this, cardIndex);
+
+        btn.onClick.AddListener(() => OnCardButtonClicked(cardUI));
+        return cardUI;
+    }
+
+    Text CreateTextItem(Transform parent, string content, int size, Color col, Font font, TextAnchor align)
+    {
+        var go = new GameObject("Text");
+        go.transform.SetParent(parent, false);
+        var t = go.AddComponent<Text>();
+        t.font = font;
+        t.fontSize = size;
+        t.color = col;
+        t.alignment = align;
+        t.text = content;
+        t.horizontalOverflow = HorizontalWrapMode.Overflow;
+        t.verticalOverflow = VerticalWrapMode.Overflow;
+        t.raycastTarget = false; // UIテキスト全般が背後や親ボタンのRaycastを邪魔しないように設定
+        return t;
+    }
+    #endregion
+
+    #region Workbench World Spot
+    void SpawnWorkbenchSpot()
+    {
+        var land = Terrain.activeTerrain;
+        Vector3 pos = WorkbenchPosition;
+        if (land != null)
+        {
+            pos.y = land.SampleHeight(pos) + land.transform.position.y;
+        }
+
+        _workbenchWorldObj = new GameObject("RustCraft_WorkbenchSpot");
+        _workbenchWorldObj.transform.position = pos;
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+
+        // 作業台テーブル（木製作業机）
+        var table = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        table.name = "TableBoard";
+        table.transform.SetParent(_workbenchWorldObj.transform, false);
+        table.transform.localPosition = new Vector3(0f, 0.65f, 0f);
+        table.transform.localScale = new Vector3(1.8f, 0.12f, 1.0f);
+        var woodMat = new Material(shader);
+        woodMat.SetColor("_BaseColor", new Color(0.42f, 0.28f, 0.18f));
+        table.GetComponent<Renderer>().sharedMaterial = woodMat;
+
+        // 工具箱・パーツ箱
+        var toolBox = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        toolBox.name = "Toolbox";
+        toolBox.transform.SetParent(_workbenchWorldObj.transform, false);
+        toolBox.transform.localPosition = new Vector3(-0.55f, 0.80f, 0.15f);
+        toolBox.transform.localScale = new Vector3(0.45f, 0.25f, 0.35f);
+        var boxMat = new Material(shader);
+        boxMat.SetColor("_BaseColor", new Color(0.65f, 0.25f, 0.22f));
+        toolBox.GetComponent<Renderer>().sharedMaterial = boxMat;
+
+        // 温かいランプ
+        var lamp = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        lamp.name = "Lamp";
+        lamp.transform.SetParent(_workbenchWorldObj.transform, false);
+        lamp.transform.localPosition = new Vector3(0.60f, 0.85f, -0.2f);
+        lamp.transform.localScale = new Vector3(0.18f, 0.25f, 0.18f);
+        var lampMat = new Material(shader);
+        lampMat.SetColor("_BaseColor", new Color(1f, 0.85f, 0.5f));
+        lampMat.EnableKeyword("_EMISSION");
+        lampMat.SetColor("_EmissionColor", new Color(1f, 0.8f, 0.4f) * 1.5f);
+        lamp.GetComponent<Renderer>().sharedMaterial = lampMat;
+
+        var light = lamp.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.color = new Color(1f, 0.82f, 0.55f);
+        light.range = 4.5f;
+        light.intensity = 1.4f;
+
+        // 3Dインタラクションプロンプト Canvas
+        var promptCanvasGo = new GameObject("WorkbenchPrompt_Canvas");
+        promptCanvasGo.transform.SetParent(_workbenchWorldObj.transform, false);
+        promptCanvasGo.transform.localPosition = new Vector3(0f, 1.65f, 0f);
+
+        var canvas = promptCanvasGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        var cRect = promptCanvasGo.GetComponent<RectTransform>();
+        cRect.sizeDelta = new Vector2(280f, 60f);
+        cRect.localScale = Vector3.one * 0.012f;
+
+        _promptCg = promptCanvasGo.AddComponent<CanvasGroup>();
+        _promptCg.alpha = 0f;
+
+        var font = ResolveWorkshopFont();
+        var textGo = new GameObject("PromptText");
+        textGo.transform.SetParent(promptCanvasGo.transform, false);
+        var tRect = textGo.AddComponent<RectTransform>();
+        tRect.anchorMin = Vector2.zero;
+        tRect.anchorMax = Vector2.one;
+        tRect.sizeDelta = Vector2.zero;
+
+        _promptText = textGo.AddComponent<Text>();
+        _promptText.font = font;
+        _promptText.fontSize = 22;
+        _promptText.alignment = TextAnchor.MiddleCenter;
+        _promptText.color = new Color(1f, 0.95f, 0.65f);
+        _promptText.text = AdventureLocalizationManager.Get("prompt_workbench");
+
+        // ビルボード（常にカメラの方を向く）
+        promptCanvasGo.AddComponent<BillboardLookAtCamera>();
+    }
+
+    class BillboardLookAtCamera : MonoBehaviour
+    {
+        void LateUpdate()
+        {
+            var cam = Camera.main;
+            if (cam != null)
+            {
+                transform.rotation = cam.transform.rotation;
+            }
+        }
+    }
+    #endregion
+
+    #region Audio Synthesis
+    static AudioClip CreateCraftSuccessClip()
+    {
+        int rate = 44100;
+        float duration = 0.45f;
+        int count = Mathf.RoundToInt(rate * duration);
+        float[] samples = new float[count];
+
+        // 澄んだクラフト成功ファンファーレ（C6 -> E6 -> G6 -> C7）
+        float[] notes = { 1046.50f, 1318.51f, 1567.98f, 2093.00f };
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float sum = 0f;
+            for (int n = 0; n < notes.Length; n++)
+            {
+                float noteT = t - n * 0.055f;
+                if (noteT >= 0f)
+                {
+                    float env = Mathf.Exp(-noteT * 12f);
+                    sum += Mathf.Sin(2f * Mathf.PI * notes[n] * noteT) * env * 0.38f;
+                }
+            }
+            samples[i] = Mathf.Clamp(sum, -1f, 1f);
+        }
+
+        var clip = AudioClip.Create("CraftSuccess", count, 1, rate, false);
+        clip.SetData(samples, 0);
+        return clip;
+    }
+
+    static AudioClip CreateEquipClip()
+    {
+        int rate = 44100;
+        float duration = 0.20f;
+        int count = Mathf.RoundToInt(rate * duration);
+        float[] samples = new float[count];
+
+        // 軽快な装着カチャッ音（短く小気味よいクリック）
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float env = Mathf.Exp(-t * 28f);
+            float s = Mathf.Sin(2f * Mathf.PI * 1800f * t) * env * 0.35f
+                    + Mathf.Sin(2f * Mathf.PI * 2800f * t) * env * 0.20f;
+            samples[i] = Mathf.Clamp(s, -1f, 1f);
+        }
+
+        var clip = AudioClip.Create("EquipClick", count, 1, rate, false);
+        clip.SetData(samples, 0);
+        return clip;
+    }
+
+    static AudioClip CreateErrorClip()
+    {
+        int rate = 44100;
+        float duration = 0.22f;
+        int count = Mathf.RoundToInt(rate * duration);
+        float[] samples = new float[count];
+
+        // 優しい注意音（低めのポコッ音）
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float env = Mathf.Exp(-t * 22f);
+            float s = Mathf.Sin(2f * Mathf.PI * 340f * t) * env * 0.35f;
+            samples[i] = Mathf.Clamp(s, -1f, 1f);
+        }
+
+        var clip = AudioClip.Create("WorkshopError", count, 1, rate, false);
+        clip.SetData(samples, 0);
+        return clip;
+    }
+    #endregion
+}
+
+/// <summary>EventSystem 経由のクリックを工房カードへ確実に渡す</summary>
+sealed class RustWorkshopCardClickRelay : MonoBehaviour, IPointerClickHandler
+{
+    AdventureRustWorkshopUI _owner;
+    int _cardIndex = -1;
+
+    public void Bind(AdventureRustWorkshopUI owner, int cardIndex)
+    {
+        _owner = owner;
+        _cardIndex = cardIndex;
+    }
+
+    public bool TryGetCardIndex(out int index)
+    {
+        index = _cardIndex;
+        return _cardIndex >= 0;
+    }
+
+    public void OnPointerClick(PointerEventData eventData) => Fire();
+
+    void Fire()
+    {
+        if (_owner == null || _cardIndex < 0) return;
+        _owner.NotifyCardClickByIndex(_cardIndex);
+    }
+}
+
+/// <summary>カーソル解放とマウス入力のウォッチドッグ（他スクリプトのロック競合対策）</summary>
+sealed class RustWorkshopUiInputDriver : MonoBehaviour
+{
+    void Update()
+    {
+        var ui = AdventureRustWorkshopUI.Instance;
+        if (ui == null || !ui.isVisible) return;
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+    }
+}

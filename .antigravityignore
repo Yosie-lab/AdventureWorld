@@ -1,0 +1,39 @@
+# Dependencies & Build Artifacts
+node_modules/
+dist/
+build/
+out/
+.next/
+.cache/
+
+# Large Assets & Binaries
+*.asset
+*.unitypackage
+*.obj
+*.fbx
+*.wav
+*.mp3
+*.png
+*.jpg
+
+# Logs, Databases & Dumps
+*.log
+*.sqlite
+*.db
+coverage/
+.git/
+
+# Already excluded by .cursorignore
+*.unity
+*.prefab
+*.tga
+*.ogg
+*.mat
+*.meta
+Library/
+Temp/
+Logs/
+UserSettings/
+Build/
+Builds/
+Obj/

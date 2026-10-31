@@ -1,0 +1,3417 @@
+using UnityEngine;
+using System.Collections;
+using System.Linq;
+
+public partial class AdventureRustDrone : MonoBehaviour
+{
+    static int _scrapSlowMoDepth;
+    static float _scrapSlowMoSavedScale = 1f;
+    static float _scrapSlowMoStartedAt = -10f;
+    public static int ScrapSlowMoDepth => _scrapSlowMoDepth;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetScrapSlowMoStatics()
+    {
+        _scrapSlowMoDepth = 0;
+        _scrapSlowMoSavedScale = 1f;
+        _scrapSlowMoStartedAt = -10f;
+    }
+
+    /// <summary>コルーチン中断等でスローが残ったときの復旧</summary>
+    public static void RecoverScrapSlowMoIfStale()
+    {
+        if (_scrapSlowMoDepth <= 0) return;
+        if (Time.unscaledTime - _scrapSlowMoStartedAt < 0.25f) return;
+        ForceEndScrapSlowMo();
+    }
+
+    /// <summary>取得演出の timeScale 残留を即解除（移動・視点入力時も TickRecovery から呼ぶ）</summary>
+    public static void ForceEndScrapSlowMo()
+    {
+        if (_scrapSlowMoDepth <= 0) return;
+        _scrapSlowMoDepth = 0;
+        if (!AdventurePauseMenu.IsOpen && Time.timeScale <= 0.05f)
+            Time.timeScale = 1f;
+    }
+
+    public float hoverHeight = 1.35f;
+    public float bobAmount = 0.1f;
+    public float bobSpeed = 1.35f;
+    public float followDistance = 2.1f;
+    public float stopDistance = 1.25f;
+    [Range(0f, 1f)] public float soundVolume = 0.28f;
+
+    Transform _lookAt;
+    Transform _body;
+    Terrain _land;
+    Vector3 _velocity;
+    Vector3 _lagTarget;
+    AudioSource _audio;
+    AudioClip[] _creaks;
+    ParticleSystem _heatFx;
+    Material _bodyMat;
+    Material _oilMat;
+    float _hitchUntil;
+    float _heatUntil;
+    float _nextHitch;
+    float _nextCreak;
+    float _heat;
+    bool _wasHitching;
+
+    // スクラップ収集・アップグレード対話
+    string _speechText = "";
+    float _speechTimer = 0f;
+    bool _waitingForPlayerAction = false;
+    float _speechShowTime = 0f;
+    Vector3 _speechPlayerStartPos = Vector3.zero;
+    string _speechSpeaker = "✦ 相棒 Rust";
+    Color _speechSpeakerColor = new Color(0.35f, 0.92f, 0.98f, 1f);
+    AudioClip _happyBeepClip;
+    AudioClip _sonarBeepClip;
+    AudioClip _pipiChimeClip;
+    AudioClip _distressWhineClip;
+    AudioClip _oilPourClip;
+    AudioSource _uiAudio;
+    float _nextDistressSound;
+    float _sonarTimer = 0f;
+    GUIStyle _speechStyle;
+    Texture2D _speechBg;
+
+    // オイルアイテムと手当てシステム
+    public int oilCount = 8;
+    public float wellOiledUntil = 0f;
+    bool _isPlayerNear = false;
+    public bool IsPlayerNear => _isPlayerNear;
+    float _lastInteractTime = 0f;
+
+    // 3大お宝レーダー探知（スクラップ・漂流木箱・貝殻）
+    public enum GuidedTreasureType
+    {
+        None,
+        Scrap,
+        DriftBox,
+        Seashell
+    }
+
+    GuidedTreasureType _guidedTreasureType = GuidedTreasureType.None;
+    GuidedTreasureType _prevGuidedTreasureType = GuidedTreasureType.None;
+    Vector3 _guidedTreasurePos;
+    Color _radarLightColor = Color.yellow;
+    Light _radarFlashLight;
+    float _nextRadarBeepTime = 0f;
+
+    AdventureScrapItem _guidedScrap;
+    AdventureScrapItem _distantScrap;
+    float _distantScrapDist = 999f;
+    float _nextDistantScrapNotice = 0f;
+    float _nextGuideNotice = 0f;
+    bool _isPointingToScrap = false;
+    public bool IsGuidingTreasure => _guidedTreasureType != GuidedTreasureType.None;
+
+    // 20pt達成時の中央タワー先導誘導
+    bool _isGuidingToTower = false;
+    float _nextTowerNotice = 0f;
+    bool _nearTowerNotified = false;
+    static readonly Vector3 SanctuaryTowerCenter = new Vector3(512f, 63.2f, 512f);
+
+    /// <summary>20pt達成時に中央タワーへの先導誘導を開始</summary>
+    public void TriggerTowerLeadGuidance()
+    {
+        _isGuidingToTower = true;
+        _nextTowerNotice = Time.time + 3.5f;
+        _nearTowerNotified = false;
+        PlayGuideBeepChime();
+    }
+
+    // 連携アクション（Qキー道案内・Fキー指示・遠隔回収・偵察・宙返り・撫でスキンシップ・焚き火チル・待機居眠り）
+    public enum RustState { Follow, Fetching, Returning, Scouting, Celebrating, Petting, CampfireChill, Guiding, Perching }
+    public RustState CurrentState { get; private set; } = RustState.Follow;
+    AdventureScrapItem _targetScrap;
+    Vector3 _scoutTargetPos;
+    float _stateTimer = 0f;
+    AdventureScrapItem _aimedScrap;
+    AdventureScrapItem _nearbyScrap;
+
+    // 案B：相棒Floatの情緒的深化（待機居眠り・頭上着地・スキンシップ喜びスパークル）
+    float _nikoStillDuration = 0f;
+    Vector3 _lastNikoPos;
+    float _nextSleepZzzTime = 0f;
+
+    // Qキー道案内（Floatのガイドシグナル＆先行フライト）
+    Vector3 _guideLeadPos;
+    Vector3 _guideTargetLookPos;
+    float _guideTimer = 0f;
+    TrailRenderer _guideTrail;
+
+    Vector3 _campfireSeatPos;
+    Vector3 _campfireLookDir;
+
+    public void SetPettingState(bool active, float duration)
+    {
+        if (active)
+        {
+            CurrentState = RustState.Petting;
+            _stateTimer = duration;
+            _velocity = Vector3.zero; // 物理的な跳ね上がりや落下速度をクリアし、胸元へスムーズに引き寄せる
+            SetExpression(FaceExpressionType.Smiling, duration + 0.5f);
+        }
+        else
+        {
+            if (CurrentState == RustState.Petting)
+            {
+                TriggerAffectionJoy();
+                SetExpression(FaceExpressionType.Joyful, 2.5f);
+            }
+        }
+    }
+
+    /// <summary>砂浜の焚き火でNikoと並んで腰掛け、海と炎を眺めてチルする</summary>
+    public void SetCampfireChill(bool active, Vector3 seatPos = default, Vector3 lookDir = default)
+    {
+        if (active)
+        {
+            CurrentState = RustState.CampfireChill;
+            _campfireSeatPos = seatPos;
+            _campfireLookDir = lookDir.sqrMagnitude > 0.01f ? lookDir.normalized : transform.forward;
+            _velocity = Vector3.zero;
+            if (_audio != null && _happyBeepClip != null)
+            {
+                _audio.pitch = 1.25f;
+                _audio.PlayOneShot(_happyBeepClip, 0.75f);
+            }
+        }
+        else
+        {
+            if (CurrentState == RustState.CampfireChill)
+            {
+                CurrentState = RustState.Follow;
+                _velocity = Vector3.up * 1.2f; // ふわりと浮き上がって復帰
+            }
+        }
+    }
+
+
+    private static AdventureRustDrone _instance;
+    public static AdventureRustDrone Instance
+    {
+        get
+        {
+            if (_instance == null || _instance.gameObject == null)
+            {
+                _instance = Object.FindAnyObjectByType<AdventureRustDrone>();
+            }
+            return _instance;
+        }
+        private set => _instance = value;
+    }
+
+    public static void Ensure()
+    {
+        if (Instance != null && Instance.gameObject != null)
+            return;
+
+        // 重複Rustを一掃してから1体だけ残す
+        var all = Object.FindObjectsByType<AdventureRustDrone>(FindObjectsInactive.Include);
+        AdventureRustDrone keep = Instance;
+        if (keep == null)
+        {
+            for (int i = 0; i < all.Length; i++)
+            {
+                if (all[i] != null) { keep = all[i]; break; }
+            }
+        }
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] == null || all[i] == keep) continue;
+            Object.Destroy(all[i].gameObject);
+        }
+        if (keep != null)
+        {
+            Instance = keep;
+            return;
+        }
+
+        var niko = GameObject.Find("Niko");
+        Vector3 spawnPos = niko != null ? niko.transform.position + niko.transform.right * 1.5f + Vector3.up * 1.2f : new Vector3(266f, 49.5f, 331f);
+
+        GameObject droneGo = null;
+#if UNITY_EDITOR
+        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/RustAndFloat/Prefabs/Rust.prefab");
+        if (prefab != null)
+        {
+            droneGo = Object.Instantiate(prefab, spawnPos, Quaternion.identity);
+            droneGo.name = "Rust";
+        }
+#endif
+        if (droneGo == null)
+        {
+            droneGo = new GameObject("Rust");
+            droneGo.transform.position = spawnPos;
+            var body = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            body.name = "Body";
+            body.transform.SetParent(droneGo.transform, false);
+            body.transform.localScale = new Vector3(0.45f, 0.45f, 0.45f);
+            var col = body.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+        }
+
+        Instance = droneGo.GetComponent<AdventureRustDrone>() ?? droneGo.AddComponent<AdventureRustDrone>();
+    }
+
+    void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+
+        // ドローン自身や子オブジェクトのコライダーがNikoの歩行やレイキャストを邪魔しないよう完全除去
+        foreach (var col in GetComponentsInChildren<Collider>(true))
+        {
+            Destroy(col);
+        }
+    }
+
+    void Start()
+    {
+        var niko = GameObject.Find("Niko");
+        if (niko != null)
+            _lookAt = niko.transform;
+
+        _land = Object.FindObjectsByType<Terrain>(FindObjectsInactive.Exclude)
+            .FirstOrDefault(t => t.name == "LandTerrain" || t.name == "IslandTerrain");
+        _lagTarget = transform.position;
+        _nextHitch = Time.time + 2.2f;
+        SetupAudio();
+        SetupHeat();
+        SetupOil();
+        SetupRadarLight();
+        oilCount = Mathf.Max(oilCount, 8); // 開始時から十分ストック（Rustを甘やかす）
+
+        AdventureRustSpeechUI.Ensure();
+        AdventureCompanionCuriosity.AutoInitialize();
+
+        // 起動時のあたたかい挨拶（オープニングモーダル表示中は重なり防止のため保留）
+        var opening = AdventureRustFloatOpening.Instance;
+        if (opening == null || !opening.IsModalBoardOpen())
+        {
+            PlayStartupGreeting();
+        }
+        else
+        {
+            _nextIdleTalk = Time.unscaledTime + 30f;
+            _lastIdleLine = "";
+        }
+    }
+
+    /// <summary>ゲーム開始／再開時のあたたかい挨拶</summary>
+    public void PlayStartupGreeting()
+    {
+        SetSpeech(AdventureLocalizationManager.Get("rust_boot"), 4.5f);
+        _nextIdleTalk = Time.unscaledTime + 30f;
+        _lastIdleLine = "";
+    }
+
+    bool _prologueDistress;
+    bool _prologueOilFxDone;
+
+    /// <summary>冒頭ドラマ（極寒・注油待ち）中</summary>
+    public bool IsInPrologueDistress => _prologueDistress;
+
+    /// <summary>冒頭ドラマ：塩水で凍りつくRust</summary>
+    public void StartPrologueDistress()
+    {
+        _prologueOilFxDone = false;
+        _prologueDistress = true;
+        IsClimaxCrisis = false;
+        IsClimaxOverdrive = false;
+        _climaxHealing = false;
+        CurrentState = RustState.Petting;
+        _stateTimer = 9999f;
+        wellOiledUntil = 0f;
+        _heat = 0.85f;
+        _heatUntil = Time.time + 999f;
+        _hitchUntil = Time.time + 999f;
+
+        if (_bodyMat != null)
+        {
+            _savedEmission = _bodyMat.GetColor("_EmissionColor");
+            _bodyMat.EnableKeyword("_EMISSION");
+            _bodyMat.SetColor("_EmissionColor", new Color(0.2f, 0.4f, 0.55f) * 0.35f);
+        }
+
+        if (_lookAt != null)
+        {
+            Vector3 nest = GetNikoChestPosition() + _lookAt.forward * 0.75f + _lookAt.right * 0.7f + Vector3.up * 0.15f;
+            transform.position = nest;
+            _lagTarget = nest;
+            _velocity = Vector3.zero;
+        }
+    }
+
+    /// <summary>プレイヤーの隣へドローンを即時テレポート・静止させる（ニューゲーム／リセット用）</summary>
+    public void TeleportNearPlayer()
+    {
+        EnsureLookAtCached();
+        if (_lookAt != null)
+        {
+            Vector3 nest = GetNikoChestPosition() + _lookAt.forward * 0.75f + _lookAt.right * 0.7f + Vector3.up * 0.15f;
+            transform.position = nest;
+            _lagTarget = nest;
+            _velocity = Vector3.zero;
+        }
+        else
+        {
+            var player = AdventurePlayerController.Instance;
+            if (player != null)
+            {
+                Vector3 p = player.transform.position + player.transform.right * 1.0f + Vector3.up * 1.2f;
+                transform.position = p;
+                _lagTarget = p;
+                _velocity = Vector3.zero;
+            }
+        }
+    }
+
+    public void EndPrologueDistress()
+    {
+        _prologueDistress = false;
+        _heat = 0f;
+        _heatUntil = 0f;
+        _hitchUntil = 0f;
+        if (CurrentState == RustState.Petting && !IsClimaxCrisis && !_climaxHealing && !_skybreakNestle)
+        {
+            CurrentState = RustState.Follow;
+            _stateTimer = 0f;
+        }
+    }
+
+    /// <summary>冒頭ドラマ：注油で回路復活</summary>
+    public void CompletePrologueOil(bool playSound = true)
+    {
+        if (!_prologueOilFxDone)
+        {
+            _prologueOilFxDone = true;
+            oilCount = Mathf.Max(oilCount, 8);
+            wellOiledUntil = Time.time + 120f;
+            _heat = 0f;
+            _heatUntil = 0f;
+            _hitchUntil = 0f;
+            _prologueDistress = false;
+            _climaxHealing = true;
+            SpawnGoldSparkles(transform.position + Vector3.up * 0.3f, 28);
+            SpawnClimaxHealAura();
+
+            if (_bodyMat != null)
+            {
+                _bodyMat.EnableKeyword("_EMISSION");
+                _bodyMat.SetColor("_EmissionColor", new Color(1.0f, 0.82f, 0.25f) * 2.4f);
+            }
+            EnsureClimaxEyeLight(new Color(1f, 0.9f, 0.45f), 2.4f);
+            StartCoroutine(EndPrologueHealSoon());
+        }
+
+        if (playSound)
+            PlayOilAppliedSound();
+    }
+
+    IEnumerator EndPrologueHealSoon()
+    {
+        yield return new WaitForSeconds(2.8f);
+        _climaxHealing = false;
+        if (_climaxHealFx != null)
+            _climaxHealFx.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+        // プロローグ甘え寄り添い（Petting）中は Follow へ戻さない
+        if (CurrentState != RustState.Petting)
+            CurrentState = RustState.Follow;
+    }
+
+    public void CelebratePrologueFirstGear()
+    {
+        _velocity += Vector3.up * 3.2f;
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 40);
+        if (_audio != null && _happyBeepClip != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.65f);
+        StartCoroutine(KeystoneFittedRoutine(1));
+    }
+
+    public void CelebratePrologueDashUnlock()
+    {
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.5f, 48);
+        if (_audio != null && _happyBeepClip != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.7f);
+    }
+
+    /// <summary>着せ替えやクラフト成功時の大はしゃぎ（ピョンと跳ねて宙返り＆キラキラ音）</summary>
+    public void TriggerCelebrate()
+    {
+        _velocity += Vector3.up * 2.8f;
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 40);
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = Random.Range(1.15f, 1.35f);
+            _audio.PlayOneShot(_happyBeepClip, 0.85f);
+        }
+        CurrentState = RustState.Celebrating;
+        _stateTimer = 1.4f;
+    }
+
+    /// <summary>
+    /// 案B：スキンシップ・注油・道案内後のハッピーリアクション。
+    /// 360度宙返り＆星屑・黄金ハートスパークルと愛らしい高音チャイムをパッと咲かせる。
+    /// </summary>
+    public void TriggerAffectionJoy()
+    {
+        if (IsClimaxCrisis || _prologueDistress) return;
+        _velocity += Vector3.up * 1.8f;
+        CurrentState = RustState.Celebrating;
+        _stateTimer = 1.35f;
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.35f, 32);
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = Random.Range(1.30f, 1.45f);
+            _audio.PlayOneShot(_happyBeepClip, 0.9f);
+        }
+    }
+
+    /// <summary>Nikoが地上で3秒以上静止したときの待機居眠り開始</summary>
+    void EnterPerchSleep()
+    {
+        CurrentState = RustState.Perching;
+        _nextSleepZzzTime = Time.time + 0.5f;
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = 0.88f; // 安心した穏やかなトーン
+            _audio.PlayOneShot(_happyBeepClip, 0.42f);
+        }
+    }
+
+    /// <summary>Nikoが歩行・ジャンプを開始したときの目覚め</summary>
+    void WakeUpFromPerch()
+    {
+        CurrentState = RustState.Follow;
+        _nikoStillDuration = 0f;
+        _velocity += Vector3.up * 1.2f;
+        if (_audio != null && _happyBeepClip != null)
+        {
+            _audio.pitch = 1.28f; // 元気な「ピピッ！」
+            _audio.PlayOneShot(_happyBeepClip, 0.65f);
+        }
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.2f, 12);
+    }
+
+    /// <summary>居眠り中の小さな淡いシアンのZzzパーティクル</summary>
+    void SpawnSleepZzzParticle(Vector3 pos)
+    {
+        var fxGo = new GameObject("SleepZzzFx");
+        fxGo.transform.position = pos;
+
+        var ps = fxGo.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        var psr = fxGo.GetComponent<ParticleSystemRenderer>();
+        if (psr != null)
+        {
+            psr.sharedMaterial = GetSoftSmokeMaterial();
+            psr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            psr.receiveShadows = false;
+        }
+
+        var main = ps.main;
+        main.startLifetime = 1.2f;
+        main.startSpeed = 0.35f;
+        main.startSize = 0.16f;
+        main.startColor = new Color(0.6f, 0.90f, 1f, 0.75f);
+        main.gravityModifier = -0.06f; // ふわふわと優しく立ち上る
+        main.loop = false;
+        main.stopAction = ParticleSystemStopAction.Destroy;
+
+        var emission = ps.emission;
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 2) });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 0.08f;
+
+        var colOverLifetime = ps.colorOverLifetime;
+        colOverLifetime.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new[] { new GradientColorKey(new Color(0.6f, 0.9f, 1f), 0f), new GradientColorKey(Color.white, 1f) },
+            new[] { new GradientAlphaKey(0.75f, 0f), new GradientAlphaKey(0f, 1f) }
+        );
+        colOverLifetime.color = grad;
+
+        Destroy(fxGo, 1.8f);
+    }
+
+    /// <summary>Nikoの静止状態検知による待機居眠り・目覚め判定</summary>
+    void TickPerchingDetection()
+    {
+        if (_lookAt == null) return;
+        var player = AdventurePlayerController.Instance;
+        if (player == null) return;
+
+        Vector3 curNikoPos = _lookAt.position;
+        float moveDist = Vector3.Distance(curNikoPos, _lastNikoPos);
+        _lastNikoPos = curNikoPos;
+
+        bool isNikoMoving = moveDist > 0.04f || player.IsInAir || player.IsGliding;
+
+        if (CurrentState == RustState.Perching)
+        {
+            if (isNikoMoving || IsClimaxCrisis || _prologueDistress || player.HasMoveInput)
+            {
+                WakeUpFromPerch();
+            }
+            return;
+        }
+
+        if (CurrentState == RustState.Follow && Time.time >= _hitchUntil && !IsClimaxCrisis && !_prologueDistress && !_climaxHealing && !_skybreakNestle
+            && !_isPointingToScrap && _guidedTreasureType == GuidedTreasureType.None && !_isGuidingToTower)
+        {
+            if (!isNikoMoving && player.IsGrounded && !player.HasMoveInput)
+            {
+                _nikoStillDuration += Time.deltaTime;
+                float sleepWait = (_distantScrap != null) ? 14.0f : 3.8f;
+                if (_nikoStillDuration >= sleepWait)
+                {
+                    EnterPerchSleep();
+                }
+            }
+            else
+            {
+                _nikoStillDuration = 0f;
+            }
+        }
+        else
+        {
+            _nikoStillDuration = 0f;
+        }
+    }
+
+    float _nextIdleTalk;
+    string _lastIdleLine = "";
+    float _nextDriftBoxCheckTime = 5.0f;
+    int _lastNotifiedBoxId = -1;
+
+    void TickDriftBoxDetection()
+    {
+        if (Time.time < _nextDriftBoxCheckTime) return;
+        _nextDriftBoxCheckTime = Time.time + 22f; // 22秒間隔でチェック
+
+        if (IsClimaxCrisis || _skybreakNestle || _prologueDistress || CurrentState != RustState.Follow)
+            return;
+
+        var box = AdventureBeachDriftBox.GetNearestUnopenedBox(transform.position, out float dist);
+        if (box != null && dist <= 75f && box.boxId != _lastNotifiedBoxId)
+        {
+            _lastNotifiedBoxId = box.boxId;
+            Vector3 diff = box.transform.position - transform.position;
+            string rawBeach;
+            if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
+                rawBeach = diff.x > 0 ? "東浜" : "西浜";
+            else
+                rawBeach = diff.z > 0 ? "北浜" : "南浜";
+            string beachName = AdventureLocalizationManager.Get(rawBeach);
+
+            if (_audio != null && _sonarBeepClip != null)
+                _audio.PlayOneShot(_sonarBeepClip, 0.65f);
+
+            string shortName = box.boxTitle.Replace("漂着", "");
+            string localizedTitle = AdventureLocalizationManager.Get($"driftbox_{box.boxId}_title");
+            if (!string.IsNullOrEmpty(localizedTitle) && localizedTitle != $"driftbox_{box.boxId}_title")
+            {
+                shortName = localizedTitle.Replace("漂着", "").Replace("Drift ", "").Replace("Caja de ", "");
+            }
+
+            SpeakCustom(AdventureLocalizationManager.GetFormat("sonar_detect_beach_signal", beachName, shortName), 5.2f);
+        }
+    }
+
+    void Update()
+    {
+        // セリフ進行は lookAt 無しでも回す（吹き出しが見えない事故防止）
+        UpdateSpeech();
+        TickClimaxOverdriveBooster();
+        UpdateSmartCameraOcclusion();
+        UpdateRealtimeCompanionReactions();
+        UpdateFaceExpressionAnimation();
+
+        if (_lookAt == null)
+            return;
+
+        // プロローグの遭難目覚め演出中はAdventurePrologueDramaが位置・姿勢・覗き込みを直接演出
+        if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsAwakening)
+            return;
+
+        // クリスタル送電など協力ギミック中はコルーチンが位置・向きを制御（通常追従と競合させない）
+        if (_isPerformingGimmick)
+            return;
+
+        TickDriftBoxDetection();
+        TickPerchingDetection();
+        UpdateCommandInput();
+
+        Vector3 goal;
+        bool wellOiled = Time.time < wellOiledUntil;
+        bool hitching = !wellOiled && Time.time < _hitchUntil;
+
+        if (CurrentState == RustState.Fetching)
+        {
+            if (_targetScrap == null || _targetScrap.IsCollected)
+            {
+                CurrentState = RustState.Follow;
+                goal = FollowPoint();
+            }
+            else
+            {
+                goal = _targetScrap.transform.position + Vector3.up * 0.45f;
+                float distToTarget = Vector3.Distance(transform.position, goal);
+                if (distToTarget < 2.5f)
+                {
+                    _targetScrap.AttachToDrone(transform);
+                    CurrentState = RustState.Returning;
+                    SpeakCustom("キャッチしたよ！……Floatのところへ、大事に持ってくね", 3.0f);
+                    if (_audio != null && _happyBeepClip != null)
+                    {
+                        _audio.pitch = 1.4f;
+                        _audio.PlayOneShot(_happyBeepClip, 0.8f);
+                    }
+                }
+            }
+        }
+        else if (CurrentState == RustState.Returning)
+        {
+            goal = _lookAt.position + Vector3.up * 1.1f + _lookAt.forward * 1.0f;
+            float distToNiko = Vector3.Distance(transform.position, _lookAt.position + Vector3.up * 1.0f);
+            if (distToNiko < 1.85f)
+            {
+                if (_targetScrap != null)
+                {
+                    _targetScrap.Collect();
+                    _targetScrap = null;
+                }
+                CurrentState = RustState.Celebrating;
+                _stateTimer = 1.6f;
+                // 歓喜・セリフは OnScrapCollected → OnNikoFoundScrap に任せる（撫でロックで歩行不能になるのを防ぐ）
+                SpeakCustom("えへへ、お届け完了！", 2.5f);
+
+                if (_audio != null && _happyBeepClip != null)
+                {
+                    _audio.pitch = 1.55f;
+                    _audio.PlayOneShot(_happyBeepClip, 0.85f);
+                }
+            }
+        }
+        else if (CurrentState == RustState.Scouting)
+        {
+            goal = _scoutTargetPos + Vector3.up * 1.2f;
+            float dist = Vector3.Distance(transform.position, goal);
+            if (dist < 1.8f)
+            {
+                _stateTimer -= Time.deltaTime;
+                if (_stateTimer <= 0f)
+                {
+                    CurrentState = RustState.Follow;
+                    SpeakCustom("偵察完了！周囲に危険はないよ！", 3.0f);
+                }
+            }
+        }
+        else if (CurrentState == RustState.Celebrating)
+        {
+            goal = _lookAt.position + Vector3.up * 1.42f + _lookAt.right * 1.15f;
+            float bounce = Mathf.Sin(Time.time * 8.5f) * 0.08f;
+            goal.y += bounce;
+            _stateTimer -= Time.deltaTime;
+            if (_stateTimer <= 0f)
+                CurrentState = RustState.Follow;
+        }
+        else if (CurrentState == RustState.Guiding)
+        {
+            goal = _guideLeadPos;
+            float bounce = Mathf.Sin(Time.time * 6f) * 0.12f;
+            goal.y += bounce;
+            _guideTimer -= Time.deltaTime;
+            float distToLead = Vector3.Distance(transform.position, goal);
+            float playerDist = Vector3.Distance(transform.position, _lookAt != null ? _lookAt.position : transform.position);
+            // リード地点に到達してもすぐに戻らず、時間切れ（6秒）またはプレイヤーが合流するまで指差しホバリングを維持
+            if (_guideTimer <= 0f || (distToLead < 2.2f && playerDist < 6.5f && _guideTimer < 3.0f))
+            {
+                CurrentState = RustState.Follow;
+                if (_guideTrail != null) _guideTrail.enabled = false;
+            }
+        }
+        else if (CurrentState == RustState.Petting)
+        {
+            if (_climaxFalling)
+            {
+                TickClimaxFallAway();
+                return;
+            }
+
+            if (IsClimaxCrisis || IsClimaxOverdrive || _climaxHealing || _skybreakNestle || _prologueDistress)
+            {
+                goal = FollowPoint();
+                _lagTarget = goal;
+                if (_climaxChase)
+                    TickClimaxChaseScream();
+            }
+            else
+            {
+                Vector3 chestPos = GetNikoChestPosition();
+                goal = chestPos + _lookAt.forward * 1.35f + _lookAt.right * 0.45f + Vector3.up * 0.18f;
+                goal.y += Mathf.Sin(Time.time * 3.5f) * 0.035f;
+                _lagTarget = goal;
+                _stateTimer -= Time.deltaTime;
+                if (_stateTimer <= 0f)
+                    CurrentState = RustState.Follow;
+            }
+        }
+        else if (CurrentState == RustState.CampfireChill)
+        {
+            goal = _campfireSeatPos;
+            // 焚き火にあたって心地よい微細な呼吸パルス
+            goal.y += Mathf.Sin(Time.time * 2.2f) * 0.012f;
+            _lagTarget = goal;
+        }
+        else if (CurrentState == RustState.Perching)
+        {
+            // Nikoの頭上・首元にちょこんと着地（穏やかな呼吸ボブ）
+            Vector3 headPos = GetNikoHeadPosition();
+            goal = headPos + Vector3.up * 0.30f + _lookAt.right * 0.16f - _lookAt.forward * 0.08f;
+            goal.y += Mathf.Sin(Time.time * 2.0f) * 0.012f;
+            _lagTarget = goal;
+
+            // Zzzスリープパーティクル
+            if (Time.time >= _nextSleepZzzTime)
+            {
+                _nextSleepZzzTime = Time.time + 1.35f;
+                SpawnSleepZzzParticle(transform.position + Vector3.up * 0.15f);
+            }
+        }
+        else // Follow
+        {
+            goal = FollowPoint();
+            // 北崖（標高92m）の探索までヒッチ停止に巻き込まない。止めるのはエンディングとオート滑空だけ
+            bool suppressHitch = AdventureStoryFlow.IsEndingArc
+                || (AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.IsAutoGliding);
+
+            if (!suppressHitch && !wellOiled && !hitching && Time.time >= _nextHitch && FlatDistance(goal) > 2.4f)
+            {
+                _hitchUntil = Time.time + Random.Range(0.22f, 0.5f);
+                _nextHitch = Time.time + Random.Range(3.5f, 6.5f);
+                hitching = true;
+                PlayCreak(true);
+                BeginHeatBurst();
+            }
+        }
+
+        if (hitching && CurrentState == RustState.Follow)
+        {
+            goal.x = transform.position.x;
+            goal.z = transform.position.z;
+        }
+
+        var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        bool isEpilogueGliding = (towerMgr != null && towerMgr.EpilogueTriggered) || IsClimaxOverdrive;
+        bool isOilFaceToFace = (IsClimaxCrisis || _climaxHealing) && !_climaxChase;
+
+        // 注油中（Floatの目の前）およびエピローグ中は高速レスポンス（置き去り防止）
+        float lerpRate = (isEpilogueGliding || isOilFaceToFace) ? 24.0f : ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 6.5f : 2.2f);
+        _lagTarget = Vector3.Lerp(_lagTarget, goal, 1f - Mathf.Exp(-lerpRate * Time.deltaTime));
+        float smoothTime = isOilFaceToFace ? 0.04f : (isEpilogueGliding ? 0.06f : ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 0.22f :
+            ((CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill || CurrentState == RustState.Perching) ? 0.32f : (wellOiled ? 0.38f : 0.52f))));
+        if (!isEpilogueGliding && !isOilFaceToFace)
+        {
+            if (CurrentState == RustState.Guiding)
+                smoothTime = 0.20f;
+            else if (_skybreakNestle || _prologueDistress)
+                smoothTime = 0.16f;
+        }
+
+        // Floatが18m/sで高速滑空しても置き去りにならないよう、maxSpeed=38m/sで確実にFloatの目の前／特等席をキープ
+        float maxSpeed = (isEpilogueGliding || isOilFaceToFace) ? 38.0f :
+            ((CurrentState == RustState.Fetching || CurrentState == RustState.Returning) ? 15.5f :
+            ((CurrentState == RustState.Guiding) ? 17.5f : 8.5f));
+        bool pillarFeet = IsPillarFeetFollow;
+        if (_climaxChase)
+        {
+            smoothTime = 0.16f;
+            maxSpeed = 26f;
+        }
+        if (pillarFeet)
+        {
+            smoothTime = 0.05f;
+            maxSpeed = 52f;
+        }
+
+        transform.position = Vector3.SmoothDamp(transform.position, _lagTarget, ref _velocity, smoothTime, maxSpeed);
+
+        if (pillarFeet)
+        {
+            Vector3 slot = PillarFeetFollowPoint();
+            if (Vector3.Distance(transform.position, slot) > 0.85f)
+            {
+                transform.position = Vector3.Lerp(transform.position, slot, 0.7f);
+                _lagTarget = transform.position;
+            }
+        }
+
+        if (_climaxChase)
+            KeepClimaxChaseInView();
+
+        // 画面見切れ防止ガード（オフスクリーン時のみソフト補正）
+        if ((_skybreakNestle || IsClimaxCrisis || _climaxHealing || IsClimaxOverdrive || _prologueDistress || isEpilogueGliding) && !_climaxFalling && !_climaxChase && !pillarFeet)
+            KeepRustOnScreenNearNiko(force: false);
+
+        // 危機時／冒頭ドラマ：ガタガタ震え
+        if ((IsClimaxCrisis || _prologueDistress) && !_climaxHealing)
+        {
+            float shake = _prologueDistress ? 0.04f : 0.055f;
+            transform.position += new Vector3(
+                Mathf.Sin(Time.unscaledTime * 42f) * shake,
+                Mathf.Sin(Time.unscaledTime * 51f) * shake * 0.7f,
+                Mathf.Cos(Time.unscaledTime * 37f) * shake);
+        }
+
+        // Nikoの体躯への食い込みを物理的に100%遮断・押し出す安全ガード
+        EnforceNikoBodyClearance();
+
+        // 回転の計算
+        Vector3 to = goal - transform.position;
+        if (isEpilogueGliding && _lookAt != null)
+        {
+            // エピローグ滑空時はFloatの進行方向（カメラ手前方向）を主体に向け、カメラに愛らしいLEDフェイスを正面から見せる！
+            to = _lookAt.forward * 5f;
+        }
+        else if (IsClimaxOverdrive && _lookAt != null)
+        {
+            // 頭直視だと機首が胸に刺さるので、頭の少し外側を見る
+            Vector3 head = GetNikoHeadPosition();
+            Vector3 away = transform.position - GetNikoChestPosition();
+            away.y = 0f;
+            if (away.sqrMagnitude > 0.01f) away.Normalize();
+            else away = _lookAt.right;
+            to = (head + away * 0.35f) - transform.position;
+        }
+        else if (pillarFeet && _lookAt != null)
+        {
+            to = _lookAt.position + Vector3.up * 0.95f - transform.position;
+        }
+        else if (_climaxChase && _lookAt != null)
+        {
+            to = GetNikoChestPosition() - transform.position;
+        }
+        else if (_climaxHealing && _lookAt != null)
+        {
+            to = GetNikoHeadPosition() - transform.position;
+        }
+        else if (CurrentState == RustState.Follow)
+        {
+            bool isGlidingNow = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.IsGliding;
+            if (isGlidingNow && _lookAt != null)
+            {
+                to = _lookAt.forward * 5f;
+            }
+            else
+            {
+                to = _lookAt.position + Vector3.up * 0.7f - transform.position;
+                if (_isGuidingToTower)
+                    to = SanctuaryTowerCenter + Vector3.up * 2.0f - transform.position;
+                else if (_guidedTreasureType != GuidedTreasureType.None)
+                    to = _guidedTreasurePos + Vector3.up * 0.25f - transform.position;
+                else if (_isPointingToScrap && _guidedScrap != null)
+                    to = _guidedScrap.transform.position + Vector3.up * 0.3f - transform.position;
+                else if (_distantScrap != null && AdventurePlayerController.Instance != null && !AdventurePlayerController.Instance.HasMoveInput)
+                {
+                    // 立ち止まり待機時：最寄りパーツの方角を向いて合図！
+                    Vector3 toScrap = _distantScrap.transform.position - transform.position;
+                    toScrap.y = 0f;
+                    if (toScrap.sqrMagnitude > 0.01f)
+                        to = toScrap.normalized * 5f;
+                }
+            }
+        }
+        else if (CurrentState == RustState.Returning)
+        {
+            to = _lookAt.position + Vector3.up * 1.35f - transform.position;
+        }
+        else if (CurrentState == RustState.Petting)
+        {
+            if (isEpilogueGliding && _lookAt != null)
+            {
+                // エピローグ滑空時は胸元ではなく、Floatの進行方向（カメラ手前方向）を主体に向く！
+                to = _lookAt.forward;
+            }
+            else
+            {
+                Vector3 lookTarget = (_skybreakNestle || IsClimaxCrisis || _prologueDistress)
+                    ? GetNikoChestPosition() + Vector3.up * 0.2f
+                    : GetNikoChestPosition() + Vector3.up * 0.32f;
+                to = lookTarget - transform.position;
+            }
+        }
+        else if (CurrentState == RustState.CampfireChill)
+        {
+            to = _campfireLookDir;
+        }
+
+        if (to.sqrMagnitude > 0.04f)
+        {
+            Quaternion look = Quaternion.LookRotation(to);
+            if (CurrentState == RustState.CampfireChill)
+            {
+                // 焚き火を見つめながら、火の粉を目で追ったりNikoを優しく見やる首かしげ
+                float headBob = Mathf.Sin(Time.time * 1.5f) * 4f;
+                float lookNikoBlend = Mathf.Clamp01(Mathf.Sin(Time.time * 0.35f) * 1.8f - 0.9f);
+                look *= Quaternion.Euler(headBob, lookNikoBlend * 20f, 0f);
+            }
+            else if (CurrentState == RustState.Perching)
+            {
+                // Nikoの頭上で首を傾げて穏やかに居眠り
+                look = _lookAt.rotation * Quaternion.Euler(10f, 20f, Mathf.Sin(Time.time * 1.5f) * 4f);
+            }
+            else if (CurrentState == RustState.Celebrating)
+            {
+                // 流麗な360度宙返り＆ハッピーバウンス！
+                look = GetCelebrationRotation(look);
+            }
+            else if (IsClimaxCrisis && !_climaxHealing)
+            {
+                // 極寒で激しく震える
+                look *= Quaternion.Euler(
+                    Mathf.Sin(Time.unscaledTime * 28f) * 18f,
+                    Mathf.Sin(Time.unscaledTime * 33f) * 14f,
+                    Mathf.Cos(Time.unscaledTime * 25f) * 16f);
+            }
+            else if (_climaxHealing)
+            {
+                look *= Quaternion.Euler(-18f + Mathf.Sin(Time.unscaledTime * 2.5f) * 6f, 0f, 8f);
+            }
+            else if (IsClimaxOverdrive || (AdventureSanctuaryTowerManager.Instance != null && AdventureSanctuaryTowerManager.Instance.EpilogueTriggered))
+            {
+                // カメラ側＆Floatの進行方向を向いて、時折Floatを見やる愛らしいチルト
+                float glanceFloat = Mathf.Sin(Time.time * 2.2f) * 8f;
+                look *= Quaternion.Euler(-12f, glanceFloat, Mathf.Sin(Time.time * 5f) * 6f);
+            }
+            else if (CurrentState == RustState.Petting)
+            {
+                // 胸元ですり寄る甘えチルト
+                look *= Quaternion.Euler(-10f + Mathf.Sin(Time.time * 4f) * 4f, 0f, 16f);
+            }
+            else if (CurrentState == RustState.Guiding)
+            {
+                Vector3 toTarget = _guideTargetLookPos - transform.position;
+                toTarget.y = 0f;
+                Vector3 lookDir = toTarget.sqrMagnitude > 0.05f ? toTarget.normalized : (_guideLeadPos - transform.position).normalized;
+                lookDir.y = 0f;
+                if (lookDir.sqrMagnitude > 0.01f)
+                    look = Quaternion.LookRotation(lookDir) * Quaternion.Euler(10f, 0f, Mathf.Sin(Time.time * 8f) * 5f);
+            }
+            else if (hitching)
+                look *= Quaternion.Euler(0f, Mathf.Sin(Time.time * 18f) * 8f, 0f);
+            else if ((_guidedTreasureType != GuidedTreasureType.None || _isPointingToScrap || (_distantScrap != null && AdventurePlayerController.Instance != null && !AdventurePlayerController.Instance.HasMoveInput)) && CurrentState == RustState.Follow)
+                look *= Quaternion.Euler(Mathf.Sin(Time.time * 10f) * 6f, 0f, Mathf.Cos(Time.time * 8f) * 4f);
+            else if (CurrentState == RustState.Follow)
+            {
+                bool isGlidingNow = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.IsGliding;
+                if (isGlidingNow && _lookAt != null)
+                {
+                    // Floatの旋回に合わせた滑らかなシンクロバンク（翼の傾き）
+                    float yawDelta = Vector3.SignedAngle(transform.forward, _lookAt.forward, Vector3.up);
+                    float bankRoll = Mathf.Clamp(yawDelta * 1.6f, -25f, 25f);
+                    look = Quaternion.LookRotation(_lookAt.forward, Vector3.up) * Quaternion.Euler(6f, 0f, -bankRoll);
+                }
+                else
+                {
+                    // 自律感情・好奇心（水濡れプルプル・花見下ろし・うたた寝・首かしげ）の姿勢補正
+                    look = ApplyCuriosityRotation(look);
+                }
+            }
+
+            float rotSpeed = IsClimaxCrisis ? 14f : (IsClimaxOverdrive ? 9f : 6.5f);
+            transform.rotation = Quaternion.Slerp(transform.rotation, look, rotSpeed * Time.deltaTime);
+        }
+
+        if (!hitching && _velocity.sqrMagnitude > 6f && !wellOiled && CurrentState == RustState.Follow)
+            PlayCreak(false);
+
+        UpdateHeat(hitching);
+        if (_wasHitching && !hitching)
+            DripOil();
+        _wasHitching = hitching;
+
+        TickDistressAudio(wellOiled, hitching);
+
+        UpdateGuide();
+        UpdatePlayerInteraction();
+        UpdateSonar();
+        UpdateCuriosity();
+    }
+
+    void LateUpdate()
+    {
+        if (_isPerformingGimmick)
+            return;
+
+        // Nikoの移動処理後にも毎フレーム体躯クリアランスを強制し、めり込みを完全排除
+        EnforceNikoBodyClearance();
+    }
+
+    /// <summary>
+    /// Nikoの体躯（足元〜頭上、半径0.82m）への食い込みを物理的に100%遮断・押し出す安全ガード。
+    /// 急停止・急旋回・寄り添い・スキンシップ・水パニック等、いかなる状況でもNikoの体にRustがめり込むのを完全根絶する。
+    /// </summary>
+    void EnforceNikoBodyClearance()
+    {
+        if (_lookAt == null) return;
+
+        Vector3 nikoPos = _lookAt.position;
+        Vector3 curPos = transform.position;
+
+        // Nikoの体躯の高さ範囲（足元 -0.1m 〜 頭上 +0.25m）
+        float minY = nikoPos.y - 0.1f;
+        float maxY = nikoPos.y + 1.85f;
+
+        if (curPos.y < minY || curPos.y > maxY)
+            return; // Nikoの頭上高く、または足元より下なら干渉なし
+
+        Vector2 nikoXZ = new Vector2(nikoPos.x, nikoPos.z);
+        Vector2 droneXZ = new Vector2(curPos.x, curPos.z);
+        float flatDist = Vector2.Distance(droneXZ, nikoXZ);
+
+        // Niko体幹半径 (0.40m) + Rust球体半径・アクセサリー余裕 (0.42m) = 安全距離 0.82m
+        // クライマックス危機・注油・寄り添い時は画面中央寄りの見やすい構図を維持するため0.62mに設定
+        float minSafeRadius = (IsClimaxCrisis || _climaxHealing || IsClimaxOverdrive) ? 0.62f : 0.82f;
+
+        if (flatDist < minSafeRadius)
+        {
+            Vector2 pushDir = droneXZ - nikoXZ;
+            if (pushDir.sqrMagnitude < 0.0001f)
+            {
+                // 完全に同軸の場合はNikoの右斜め後方へ押し出し
+                Vector3 defaultDir = (_lookAt.right * 0.85f - _lookAt.forward * 0.52f).normalized;
+                pushDir = new Vector2(defaultDir.x, defaultDir.z);
+            }
+            else
+            {
+                pushDir.Normalize();
+            }
+
+            Vector2 safeXZ = nikoXZ + pushDir * minSafeRadius;
+            transform.position = new Vector3(safeXZ.x, curPos.y, safeXZ.y);
+            _lagTarget = new Vector3(safeXZ.x, _lagTarget.y, safeXZ.y);
+
+            // Nikoの中心に向かう速度成分をカットし、めり込み慣性を消去
+            Vector3 pushDir3D = new Vector3(pushDir.x, 0f, pushDir.y);
+            float inwardVel = Vector3.Dot(_velocity, -pushDir3D);
+            if (inwardVel > 0f)
+            {
+                _velocity = Vector3.ProjectOnPlane(_velocity, pushDir3D);
+            }
+        }
+    }
+
+    static Camera ResolveCommandCamera()
+    {
+        var follow = FindAnyObjectByType<AdventureCameraFollow>();
+        if (follow != null)
+        {
+            var c = follow.GetComponent<Camera>() ?? follow.GetComponentInChildren<Camera>();
+            if (c != null && c.isActiveAndEnabled) return c;
+        }
+        if (Camera.main != null && Camera.main.isActiveAndEnabled)
+            return Camera.main;
+        return null;
+    }
+
+    /// <summary>視線レイと光の柱（垂直な線分）の最接近。</summary>
+    static void ClosestOnRayToSegment(Ray ray, Vector3 a, Vector3 b, out float along, out float separation)
+    {
+        Vector3 u = ray.direction.normalized;
+        Vector3 v = b - a;
+        Vector3 w = ray.origin - a;
+        float uu = Vector3.Dot(u, u);
+        float uv = Vector3.Dot(u, v);
+        float vv = Vector3.Dot(v, v);
+        float wu = Vector3.Dot(w, u);
+        float wv = Vector3.Dot(w, v);
+        float denom = uu * vv - uv * uv;
+        float s = 0f;
+        float t = 0f;
+        if (denom > 1e-6f)
+        {
+            s = (uv * wv - vv * wu) / denom;
+            t = (uu * wv - uv * wu) / denom;
+        }
+        s = Mathf.Max(0f, s);
+        t = Mathf.Clamp01(t);
+        Vector3 q = a + v * t;
+        s = Mathf.Max(0f, Vector3.Dot(q - ray.origin, u));
+        Vector3 p = ray.origin + u * s;
+        along = s;
+        separation = Vector3.Distance(p, q);
+    }
+
+    void UpdateCommandInput()
+    {
+        if (ShouldHideInteractionPrompt(AdventureSanctuaryTowerManager.Instance))
+        {
+            _aimedScrap = null;
+            _nearbyScrap = null;
+            return;
+        }
+
+        // 照準先のスクラップ ＆ 近隣スクラップを検出
+        _aimedScrap = null;
+        _nearbyScrap = null;
+
+        var cam = ResolveCommandCamera();
+        var scraps = FindObjectsByType<AdventureScrapItem>(FindObjectsInactive.Exclude);
+        Vector3 playerPos = _lookAt != null ? _lookAt.position : transform.position;
+
+        if (scraps != null && scraps.Length > 0)
+        {
+            float bestAimScore = float.MaxValue;
+            AdventureScrapItem bestAimScrap = null;
+
+            float nearestPlayerDist = float.MaxValue;
+            AdventureScrapItem nearestScrap = null;
+
+            Ray camRay = cam != null ? cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f)) : new Ray(transform.position, transform.forward);
+
+            foreach (var s in scraps)
+            {
+                if (s == null || s.IsCollected) continue;
+
+                Vector3 scrapPos = s.transform.position;
+                float distFromPlayer = Vector3.Distance(playerPos, scrapPos);
+
+                // 1. プレイヤー周囲の最短パーツ（最大50m以内）
+                if (distFromPlayer < 50f && distFromPlayer < nearestPlayerDist)
+                {
+                    nearestPlayerDist = distFromPlayer;
+                    nearestScrap = s;
+                }
+
+                // 2. 視線照準（エイム）判定
+                if (cam != null)
+                {
+                    Vector3 vp = cam.WorldToViewportPoint(scrapPos + Vector3.up * 0.8f);
+                    bool inFront = vp.z > 0.5f;
+
+                    ClosestOnRayToSegment(camRay, scrapPos, scrapPos + Vector3.up * 60f, out float along, out float sep);
+
+                    float vpDist = inFront ? Vector2.Distance(new Vector2(vp.x, vp.y), new Vector2(0.5f, 0.5f)) : 99f;
+                    bool isAimCandidate = (inFront && vpDist < 0.38f && vp.z < 160f) || (along >= 1.0f && along <= 180f && sep < 26f);
+
+                    if (isAimCandidate)
+                    {
+                        float score = vpDist * 10f + (sep * 0.25f) + (distFromPlayer * 0.04f);
+                        if (score < bestAimScore)
+                        {
+                            bestAimScore = score;
+                            bestAimScrap = s;
+                        }
+                    }
+                }
+            }
+
+            _aimedScrap = bestAimScrap;
+            _nearbyScrap = nearestScrap;
+        }
+
+        // 通常探索状態ならいつでも指示・案内受付可能（ScoutingやGuiding中、Perching中も即時割り込み）
+        bool canAcceptCommand = CurrentState == RustState.Follow ||
+                                CurrentState == RustState.Scouting ||
+                                CurrentState == RustState.Guiding ||
+                                CurrentState == RustState.Perching ||
+                                CurrentState == RustState.Celebrating;
+
+        // Qキー または マウス中クリック または ゲームパッドLBで「道案内シグナル（Floatのガイド先行フライト＆コンパスPing）」
+        bool qPressed = AdventureInputReader.GuideDown;
+
+        if (qPressed && canAcceptCommand)
+        {
+            if (CurrentState == RustState.Perching)
+            {
+                WakeUpFromPerch();
+            }
+            TriggerGuideSignal();
+        }
+
+        // Fキー（AdventureInputReader.CommandFetchDown または長押し経由で新旧InputSystem + Gamepad統合）
+        bool fPressed = AdventureInputReader.CommandFetchDown || (AdventureInputReader.CommandFetchHeld && CurrentState != RustState.Petting);
+
+        if (fPressed && canAcceptCommand)
+        {
+            // 立ち止まり（地上かつ移動入力なし・非滑空）判定
+            var playerCtrl = AdventurePlayerController.Instance;
+            bool isPlayerStandingStill = playerCtrl != null && playerCtrl.IsGrounded && !playerCtrl.HasMoveInput && !playerCtrl.IsGliding;
+
+            // 優先度1: 照準先のパーツ
+            // 優先度2: 周囲50m以内の最寄りパーツ
+            AdventureScrapItem scrapToFetch = _aimedScrap != null ? _aimedScrap : _nearbyScrap;
+
+            if (scrapToFetch != null)
+            {
+                // スクラップ回収を指示！
+                _targetScrap = scrapToFetch;
+                CurrentState = RustState.Fetching;
+                if (_guideTrail != null) _guideTrail.enabled = false;
+
+                SpeakCustom("了解！あのパーツを取ってくるね、Float！", 3.2f);
+                if (_audio != null && _happyBeepClip != null)
+                {
+                    _audio.pitch = 1.35f;
+                    _audio.PlayOneShot(_happyBeepClip, 0.8f);
+                }
+            }
+            else if (isPlayerStandingStill && CurrentState != RustState.Petting)
+            {
+                // 地上で立ち止まり中かつパーツ非照準時：最優先で相棒Rustを撫でる（スキンシップ）
+                if (AdventurePettingAction.Instance != null)
+                {
+                    AdventurePettingAction.Instance.PetRust();
+                }
+            }
+            else if (cam != null)
+            {
+                // 何もない場所を指差した場合は偵察指示
+                Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+                if (Physics.Raycast(ray, out RaycastHit hit, 40f))
+                {
+                    _scoutTargetPos = hit.point;
+                    CurrentState = RustState.Scouting;
+                    _stateTimer = 1.8f;
+                    if (_guideTrail != null) _guideTrail.enabled = false;
+
+                    SpeakCustom("あそこを見に行ってみるよ！", 2.8f);
+                    if (_audio != null && _happyBeepClip != null)
+                    {
+                        _audio.pitch = 1.2f;
+                        _audio.PlayOneShot(_happyBeepClip, 0.65f);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 【案1】相棒Floatの道案内シグナル（Qキー／中クリック）
+    /// 進行状況に応じた最優先の目標（未起動風脈 > 未回収パーツ > 聖域タワー）へ光の軌跡を引きながら先行飛行し、コンパスHUDと完全連携する
+    /// </summary>
+    public void TriggerGuideSignal()
+    {
+        if (CurrentState == RustState.Perching)
+            WakeUpFromPerch();
+
+        if (IsClimaxCrisis || _skybreakNestle || _prologueDistress || CurrentState == RustState.Petting || CurrentState == RustState.CampfireChill)
+            return;
+
+        EnsureGuideTrail();
+
+        var player = _lookAt != null ? _lookAt : (AdventurePlayerController.Instance != null ? AdventurePlayerController.Instance.transform : null);
+        if (player == null) return;
+        Vector3 playerPos = player.position;
+
+        Vector3 targetPos = Vector3.zero;
+        string targetName = "";
+        string dialogue = "";
+        bool guideDialogueIsKey = false;
+        Color targetColor = Color.yellow;
+        bool foundTarget = false;
+
+        var scrapMgr = AdventureScrapManager.Instance ?? FindAnyObjectByType<AdventureScrapManager>();
+        bool isTowerReady = scrapMgr != null && scrapMgr.IsLeverUnlocked && !AdventureSanctuaryTowerManager.IsCanopyBroken;
+
+        if (isTowerReady)
+        {
+            targetPos = new Vector3(512f, 63.2f, 501.5f);
+            targetName = AdventureLocalizationManager.Get("target_name_tower_lever");
+            dialogue = "rust_guide_tower_20pt";
+            guideDialogueIsKey = true;
+            targetColor = new Color(0.25f, 0.95f, 1.0f, 1f);
+            foundTarget = true;
+        }
+        else
+        {
+            // 1. 最寄りの未回収古代パーツ（スクラップ）を最優先探索！
+            float scrapDist = float.MaxValue;
+            AdventureScrapItem nearestScrap = scrapMgr != null ? scrapMgr.GetNearestScrapItem(playerPos, out scrapDist) : null;
+
+            // 2. 漂着木箱
+            var nearestBox = AdventureBeachDriftBox.GetNearestUnopenedBox(playerPos, out float boxDist);
+
+            // 3. 未起動の古代風脈クリスタル
+            var vents = FindObjectsByType<AdventureAncientWindVent>(FindObjectsInactive.Exclude);
+            AdventureAncientWindVent nearestUnactivatedVent = null;
+            float nearestVentDist = float.MaxValue;
+            for (int i = 0; i < vents.Length; i++)
+            {
+                if (vents[i] != null && !vents[i].isActivated)
+                {
+                    float d = Vector3.Distance(playerPos, vents[i].transform.position);
+                    if (d < nearestVentDist)
+                    {
+                        nearestVentDist = d;
+                        nearestUnactivatedVent = vents[i];
+                    }
+                }
+            }
+
+            if (nearestScrap != null)
+            {
+                targetPos = nearestScrap.transform.position;
+                targetName = nearestScrap.ItemDisplayName;
+                dialogue = AdventureLocalizationManager.GetFormat("sonar_guide_scrap", targetName, Mathf.RoundToInt(scrapDist));
+                guideDialogueIsKey = false;
+                targetColor = nearestScrap.itemColor;
+                foundTarget = true;
+            }
+            else if (nearestBox != null)
+            {
+                targetPos = nearestBox.transform.position;
+                targetName = nearestBox.BoxDisplayName;
+                dialogue = AdventureLocalizationManager.Get("sonar_guide_box");
+                guideDialogueIsKey = false;
+                targetColor = new Color(0.35f, 1.0f, 0.65f, 1f);
+                foundTarget = true;
+            }
+            else if (nearestUnactivatedVent != null)
+            {
+                targetPos = nearestUnactivatedVent.transform.position;
+                targetName = AdventureLocalizationManager.Get("target_name_wind_vent");
+                dialogue = "rust_guide_wind_vent";
+                guideDialogueIsKey = true;
+                targetColor = new Color(0.35f, 1.0f, 0.75f, 1f);
+                foundTarget = true;
+            }
+            else
+            {
+                // 全回収済み、またはクリア後：白亜タワーまたは大空光柱
+                targetPos = new Vector3(512f, 63.2f, 512f);
+                targetName = AdventureSanctuaryTowerManager.IsGameCleared 
+                    ? AdventureLocalizationManager.Get("target_name_skydive_pillar") 
+                    : AdventureLocalizationManager.Get("target_name_sanctuary_tower");
+                dialogue = AdventureSanctuaryTowerManager.IsGameCleared
+                    ? "rust_guide_skydive_pillar"
+                    : "rust_guide_sanctuary_tower";
+                guideDialogueIsKey = true;
+                targetColor = new Color(0.35f, 0.95f, 1.0f, 1f);
+                foundTarget = true;
+            }
+        }
+
+        if (foundTarget)
+        {
+            Vector3 toTarget = (targetPos - playerPos);
+            toTarget.y = 0f;
+            Vector3 leadDir = toTarget.sqrMagnitude > 1f ? toTarget.normalized : player.forward;
+            float leadDist = Mathf.Clamp(toTarget.magnitude * 0.35f, 16f, 32f);
+            _guideLeadPos = playerPos + leadDir * leadDist + Vector3.up * 2.8f;
+            _guideTargetLookPos = targetPos;
+            _guideTimer = 6.0f; // 6秒間じっくり案内
+            CurrentState = RustState.Guiding;
+
+            if (_guideTrail != null)
+            {
+                _guideTrail.Clear();
+                _guideTrail.enabled = true;
+            }
+            if (guideDialogueIsKey)
+                SpeakCustom(dialogue, 4.5f);
+            else
+                SpeakCustomLocalized(dialogue, 4.5f);
+
+            PlayGuideBeepChime();
+
+            // コンパスHUDへもPing送信して即座にハイライト連動！
+            AdventureCompassHUD.Instance?.TriggerGuidePing(targetPos, targetName, targetColor, AdventureExplorationHudDetail.GuidePulseSeconds);
+        }
+    }
+
+    void EnsureGuideTrail()
+    {
+        if (_guideTrail == null)
+        {
+            _guideTrail = gameObject.GetComponent<TrailRenderer>();
+            if (_guideTrail == null) _guideTrail = gameObject.AddComponent<TrailRenderer>();
+            _guideTrail.time = 0.9f;
+            _guideTrail.startWidth = 0.28f;
+            _guideTrail.endWidth = 0.02f;
+            _guideTrail.minVertexDistance = 0.15f;
+            var s = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
+            if (s != null)
+            {
+                var mat = new Material(s);
+                mat.color = new Color(0.40f, 0.95f, 1.0f, 0.90f);
+                _guideTrail.material = mat;
+            }
+            Gradient g = new Gradient();
+            g.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(new Color(0.35f, 0.95f, 1.0f), 0f), new GradientColorKey(new Color(1.0f, 0.88f, 0.35f), 1f) },
+                new GradientAlphaKey[] { new GradientAlphaKey(0.85f, 0f), new GradientAlphaKey(0f, 1f) }
+            );
+            _guideTrail.colorGradient = g;
+            _guideTrail.enabled = false;
+        }
+    }
+
+    void UpdateGuide()
+    {
+        if (_lookAt == null)
+        {
+            _guidedTreasureType = GuidedTreasureType.None;
+            _guidedScrap = null;
+            _isPointingToScrap = false;
+            _isGuidingToTower = false;
+            UpdateRadarVisuals();
+            return;
+        }
+
+        // 目覚め〜注油の台詞中は探知セリフで上書きしない
+        var prologueBlock = AdventurePrologueDrama.Instance;
+        if (prologueBlock != null && prologueBlock.IsBlockingSpeech)
+            return;
+
+        Vector3 nikoPos = _lookAt.position;
+
+        // 1. 中央タワーへの先導誘導（20pt達成〜天蓋開放前：最優先！）
+        var scrapMgr = AdventureScrapManager.Instance;
+        bool leverUnlocked = scrapMgr != null && scrapMgr.IsLeverUnlocked;
+        bool canopyBroken = AdventureSanctuaryTowerManager.IsCanopyBroken;
+
+        if (leverUnlocked && !canopyBroken)
+        {
+            _isGuidingToTower = true;
+            _guidedTreasureType = GuidedTreasureType.None;
+            _guidedScrap = null;
+            _isPointingToScrap = false;
+
+            float distToTower = Vector3.Distance(nikoPos, SanctuaryTowerCenter);
+            if (distToTower <= 14f)
+            {
+                _isGuidingToTower = false; // タワー到着後はNikoの肩へ寄り添う（オベリスクへ突っ込まない）
+                if (!_nearTowerNotified)
+                {
+                    _nearTowerNotified = true;
+                    SetSpeech("rust_near_tower", 5.0f);
+                    PlayGuideBeepOnly(0.75f, 1.45f);
+                }
+            }
+            else
+            {
+                _nearTowerNotified = false;
+                if (Time.time >= _nextTowerNotice)
+                {
+                    _nextTowerNotice = Time.time + 14f;
+                    SetSpeech("rust_guide_tower_short", 4.0f);
+                    PlayGuideBeepChime(0.65f, 0.55f);
+                }
+            }
+            UpdateRadarVisuals();
+            return;
+        }
+        else
+        {
+            _isGuidingToTower = false;
+        }
+
+        // 2. スクラップパーツの探知（最重要なお宝）
+        AdventureScrapItem nearestScrap = null;
+        float scrapDist = 999f;
+        if (scrapMgr != null)
+        {
+            nearestScrap = scrapMgr.GetNearestScrapItem(nikoPos, out scrapDist);
+        }
+
+        // 近距離（75m以内）：Rustがお宝寄りに先行飛行して黄金の輝きで指差し案内
+        if (nearestScrap != null && scrapDist <= 75f && !nearestScrap.IsCollected)
+        {
+            _guidedTreasureType = GuidedTreasureType.Scrap;
+            _guidedScrap = nearestScrap;
+            _distantScrap = nearestScrap;
+            _distantScrapDist = scrapDist;
+            _guidedTreasurePos = nearestScrap.transform.position;
+            _radarLightColor = new Color(1f, 0.85f, 0.2f); // 黄金の輝き
+            _isPointingToScrap = true;
+
+            if (_prevGuidedTreasureType != GuidedTreasureType.Scrap || Time.time >= _nextGuideNotice)
+            {
+                _nextGuideNotice = Time.time + 12f;
+                SetSpeech(AdventureLocalizationManager.GetFormat("rust_found_scrap", nearestScrap.ItemDisplayName), 3.8f);
+                PlayRadarSonarSound();
+            }
+
+            _prevGuidedTreasureType = _guidedTreasureType;
+            UpdateRadarVisuals();
+            return;
+        }
+        else
+        {
+            _guidedScrap = null;
+        }
+
+        // 3. 漂流木箱の探知（26m以内）
+        AdventureBeachDriftBox nearestBox = AdventureBeachDriftBox.GetNearestUnopenedBox(nikoPos, out float boxDist);
+        if (nearestBox != null && boxDist <= 26f)
+        {
+            _guidedTreasureType = GuidedTreasureType.DriftBox;
+            _guidedTreasurePos = nearestBox.transform.position;
+            _radarLightColor = new Color(0.2f, 0.85f, 1f); // シアンブルー
+            _isPointingToScrap = true;
+
+            if (_prevGuidedTreasureType != GuidedTreasureType.DriftBox || Time.time >= _nextGuideNotice)
+            {
+                _nextGuideNotice = Time.time + 12f;
+                SetSpeech(AdventureLocalizationManager.Get("rust_found_box"), 3.8f);
+                PlayRadarSonarSound();
+            }
+
+            _prevGuidedTreasureType = _guidedTreasureType;
+            UpdateRadarVisuals();
+            return;
+        }
+
+        // 4. 貝殻・シーグラスの探知（22m以内）
+        var shellMgr = AdventureBeachSeashellManager.Instance;
+        AdventureBeachSeashellItem nearestShell = null;
+        float shellDist = 999f;
+        if (shellMgr != null)
+        {
+            nearestShell = shellMgr.GetNearestUncollectedShell(nikoPos, out shellDist);
+        }
+
+        if (nearestShell != null && shellDist <= 22f)
+        {
+            _guidedTreasureType = GuidedTreasureType.Seashell;
+            _guidedTreasurePos = nearestShell.transform.position;
+            // 貝殻固有のテーマカラー（マリンピンク／エメラルド等）
+            _radarLightColor = (nearestShell.themeColor.maxColorComponent > 0.1f) ? nearestShell.themeColor : new Color(1f, 0.45f, 0.75f);
+            _isPointingToScrap = true;
+
+            if (_prevGuidedTreasureType != GuidedTreasureType.Seashell || Time.time >= _nextGuideNotice)
+            {
+                _nextGuideNotice = Time.time + 12f;
+                string shellName = string.IsNullOrEmpty(nearestShell.itemName) ? "貝殻" : nearestShell.itemName;
+                SetSpeech(AdventureLocalizationManager.GetFormat("rust_found_shell", shellName), 3.8f);
+                PlayRadarSonarSound();
+            }
+
+            _prevGuidedTreasureType = _guidedTreasureType;
+            UpdateRadarVisuals();
+            return;
+        }
+
+        // 5. 周囲に直接のお宝がない場合でも、最寄りの未回収パーツの方角・共鳴を保持してナビゲート
+        if (nearestScrap != null && !nearestScrap.IsCollected)
+        {
+            _distantScrap = nearestScrap;
+            _distantScrapDist = scrapDist;
+            _radarLightColor = new Color(1f, 0.85f, 0.2f); // 黄金の共鳴パルス
+
+            // プレイヤーが立ち止まっている時、または30秒ごとに方位を案内
+            bool isIdle = AdventurePlayerController.Instance != null && !AdventurePlayerController.Instance.HasMoveInput;
+            if (Time.time >= _nextDistantScrapNotice && (isIdle || Time.time >= _nextDistantScrapNotice + 15f))
+            {
+                _nextDistantScrapNotice = Time.time + 28f;
+                Vector3 diff = nearestScrap.transform.position - nikoPos;
+                string dirName;
+                if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
+                {
+                    bool isEast = diff.x > 0;
+                    dirName = AdventureLocalizationManager.CurrentLanguage switch
+                    {
+                        AdventureLocalizationManager.GameLanguage.English => isEast ? "East (Far Right)" : "West (Ocean side)",
+                        AdventureLocalizationManager.GameLanguage.SimplifiedChinese => isEast ? "东边（右侧深处）" : "西边（海滩侧）",
+                        AdventureLocalizationManager.GameLanguage.Spanish => isEast ? "Este (fondo a la derecha)" : "Oeste (hacia el mar)",
+                        _ => isEast ? "東（右奥）" : "西（海側）"
+                    };
+                }
+                else
+                {
+                    bool isNorth = diff.z > 0;
+                    dirName = AdventureLocalizationManager.CurrentLanguage switch
+                    {
+                        AdventureLocalizationManager.GameLanguage.English => isNorth ? "North (High Ground)" : "South (Beach side)",
+                        AdventureLocalizationManager.GameLanguage.SimplifiedChinese => isNorth ? "北边（高台深处）" : "南边（沙滩侧）",
+                        AdventureLocalizationManager.GameLanguage.Spanish => isNorth ? "Norte (hacia las colinas)" : "Sur (hacia la orilla)",
+                        _ => isNorth ? "北（奥の高台）" : "南（浜辺側）"
+                    };
+                }
+
+                SetSpeech(AdventureLocalizationManager.GetFormat("rust_sonar_ping", dirName, scrapDist, nearestScrap.ItemDisplayName), 4.5f);
+                PlayRadarSonarSound();
+            }
+        }
+        else
+        {
+            _distantScrap = null;
+        }
+
+        // 周囲至近にお宝なし
+        _guidedTreasureType = GuidedTreasureType.None;
+        _prevGuidedTreasureType = GuidedTreasureType.None;
+        _isPointingToScrap = false;
+        UpdateRadarVisuals();
+    }
+
+    void SetupRadarLight()
+    {
+        if (_radarFlashLight != null) return;
+
+        // ドローン上部のアンテナ位置にレーダーPointLightを生成
+        GameObject lightObj = new GameObject("Rust_RadarLight");
+        lightObj.transform.SetParent(transform, false);
+        lightObj.transform.localPosition = new Vector3(0f, 0.45f, 0f);
+
+        _radarFlashLight = lightObj.AddComponent<Light>();
+        _radarFlashLight.type = LightType.Point;
+        _radarFlashLight.range = 4.2f;
+        _radarFlashLight.intensity = 2.4f;
+        _radarFlashLight.color = Color.yellow;
+        _radarFlashLight.enabled = false;
+    }
+
+    void UpdateRadarVisuals()
+    {
+        if (_radarFlashLight != null)
+        {
+            if (_guidedTreasureType != GuidedTreasureType.None)
+            {
+                _radarFlashLight.color = _radarLightColor;
+                // 9Hz でピカピカ点滅（お宝探知ソナー点滅）
+                float flash = Mathf.PingPong(Time.time * 9f, 1f);
+                _radarFlashLight.enabled = flash > 0.35f;
+                _radarFlashLight.intensity = Mathf.Lerp(1.2f, 3.2f, flash);
+            }
+            else
+            {
+                _radarFlashLight.enabled = false;
+            }
+        }
+
+        // 探知中の定期ソナーチャイム音（4.0秒おき）
+        if (_guidedTreasureType != GuidedTreasureType.None)
+        {
+            if (Time.time >= _nextRadarBeepTime)
+            {
+                _nextRadarBeepTime = Time.time + 4.0f;
+                if (_audio != null && _happyBeepClip != null && !AdventurePauseMenu.IsOpen)
+                {
+                    _audio.pitch = 1.5f;
+                    _audio.PlayOneShot(_happyBeepClip, 0.4f);
+                }
+            }
+        }
+    }
+
+    void PlayRadarSonarSound()
+    {
+        if (_audio != null && _happyBeepClip != null && !AdventurePauseMenu.IsOpen)
+        {
+            _audio.pitch = 1.4f;
+            _audio.PlayOneShot(_happyBeepClip, 0.65f);
+        }
+    }
+
+
+    Vector3 FollowPoint()
+    {
+        Vector3 niko = _lookAt.position;
+        Vector3 chest = GetNikoChestPosition();
+
+        if (IsPillarFeetFollow && !_climaxFalling)
+            return PillarFeetFollowPoint();
+
+        // 天蓋崩壊〜エンディング同伴：カメラ右斜め前（以前の見え方）
+        if ((_skybreakNestle || _prologueDistress) && !_climaxFalling && !IsClimaxCrisis && !_climaxHealing && !IsClimaxOverdrive)
+        {
+            float nestleBob = Mathf.Sin(Time.time * 3.2f) * 0.03f;
+            if (_prologueDistress)
+                return EndingBesideNiko(0.72f, 0.78f, 0.18f + nestleBob);
+            // 右0.95m・前0.45m、頭〜胸の高さ
+            return EndingNestleAtHead(0.45f, 0.95f, 0.08f + nestleBob);
+        }
+
+        // 柱抜け直後：後ろから必死に追い、置いていかれてカメラへ落ちる
+        if (_climaxChase && !_climaxFalling)
+            return ClimaxChasePoint();
+
+        // クライマックス危機／注油：FloatとRustが正面至近距離でまっすぐ向き合う（至高のFace-to-Face構図）
+        if ((IsClimaxCrisis || _climaxHealing) && !_climaxFalling)
+        {
+            float bob = Mathf.Sin(Time.unscaledTime * 2.8f) * 0.03f;
+            return GetClimaxFaceToFacePoint() + Vector3.up * bob;
+        }
+
+        // オーバードライブ＆エピローグ滑空中：右肩のすぐ外側・カメラ手前側の特等席
+        var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        bool isEpilogueGliding = (towerMgr != null && towerMgr.EpilogueTriggered) || IsClimaxOverdrive;
+        if (isEpilogueGliding)
+            return GetOverdriveShoulderNestle();
+
+        // 20pt達成後：RustはNikoの前方2.4m（中央タワーに向かうベクトル）へ先行飛行して先導！
+        if (_isGuidingToTower)
+        {
+            Vector3 toTower = Vector3.ProjectOnPlane(SanctuaryTowerCenter - niko, Vector3.up).normalized;
+            Vector3 guidePos = niko + toTower * 2.4f;
+            float sBob = Mathf.Sin(Time.time * bobSpeed * 1.8f) * (bobAmount * 1.3f);
+            return new Vector3(guidePos.x, chest.y + 0.25f + sBob, guidePos.z);
+        }
+
+        // 近くに未発見お宝（スクラップ・漂流木箱・貝殻）がある場合、RustはNikoとお宝を結ぶ線上の前方へ先行飛行して指差し案内！
+        if (_guidedTreasureType != GuidedTreasureType.None)
+        {
+            Vector3 toTreasure = Vector3.ProjectOnPlane(_guidedTreasurePos - niko, Vector3.up);
+            if (toTreasure.sqrMagnitude > 0.01f)
+                toTreasure.Normalize();
+            else
+                toTreasure = _lookAt.forward;
+
+            Vector3 guidePos = niko + toTreasure * 2.1f;
+            float sBob = Mathf.Sin(Time.time * bobSpeed * 1.8f) * (bobAmount * 1.3f);
+            return new Vector3(guidePos.x, chest.y + 0.18f + sBob, guidePos.z);
+        }
+        else if (_isPointingToScrap && _guidedScrap != null)
+        {
+            Vector3 toScrap = Vector3.ProjectOnPlane(_guidedScrap.transform.position - niko, Vector3.up).normalized;
+            Vector3 guidePos = niko + toScrap * 1.8f;
+            float sBob = Mathf.Sin(Time.time * bobSpeed * 1.6f) * (bobAmount * 1.2f);
+            return new Vector3(guidePos.x, chest.y + 0.1f + sBob, guidePos.z);
+        }
+
+        // 自律好奇心アクション実行中（花・蝶・水辺・アイコンタクト）：対象位置へフワリと移動
+        if (_curiosityKind != CuriosityKind.None)
+        {
+            Vector3 curiousPos = GetCuriosityTargetPosition();
+            if (curiousPos != Vector3.zero)
+                return curiousPos;
+        }
+
+        // 滑空中のシンクロ編隊飛行（Formation Flight）: Floatの右翼すぐ横に並走！
+        bool isGlidingNow = AdventurePlayerController.Instance != null && AdventurePlayerController.Instance.IsGliding;
+        if (isGlidingNow && _lookAt != null)
+        {
+            // 右1.35m、前0.35m、高さは翼と同じ高さ（Nikoの胸+0.1m）
+            Vector3 formationOffset = _lookAt.right * 1.35f + _lookAt.forward * 0.35f;
+            float glideBob = Mathf.Sin(Time.time * 3.0f) * 0.05f;
+            return niko + formationOffset + Vector3.up * (0.85f + glideBob);
+        }
+
+        // 通常追従の理想位置: Nikoの右肩の斜め後ろ（右1.25m、後方1.55m）
+        Vector3 rightBack = _lookAt.right * 1.25f - _lookAt.forward * 1.55f;
+        Vector3 targetPos = niko + rightBack;
+
+        // スマート視界退避：カメラの視界中央を遮らないよう自動で外側へ退避
+        var mainCam = Camera.main;
+        if (mainCam != null)
+        {
+            Vector3 camFwd = mainCam.transform.forward;
+            Vector3 toRust = (transform.position - mainCam.transform.position).normalized;
+            float centerDot = Vector3.Dot(camFwd, toRust);
+            // カメラ正面視界（約32度以内）に入り込んでいる場合、カメラの右下方向へ退避
+            if (centerDot > 0.85f)
+            {
+                Vector3 avoidOffset = mainCam.transform.right * 1.15f - mainCam.transform.up * 0.40f;
+                targetPos += avoidOffset;
+            }
+        }
+
+        // Nikoの真正面／体内にRustが居座るのを防止（直径≈1.75m）
+        const float bodyClearance = 1.75f;
+        float flat = FlatDistance(niko);
+        Vector3 toDrone = transform.position - niko;
+        float forwardDot = Vector3.Dot(_lookAt.forward, toDrone);
+        if (flat < bodyClearance || (flat < 2.0f && forwardDot > -0.15f))
+        {
+            targetPos = niko + rightBack;
+        }
+        else if (flat < stopDistance)
+        {
+            targetPos = new Vector3(transform.position.x, 0f, transform.position.z);
+        }
+
+        float followBob = Mathf.Sin(Time.time * bobSpeed) * bobAmount;
+        float y = chest.y + 0.05f + followBob; // 常にNikoの胸・肩の高さに追従！
+
+        Vector3 finalGoal = new Vector3(targetPos.x, y, targetPos.z);
+
+        // タワー中央（オベリスク）へのRust突入・埋まり込み防止ガード
+        // 天蓋開放前の通常探索中、タワー中心（512, 512）の半径5.2m以内に入り込まないよう外周へクランプ
+        if (!AdventureSanctuaryTowerManager.IsCanopyBroken)
+        {
+            Vector2 goalXZ = new Vector2(finalGoal.x, finalGoal.z);
+            Vector2 towerXZ = new Vector2(SanctuaryTowerCenter.x, SanctuaryTowerCenter.z);
+            float distToTowerCenter = Vector2.Distance(goalXZ, towerXZ);
+            const float towerObeliskRadius = 5.2f;
+            if (distToTowerCenter < towerObeliskRadius)
+            {
+                Vector2 pushDir = (goalXZ - towerXZ).normalized;
+                if (pushDir == Vector2.zero) pushDir = new Vector2(0f, -1f); // 南側（テラス側）へ退避
+                Vector2 pushedXZ = towerXZ + pushDir * towerObeliskRadius;
+                finalGoal.x = pushedXZ.x;
+                finalGoal.z = pushedXZ.y;
+            }
+        }
+
+        return finalGoal;
+    }
+
+    Renderer[] _cachedRenderers;
+    float _currentAlpha = 1.0f;
+
+    /// <summary>カメラ至近時や画面中央に入り込んだ場合のスマート透明化（視界妨害の完全根絶）</summary>
+    void UpdateSmartCameraOcclusion()
+    {
+        var cam = Camera.main;
+        if (cam == null) return;
+
+        float distToCam = Vector3.Distance(cam.transform.position, transform.position);
+        Vector3 vp = cam.WorldToViewportPoint(transform.position);
+        bool inCenterView = (vp.z > 0.1f && vp.z < 2.5f && vp.x > 0.32f && vp.x < 0.68f && vp.y > 0.28f && vp.y < 0.72f);
+
+        float targetAlpha = (distToCam < 1.35f || inCenterView) ? 0.22f : 1.0f;
+        _currentAlpha = Mathf.MoveTowards(_currentAlpha, targetAlpha, Time.unscaledDeltaTime * 4.5f);
+
+        if (_cachedRenderers == null || _cachedRenderers.Length == 0)
+            _cachedRenderers = GetComponentsInChildren<Renderer>(true);
+
+        for (int i = 0; i < _cachedRenderers.Length; i++)
+        {
+            var r = _cachedRenderers[i];
+            if (r == null || r is ParticleSystemRenderer || r is TrailRenderer) continue;
+            var mats = r.materials;
+            for (int m = 0; m < mats.Length; m++)
+            {
+                var mat = mats[m];
+                if (mat == null) continue;
+                if (mat.HasProperty("_BaseColor"))
+                {
+                    Color c = mat.GetColor("_BaseColor");
+                    c.a = _currentAlpha;
+                    mat.SetColor("_BaseColor", c);
+                }
+                else if (mat.HasProperty("_Color"))
+                {
+                    Color c = mat.color;
+                    c.a = _currentAlpha;
+                    mat.color = c;
+                }
+            }
+        }
+    }
+
+    float SurfaceY(Vector3 pos)
+    {
+        float landY = pos.y;
+        if (_land != null)
+            landY = _land.SampleHeight(pos) + _land.transform.position.y;
+
+        var bounds = AdventureIslandBoundary.Instance;
+        float water = bounds != null ? bounds.waterLevel : float.NegativeInfinity;
+        return landY < water ? water : landY;
+    }
+
+    float FlatDistance(Vector3 target)
+    {
+        Vector3 a = transform.position;
+        a.y = 0f;
+        target.y = 0f;
+        return Vector3.Distance(a, target);
+    }
+
+    void SetupAudio()
+    {
+        _audio = GetComponent<AudioSource>();
+        if (_audio == null)
+            _audio = gameObject.AddComponent<AudioSource>();
+        _audio.playOnAwake = false;
+        _audio.spatialBlend = 1f;
+        _audio.minDistance = 1.5f;
+        _audio.maxDistance = 22f;
+        _audio.volume = soundVolume;
+        _creaks = new[] { MakeCreak(11), MakeCreak(29), MakeCreak(47) };
+        _happyBeepClip = MakeSynthBeep(880f, 1320f, 0.18f);
+        _sonarBeepClip = MakeSynthBeep(1480f, 1100f, 0.22f);
+        _pipiChimeClip = MakePipiChime();
+        _distressWhineClip = MakeDistressWhine();
+        _nextDistressSound = Time.time + 1.5f;
+
+        Ensure2DAudio();
+    }
+
+    void Ensure2DAudio()
+    {
+        if (_uiAudio == null)
+        {
+            var uiAudioGo = new GameObject("Rust2DAudio");
+            uiAudioGo.transform.SetParent(transform, false);
+            _uiAudio = uiAudioGo.AddComponent<AudioSource>();
+            _uiAudio.playOnAwake = false;
+            _uiAudio.spatialBlend = 0f; // 2D UIオーディオ（距離減衰ゼロで確実に聞こえる）
+            _uiAudio.volume = 0.95f;
+            _uiAudio.priority = 0;
+            _uiAudio.bypassEffects = true;
+            _uiAudio.bypassListenerEffects = true;
+            _uiAudio.ignoreListenerPause = true;
+        }
+        if (_oilPourClip == null)
+        {
+            _oilPourClip = MakeOilPourSound();
+        }
+    }
+
+    /// <summary>潤滑油をさしたときの専用効果音：オイル滴下・充填音＋快調回復チャイム</summary>
+    AudioClip MakeOilPourSound()
+    {
+        const int rate = 44100;
+        float dur = 0.95f;
+        int count = (int)(rate * dur);
+        float[] data = new float[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            float t = (float)i / rate;
+            float sample = 0f;
+
+            // 1. オイル滴下・トポポ音（前半 0.0〜0.35秒）：やわらかな気泡・ドロップ音
+            if (t < 0.35f)
+            {
+                float bubble1 = Mathf.Sin(2f * Mathf.PI * (420f + 60f * Mathf.Sin(t * 80f)) * t) * Mathf.Clamp01(1f - (t / 0.12f));
+                float bubble2 = (t > 0.09f && t < 0.22f) ? Mathf.Sin(2f * Mathf.PI * 520f * t) * Mathf.Clamp01(1f - ((t - 0.09f) / 0.12f)) : 0f;
+                float bubble3 = (t > 0.18f) ? Mathf.Sin(2f * Mathf.PI * 640f * t) * Mathf.Clamp01(1f - ((t - 0.18f) / 0.15f)) : 0f;
+                sample += (bubble1 + bubble2 * 0.8f + bubble3 * 0.9f) * 0.28f;
+            }
+
+            // 2. 快調回復チャイム・嬉しそうな共鳴音（後半 0.22〜0.95秒）：透き通ったベル＋ピピッ♪
+            if (t >= 0.22f)
+            {
+                float tChime = (t - 0.22f);
+                float env = Mathf.Exp(-tChime * 4.5f);
+                float chime = Mathf.Sin(2f * Mathf.PI * 740f * t) * 0.22f
+                            + Mathf.Sin(2f * Mathf.PI * 932f * t) * 0.25f
+                            + Mathf.Sin(2f * Mathf.PI * 1108f * t) * 0.28f
+                            + Mathf.Sin(2f * Mathf.PI * 1480f * t) * 0.15f;
+                sample += chime * env;
+
+                // 最後の可愛いピピッ♪（0.62秒〜）
+                if (t >= 0.62f)
+                {
+                    float tBeep = t - 0.62f;
+                    float beepEnv = Mathf.Clamp01(1f - tBeep / 0.16f);
+                    float beepFreq = (tBeep < 0.08f) ? 1175f : 1568f;
+                    sample += Mathf.Sin(2f * Mathf.PI * beepFreq * t) * 0.20f * beepEnv;
+                }
+            }
+
+            data[i] = Mathf.Clamp(sample, -1f, 1f);
+        }
+
+        var clip = AudioClip.Create("RustOilPourSE", count, 1, rate, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
+
+    /// <summary>油をさしたときの確実なSE再生（2D常設音源による距離減衰ゼロ・クリア再生）</summary>
+    public void PlayOilAppliedSound(float volumeScale = 1f)
+    {
+        Ensure2DAudio();
+        if (_oilPourClip == null) return;
+
+        float vol = Mathf.Clamp01(0.95f * volumeScale * Mathf.Clamp01(PlayerPrefs.GetFloat("Adventure_SeVolume", 1f)));
+        if (vol <= 0.001f) return;
+
+        if (_uiAudio != null)
+        {
+            _uiAudio.pitch = Random.Range(0.98f, 1.04f);
+            _uiAudio.PlayOneShot(_oilPourClip, vol);
+        }
+
+        var listener = Object.FindAnyObjectByType<AudioListener>();
+        Vector3 pos = listener != null
+            ? listener.transform.position
+            : (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
+        AudioSource.PlayClipAtPoint(_oilPourClip, pos, vol);
+
+        // 3D側でも補助再生
+        if (_audio != null && _happyBeepClip != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.5f * volumeScale);
+    }
+
+    void SetupHeat()
+    {
+        _body = transform.Find("Body");
+        if (_body != null)
+        {
+            var rend = _body.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                _bodyMat = rend.material;
+                _bodyMat.EnableKeyword("_EMISSION");
+            }
+        }
+
+        var go = new GameObject("Heat");
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = new Vector3(0f, 0.38f, 0f);
+        _heatFx = go.AddComponent<ParticleSystem>();
+
+        var main = _heatFx.main;
+        main.loop = true;
+        main.playOnAwake = true;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(1.1f, 1.8f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.18f, 0.45f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.32f, 0.65f);
+        main.startColor = new Color(1f, 1f, 1f, 0.65f);
+        main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+        main.gravityModifier = -0.16f;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.maxParticles = 16;
+        main.scalingMode = ParticleSystemScalingMode.Local;
+
+        var emission = _heatFx.emission;
+        emission.rateOverTime = 0f;
+
+        var shape = _heatFx.shape;
+        shape.shapeType = ParticleSystemShapeType.Cone;
+        shape.angle = 24f;
+        shape.radius = 0.12f;
+        shape.rotation = new Vector3(-90f, 0f, 0f);
+
+        var color = _heatFx.colorOverLifetime;
+        color.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(new Color(0.92f, 0.94f, 0.98f), 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(0f, 0f),      // 発生時はスッとフェードイン
+                new GradientAlphaKey(0.6f, 0.25f), // ピーク透明度
+                new GradientAlphaKey(0f, 1f)       // 自然に消滅
+            });
+        color.color = grad;
+
+        var size = _heatFx.sizeOverLifetime;
+        size.enabled = true;
+        size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.5f, 1f, 1.8f));
+
+        var rot = _heatFx.rotationOverLifetime;
+        rot.enabled = true;
+        rot.z = new ParticleSystem.MinMaxCurve(-12f, 12f);
+
+        var noise = _heatFx.noise;
+        noise.enabled = true;
+        noise.strength = 0.45f;
+        noise.frequency = 0.25f;
+        noise.scrollSpeed = 0.15f;
+        noise.damping = true;
+
+        var renderer = go.GetComponent<ParticleSystemRenderer>();
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+        renderer.maxParticleSize = 1.5f;
+        renderer.material = LoadHeatMaterial();
+        _heatFx.Play();
+    }
+
+    void SetupOil()
+    {
+        var shader = Shader.Find("Universal Render Pipeline/Lit")
+            ?? Shader.Find("Standard");
+        _oilMat = new Material(shader);
+        _oilMat.SetColor("_BaseColor", new Color(0.04f, 0.02f, 0.01f, 1f));
+        _oilMat.SetColor("_Color", new Color(0.04f, 0.02f, 0.01f, 1f));
+        _oilMat.SetFloat("_Metallic", 0.9f);
+        _oilMat.SetFloat("_Smoothness", 0.92f);
+        _oilMat.SetFloat("_Glossiness", 0.92f);
+    }
+
+    void DripOil()
+    {
+        int n = Random.Range(1, 3);
+        for (int i = 0; i < n; i++)
+            StartCoroutine(FallingOilDrop(i * 0.16f));
+    }
+
+    IEnumerator FallingOilDrop(float delay)
+    {
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+
+        var drop = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        drop.name = "OilDrop";
+        var col = drop.GetComponent<Collider>();
+        if (col != null)
+            Destroy(col);
+        drop.transform.position = transform.position + Vector3.down * 0.7f
+            + new Vector3(Random.Range(-0.12f, 0.12f), 0f, Random.Range(-0.12f, 0.12f));
+        drop.transform.localScale = Vector3.one * Random.Range(0.07f, 0.1f);
+        var rend = drop.GetComponent<Renderer>();
+        if (rend != null && _oilMat != null)
+            rend.sharedMaterial = _oilMat;
+
+        Vector3 vel = Vector3.down * 0.35f;
+        float t = 0f;
+        float groundY = SurfaceY(drop.transform.position);
+
+        while (t < 2.4f && drop != null)
+        {
+            vel += Vector3.down * 9.8f * 0.55f * Time.deltaTime;
+            drop.transform.position += vel * Time.deltaTime;
+            if (drop.transform.position.y <= groundY + 0.08f)
+            {
+                // 地面に到達！
+                drop.transform.position = new Vector3(drop.transform.position.x, groundY + 0.05f, drop.transform.position.z);
+                break;
+            }
+            t += Time.deltaTime;
+            yield return null;
+        }
+
+        if (drop != null)
+        {
+            // フィールド上のオイルが4個未満なら採取可能なアイテムとして残す
+            int existingOils = Object.FindObjectsByType<AdventureRustOilDrop>(FindObjectsInactive.Exclude).Length;
+            if (existingOils < 4)
+            {
+                var oilItem = new GameObject("RustOilDrop");
+                oilItem.transform.position = drop.transform.position;
+                oilItem.AddComponent<AdventureRustOilDrop>();
+            }
+            Destroy(drop);
+        }
+    }
+
+    /// <summary>オイル採取時の通知</summary>
+    public void AddOil(int amount, bool announce = true)
+    {
+        oilCount = Mathf.Max(0, oilCount) + amount;
+        var oilTalk = AdventurePrologueDrama.Instance;
+        if (announce && (oilTalk == null || !oilTalk.IsBlockingSpeech))
+            SpeakCustom($"✦ 潤滑油を採取した！（+{amount}／所持: {oilCount}）", 3.2f);
+        if (_happyBeepClip != null && _audio != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.45f);
+    }
+
+    void UpdatePlayerInteraction()
+    {
+        // キャッシュ済みのInstanceを使用（毎フレームFind廃止）
+        var player = AdventurePlayerController.Instance;
+        if (player == null) return;
+
+        // Rustの浮遊高さを考慮し、水平5.5m・高低差5.0mまで広角に接近検知
+        Vector3 diff = transform.position - player.transform.position;
+        float horizontalDist = new Vector2(diff.x, diff.z).magnitude;
+        float verticalDist = Mathf.Abs(diff.y);
+        _isPlayerNear = (horizontalDist < 5.5f && verticalDist < 5.0f);
+
+        var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        var prologue = AdventurePrologueDrama.Instance;
+
+        // プロローグ注油（漂着艇・木箱等より優先）
+        if (prologue != null && prologue.IsWaitingForOil)
+        {
+            bool prologueOilPressed = AdventureInputReader.InteractEKeyDown
+                || AdventureInputReader.InteractDown
+                || AdventureInputReader.MouseLeftDown
+                || AdventureInputReader.SpaceDown;
+            bool inPrologueOilRange = _prologueDistress || _isPlayerNear;
+            if (inPrologueOilRange
+                && prologueOilPressed
+                && !AdventureScrapManager.ShouldSuppressRustCompanionInteract)
+            {
+                _lastInteractTime = Time.time;
+                prologue.TryApplyPrologueOil(this);
+            }
+            return;
+        }
+
+        // クライマックス注油中は通常の手当てを止め、注油ゲージへ回す
+        if (towerMgr != null && towerMgr.IsClimaxOilPromptActive)
+        {
+            if (AdventureInputReader.OilHoldButtons)
+                towerMgr.NotifyOilHold(Time.unscaledDeltaTime);
+            return;
+        }
+
+        // シネマティック中は通常インタラクトを出さない
+        if (ShouldHideInteractionPrompt(towerMgr))
+            return;
+
+        // プロローグの台詞中は E をドラマ側へ渡す（WaitOil は上で処理済み）
+        if (prologue != null && prologue.IsBlockingSpeech)
+            return;
+
+        bool ePressed = AdventureInputReader.InteractDown;
+
+        // レバーの近くにいる場合はレバー操作を最優先
+        if (towerMgr != null && towerMgr.IsPlayerNearLever)
+            return;
+
+        // カピタ会話レンジ内では E をカピタに譲る（Rust手当てと取り合いにしない）
+        if (AdventureCapytaBlessing.IsTalkPromptActive ||
+            AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(player.transform.position))
+            return;
+
+        // 風脈クリスタル近くでは E / クリックをクリスタル送電チャージに譲る（Rust手当てと取り合いにしない）
+        if (AdventureAncientWindVent.IsPlayerNearAnyVent(player.transform.position))
+            return;
+
+        if (AdventureRustCrystalPuzzle.IsPlayerNearChargeSite(player.transform.position))
+            return;
+
+        if (_isPlayerNear && ePressed && Time.time - _lastInteractTime > 0.35f)
+        {
+            if (AdventureScrapManager.ShouldSuppressRustCompanionInteract)
+                return;
+            _lastInteractTime = Time.time;
+            InteractWithNiko();
+        }
+    }
+
+    static bool ShouldHideInteractionPrompt(AdventureSanctuaryTowerManager tower)
+    {
+        return tower != null && AdventureStoryFlow.HidesRustInteraction;
+    }
+
+    /// <summary>Nikoとの直接対話または手当て（常備油により絶対に0にならず、いつでも手当て・全回復可能）</summary>
+    public void InteractWithNiko()
+    {
+        if (AdventureScrapManager.ShouldSuppressRustCompanionInteract)
+        {
+            var oilWait = AdventurePrologueDrama.Instance;
+            if (oilWait == null || !oilWait.IsWaitingForOil)
+                return;
+        }
+
+        bool needsOil = (_heat > 0.15f || Time.time < _hitchUntil || Time.time > wellOiledUntil);
+
+        // 油所持は常に最低1個を保証（常備オイル）
+        oilCount = Mathf.Max(oilCount, 1);
+
+        // 予備オイル（2個以上）があれば1個消費し、最後の1個（常備油）は消費せず大切に保持
+        if (oilCount > 1)
+        {
+            oilCount--;
+        }
+
+        // いつでも手当て＆全快調化（90秒快調を付与、熱・きしみ・引っかかりを即時完全解消）
+        wellOiledUntil = Mathf.Max(wellOiledUntil, Time.time) + 90f;
+        _heatUntil = 0f;
+        _heat = 0f;
+        _hitchUntil = 0f;
+        _prologueDistress = false;
+
+        // 油をさした瞬間に心地よい注油音＋快調回復チャイムを確実に再生
+        PlayOilAppliedSound();
+        AdventureInputHaptics.PlayOilPour();
+
+        // NikoがRustを胸元で愛おしく撫でて手当て
+        if (AdventurePettingAction.Instance != null)
+        {
+            string msg = needsOil
+                ? "よし、油をさしたよ。調子はどう、Rust？"
+                : "セーブしたよ。また何かあったら言って";
+            AdventurePettingAction.Instance.PetRust(msg, 2.6f);
+        }
+        else
+        {
+            StartCoroutine(CheerSpinRoutine());
+        }
+        AdventureSaveManager.Instance?.SaveGame("SAVEしました");
+        AdventurePrologueDrama.Instance?.NotifyOilApplied();
+    }
+
+
+    void BeginHeatBurst()
+    {
+        _heatUntil = Time.time + 4f;
+        if (_heatFx != null)
+            _heatFx.Emit(2);
+    }
+
+    void UpdateHeat(bool hitching)
+    {
+        if (hitching || _velocity.sqrMagnitude > 3f)
+            _heatUntil = Mathf.Max(_heatUntil, Time.time + 1.4f);
+
+        float want = Time.time < _heatUntil ? 1f : 0f;
+        _heat = Mathf.MoveTowards(_heat, want, Time.deltaTime * (want > _heat ? 4f : 0.32f));
+
+        if (_heatFx != null)
+        {
+            var emission = _heatFx.emission;
+            emission.rateOverTime = _heat * 6f;
+        }
+
+        if (_bodyMat != null && !IsClimaxCrisis && !IsClimaxOverdrive && !_climaxHealing)
+        {
+            // 天蓋演出（寄り添い）中や通常時、影で黒焦げのように見えないよう温かいアイドリング発光を維持
+            float minGlow = _skybreakNestle ? 0.45f : 0.15f;
+            float glowFactor = Mathf.Max(_heat * 2.1f, minGlow);
+            _bodyMat.SetColor("_EmissionColor", new Color(1.6f, 0.55f, 0.15f) * glowFactor);
+        }
+
+        if (_body != null)
+        {
+            float h = _heat * _heat;
+            _body.localPosition = new Vector3(
+                Mathf.Sin(Time.time * 19f) * 0.01f * h,
+                Mathf.Sin(Time.time * 27f) * 0.014f * h,
+                Mathf.Cos(Time.time * 15f) * 0.008f * h);
+        }
+    }
+
+    static Texture2D _softSmokeTex;
+
+    public static Texture2D GetSoftSmokeTexture()
+    {
+        if (_softSmokeTex != null)
+            return _softSmokeTex;
+
+        const int res = 64;
+        _softSmokeTex = new Texture2D(res, res, TextureFormat.RGBA32, false);
+        _softSmokeTex.wrapMode = TextureWrapMode.Clamp;
+        _softSmokeTex.filterMode = FilterMode.Bilinear;
+
+        Vector2 center = new Vector2(res * 0.5f, res * 0.5f);
+        float radius = res * 0.48f;
+
+        for (int y = 0; y < res; y++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float dist = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), center);
+                float t = Mathf.Clamp01(dist / radius);
+                // コサイン曲線による非常に滑らかな減衰（端は完全な透明、境界の四角感をゼロに）
+                float alpha = t >= 1f ? 0f : (Mathf.Cos(t * Mathf.PI) * 0.5f + 0.5f);
+                alpha = Mathf.Pow(alpha, 1.5f);
+                _softSmokeTex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+        _softSmokeTex.Apply();
+        return _softSmokeTex;
+    }
+
+    static Material LoadHeatMaterial()
+    {
+        var shader = Shader.Find("RustAndFloat/WhiteSmoke");
+        if (shader == null)
+            shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                ?? Shader.Find("Sprites/Default");
+        var mat = new Material(shader);
+        mat.SetTexture("_BaseMap", GetSoftSmokeTexture());
+        mat.SetColor("_BaseColor", new Color(1f, 1f, 1f, 0.85f));
+        mat.renderQueue = 3100;
+        return mat;
+    }
+
+    static Material _softSmokeMat;
+    public static Material GetSoftSmokeMaterial()
+    {
+        if (_softSmokeMat == null)
+        {
+            _softSmokeMat = LoadHeatMaterial();
+            _softSmokeMat.name = "SoftSmoke_Mat";
+        }
+        return _softSmokeMat;
+    }
+
+    void PlayCreak(bool force)
+    {
+        if (_audio == null || _creaks == null || _creaks.Length == 0)
+            return;
+        if (!force && Time.time < _nextCreak)
+            return;
+        var clip = _creaks[Random.Range(0, _creaks.Length)];
+        if (clip == null)
+            return;
+        _audio.volume = soundVolume;
+        _audio.pitch = Random.Range(0.86f, 1.08f);
+        _audio.PlayOneShot(clip, Random.Range(0.22f, 0.38f));
+        _nextCreak = Time.time + Random.Range(1.2f, 2.2f);
+    }
+
+    /// <summary>快調でないとき：弱いウィーン／きしみを間欠再生（少しだけ存在感）</summary>
+    void TickDistressAudio(bool wellOiled, bool hitching)
+    {
+        if (wellOiled)
+        {
+            _nextDistressSound = Time.time + 2.5f;
+            return;
+        }
+        // オーバードライブ等は別演出に任せる
+        if (IsClimaxOverdrive) return;
+        if (_audio == null) return;
+        if (Time.time < _nextDistressSound) return;
+
+        bool heavy = hitching || _prologueDistress || IsClimaxCrisis || _heat > 0.35f;
+        _nextDistressSound = Time.time + (heavy
+            ? Random.Range(0.85f, 1.6f)
+            : Random.Range(2.0f, 3.6f));
+
+        if (Random.value < 0.55f)
+            PlayCreak(true);
+        else
+            PlayDistressWhine(heavy);
+    }
+
+    void PlayDistressWhine(bool heavy)
+    {
+        if (_audio == null || _distressWhineClip == null) return;
+        _audio.volume = soundVolume;
+        _audio.pitch = Random.Range(0.72f, 0.92f);
+        float vol = heavy ? Random.Range(0.22f, 0.34f) : Random.Range(0.14f, 0.24f);
+        _audio.PlayOneShot(_distressWhineClip, vol);
+    }
+
+    /// <summary>不調時の「キュゥ…ン／ピィ…」と弱った電子ウィーン</summary>
+    static AudioClip MakeDistressWhine()
+    {
+        const int hz = 22050;
+        float dur = 0.42f;
+        int n = (int)(hz * dur);
+        float[] data = new float[n];
+        float phase = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = i / (float)n;
+            // 高めから下がる悲しげなグライド
+            float freq = Mathf.Lerp(620f, 280f, t * t);
+            phase += 2f * Mathf.PI * freq / hz;
+            float env = Mathf.Sin(t * Mathf.PI) * Mathf.Exp(-t * 1.8f);
+            // わずかなビブラート＋粒立ち
+            float vib = 1f + 0.04f * Mathf.Sin(t * 55f);
+            float grit = (Mathf.PerlinNoise(t * 40f, 0.3f) * 2f - 1f) * 0.12f;
+            data[i] = (Mathf.Sin(phase) * vib * 0.55f + grit) * env * 0.38f;
+        }
+        var clip = AudioClip.Create("RustDistressWhine", n, 1, hz, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
+
+    static AudioClip MakeCreak(int seed)
+    {
+        const int hz = 22050;
+        int n = (int)(hz * 0.24f);
+        float[] data = new float[n];
+        var rng = new System.Random(seed);
+        float phase = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = i / (float)n;
+            float env = Mathf.Exp(-t * 7.5f) * (1f - t);
+            phase += (320f + (float)rng.NextDouble() * 280f) * (2f * Mathf.PI / hz);
+            float grit = (float)rng.NextDouble() * 2f - 1f;
+            data[i] = (Mathf.Sin(phase) * 0.32f + grit * 0.62f) * env * 0.5f;
+        }
+
+        var clip = AudioClip.Create("RustCreak", n, 1, hz, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
+
+    public void OnNikoFoundScrap(int count)
+    {
+        // 嬉しそうにピョンと跳ねる＆頭上でクルッと歓喜宙返り
+        _velocity += Vector3.up * 2.8f;
+        if (_audio != null && _happyBeepClip != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.65f);
+
+        // 歓喜スローモーション＆宙返り光粒演出
+        StartCoroutine(ScrapSlowMotionRoutine());
+        StartCoroutine(ScrapSomersaultAndSparkleRoutine());
+
+        // 光る遺物回収ボーナス：潤滑油（その時々でランダム）
+        int scrapOilBonus = RollScrapOilBonus(count);
+        oilCount = Mathf.Max(0, oilCount) + scrapOilBonus;
+
+        string scrapKey = (count >= 1 && count <= 12) ? $"rust_scrap_{count}" : "rust_scrap_default";
+        string scrapSpeech = AdventureLocalizationManager.Get(scrapKey);
+        string oilSuffix = AdventureLocalizationManager.GetFormat("rust_oil_bonus_suffix", scrapOilBonus, oilCount);
+        SetIdleChat($"{scrapSpeech} {oilSuffix}", 5.2f);
+
+        // キーストーン節目（3, 6, 9, 12個）の特別アクション演出
+        if (count == 3 || count == 6 || count == 9 || count == 12)
+        {
+            StartCoroutine(KeystoneFittedRoutine(count));
+        }
+    }
+
+    /// <summary>パーツ取得の瞬間に一瞬だけ0.1秒スローモーション（ジューシーなインパクトと余韻）</summary>
+    IEnumerator ScrapSlowMotionRoutine()
+    {
+        BeginScrapSlowMo();
+        yield return new WaitForSecondsRealtime(0.12f);
+        EndScrapSlowMo();
+    }
+
+    static void BeginScrapSlowMo()
+    {
+        if (_scrapSlowMoDepth == 0)
+            _scrapSlowMoSavedScale = Time.timeScale > 0.05f ? Time.timeScale : 1f;
+        _scrapSlowMoDepth++;
+        _scrapSlowMoStartedAt = Time.unscaledTime;
+        // timeScale は変えない（近接取得後に歩行・視点が重くなるのを防ぐ）
+    }
+
+    static void EndScrapSlowMo()
+    {
+        _scrapSlowMoDepth = Mathf.Max(0, _scrapSlowMoDepth - 1);
+    }
+
+    /// <summary>パーツ取得時にNikoの頭上でクルッと360度歓喜宙返りし、花火光粒を放つ</summary>
+    IEnumerator ScrapSomersaultAndSparkleRoutine()
+    {
+        // 1. ゴールドスパークル花火を放射
+        SpawnGoldSparkles(transform.position, 36);
+
+        // 2. 宙返りアニメーション（クルッと360度宙返り＆垂直バウンス）
+        float duration = 0.65f;
+        float elapsed = 0f;
+        Quaternion startRot = transform.rotation;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float angle = Mathf.SmoothStep(0f, 360f, t);
+            transform.rotation = startRot * Quaternion.Euler(angle, 0f, 0f);
+            yield return null;
+        }
+
+        transform.rotation = startRot;
+        SpawnGoldSparkles(transform.position, 18);
+    }
+
+    /// <summary>光る遺物回収時の油量。通常2〜6、キーストーン節目は多め。</summary>
+    static int RollScrapOilBonus(int collectedCount)
+    {
+        bool keystone = collectedCount == 3 || collectedCount == 6
+                        || collectedCount == 9 || collectedCount == 12;
+        if (keystone)
+        {
+            float r = Random.value;
+            if (r < 0.20f) return Random.Range(4, 7);   // 4〜6
+            if (r < 0.70f) return Random.Range(7, 12);  // 7〜11
+            return Random.Range(12, 19);                // 12〜18
+        }
+        else
+        {
+            float r = Random.value;
+            if (r < 0.25f) return Random.Range(2, 4);   // 2〜3
+            if (r < 0.75f) return Random.Range(4, 7);   // 4〜6
+            return Random.Range(7, 11);                 // 7〜10
+        }
+    }
+
+    /// <summary>キーストーン取り付け時の祝祭・感情豊かなリアクション演出</summary>
+    IEnumerator KeystoneFittedRoutine(int count)
+    {
+        yield return new WaitForSeconds(0.2f);
+
+        // 黄金スパークル放出
+        Color sparkColor = (count == 6) ? new Color(0.25f, 0.95f, 1.0f) : new Color(1.0f, 0.85f, 0.35f);
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 32);
+
+        // 嬉しそうに宙返り・旋回
+        float elapsed = 0f;
+        float duration = 0.9f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float step = (Time.deltaTime / duration) * 360f;
+            transform.Rotate(Vector3.right, step, Space.Self);
+            transform.position += Vector3.up * (Mathf.Sin((elapsed / duration) * Mathf.PI) * 0.045f);
+            yield return null;
+        }
+
+        if (_audio != null && _sonarBeepClip != null)
+            _audio.PlayOneShot(_sonarBeepClip, 0.75f);
+    }
+
+    public enum FlightReactionType
+    {
+        Dive,       // 急降下ダイブ
+        PullUp,     // 急引き起こし
+        WaterSkim,  // 水面スキミング
+        SpeedBurst  // 高速ブースト・加速
+    }
+
+    private float _lastGlobalFlightReactionTime = -999f;
+    private readonly float[] _lastFlightReactionByType = new float[4] { -999f, -999f, -999f, -999f };
+
+    /// <summary>
+    /// フライト中の相棒Rustのアクロバット・シンクロ歓声（ダイブ・引き起こし・水面スキミング等）
+    /// </summary>
+    public void TriggerFlightReaction(FlightReactionType type, float intensity = 1.0f)
+    {
+        if (IsClimaxCrisis || _prologueDistress || CurrentState == RustState.Petting) return;
+
+        float now = Time.time;
+        // 全体クールダウン（最低5秒）および同種クールダウン（最低11秒）
+        if (now - _lastGlobalFlightReactionTime < 5.0f) return;
+        int idx = (int)type;
+        if (idx >= 0 && idx < _lastFlightReactionByType.Length)
+        {
+            if (now - _lastFlightReactionByType[idx] < 11.0f) return;
+            _lastFlightReactionByType[idx] = now;
+        }
+        _lastGlobalFlightReactionTime = now;
+
+        string reactionLine = "";
+        switch (type)
+        {
+            case FlightReactionType.Dive:
+                string[] diveLines = {
+                    "ひゃっほう！すごいスピードだ！",
+                    "最高ー！風を切り裂いてるよ！",
+                    "わぁっ！一気に急降下だ、Float！"
+                };
+                reactionLine = diveLines[Random.Range(0, diveLines.Length)];
+                _velocity += Vector3.down * 0.8f + transform.forward * 1.5f;
+                break;
+
+            case FlightReactionType.PullUp:
+                string[] pullUpLines = {
+                    "ナイス引き起こし！ふわっと浮き上がった！",
+                    "風を綺麗に受け止めたよ！気持ちいい〜！",
+                    "Gが抜けて最高だね、Float！"
+                };
+                reactionLine = pullUpLines[Random.Range(0, pullUpLines.Length)];
+                _velocity += Vector3.up * 2.2f;
+                break;
+
+            case FlightReactionType.WaterSkim:
+                string[] skimLines = {
+                    "わっ、水面スレスレ！波しぶきが届きそう！",
+                    "すごい！まるで水面を滑走してるみたい！",
+                    "水しぶきがキラキラ光って綺麗だよ！"
+                };
+                reactionLine = skimLines[Random.Range(0, skimLines.Length)];
+                break;
+
+            case FlightReactionType.SpeedBurst:
+                string[] burstLines = {
+                    "加速すごい！一気に突き抜けるよ！",
+                    "追い風に乗ったね！最高！",
+                    "ピューン！どこまでも飛べそう！"
+                };
+                reactionLine = burstLines[Random.Range(0, burstLines.Length)];
+                _velocity += transform.forward * 2.0f;
+                break;
+        }
+
+        if (!string.IsNullOrEmpty(reactionLine))
+        {
+            SpeakCustom(reactionLine, 3.2f);
+            SetExpression(FaceExpressionType.Joyful, 2.8f);
+
+            if (_audio != null && _happyBeepClip != null)
+            {
+                _audio.pitch = Random.Range(1.30f, 1.45f);
+                _audio.PlayOneShot(_happyBeepClip, 0.75f);
+            }
+        }
+    }
+
+    /// <summary>滑空を開始した瞬間のRustの穏やかなセリフ</summary>
+    public void OnGlideStarted()
+    {
+        _velocity += Vector3.up * 1.5f;
+        string[] glideStartLines = {
+            AdventureLocalizationManager.Get("rust_glide_1"),
+            AdventureLocalizationManager.Get("rust_glide_2"),
+            AdventureLocalizationManager.Get("rust_glide_3")
+        };
+        SetSpeech(glideStartLines[Random.Range(0, glideStartLines.Length)], 4.0f);
+    }
+
+    /// <summary>風リング通過：基本油量×コンボ数（地上・空中共通）</summary>
+    public void GrantWindRingOil(int comboMultiplier)
+    {
+        int combo = Mathf.Clamp(comboMultiplier, 1, 3);
+        int oilBonus = RollRingOilBonus() * combo;
+        OnFloatWindCaught(oilBonus, combo);
+    }
+
+    /// <summary>気流に乗った時のRustの穏やかなセリフ（光るリング通過時は油ボーナス可）</summary>
+    public void OnFloatWindCaught(int oilBonus = -1, int comboForSpeech = 1)
+    {
+        _velocity += Vector3.up * 1.8f;
+        // oilBonus < 0 → 呼び出し側任せでランダム（2〜6、たまに多め）
+        if (oilBonus < 0)
+            oilBonus = RollRingOilBonus();
+        if (oilBonus > 0)
+            oilCount = Mathf.Max(0, oilCount) + oilBonus;
+
+        string[] windLines = {
+            AdventureLocalizationManager.Get("rust_wind_1"),
+            AdventureLocalizationManager.Get("rust_wind_2"),
+            AdventureLocalizationManager.Get("rust_wind_3")
+        };
+        string line = windLines[Random.Range(0, windLines.Length)];
+        if (oilBonus > 0)
+        {
+            line += " " + AdventureLocalizationManager.GetFormat("rust_oil_bonus_suffix", oilBonus, oilCount);
+        }
+        SetSpeech(line, 4.0f);
+        if (oilBonus > 0 && _happyBeepClip != null && _audio != null)
+            _audio.PlayOneShot(_happyBeepClip, 0.4f);
+    }
+
+    /// <summary>光るリング通過時の油量（その時々でランダム）</summary>
+    static int RollRingOilBonus()
+    {
+        float r = Random.value;
+        if (r < 0.20f) return Random.Range(2, 4);   // 2〜3
+        if (r < 0.70f) return Random.Range(4, 7);   // 4〜6
+        if (r < 0.92f) return Random.Range(7, 11);  // 7〜10
+        return Random.Range(11, 16);                // 11〜15 大漁
+    }
+
+    /// <summary>指定したテキストを特大ダイアログで発話（プレイヤーが次の行動を起こすまで消えずに維持）</summary>
+    public void SpeakCustom(string textOrKey, float duration = 2.8f)
+    {
+        SpeakAs("✦ 相棒 Rust", new Color(0.35f, 0.92f, 0.98f, 1f), textOrKey, duration);
+    }
+
+    /// <summary>既にローカライズ済みの全文（GetFormat 結果など）をそのまま表示</summary>
+    public void SpeakCustomLocalized(string localizedText, float duration = 2.8f)
+    {
+        _speechSpeaker = "✦ 相棒 Rust";
+        _speechSpeakerColor = new Color(0.35f, 0.92f, 0.98f, 1f);
+        SetSpeechLocalized(localizedText, duration);
+    }
+
+    static float RustSeVolumeScale()
+    {
+        return Mathf.Clamp01(PlayerPrefs.GetFloat("Adventure_SeVolume", 1f));
+    }
+
+    void PlayGuideBeepOnly(float volume = 0.75f, float pitch = 1.35f)
+    {
+        if (_audio == null || _happyBeepClip == null) return;
+        _audio.pitch = pitch;
+        _audio.PlayOneShot(_happyBeepClip, volume * RustSeVolumeScale());
+    }
+
+    void PlayGuideBeepChime(float beepVol = 0.85f, float chimeVol = 0.70f)
+    {
+        if (_audio == null) return;
+        float se = RustSeVolumeScale();
+        if (_happyBeepClip != null)
+        {
+            _audio.pitch = 1.35f;
+            _audio.PlayOneShot(_happyBeepClip, beepVol * se);
+        }
+        if (_pipiChimeClip != null)
+            _audio.PlayOneShot(_pipiChimeClip, chimeVol * se);
+    }
+
+    /// <summary>Nikoのセリフを下部吹き出しで表示（ネームタグをNikoに切替）</summary>
+    public void SpeakAsNiko(string text, float duration = 2.8f)
+    {
+        SpeakAs("✦ Float", new Color(1f, 0.88f, 0.45f, 1f), text, duration);
+    }
+
+    public void SpeakAs(string speaker, Color speakerColor, string textOrKey, float duration = 2.8f)
+    {
+        _speechSpeaker = speaker;
+        _speechSpeakerColor = speakerColor;
+        _velocity += Vector3.up * 0.8f;
+        SetSpeech(textOrKey, duration);
+    }
+
+    /// <summary>セリフを表示し、プレイヤーが次の行動（WASD移動やジャンプなど）を起こすまで画面に維持</summary>
+    public void SetSpeech(string key, float duration = 2.8f)
+    {
+        SetSpeechLocalized(AdventureLocalizationManager.Get(key), duration);
+    }
+
+    void SetSpeechLocalized(string localizedText, float duration = 2.8f)
+    {
+        _speechText = localizedText ?? "";
+        _speechTimer = AdventureSpeechBoardLayout.ScaleExploreSpeechDuration(duration);
+        _waitingForPlayerAction = true;
+        _speechShowTime = 0f;
+        var player = AdventurePlayerController.Instance;
+        _speechPlayerStartPos = player != null ? player.transform.position : transform.position;
+        AutoTriggerExpressionFromSpeech(_speechText, duration);
+    }
+
+    /// <summary>探索中の気軽な話しかけ（自動で消え、次のセリフが続きやすい）</summary>
+    public void SetIdleChat(string text, float duration = 3.8f)
+    {
+        _speechSpeaker = "✦ 相棒 Rust";
+        _speechSpeakerColor = new Color(0.35f, 0.92f, 0.98f, 1f);
+        _speechText = AdventureLocalizationManager.Get(text);
+        _speechTimer = AdventureSpeechBoardLayout.ScaleExploreSpeechDuration(
+            duration > 0f ? duration : AdventureSpeechBoardLayout.RustIdleChatDuration);
+        _waitingForPlayerAction = false;
+        _speechShowTime = 0f;
+        AutoTriggerExpressionFromSpeech(_speechText, duration);
+    }
+
+    public bool HasActiveSpeech => _speechTimer > 0.05f && !string.IsNullOrEmpty(_speechText);
+    public string ActiveSpeechText => _speechText;
+    public string ActiveSpeechSpeaker => _speechSpeaker;
+    public Color ActiveSpeechSpeakerColor => _speechSpeakerColor;
+    /// <summary>待ち受け中も常に不透明で見せる</summary>
+    public float ActiveSpeechAlpha => HasActiveSpeech ? 1f : 0f;
+
+    /// <summary>プレイヤーが次の行動を起こしたか判定（キー入力・コントローラー・移動検知）</summary>
+    bool CheckPlayerActionInput()
+    {
+        // AdventureInputReader に統合（新旧InputSystem + Gamepad 両対応）
+        if (AdventureInputReader.HasAnyMove || AdventureInputReader.SpaceDown || AdventureInputReader.InteractDown)
+            return true;
+
+        // プレイヤーの移動距離検知（キー入力以外でも歩行移動していれば確実に行動検知）
+        var player = AdventurePlayerController.Instance;
+        if (player != null && Vector3.Distance(player.transform.position, _speechPlayerStartPos) > 0.8f)
+            return true;
+
+        return false;
+    }
+
+    /// <summary>シネマティックストーリーボード表示時などにセリフ吹き出しを即時消去</summary>
+    public void ClearSpeech()
+    {
+        _speechTimer = 0f;
+        _speechText = "";
+        _waitingForPlayerAction = false;
+    }
+
+    void UpdateSpeech()
+    {
+        if (_speechTimer > 0f)
+        {
+            if (_waitingForPlayerAction)
+            {
+                _speechShowTime += Time.deltaTime;
+                // 発話直後の誤消去防止（最低1.2秒は確実に表示キープ）
+                if (_speechShowTime >= AdventureSpeechBoardLayout.RustSpeechMinHoldSec && CheckPlayerActionInput())
+                {
+                    _waitingForPlayerAction = false;
+                    _speechTimer = Mathf.Min(_speechTimer, AdventureSpeechBoardLayout.RustSpeechAfterActionLinger);
+                }
+            }
+            else
+            {
+                _speechTimer -= Time.deltaTime;
+            }
+        }
+        else if (Time.unscaledTime >= _nextIdleTalk)
+        {
+            if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsBlockingSpeech)
+            {
+                _nextIdleTalk = Time.unscaledTime + 2f; // プロローグ終了後すぐ再開
+            }
+            else
+            {
+                if (AdventureStoryFlow.IsPerformance)
+                {
+                    _nextIdleTalk = Time.unscaledTime + 2f;
+                }
+                else
+                {
+                    TrySpeakIdleToNiko();
+                }
+            }
+        }
+    }
+
+    void TrySpeakIdleToNiko()
+    {
+        var scraps = AdventureScrapManager.Instance;
+        int collected = scraps != null ? scraps.CollectedCount : 12;
+        // 本当に調子が悪いときだけ整備催促（常時 wellOiled 切れ扱いにしない）
+        // エピローグ／クリア後は整備催促ボードを出さない
+        bool postEnding = AdventureSanctuaryTowerManager.IsGameCleared
+                          || (AdventureSanctuaryTowerManager.Instance != null
+                              && AdventureSanctuaryTowerManager.Instance.EpilogueTriggered);
+        bool needsCare = !postEnding
+                         && (_heat > 0.15f || Time.time < _hitchUntil || oilCount <= 2);
+
+        // 次の発話を約55〜70秒後に（冒頭の独り言を半分にする）
+        _nextIdleTalk = Time.unscaledTime + Random.Range(55f, 70f);
+
+        var player = AdventurePlayerController.Instance;
+        string line;
+        if (needsCare)
+        {
+            line = PickIdleLine(IdleCareLines);
+        }
+        else if (player != null && player.IsGliding)
+        {
+            line = PickIdleLine(IdleGlideLines);
+        }
+        else
+        {
+            // 話題をローテ：昔 / これから / 調子 / 嬉しい / 楽しい探しもの
+            int topic = Random.Range(0, 5);
+            switch (topic)
+            {
+                case 0: line = PickIdleLine(IdlePastLines); break;
+                case 1: line = PickIdleLine(IdleFutureLines); break;
+                case 2: line = PickIdleLine(IdleBodyLines); break;
+                case 3: line = PickIdleLine(IdleHappyLines); break;
+                default: line = PickIdleLine(collected < 6 ? IdleSeekEarlyLines : IdleSeekLaterLines); break;
+            }
+        }
+
+        _lastIdleLine = line;
+        SetIdleChat(line, 4.2f);
+    }
+
+    string PickIdleLine(string[] pool)
+    {
+        if (pool == null || pool.Length == 0) return "……Float";
+        if (pool.Length == 1) return pool[0];
+        string line = pool[Random.Range(0, pool.Length)];
+        // 直前と同じ台詞は避ける
+        for (int i = 0; i < 6 && line == _lastIdleLine; i++)
+            line = pool[Random.Range(0, pool.Length)];
+        return line;
+    }
+
+    static readonly string[] IdleCareLines =
+    {
+        "……ギアが少し重い。油か手当てがあると助かるよ",
+        "ピロッ……調子が落ちてる。【E】で整備して",
+        "油がほしいな。カピタのところか、地面の油でも",
+        "関節がきしむ……でも、Floatがそばなら平気",
+    };
+
+    static readonly string[] IdleGlideLines =
+    {
+        "Float、いい風が吹いてるよ！",
+        "どこまでも飛べるね、Float！",
+        "翼を並べて飛ぶの、大好きだよ……♪",
+        "風に乗って、どこまでも行けそう",
+        "島を見下ろすと、すごく綺麗だね",
+        "わぁ…！風が気持ちいいね、Float",
+        "この高度、ちょうどいいね",
+        "ヒューッ……いいフライトだ",
+        "一緒だと大空がもっと綺麗だね…♪",
+        "自由な空……これが、これからずっと続くといいな",
+    };
+
+    static readonly string[] IdlePastLines =
+    {
+        "昔は倉庫の棚で眠ってた。Floatが連れ出した日、いちばん覚えてる",
+        "最適化の街では、僕の声も『不要』ってラベルだったんだ",
+        "塩水に濡れた最初の夜、怖かった。でもFloatの手が温かかった",
+        "スクラップ寸前の僕を、Floatは『相棒』って呼んでくれた",
+        "あの波……逃げてきた海の音、まだ耳の奥に残ってる",
+        "管理されるだけの日々より、今の不確かさのほうが好き",
+        "昔の記憶データ、ところどころ欠落してる。でもFloatの顔は鮮明だよ",
+    };
+
+    static readonly string[] IdleFutureLines =
+    {
+        "翼が直ったら、蒼い空のてっぺんまで行こうね",
+        "天蓋の向こう……どんな景色が待ってるんだろう",
+        "これからも、Floatのそばで飛びたい",
+        "パーツが揃ったら、もっと遠くまで案内できるよ",
+        "いつか、怖がらずに笑いながら飛べるようになりたい",
+        "この島のあとにも、冒険はあるのかな……ワクワクする",
+        "Floatと見つけたもの、全部覚えておくね。未来の僕の宝物だ",
+    };
+
+    static readonly string[] IdleBodyLines =
+    {
+        "今日の関節、なめらかだよ。油のおかげかな",
+        "ピロッ……ファンの回転、気持ちいい音してる",
+        "センサーは快調。潮の匂いまで拾えてるよ",
+        "少し眠い……でも、そばにいると元気が出る",
+        "ギアが軽やか。今ならどこまでもついていける",
+        "胸のコアが温かい。Floatのペース、ちょうどいい",
+        "バランスいいね。転びそうな気配、いまはないよ",
+    };
+
+    static readonly string[] IdleHappyLines =
+    {
+        "えへへ……Floatと歩くの、楽しい",
+        "今、すごく安心してる。ここにいていいんだって感じ",
+        "ピキーッ……嬉しい。言葉にすると恥ずかしいけど",
+        "風も光も、全部が優しいね。今日はいい日だ",
+        "Floatの足音、好き。リズムが落ち着く",
+        "見つかるたびに、胸がふくらむ。幸せのセンサーが鳴ってる",
+        "一緒にいるだけで、充電されてるみたい",
+    };
+
+    static readonly string[] IdleSeekEarlyLines =
+    {
+        "ピピッ…砂の中に、光るものないかな？",
+        "楽しい探しものしよう。ギアのかけら、どこだろ",
+        "あそこに光柱がある気がする。行ってみる？",
+        "砂浜を歩くの、冒険の入口みたいでワクワクする",
+        "カピタに会うのも楽しいし、遺物探しもしよう",
+        "リングをくぐると風が歌うよ。油ももらえるし",
+        "草むらの奥、何か隠れてないかな？偵察するよ",
+        "最初のパーツ、きっとすぐ見つかる。僕が手伝う",
+    };
+
+    static readonly string[] IdleSeekLaterLines =
+    {
+        "ピピッ…何か光るものがあるかな？",
+        "リングをくぐると油も増えるよ。くぐってみよう",
+        "タワーの方、まだ遠く見えるね。少しずつ近づこう",
+        "楽しいこと探そう。未踏の岸辺、まだあるはず",
+        "森の音が変わる場所、何かありそうだよ",
+        "崖の上から滑空したら、新しい景色が見えるかも",
+        "調子はいいよ。次の遺物、一緒に探そう",
+        "光る柱の方角、覚えておくね。道しるべだ",
+    };
+
+    void UpdateSonar()
+    {
+        // ScrapManager.Instanceはシングルトン。見つからない場合はソナー無効
+        var mgr = AdventureScrapManager.Instance;
+        if (mgr == null) return;
+
+        // レーダー未解放（パーツ9個未満）でも近距離（25m）で探知反応し、解放後は60mの超広域に強化
+        bool hasRadar = mgr.hasPetRadar;
+        float maxDist = hasRadar ? 60f : 25f;
+
+        var nearest = mgr.GetNearestScrap(transform.position, out float dist);
+        if (nearest == null || dist > maxDist)
+            return;
+
+        _sonarTimer -= Time.deltaTime;
+        if (_sonarTimer <= 0f)
+        {
+            float rate = Mathf.Lerp(1.0f, hasRadar ? 3.0f : 2.0f, 1f - Mathf.Clamp01(dist / maxDist));
+            _sonarTimer = (hasRadar ? 2.5f : 3.5f) / rate;
+
+            if (_audio != null && _sonarBeepClip != null)
+            {
+                _audio.pitch = Mathf.Lerp(hasRadar ? 1.0f : 0.85f, 1.45f, 1f - Mathf.Clamp01(dist / maxDist));
+                _audio.PlayOneShot(_sonarBeepClip, hasRadar ? 0.38f : 0.28f);
+            }
+        }
+    }
+
+    void OnGUI()
+    {
+        if (AdventureStoryFlow.HideWorldInteractPrompts) return;
+        if (ShouldHideInteractionPrompt(AdventureSanctuaryTowerManager.Instance)) return;
+        if (!AdventureRustFloatOpening.IsGameStarted) return;
+        var opening = AdventureRustFloatOpening.Instance;
+        if (opening != null && opening.IsModalBoardOpen()) return;
+        if (AdventurePauseMenu.IsOpen) return;
+
+        bool canCommand = CurrentState == RustState.Follow ||
+                          CurrentState == RustState.Scouting ||
+                          CurrentState == RustState.Guiding ||
+                          CurrentState == RustState.Perching ||
+                          CurrentState == RustState.Celebrating;
+
+        if (canCommand && _distantScrap != null && _aimedScrap == null && _nearbyScrap == null)
+        {
+            if (_isPlayerNear)
+                DrawCenterPrompt(0.68f, AdventureLocalizationManager.Get("prompt_rust_guide_talk"));
+            else
+                DrawCenterPrompt(0.88f, AdventureLocalizationManager.Get("prompt_rust_guide_nearest"));
+            return;
+        }
+
+        if (!_isPlayerNear || CurrentState != RustState.Follow) return;
+        var towerMgr = AdventureSanctuaryTowerManager.Instance;
+        if (towerMgr != null && towerMgr.IsPlayerNearLever) return;
+        var player = AdventurePlayerController.Instance;
+        if (player == null) return;
+        if (AdventureCapytaBlessing.IsTalkPromptActive ||
+            AdventureCapytaBlessing.IsPlayerNearTalkableCapyta(player.transform.position))
+            return;
+
+        DrawCenterPrompt(0.68f, AdventureLocalizationManager.Get("prompt_rust_talk"));
+    }
+
+    static GUIStyle _cachedPromptStyle;
+    static void DrawCenterPrompt(float yFrac, string label)
+    {
+        float w = 400f;
+        float h = 30f;
+        float x = (Screen.width - w) * 0.5f;
+        float y = Screen.height * yFrac;
+        if (_cachedPromptStyle == null)
+        {
+            _cachedPromptStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = AdventureSpeechBoardLayout.RustCenterPromptFontSize,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+        }
+        else
+        {
+            _cachedPromptStyle.fontSize = AdventureSpeechBoardLayout.RustCenterPromptFontSize;
+        }
+        _cachedPromptStyle.normal.textColor = Color.black;
+        GUI.Label(new Rect(x + 1.5f, y + 1.5f, w, h), label, _cachedPromptStyle);
+        _cachedPromptStyle.normal.textColor = new Color(1f, 0.92f, 0.55f);
+        GUI.Label(new Rect(x, y, w, h), label, _cachedPromptStyle);
+    }
+
+    static AudioClip MakeSynthBeep(float startFreq, float endFreq, float duration)
+    {
+        const int hz = 44100;
+        int samples = (int)(hz * duration);
+        float[] data = new float[samples];
+        float phase = 0f;
+        for (int i = 0; i < samples; i++)
+        {
+            float t = i / (float)samples;
+            float freq = Mathf.Lerp(startFreq, endFreq, t);
+            phase += 2f * Mathf.PI * freq / hz;
+            float env = Mathf.Sin(t * Mathf.PI);
+            data[i] = Mathf.Sin(phase) * env * 0.45f;
+        }
+        var clip = AudioClip.Create("SynthBeep", samples, 1, hz, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
+
+    /// <summary>油を差してもらって快調になったRustの祝祭・宙返り＆パーツレーダー演出</summary>
+    public IEnumerator CheerSpinRoutine()
+    {
+        // 1. 黄金の光粒子スパークルをバースト放出
+        SpawnGoldSparkles(transform.position + Vector3.up * 0.4f, 26);
+
+        string[] treatKeys = { "rust_oil_treat_1", "rust_oil_treat_2", "rust_oil_treat_3", "rust_oil_treat_4" };
+        SpeakCustom(treatKeys[Random.Range(0, treatKeys.Length)], 4.2f);
+
+        // 2. 宙返りアニメーション（嬉しそうに一回転）
+        float elapsed = 0f;
+        float duration = 0.75f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float step = (Time.deltaTime / duration) * 360f;
+            transform.Rotate(Vector3.right, step, Space.Self);
+            transform.position += Vector3.up * (Mathf.Sin((elapsed / duration) * Mathf.PI) * 0.035f);
+            yield return null;
+        }
+
+        // 3. 最寄りの未回収パーツ（スクラップ）を探知して方角を案内
+        yield return new WaitForSeconds(0.4f);
+        var allScraps = FindObjectsByType<AdventureScrapItem>(FindObjectsInactive.Exclude);
+        AdventureScrapItem nearest = null;
+        float minDist = float.MaxValue;
+        foreach (var s in allScraps)
+        {
+            if (s == null || !s.gameObject.activeInHierarchy) continue;
+            float d = Vector3.Distance(transform.position, s.transform.position);
+            if (d < minDist)
+            {
+                minDist = d;
+                nearest = s;
+            }
+        }
+
+        if (nearest != null && minDist < 95f)
+        {
+            Vector3 diff = nearest.transform.position - transform.position;
+            string rawDir;
+            if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
+                rawDir = diff.x > 0 ? "東（右奥）" : "西（海側）";
+            else
+                rawDir = diff.z > 0 ? "北（奥の高台）" : "南（浜辺側）";
+            string dirName = AdventureLocalizationManager.Get(rawDir);
+
+            if (_audio != null && _sonarBeepClip != null)
+                _audio.PlayOneShot(_sonarBeepClip, 0.7f);
+
+            SpeakCustom(AdventureLocalizationManager.GetFormat("sonar_detect_scrap", dirName), 5.0f);
+        }
+        else
+        {
+            // 最寄りの未開封漂着ボックスを探知
+            var box = AdventureBeachDriftBox.GetNearestUnopenedBox(transform.position, out float boxDist);
+            if (box != null && boxDist < 120f)
+            {
+                Vector3 diff = box.transform.position - transform.position;
+                string rawDir;
+                if (Mathf.Abs(diff.x) > Mathf.Abs(diff.z))
+                    rawDir = diff.x > 0 ? "東（右奥）" : "西（海側）";
+                else
+                    rawDir = diff.z > 0 ? "北（奥の高台）" : "南（浜辺側）";
+                string dirName = AdventureLocalizationManager.Get(rawDir);
+
+                if (_audio != null && _sonarBeepClip != null)
+                    _audio.PlayOneShot(_sonarBeepClip, 0.7f);
+
+                string boxLabel = string.IsNullOrEmpty(box.BoxDisplayName) ? "漂着サバイバルケース" : box.BoxDisplayName;
+                SpeakCustom(AdventureLocalizationManager.GetFormat("sonar_detect_box", dirName, boxLabel), 5.0f);
+            }
+        }
+    }
+
+    void SpawnGoldSparkles(Vector3 pos, int count, Transform parent = null)
+    {
+        var go = new GameObject("Rust_GoldSparkles");
+        if (parent != null)
+        {
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = Vector3.zero;
+        }
+        else
+        {
+            go.transform.position = pos;
+        }
+        var ps = go.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        var main = ps.main;
+        main.playOnAwake = false;
+        main.duration = 0.8f;
+        main.loop = false;
+        main.startLifetime = 1.4f;
+        main.startSpeed = parent != null ? 1.5f : 3.6f;
+        main.startSize = 0.35f;
+        main.startColor = new Color(1f, 0.90f, 0.35f, 0.95f); // 鮮やかなゴールド
+        main.simulationSpace = parent != null ? ParticleSystemSimulationSpace.Local : ParticleSystemSimulationSpace.World;
+        main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+
+        var emission = ps.emission;
+        emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, count) });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 0.45f;
+
+        var col = ps.colorOverLifetime;
+        col.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new GradientColorKey[] { new GradientColorKey(new Color(1f, 0.92f, 0.3f), 0f), new GradientColorKey(new Color(1f, 0.6f, 0.1f), 1f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) }
+        );
+        col.color = grad;
+
+        var rend = go.GetComponent<ParticleSystemRenderer>();
+        if (rend != null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                         ?? Shader.Find("Universal Render Pipeline/Unlit")
+                         ?? Shader.Find("Sprites/Default");
+            var mat = new Material(shader);
+            mat.SetColor("_BaseColor", new Color(1f, 0.90f, 0.35f, 0.95f));
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetInt("_ZWrite", 0);
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            var tex = GetSoftSmokeTexture();
+            if (tex != null)
+            {
+                mat.SetTexture("_BaseMap", tex);
+                mat.SetTexture("_MainTex", tex);
+            }
+            rend.sharedMaterial = mat;
+            rend.renderMode = ParticleSystemRenderMode.Billboard;
+        }
+
+        ps.Play();
+        Destroy(go, 2.0f);
+    }
+
+    Transform _cachedBreastL, _cachedBreastR;
+    Transform _cachedShoulderL, _cachedShoulderR;
+    Transform _cachedSpine003, _cachedSpine004, _cachedHead;
+    bool _bonesCached = false;
+
+    void CacheNikoBones()
+    {
+        if (_lookAt == null) return;
+
+        foreach (var t in _lookAt.GetComponentsInChildren<Transform>())
+        {
+            string n = t.name.ToLower();
+            if (n.Contains("breast") && (n.Contains(".l") || n.EndsWith("_l") || n.Contains("left")))
+                _cachedBreastL = t;
+            else if (n.Contains("breast") && (n.Contains(".r") || n.EndsWith("_r") || n.Contains("right")))
+                _cachedBreastR = t;
+            else if (n.Contains("shoulder") && (n.Contains(".l") || n.EndsWith("_l") || n.Contains("left")))
+                _cachedShoulderL = t;
+            else if (n.Contains("shoulder") && (n.Contains(".r") || n.EndsWith("_r") || n.Contains("right")))
+                _cachedShoulderR = t;
+            else if (n == "spine.003" || n.Contains("spine3") || n.Contains("spine_03") || n.Contains("chest"))
+                _cachedSpine003 = t;
+            else if (n == "spine.004" || n.Contains("neck"))
+                _cachedSpine004 = t;
+            else if (n.Contains("head"))
+                _cachedHead = t;
+        }
+        _bonesCached = true;
+    }
+
+    /// <summary>Nikoの頭付近のワールド座標</summary>
+    public Vector3 GetNikoHeadPosition()
+    {
+        if (_lookAt == null) return transform.position;
+
+        if (!_bonesCached || _cachedHead == null)
+            CacheNikoBones();
+
+        if (_cachedHead != null)
+            return _cachedHead.position;
+
+        // 頭ボーンが無い場合は胸より約35cm上を頭とみなす
+        return GetNikoChestPosition() + Vector3.up * 0.35f;
+    }
+
+    /// <summary>Nikoの胸のワールド座標を高精度かつゼロアロケーションで取得</summary>
+    public Vector3 GetNikoChestPosition()
+    {
+        if (_lookAt == null) return transform.position;
+
+        if (!_bonesCached || (_cachedBreastL == null && _cachedShoulderL == null))
+        {
+            CacheNikoBones();
+        }
+
+        // 最優先: 両胸（breast.L と breast.R）の中点（100%正真正銘のバスト・胸の中央！）
+        if (_cachedBreastL != null && _cachedBreastR != null)
+        {
+            return (_cachedBreastL.position + _cachedBreastR.position) * 0.5f;
+        }
+        if (_cachedBreastL != null) return _cachedBreastL.position;
+        if (_cachedBreastR != null) return _cachedBreastR.position;
+
+        // 両肩の中点（鎖骨・胸骨の真上！）
+        if (_cachedShoulderL != null && _cachedShoulderR != null)
+        {
+            Vector3 midShoulder = (_cachedShoulderL.position + _cachedShoulderR.position) * 0.5f;
+            return midShoulder - _lookAt.up * 0.08f; // 肩ラインから胸の中央へ約8cm下げる
+        }
+
+        // spine.003（胸骨ボーン）
+        if (_cachedSpine003 != null)
+            return _cachedSpine003.position;
+
+        // 首（spine.004）から少し下
+        if (_cachedSpine004 != null)
+            return _cachedSpine004.position - _lookAt.up * 0.15f;
+
+        // 頭（Head）から胸の高さへオフセット（約35cm下）
+        if (_cachedHead != null)
+            return _cachedHead.position - _lookAt.up * 0.35f;
+
+        // フォールバック
+        return _lookAt.position + Vector3.up * 1.45f;
+    }
+}
+
