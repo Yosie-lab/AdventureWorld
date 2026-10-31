@@ -1247,6 +1247,10 @@ public partial class AdventureRustDrone : MonoBehaviour
 
         if (fPressed && canAcceptCommand)
         {
+            // 立ち止まり（地上かつ移動入力なし・非滑空）判定
+            var playerCtrl = AdventurePlayerController.Instance;
+            bool isPlayerStandingStill = playerCtrl != null && playerCtrl.IsGrounded && !playerCtrl.HasMoveInput && !playerCtrl.IsGliding;
+
             // 優先度1: 照準先のパーツ
             // 優先度2: 周囲50m以内の最寄りパーツ
             AdventureScrapItem scrapToFetch = _aimedScrap != null ? _aimedScrap : _nearbyScrap;
@@ -1263,6 +1267,14 @@ public partial class AdventureRustDrone : MonoBehaviour
                 {
                     _audio.pitch = 1.35f;
                     _audio.PlayOneShot(_happyBeepClip, 0.8f);
+                }
+            }
+            else if (isPlayerStandingStill && CurrentState != RustState.Petting)
+            {
+                // 地上で立ち止まり中かつパーツ非照準時：最優先で相棒Rustを撫でる（スキンシップ）
+                if (AdventurePettingAction.Instance != null)
+                {
+                    AdventurePettingAction.Instance.PetRust();
                 }
             }
             else if (cam != null)
@@ -2624,6 +2636,91 @@ public partial class AdventureRustDrone : MonoBehaviour
 
         if (_audio != null && _sonarBeepClip != null)
             _audio.PlayOneShot(_sonarBeepClip, 0.75f);
+    }
+
+    public enum FlightReactionType
+    {
+        Dive,       // 急降下ダイブ
+        PullUp,     // 急引き起こし
+        WaterSkim,  // 水面スキミング
+        SpeedBurst  // 高速ブースト・加速
+    }
+
+    private float _lastGlobalFlightReactionTime = -999f;
+    private readonly float[] _lastFlightReactionByType = new float[4] { -999f, -999f, -999f, -999f };
+
+    /// <summary>
+    /// フライト中の相棒Rustのアクロバット・シンクロ歓声（ダイブ・引き起こし・水面スキミング等）
+    /// </summary>
+    public void TriggerFlightReaction(FlightReactionType type, float intensity = 1.0f)
+    {
+        if (IsClimaxCrisis || _prologueDistress || CurrentState == RustState.Petting) return;
+
+        float now = Time.time;
+        // 全体クールダウン（最低5秒）および同種クールダウン（最低11秒）
+        if (now - _lastGlobalFlightReactionTime < 5.0f) return;
+        int idx = (int)type;
+        if (idx >= 0 && idx < _lastFlightReactionByType.Length)
+        {
+            if (now - _lastFlightReactionByType[idx] < 11.0f) return;
+            _lastFlightReactionByType[idx] = now;
+        }
+        _lastGlobalFlightReactionTime = now;
+
+        string reactionLine = "";
+        switch (type)
+        {
+            case FlightReactionType.Dive:
+                string[] diveLines = {
+                    "わぁっ！すごいスピードで急降下だ！",
+                    "風を切り裂いてるよ！一気にいくよ、Float！",
+                    "ひゃ〜っ！視界が一気に迫ってくる！"
+                };
+                reactionLine = diveLines[Random.Range(0, diveLines.Length)];
+                _velocity += Vector3.down * 0.8f + transform.forward * 1.5f;
+                break;
+
+            case FlightReactionType.PullUp:
+                string[] pullUpLines = {
+                    "ナイス引き起こし！ふわっと浮き上がった！",
+                    "風を綺麗に受け止めたよ！気持ちいい〜！",
+                    "Gが抜けて最高だね、Float！"
+                };
+                reactionLine = pullUpLines[Random.Range(0, pullUpLines.Length)];
+                _velocity += Vector3.up * 2.2f;
+                break;
+
+            case FlightReactionType.WaterSkim:
+                string[] skimLines = {
+                    "わっ、水面スレスレ！波しぶきが届きそう！",
+                    "すごい！まるで水面を滑走してるみたい！",
+                    "水しぶきがキラキラ光って綺麗だよ！"
+                };
+                reactionLine = skimLines[Random.Range(0, skimLines.Length)];
+                break;
+
+            case FlightReactionType.SpeedBurst:
+                string[] burstLines = {
+                    "加速すごい！一気に突き抜けるよ！",
+                    "追い風に乗ったね！最高！",
+                    "ピューン！どこまでも飛べそう！"
+                };
+                reactionLine = burstLines[Random.Range(0, burstLines.Length)];
+                _velocity += transform.forward * 2.0f;
+                break;
+        }
+
+        if (!string.IsNullOrEmpty(reactionLine))
+        {
+            SpeakCustom(reactionLine, 3.2f);
+            SetExpression(FaceExpressionType.Joyful, 2.8f);
+
+            if (_audio != null && _happyBeepClip != null)
+            {
+                _audio.pitch = Random.Range(1.30f, 1.45f);
+                _audio.PlayOneShot(_happyBeepClip, 0.75f);
+            }
+        }
     }
 
     /// <summary>滑空を開始した瞬間のRustの穏やかなセリフ</summary>

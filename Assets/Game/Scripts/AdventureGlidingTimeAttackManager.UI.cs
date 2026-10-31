@@ -11,13 +11,21 @@ public partial class AdventureGlidingTimeAttackManager
     private GameObject _resultCanvasGo;
     private Text _resultTitleText;
     private Text _resultDetailsText;
+
     private Button _resultFlyAgainBtn;
     private RectTransform _resultFlyAgainBtnRect;
     private Image _resultFlyAgainBtnImg;
     private Text _resultFlyAgainBtnText;
 
-    private static readonly Color BtnNormalColor = new Color(0.12f, 0.52f, 0.92f, 0.96f);
-    private static readonly Color BtnHoverColor  = new Color(0.25f, 0.75f, 1.0f, 1.0f);
+    private Button _resultResumeBtn;
+    private RectTransform _resultResumeBtnRect;
+    private Image _resultResumeBtnImg;
+    private Text _resultResumeBtnText;
+
+    private static readonly Color BtnNormalColor       = new Color(0.12f, 0.52f, 0.92f, 0.96f);
+    private static readonly Color BtnHoverColor        = new Color(0.25f, 0.75f, 1.0f, 1.0f);
+    private static readonly Color ResumeBtnNormalColor = new Color(0.12f, 0.62f, 0.40f, 0.96f);
+    private static readonly Color ResumeBtnHoverColor  = new Color(0.22f, 0.82f, 0.52f, 1.0f);
 
     private void EnsureResultModalUI()
     {
@@ -71,10 +79,13 @@ public partial class AdventureGlidingTimeAttackManager
         panelImg.color = new Color(0.03f, 0.07f, 0.15f, 0.96f);
         panelImg.raycastTarget = true;
 
+        // パネル横幅を少し広げて2つのボタンを美しく配置
+        panelRt.sizeDelta = new Vector2(760f, 430f);
+
         // 金色／シアンの洗練された枠線
-        var topBorder = CreateLine(panelGo.transform, "TopBorder", new Vector2(0f, 208f), new Vector2(720f, 4f),
+        var topBorder = CreateLine(panelGo.transform, "TopBorder", new Vector2(0f, 213f), new Vector2(760f, 4f),
             _isNewRecord ? new Color(1f, 0.85f, 0.2f, 0.95f) : new Color(0.2f, 0.85f, 1f, 0.9f));
-        var btmBorder = CreateLine(panelGo.transform, "BtmBorder", new Vector2(0f, -208f), new Vector2(720f, 4f),
+        var btmBorder = CreateLine(panelGo.transform, "BtmBorder", new Vector2(0f, -213f), new Vector2(760f, 4f),
             _isNewRecord ? new Color(1f, 0.85f, 0.2f, 0.95f) : new Color(0.2f, 0.85f, 1f, 0.9f));
 
         // タイトル
@@ -84,7 +95,7 @@ public partial class AdventureGlidingTimeAttackManager
         titleRt.anchorMin = titleRt.anchorMax = new Vector2(0.5f, 1f);
         titleRt.pivot = new Vector2(0.5f, 1f);
         titleRt.anchoredPosition = new Vector2(0f, -24f);
-        titleRt.sizeDelta = new Vector2(660f, 48f);
+        titleRt.sizeDelta = new Vector2(700f, 48f);
         _resultTitleText = titleGo.AddComponent<Text>();
         _resultTitleText.font = font;
         _resultTitleText.fontSize = 32;
@@ -102,8 +113,8 @@ public partial class AdventureGlidingTimeAttackManager
         var detailsRt = detailsGo.AddComponent<RectTransform>();
         detailsRt.anchorMin = detailsRt.anchorMax = new Vector2(0.5f, 0.5f);
         detailsRt.pivot = new Vector2(0.5f, 0.5f);
-        detailsRt.anchoredPosition = new Vector2(0f, 8f);
-        detailsRt.sizeDelta = new Vector2(600f, 210f);
+        detailsRt.anchoredPosition = new Vector2(0f, 14f);
+        detailsRt.sizeDelta = new Vector2(660f, 210f);
         _resultDetailsText = detailsGo.AddComponent<Text>();
         _resultDetailsText.font = font;
         _resultDetailsText.fontSize = 24;
@@ -116,55 +127,98 @@ public partial class AdventureGlidingTimeAttackManager
         detailsOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
         detailsOutline.effectDistance = new Vector2(1.2f, -1.2f);
 
-        // リトライボタン「🔄 もう一度飛ぶ [R]」
-        var btnGo = new GameObject("FlyAgainBtn");
-        btnGo.transform.SetParent(panelGo.transform, false);
-        _resultFlyAgainBtnRect = btnGo.AddComponent<RectTransform>();
+        // 左ボタン: リトライ「🔄 もう一度飛ぶ [R]」
+        var flyBtnGo = new GameObject("FlyAgainBtn");
+        flyBtnGo.transform.SetParent(panelGo.transform, false);
+        _resultFlyAgainBtnRect = flyBtnGo.AddComponent<RectTransform>();
         _resultFlyAgainBtnRect.anchorMin = _resultFlyAgainBtnRect.anchorMax = new Vector2(0.5f, 0f);
         _resultFlyAgainBtnRect.pivot = new Vector2(0.5f, 0f);
-        _resultFlyAgainBtnRect.anchoredPosition = new Vector2(0f, 28f);
-        _resultFlyAgainBtnRect.sizeDelta = new Vector2(360f, 62f);
+        _resultFlyAgainBtnRect.anchoredPosition = new Vector2(-175f, 26f);
+        _resultFlyAgainBtnRect.sizeDelta = new Vector2(320f, 58f);
 
-        _resultFlyAgainBtnImg = btnGo.AddComponent<Image>();
+        _resultFlyAgainBtnImg = flyBtnGo.AddComponent<Image>();
         _resultFlyAgainBtnImg.color = BtnNormalColor;
         _resultFlyAgainBtnImg.raycastTarget = true;
 
-        _resultFlyAgainBtn = btnGo.AddComponent<Button>();
+        _resultFlyAgainBtn = flyBtnGo.AddComponent<Button>();
         _resultFlyAgainBtn.targetGraphic = _resultFlyAgainBtnImg;
         _resultFlyAgainBtn.transition = Selectable.Transition.ColorTint;
-        var colors = _resultFlyAgainBtn.colors;
-        colors.normalColor = BtnNormalColor;
-        colors.highlightedColor = BtnHoverColor;
-        colors.pressedColor = new Color(0.08f, 0.35f, 0.65f, 1f);
-        colors.selectedColor = BtnNormalColor;
-        _resultFlyAgainBtn.colors = colors;
+        var flyColors = _resultFlyAgainBtn.colors;
+        flyColors.normalColor = BtnNormalColor;
+        flyColors.highlightedColor = BtnHoverColor;
+        flyColors.pressedColor = new Color(0.08f, 0.35f, 0.65f, 1f);
+        flyColors.selectedColor = BtnNormalColor;
+        _resultFlyAgainBtn.colors = flyColors;
         _resultFlyAgainBtn.navigation = new Navigation { mode = Navigation.Mode.None };
         _resultFlyAgainBtn.onClick.AddListener(RetryAtStart);
 
-        var btnTextGo = new GameObject("Label");
-        btnTextGo.transform.SetParent(btnGo.transform, false);
-        var btnTextRt = btnTextGo.AddComponent<RectTransform>();
-        btnTextRt.anchorMin = Vector2.zero;
-        btnTextRt.anchorMax = Vector2.one;
-        btnTextRt.offsetMin = Vector2.zero;
-        btnTextRt.offsetMax = Vector2.zero;
-        _resultFlyAgainBtnText = btnTextGo.AddComponent<Text>();
+        var flyBtnTextGo = new GameObject("Label");
+        flyBtnTextGo.transform.SetParent(flyBtnGo.transform, false);
+        var flyBtnTextRt = flyBtnTextGo.AddComponent<RectTransform>();
+        flyBtnTextRt.anchorMin = Vector2.zero;
+        flyBtnTextRt.anchorMax = Vector2.one;
+        flyBtnTextRt.offsetMin = Vector2.zero;
+        flyBtnTextRt.offsetMax = Vector2.zero;
+        _resultFlyAgainBtnText = flyBtnTextGo.AddComponent<Text>();
         _resultFlyAgainBtnText.font = font;
-        _resultFlyAgainBtnText.fontSize = 22;
+        _resultFlyAgainBtnText.fontSize = 21;
         _resultFlyAgainBtnText.fontStyle = FontStyle.Bold;
         _resultFlyAgainBtnText.alignment = TextAnchor.MiddleCenter;
         _resultFlyAgainBtnText.color = Color.white;
-        _resultFlyAgainBtnText.raycastTarget = false; // ★重要: テキストがクリックイベントを遮断しないように false
-        var btnTextOutline = btnTextGo.AddComponent<Outline>();
-        btnTextOutline.effectColor = new Color(0f, 0f, 0f, 0.75f);
-        btnTextOutline.effectDistance = new Vector2(1.2f, -1.2f);
+        _resultFlyAgainBtnText.raycastTarget = false;
+        var flyBtnTextOutline = flyBtnTextGo.AddComponent<Outline>();
+        flyBtnTextOutline.effectColor = new Color(0f, 0f, 0f, 0.75f);
+        flyBtnTextOutline.effectDistance = new Vector2(1.2f, -1.2f);
+
+        // 右ボタン: 探索復帰「🌴 探索に戻る [Esc]」
+        var resumeBtnGo = new GameObject("ResumeExplorationBtn");
+        resumeBtnGo.transform.SetParent(panelGo.transform, false);
+        _resultResumeBtnRect = resumeBtnGo.AddComponent<RectTransform>();
+        _resultResumeBtnRect.anchorMin = _resultResumeBtnRect.anchorMax = new Vector2(0.5f, 0f);
+        _resultResumeBtnRect.pivot = new Vector2(0.5f, 0f);
+        _resultResumeBtnRect.anchoredPosition = new Vector2(175f, 26f);
+        _resultResumeBtnRect.sizeDelta = new Vector2(320f, 58f);
+
+        _resultResumeBtnImg = resumeBtnGo.AddComponent<Image>();
+        _resultResumeBtnImg.color = ResumeBtnNormalColor;
+        _resultResumeBtnImg.raycastTarget = true;
+
+        _resultResumeBtn = resumeBtnGo.AddComponent<Button>();
+        _resultResumeBtn.targetGraphic = _resultResumeBtnImg;
+        _resultResumeBtn.transition = Selectable.Transition.ColorTint;
+        var resumeColors = _resultResumeBtn.colors;
+        resumeColors.normalColor = ResumeBtnNormalColor;
+        resumeColors.highlightedColor = ResumeBtnHoverColor;
+        resumeColors.pressedColor = new Color(0.08f, 0.45f, 0.28f, 1f);
+        resumeColors.selectedColor = ResumeBtnNormalColor;
+        _resultResumeBtn.colors = resumeColors;
+        _resultResumeBtn.navigation = new Navigation { mode = Navigation.Mode.None };
+        _resultResumeBtn.onClick.AddListener(CloseResultAndResumeGame);
+
+        var resumeBtnTextGo = new GameObject("Label");
+        resumeBtnTextGo.transform.SetParent(resumeBtnGo.transform, false);
+        var resumeBtnTextRt = resumeBtnTextGo.AddComponent<RectTransform>();
+        resumeBtnTextRt.anchorMin = Vector2.zero;
+        resumeBtnTextRt.anchorMax = Vector2.one;
+        resumeBtnTextRt.offsetMin = Vector2.zero;
+        resumeBtnTextRt.offsetMax = Vector2.zero;
+        _resultResumeBtnText = resumeBtnTextGo.AddComponent<Text>();
+        _resultResumeBtnText.font = font;
+        _resultResumeBtnText.fontSize = 21;
+        _resultResumeBtnText.fontStyle = FontStyle.Bold;
+        _resultResumeBtnText.alignment = TextAnchor.MiddleCenter;
+        _resultResumeBtnText.color = Color.white;
+        _resultResumeBtnText.raycastTarget = false;
+        var resumeBtnTextOutline = resumeBtnTextGo.AddComponent<Outline>();
+        resumeBtnTextOutline.effectColor = new Color(0f, 0f, 0f, 0.75f);
+        resumeBtnTextOutline.effectDistance = new Vector2(1.2f, -1.2f);
 
         UpdateResultModalTexts();
     }
 
     /// <summary>
-    /// リザルトモーダル表示中の直接入力検知（マウスクリック＆キーボード[Space]/[Enter]/[R]/[T]両対応）
-    /// uGUIのEventSystemがフォーカス外れ等で不発になる場合でも、確実に100%リトライを発動する
+    /// リザルトモーダル表示中の直接入力検知（マウスクリック＆キーボード対応）
+    /// [R] / [T] でリトライ、[Esc] / [Space] / [B] で通常探索へスムーズに復帰
     /// </summary>
     public void TickResultModalInput()
     {
@@ -181,13 +235,19 @@ public partial class AdventureGlidingTimeAttackManager
         Vector2 mousePos = ReadMouseScreenPos();
 
         // ボタンのホバーフィードバック
-        bool isHovered = _resultFlyAgainBtnRect != null && PointerHitsButton(_resultFlyAgainBtnRect, mousePos);
+        bool isFlyHovered = _resultFlyAgainBtnRect != null && PointerHitsButton(_resultFlyAgainBtnRect, mousePos);
         if (_resultFlyAgainBtnImg != null)
         {
-            _resultFlyAgainBtnImg.color = isHovered ? BtnHoverColor : BtnNormalColor;
+            _resultFlyAgainBtnImg.color = isFlyHovered ? BtnHoverColor : BtnNormalColor;
         }
 
-        // 1. マウスクリック直接検知（左クリック押下時または離した瞬間の両方で確実にキャッチ）
+        bool isResumeHovered = _resultResumeBtnRect != null && PointerHitsButton(_resultResumeBtnRect, mousePos);
+        if (_resultResumeBtnImg != null)
+        {
+            _resultResumeBtnImg.color = isResumeHovered ? ResumeBtnHoverColor : ResumeBtnNormalColor;
+        }
+
+        // 1. マウスクリック直接検知
         if (WasPointerPressedThisFrame(out Vector2 clickPos))
         {
             if (PointerHitsButton(_resultFlyAgainBtnRect, clickPos))
@@ -196,14 +256,28 @@ public partial class AdventureGlidingTimeAttackManager
                 RetryAtStart();
                 return;
             }
+            if (PointerHitsButton(_resultResumeBtnRect, clickPos))
+            {
+                Debug.Log("[RustAndFloat] リザルト【探索に戻る】マウスクリック直接検知 → CloseResultAndResumeGame");
+                CloseResultAndResumeGame();
+                return;
+            }
         }
 
-        // 2. キーボード操作（Space, Enter, R, T）
-        if (AdventureInputReader.SpaceOrJDown || AdventureInputReader.EnterDown 
-            || AdventureInputReader.ResetDown || AdventureInputReader.TDown)
+        // 2. キーボード操作
+        // [R] または [T]: リトライ
+        if (AdventureInputReader.ResetDown || AdventureInputReader.TDown)
         {
             Debug.Log("[RustAndFloat] リザルト【もう一度飛ぶ】キーボード検知 → RetryAtStart");
             RetryAtStart();
+            return;
+        }
+
+        // [Esc] または [Space] または [B]: 通常探索に戻る
+        if (AdventureInputReader.EscapeDown || AdventureInputReader.SpaceOrJDown)
+        {
+            Debug.Log("[RustAndFloat] リザルト【探索に戻る】キーボード検知 → CloseResultAndResumeGame");
+            CloseResultAndResumeGame();
             return;
         }
     }
@@ -292,6 +366,11 @@ public partial class AdventureGlidingTimeAttackManager
         if (_resultFlyAgainBtnText != null)
         {
             _resultFlyAgainBtnText.text = AdventureLocalizationManager.Get("ta_btn_fly_again");
+        }
+
+        if (_resultResumeBtnText != null)
+        {
+            _resultResumeBtnText.text = AdventureLocalizationManager.Get("ta_btn_resume");
         }
     }
 

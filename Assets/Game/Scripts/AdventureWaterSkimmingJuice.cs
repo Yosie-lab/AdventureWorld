@@ -116,13 +116,13 @@ public class AdventureWaterSkimmingJuice : MonoBehaviour
             IsSkimming = true;
             _skimmingDuration += Time.deltaTime;
 
-            // スキミングが1.2秒以上継続したとき、相棒Floatが歓声を上げる
+            // スキミングが1.2秒以上継続したとき、相棒Rustが歓声を上げる
             if (_skimmingDuration > 1.2f && _skimmingDuration - Time.deltaTime <= 1.2f)
             {
                 var drone = AdventureRustDrone.Instance;
                 if (drone != null)
                 {
-                    drone.SpeakCustom("わっ、水面スレスレ！すごいスピード！！", 3.2f);
+                    drone.TriggerFlightReaction(AdventureRustDrone.FlightReactionType.WaterSkim, SkimIntensity);
                     drone.TriggerCelebrate();
                 }
             }

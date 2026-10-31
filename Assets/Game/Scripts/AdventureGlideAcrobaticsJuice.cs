@@ -110,6 +110,13 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
             // -5m/s 〜 -16m/s で 0.0 〜 1.0 にマッピング
             float targetDive = Mathf.Clamp01((-verticalVel - 5.0f) / 11.0f);
             _diveIntensity = Mathf.MoveTowards(_diveIntensity, targetDive, Time.deltaTime * 3.5f);
+
+            // 急降下ダイブが0.8秒以上継続したとき、相棒Rustが興奮のダイブ歓声
+            if (_diveDuration > 0.8f && _diveIntensity > 0.45f)
+            {
+                var drone = AdventureRustDrone.Instance;
+                drone?.TriggerFlightReaction(AdventureRustDrone.FlightReactionType.Dive, _diveIntensity);
+            }
         }
         else
         {
@@ -197,21 +204,10 @@ public class AdventureGlideAcrobaticsJuice : MonoBehaviour
         // 3. 翼端ベイパートレイルを一時的に濃く放出
         StartCoroutine(EmitVaporBurstRoutine());
 
-        // 4. 低空スレスレでの引き起こし判定（高度 < 14m）でRustが歓声を上げる
-        float altitude = playerPos.y;
-        var terrain = Terrain.activeTerrain;
-        if (terrain != null)
-            altitude -= terrain.SampleHeight(playerPos);
-
-        if (altitude < 14.0f && AdventureRustDrone.Instance != null)
+        // 4. 引き起こし時にRustが歓声を上げる（高度や強度に応じて）
+        if (AdventureRustDrone.Instance != null)
         {
-            string[] acrobaticLines = new string[]
-            {
-                "わぁぁっ！ナイス引き起こし！すごいGだね！！",
-                "ピキーッ！地面スレスレ…！Float、操縦すごいよ！！",
-                "ふわりと舞い上がった！風の乗り方、最高だね♪"
-            };
-            AdventureRustDrone.Instance.SpeakCustom(acrobaticLines[Random.Range(0, acrobaticLines.Length)], 3.5f);
+            AdventureRustDrone.Instance.TriggerFlightReaction(AdventureRustDrone.FlightReactionType.PullUp, intensity);
         }
     }
 

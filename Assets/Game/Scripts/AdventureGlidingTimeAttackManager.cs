@@ -142,27 +142,96 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
         }
     }
 
+    /// <summary>タイムアタックのHUDやワープボタンを表示すべきかどうかの判定</summary>
+    public bool ShouldShowTAHud => IsGlidingActiveOrRecent;
+
     void Update()
     {
-        // リザルトモーダル表示中の入力処理（マウスクリック＆キーボード[Space]/[Enter]/[R]の直接検知）
+        // リザルトモーダル表示中の入力処理（マウスクリック＆キーボード[R]/[Esc]/[Space]の直接検知）
         if (_showResult)
         {
             TickResultModalInput();
+            return;
         }
 
-        // [R]キーまたは[T]キーでいつでもスタート地点へ即時リトライ（新旧InputSystem両対応）
+        // スタート台周辺または走行中のみ [R] キーによるリトライを受け付ける（島探索中の誤爆ワープ防止）
         if (AdventureInputReader.ResetDown || AdventureInputReader.TDown)
         {
-            RetryAtStart();
+            if (isRunning || ShouldShowTAHud)
+            {
+                RetryAtStart();
+            }
         }
 
         if (isRunning)
         {
+            // 走行中に [Esc] キーが押された場合、タイムアタックを中断してその場で通常探索へ戻る
+            if (AdventureInputReader.EscapeDown)
+            {
+                AbortTrialAndResumeExploration();
+                return;
+            }
+
             currentTimer += Time.deltaTime;
 
             // ゴール判定（着地サークル近辺への進入、またはビーチへの着地）
             CheckGoalArrival();
         }
+    }
+
+    /// <summary>
+    /// タイムアタック走行を安全に中断し、その場で通常探索モードに戻す
+    /// </summary>
+    public void AbortTrialAndResumeExploration()
+    {
+        isRunning = false;
+        _showResult = false;
+        HideResultModalUI();
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        var player = AdventurePlayerController.Resolve();
+        if (player != null)
+        {
+            player.ForceGroundReset();
+        }
+
+        var drone = AdventureRustDrone.Instance;
+        if (drone != null)
+        {
+            drone.SetSpeech(AdventureLocalizationManager.Get("ta_resume_exploration"), 3.0f);
+        }
+
+        Debug.Log("[RustAndFloat] タイムアタック中断 → 通常ゲーム探索へ復帰");
+    }
+
+    /// <summary>
+    /// リザルト画面を閉じ、通常ゲーム（島探索）へシームレスに復帰する
+    /// </summary>
+    public void CloseResultAndResumeGame()
+    {
+        _showResult = false;
+        isRunning = false;
+        HideResultModalUI();
+
+        // マウスカーソルをゲームプレイ用（非表示・ロック）に戻す
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        var player = AdventurePlayerController.Resolve();
+        if (player != null)
+        {
+            player.ForceGroundReset();
+        }
+
+        var drone = AdventureRustDrone.Instance;
+        if (drone != null)
+        {
+            drone.SetSpeech(AdventureLocalizationManager.Get("ta_resume_exploration"), 3.5f);
+        }
+
+        Debug.Log("[RustAndFloat] タイムアタックリザルト終了 → 通常ゲーム探索へ復帰");
     }
 
     /// <summary>
@@ -442,6 +511,9 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
 
     void OnGUI()
     {
+        // タイムアタック領域外、またはリザルト表示中はOnGUIボタンを描画しない（通常探索の邪魔をしない）
+        if (!ShouldShowTAHud || _showResult) return;
+
         EnsureStyles();
 
         // 画面右上にいつでも即座にスタート台へ行けるボタン（クリックまたは [R] / [T] キー対応）

@@ -583,9 +583,10 @@ public partial class AdventurePlayerController : MonoBehaviour
             }
         }
 
-        // タイムアタック飛行中：ゴールエリア到達前の中途着地・急停止を防止（ゴールアプローチ時は着地を許可）
+        // タイムアタック飛行中：Spaceキーを押し続けている間は中途着地・急停止を防止
+        // ★スペースキーを離して降りたい場合は着地を絶対にブロックしない！
         var ta = AdventureGlidingTimeAttackManager.Instance;
-        if (ta != null && ta.isRunning)
+        if (ta != null && ta.isRunning && AdventureInputReader.SpaceHeld)
         {
             Vector3 pos = transform.position;
             bool reachedGoalZone = (pos.x <= 195f && pos.z <= 285f && pos.y <= 16f)
@@ -847,30 +848,28 @@ public partial class AdventurePlayerController : MonoBehaviour
             return;
         }
 
-        // タイムアタック飛行中：スタートからゴールアプローチ前までSpaceキー押しっぱなし不要で自動滑空を維持
-        var ta = AdventureGlidingTimeAttackManager.Instance;
-        if (ta != null && ta.isRunning)
+        // ★ユーザーがスペースキーを離した（!holdGlide）場合：
+        // 降りたいピンポイントの足場や地面へ着地できるよう、ブーストタイマーや滑空状態を即時解除して自然落下させる
+        if (!holdGlide)
         {
-            Vector3 pos = transform.position;
-            bool onGoalApproach = (pos.x <= 195f && pos.z <= 285f && pos.y <= 16f)
-                || (Vector3.Distance(pos, new Vector3(150f, 6.35f, 235f)) <= 35f);
-            if (!onGoalApproach)
-            {
-                _gliding = true;
-                _grounded = false;
-                _airborneTime = Mathf.Max(_airborneTime, 1.0f);
-                return;
-            }
+            _glideBoostTimer = 0f;
+            _gliding = false;
+            return;
         }
 
-        if (_glideBoostTimer > 0f)
+        // ── 以下はスペースキーを押している（holdGlide == true）状態 ──
+        // タイムアタック飛行中またはブースト中：Spaceキーを押している間は快適に大ジャンプ・滑空を維持
+        var ta = AdventureGlidingTimeAttackManager.Instance;
+        bool isTAActive = ta != null && ta.isRunning;
+
+        if (isTAActive || _glideBoostTimer > 0f)
         {
             _gliding  = true;
             _grounded = false;
         }
         else
         {
-            _gliding = !_grounded && holdGlide && _airborneTime >= glideEnterDelay;
+            _gliding = !_grounded && _airborneTime >= glideEnterDelay;
         }
     }
 
@@ -1243,9 +1242,10 @@ public partial class AdventurePlayerController : MonoBehaviour
         _hop = Mathf.MoveTowards(_hop, _glideFallCurrent, GlidePitchRateDive * dt);
 
         // 地面効果（Ground Effect）クッション：
-        // 山岳・丘陵エリア（Y > 14m）で地面に接近した際、自然な気流反発でふわりと揚力を与えて接地停止を防止
-        // ★西ビーチの着地エリア（Y <= 14m）では地面効果を解除し、砂浜へのスムーズなソフトランディングを保証
-        if (_gliding && transform.position.y > 14.0f)
+        // スペースキーを押して滑空を維持している時のみ、地面衝突を防ぐ自然な気流反発を与える
+        // ★スペースキーを離して着地しようとしている時はクッションを無効化し、降りたい場所にストンと着地させる
+        bool isHoldingSpace = AdventureInputReader.SpaceHeld;
+        if (_gliding && isHoldingSpace && transform.position.y > 14.0f)
         {
             float groundY = GroundY(transform.position);
             float clearance = transform.position.y - groundY;

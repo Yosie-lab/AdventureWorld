@@ -72,10 +72,23 @@ public class AdventurePettingAction : MonoBehaviour
         drone?.SetPettingState(false, 0f);
     }
 
+    private static readonly string[] SweetPettingLines = new string[]
+    {
+        "よしよし、いつもありがとうね、Rust",
+        "今日も最高の相棒だよ！",
+        "Rust、あったかいね。ずっと一緒だよ",
+        "ふふ、くすぐったい？いい子だね",
+        "いつもそばにいてくれて、心強いよ"
+    };
+
     /// <summary>Rustを愛おしく撫でるアクションを実行</summary>
-    public void PetRust(string speechText = "よしよし、いつもありがとうね", float duration = 3.0f)
+    public void PetRust(string speechText = null, float duration = 3.0f)
     {
         if (_isPetting) return;
+        if (string.IsNullOrEmpty(speechText))
+        {
+            speechText = SweetPettingLines[Random.Range(0, SweetPettingLines.Length)];
+        }
         string loc = AdventureLocalizationManager.Get(speechText);
         StartCoroutine(PettingRoutine(loc, duration));
     }
@@ -88,10 +101,11 @@ public class AdventurePettingAction : MonoBehaviour
 
         var drone = AdventureRustDrone.Instance ?? FindAnyObjectByType<AdventureRustDrone>();
 
-        // 1. Nikoのいたわり台詞＋甘える効果音、胸元ホバリング
+        // 1. Nikoのいたわり台詞＋甘える効果音、胸元ホバリング、笑顔LED
         if (drone != null)
         {
             drone.SetPettingState(true, duration);
+            drone.SetExpression(AdventureRustDrone.FaceExpressionType.Smiling, duration + 0.5f);
             drone.SpeakAsNiko(speechText, duration + 1.0f);
             PlaySweetCuddleSound(drone.transform.position);
         }
@@ -119,12 +133,12 @@ public class AdventurePettingAction : MonoBehaviour
                 }
             }
 
-            // 胸元の触れ合いから、温かなハート・光のスパークルを生成
-            if (drone != null && progress > 0.15f && progress < 0.9f)
+            // 胸元の触れ合いから、温かなハート・光のスパークルを生成（高頻度で舞い上がる）
+            if (drone != null && progress > 0.12f && progress < 0.95f)
             {
-                if (Random.value < 0.22f)
+                if (Random.value < 0.35f)
                 {
-                    Vector3 contactPos = drone.transform.position + Vector3.up * 0.15f + Random.insideUnitSphere * 0.08f;
+                    Vector3 contactPos = drone.transform.position + Vector3.up * 0.12f + Random.insideUnitSphere * 0.10f;
                     SpawnHeartSparkle(contactPos);
                 }
             }
@@ -135,6 +149,7 @@ public class AdventurePettingAction : MonoBehaviour
         if (drone != null)
         {
             drone.SetPettingState(false, 0f);
+            drone.SetExpression(AdventureRustDrone.FaceExpressionType.Joyful, 2.5f);
         }
 
         _isPetting = false;
