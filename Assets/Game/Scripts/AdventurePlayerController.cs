@@ -463,7 +463,7 @@ public partial class AdventurePlayerController : MonoBehaviour
     /// <summary>Rキー押下でリセット。滑空タイムアタック中はスタート台へ即時リトライ、通常探索時は誤爆防止のため0.5秒長押し。</summary>
     bool TryHandleResetKey()
     {
-        // [T]キーでいつでもスカイダイブスタート台へテレポート
+        // [T]キーでスカイダイブスタート台へテレポート（焚き火点火済み時のみ）
         if (AdventureInputReader.TDown)
         {
             var glidingMgr = AdventureGlidingTimeAttackManager.Instance;

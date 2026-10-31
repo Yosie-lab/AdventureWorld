@@ -937,6 +937,9 @@ public class AdventureBeachCampfire : MonoBehaviour
                 drone.SpeakCustom("わぁ……！火が点いた！すごくあったかいね……！\n【Bキー】の工房で新しいアクセサリーを作って、ここでゆっくり眺めるのも最高だね！", 6.0f);
             }
         }
+
+        // タイムアタック（スカイダイブコース）の解放演出とコース有効化
+        AdventureGlidingTimeAttackManager.Instance?.OnCampfireLit(silent);
     }
 
     /// <summary>焚き火を完全消火し、ニューゲーム時の初期未点火状態にリセット</summary>
@@ -949,6 +952,9 @@ public class AdventureBeachCampfire : MonoBehaviour
         _dialogueIndex = 0;
         PlayerPrefs.DeleteKey(PrefKeyCampfireLit);
         PlayerPrefs.Save();
+
+        // タイムアタックコースを未解放状態へ戻す
+        AdventureGlidingTimeAttackManager.Instance?.UpdateCourseVisibility();
 
         if (_flameRoot != null)
         {

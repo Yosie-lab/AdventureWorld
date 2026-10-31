@@ -114,6 +114,7 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
     void Start()
     {
         ClearCorridorObstacles();
+        UpdateCourseVisibility();
     }
 
     void OnEnable()
@@ -126,10 +127,27 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
         AdventureWindRing.OnRingPassed -= HandleRingPassed;
     }
 
+    /// <summary>
+    /// タイムアタック解放状態（砂浜の焚き火に火を灯すとアンロックされる）
+    /// </summary>
+    public static bool IsTimeAttackUnlocked
+    {
+        get
+        {
+            return (AdventureBeachCampfire.Instance != null && AdventureBeachCampfire.Instance.IsLit)
+                || PlayerPrefs.GetInt(AdventureBeachCampfire.PrefKeyCampfireLit, 0) == 1;
+        }
+    }
+
+    private bool _notifiedPlatformLocked = false;
+
     public bool IsGlidingActiveOrRecent
     {
         get
         {
+            // 焚き火未点火の場合はタイムアタック関連HUDを一切表示しない
+            if (!IsTimeAttackUnlocked) return false;
+
             if (isRunning || _showResult) return true;
             var player = AdventurePlayerController.Resolve();
             if (player != null)
@@ -143,10 +161,30 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
     }
 
     /// <summary>タイムアタックのHUDやワープボタンを表示すべきかどうかの判定</summary>
-    public bool ShouldShowTAHud => IsGlidingActiveOrRecent;
+    public bool ShouldShowTAHud => IsTimeAttackUnlocked && IsGlidingActiveOrRecent;
 
     void Update()
     {
+        // タイムアタック未解放時：プレイヤーがスタート台（北の絶壁）に徒歩で接近したら案内を一度表示
+        if (!IsTimeAttackUnlocked)
+        {
+            var p = AdventurePlayerController.Resolve();
+            if (p != null && Vector3.Distance(p.transform.position, START_POS) < 18f)
+            {
+                if (!_notifiedPlatformLocked)
+                {
+                    _notifiedPlatformLocked = true;
+                    AdventureNotificationToast.Show("🔥 砂浜の焚き火に火を灯すと、スカイダイブコースが解放されます！", 4.0f);
+                    var rust = AdventureRustDrone.Instance;
+                    if (rust != null)
+                    {
+                        rust.SpeakCustom("ここがスカイダイブ台だね！砂浜の焚き火に火を灯したら、風のリングが目覚めて飛べるようになるよ！", 5.0f);
+                    }
+                }
+            }
+            return;
+        }
+
         // リザルトモーダル表示中の入力処理（マウスクリック＆キーボード[R]/[Esc]/[Space]の直接検知）
         if (_showResult)
         {
@@ -176,6 +214,62 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
 
             // ゴール判定（着地サークル近辺への進入、またはビーチへの着地）
             CheckGoalArrival();
+        }
+    }
+
+    /// <summary>
+    /// 砂浜の焚き火が点火された瞬間のコールバック（コース解放演出）
+    /// ★タイムアタックのボード（リザルト画面等）は絶対に出さず、解放案内のみを美しく表示する
+    /// </summary>
+    public void OnCampfireLit(bool silent = false)
+    {
+        // タイムアタックボード（リザルト画面や走行HUD）は絶対に非表示にし、状態をクリーンに保つ
+        ResetTrial();
+        HideResultModalUI();
+        _showResult = false;
+        isRunning = false;
+
+        UpdateCourseVisibility();
+        ClearCorridorObstacles();
+
+        if (!silent)
+        {
+            if (_audioSource != null && _startWhistleClip != null)
+            {
+                _audioSource.pitch = 1.15f;
+                _audioSource.PlayOneShot(_startWhistleClip, 0.7f);
+            }
+
+            AdventureNotificationToast.Show("🪂 【スカイダイブコース解放！】 焚き火の上昇気流で空路が開通！ [R]キーでいつでも挑戦可能！", 5.0f);
+            var drone = AdventureRustDrone.Instance;
+            if (drone != null)
+            {
+                drone.SpeakCustom("わぁっ！焚き火の上昇気流で、北の絶壁のダイブコースがオープンしたよ！【Rキー】を押せば、いつでもスタート台へ飛べるよ！", 6.5f);
+                drone.TriggerAffectionJoy();
+                drone.SetExpression(AdventureRustDrone.FaceExpressionType.Joyful, 5.0f);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 焚き火の点火状態に応じて、コース（スタートゲート・リング・ゴールサークル）の有効/無効を切り替える
+    /// </summary>
+    public void UpdateCourseVisibility()
+    {
+        bool unlocked = IsTimeAttackUnlocked;
+
+        if (startGate != null) startGate.gameObject.SetActive(unlocked);
+        if (finishTarget != null) finishTarget.gameObject.SetActive(unlocked);
+
+        if (courseRings != null)
+        {
+            for (int i = 0; i < courseRings.Count; i++)
+            {
+                if (courseRings[i] != null)
+                {
+                    courseRings[i].gameObject.SetActive(unlocked);
+                }
+            }
         }
     }
 
@@ -239,6 +333,18 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
     /// </summary>
     public void RetryAtStart()
     {
+        // タイムアタック未解放の場合は案内を表示してテレポートを遮断
+        if (!IsTimeAttackUnlocked)
+        {
+            AdventureNotificationToast.Show("🔥 砂浜の焚き火に火を灯すと、スカイダイブコースが解放されます！", 3.5f);
+            var rustDrone = AdventureRustDrone.Instance;
+            if (rustDrone != null)
+            {
+                rustDrone.SpeakCustom("まずは砂浜の焚き火に火をつけよう！あったかい火が灯ったら、絶壁のダイブコースがオープンするよ！", 4.5f);
+            }
+            return;
+        }
+
         // タイムアタック開始・リトライ時は確実にゲーム開始状態として入力を完全開放
         AdventureRustFloatOpening.IsGameStarted = true;
 
@@ -302,7 +408,7 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
 
     public void StartTrial()
     {
-        if (isRunning) return;
+        if (!IsTimeAttackUnlocked || isRunning) return;
 
         // 空路上の障害物を確実にクリアして離陸
         ClearCorridorObstacles();
@@ -328,6 +434,8 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
 
     void HandleRingPassed(AdventureWindRing ring, AdventurePlayerController player)
     {
+        if (!IsTimeAttackUnlocked) return;
+
         // コース対象リングか判定
         if (!courseRings.Contains(ring)) return;
 
@@ -369,8 +477,15 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
 
     void CheckGoalArrival()
     {
+        if (!isRunning) return;
+
         var player = AdventurePlayerController.Resolve();
         if (player == null) return;
+
+        // ★誤爆防止ガード：スタート台から実際に飛行開始後（最低4秒経過かつスタート台から80m以上離脱）のみゴール判定を許可
+        // （焚き火点火時や地上歩行中に勝手にゴール判定されてリザルトボードが出る不具合を完全に防止）
+        if (currentTimer < 4.0f || Vector3.Distance(player.transform.position, START_POS) < 80f)
+            return;
 
         Vector3 pPos = player.transform.position;
         float distToGoal = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(GOAL_POS.x, GOAL_POS.z));
@@ -378,9 +493,9 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
         // 1. ゴール地点（着地サークル・ビーコン）周辺（半径32m以内、高度22m以下）
         bool nearGoal = distToGoal <= 32f && pPos.y <= 22f;
 
-        // 2. 西ビーチエリア（X: 120〜210, Z: 200〜295）への進入・着地
+        // 2. 西ビーチエリア（X: 120〜210, Z: 200〜295）への進入・着地（リングを少なくとも3つ以上通過していること）
         bool inBeachArea = (pPos.x >= 120f && pPos.x <= 210f && pPos.z >= 200f && pPos.z <= 295f);
-        bool landedInBeach = inBeachArea && (!player.IsGliding || player.IsGrounded || pPos.y <= 14f);
+        bool landedInBeach = inBeachArea && ringsPassedCount >= 3 && (!player.IsGliding || player.IsGrounded || pPos.y <= 14f);
 
         // 3. 後半リング通過後、ビーチ側へ到達した瞬間
         bool finishedFlightLanding = (ringsPassedCount >= 6) && (distToGoal <= 45f || (inBeachArea && pPos.y <= 16f));
@@ -1279,7 +1394,8 @@ public class GlidingGoalTriggerHelper : MonoBehaviour
         if (player != null)
         {
             var mgr = AdventureGlidingTimeAttackManager.Instance;
-            if (mgr != null && mgr.isRunning)
+            // 実際に飛行してコースを攻略中（最低4秒以上かつリングをくぐっている）のみゴール処理
+            if (mgr != null && mgr.isRunning && mgr.currentTimer >= 4.0f && mgr.ringsPassedCount >= 1)
             {
                 mgr.FinishTrial();
             }
