@@ -12,13 +12,18 @@ public partial class AdventureGlidingTimeAttackManager
     private Text _resultTitleText;
     private Text _resultDetailsText;
     private Button _resultFlyAgainBtn;
+    private RectTransform _resultFlyAgainBtnRect;
+    private Image _resultFlyAgainBtnImg;
     private Text _resultFlyAgainBtnText;
+
+    private static readonly Color BtnNormalColor = new Color(0.12f, 0.52f, 0.92f, 0.96f);
+    private static readonly Color BtnHoverColor  = new Color(0.25f, 0.75f, 1.0f, 1.0f);
 
     private void EnsureResultModalUI()
     {
         AdventurePauseMenu.EnsureEventSystemForUi();
 
-        if (_resultCanvasGo != null)
+        if (_resultCanvasGo != null && _resultCanvasGo)
         {
             _resultCanvasGo.SetActive(true);
             UpdateResultModalTexts();
@@ -114,23 +119,24 @@ public partial class AdventureGlidingTimeAttackManager
         // リトライボタン「🔄 もう一度飛ぶ [R]」
         var btnGo = new GameObject("FlyAgainBtn");
         btnGo.transform.SetParent(panelGo.transform, false);
-        var btnRt = btnGo.AddComponent<RectTransform>();
-        btnRt.anchorMin = btnRt.anchorMax = new Vector2(0.5f, 0f);
-        btnRt.pivot = new Vector2(0.5f, 0f);
-        btnRt.anchoredPosition = new Vector2(0f, 28f);
-        btnRt.sizeDelta = new Vector2(360f, 62f);
+        _resultFlyAgainBtnRect = btnGo.AddComponent<RectTransform>();
+        _resultFlyAgainBtnRect.anchorMin = _resultFlyAgainBtnRect.anchorMax = new Vector2(0.5f, 0f);
+        _resultFlyAgainBtnRect.pivot = new Vector2(0.5f, 0f);
+        _resultFlyAgainBtnRect.anchoredPosition = new Vector2(0f, 28f);
+        _resultFlyAgainBtnRect.sizeDelta = new Vector2(360f, 62f);
 
-        var btnImg = btnGo.AddComponent<Image>();
-        btnImg.color = new Color(0.12f, 0.52f, 0.92f, 0.96f);
+        _resultFlyAgainBtnImg = btnGo.AddComponent<Image>();
+        _resultFlyAgainBtnImg.color = BtnNormalColor;
+        _resultFlyAgainBtnImg.raycastTarget = true;
 
         _resultFlyAgainBtn = btnGo.AddComponent<Button>();
-        _resultFlyAgainBtn.targetGraphic = btnImg;
+        _resultFlyAgainBtn.targetGraphic = _resultFlyAgainBtnImg;
         _resultFlyAgainBtn.transition = Selectable.Transition.ColorTint;
         var colors = _resultFlyAgainBtn.colors;
-        colors.normalColor = new Color(0.12f, 0.52f, 0.92f, 0.96f);
-        colors.highlightedColor = new Color(0.25f, 0.70f, 1.0f, 1f);
+        colors.normalColor = BtnNormalColor;
+        colors.highlightedColor = BtnHoverColor;
         colors.pressedColor = new Color(0.08f, 0.35f, 0.65f, 1f);
-        colors.selectedColor = colors.normalColor;
+        colors.selectedColor = BtnNormalColor;
         _resultFlyAgainBtn.colors = colors;
         _resultFlyAgainBtn.navigation = new Navigation { mode = Navigation.Mode.None };
         _resultFlyAgainBtn.onClick.AddListener(RetryAtStart);
@@ -148,11 +154,122 @@ public partial class AdventureGlidingTimeAttackManager
         _resultFlyAgainBtnText.fontStyle = FontStyle.Bold;
         _resultFlyAgainBtnText.alignment = TextAnchor.MiddleCenter;
         _resultFlyAgainBtnText.color = Color.white;
+        _resultFlyAgainBtnText.raycastTarget = false; // ★重要: テキストがクリックイベントを遮断しないように false
         var btnTextOutline = btnTextGo.AddComponent<Outline>();
         btnTextOutline.effectColor = new Color(0f, 0f, 0f, 0.75f);
         btnTextOutline.effectDistance = new Vector2(1.2f, -1.2f);
 
         UpdateResultModalTexts();
+    }
+
+    /// <summary>
+    /// リザルトモーダル表示中の直接入力検知（マウスクリック＆キーボード[Space]/[Enter]/[R]/[T]両対応）
+    /// uGUIのEventSystemがフォーカス外れ等で不発になる場合でも、確実に100%リトライを発動する
+    /// </summary>
+    public void TickResultModalInput()
+    {
+        if (!_showResult || _resultCanvasGo == null || !_resultCanvasGo.activeInHierarchy)
+            return;
+
+        // リザルト表示中は毎フレーム確実にマウスカーソルを解放
+        if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+
+        Vector2 mousePos = ReadMouseScreenPos();
+
+        // ボタンのホバーフィードバック
+        bool isHovered = _resultFlyAgainBtnRect != null && PointerHitsButton(_resultFlyAgainBtnRect, mousePos);
+        if (_resultFlyAgainBtnImg != null)
+        {
+            _resultFlyAgainBtnImg.color = isHovered ? BtnHoverColor : BtnNormalColor;
+        }
+
+        // 1. マウスクリック直接検知（左クリック押下時または離した瞬間の両方で確実にキャッチ）
+        if (WasPointerPressedThisFrame(out Vector2 clickPos))
+        {
+            if (PointerHitsButton(_resultFlyAgainBtnRect, clickPos))
+            {
+                Debug.Log("[RustAndFloat] リザルト【もう一度飛ぶ】マウスクリック直接検知 → RetryAtStart");
+                RetryAtStart();
+                return;
+            }
+        }
+
+        // 2. キーボード操作（Space, Enter, R, T）
+        if (AdventureInputReader.SpaceOrJDown || AdventureInputReader.EnterDown 
+            || AdventureInputReader.ResetDown || AdventureInputReader.TDown)
+        {
+            Debug.Log("[RustAndFloat] リザルト【もう一度飛ぶ】キーボード検知 → RetryAtStart");
+            RetryAtStart();
+            return;
+        }
+    }
+
+    private static Vector2 ReadMouseScreenPos()
+    {
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null)
+            return mouse.position.ReadValue();
+        try { return Input.mousePosition; } catch { return Vector2.zero; }
+    }
+
+    private static bool WasPointerPressedThisFrame(out Vector2 pointer)
+    {
+        pointer = Vector2.zero;
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.leftButton.wasReleasedThisFrame))
+        {
+            pointer = mouse.position.ReadValue();
+            return true;
+        }
+        try
+        {
+            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonUp(0))
+            {
+                pointer = Input.mousePosition;
+                return true;
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    private static bool PointerHitsButton(RectTransform rt, Vector2 screenPos)
+    {
+        if (rt == null || !rt.gameObject.activeInHierarchy) return false;
+
+        // 1. EventSystem による Raycast
+        var es = UnityEngine.EventSystems.EventSystem.current;
+        if (es != null)
+        {
+            var ped = new UnityEngine.EventSystems.PointerEventData(es) { position = screenPos };
+            var results = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+            es.RaycastAll(ped, results);
+            for (int i = 0; i < results.Count; i++)
+            {
+                if (results[i].gameObject == rt.gameObject || results[i].gameObject.transform.IsChildOf(rt))
+                    return true;
+            }
+        }
+
+        // 2. 画面座標境界矩形判定（Retinaディスプレイ・解像度スケーリング両対応）
+        if (RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null))
+            return true;
+        if (RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos * 2f, null))
+            return true;
+        if (RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos * 0.5f, null))
+            return true;
+
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(rt, screenPos, null, out Vector2 localPoint))
+        {
+            if (rt.rect.Contains(localPoint))
+                return true;
+        }
+
+        return false;
     }
 
     private void UpdateResultModalTexts()
@@ -180,9 +297,19 @@ public partial class AdventureGlidingTimeAttackManager
 
     public void HideResultModalUI()
     {
-        if (_resultCanvasGo != null)
+        if (_resultCanvasGo != null && _resultCanvasGo)
         {
             _resultCanvasGo.SetActive(false);
+        }
+    }
+
+    public void DestroyResultModalUI()
+    {
+        if (_resultCanvasGo != null)
+        {
+            if (Application.isPlaying) Destroy(_resultCanvasGo);
+            else DestroyImmediate(_resultCanvasGo);
+            _resultCanvasGo = null;
         }
     }
 

@@ -573,6 +573,30 @@ public partial class AdventurePlayerController : MonoBehaviour
             }
         }
 
+        // 滑空中（またはリングブースト中）に空中の障害物（樹木・巨岩・木道板等）のコライダーに触れた場合は、着地させず滑空を維持
+        if ((_gliding || _glideBoostTimer > 0f) && transform.position.y > 6.5f)
+        {
+            if (IsTouchingAirborneObstacle())
+            {
+                ccGrounded = false;
+                rayGrounded = false;
+            }
+        }
+
+        // タイムアタック飛行中：ゴールエリア到達前の中途着地・急停止を防止（ゴールアプローチ時は着地を許可）
+        var ta = AdventureGlidingTimeAttackManager.Instance;
+        if (ta != null && ta.isRunning)
+        {
+            Vector3 pos = transform.position;
+            bool reachedGoalZone = (pos.x <= 195f && pos.z <= 285f && pos.y <= 16f)
+                || (Vector3.Distance(pos, new Vector3(150f, 6.35f, 235f)) <= 35f);
+            if (!reachedGoalZone && pos.y > 10.0f)
+            {
+                ccGrounded = false;
+                rayGrounded = false;
+            }
+        }
+
         bool isGroundedEffective = (ccGrounded || rayGrounded) && (_hop <= 0.05f || (_gliding && _isSoftLandingHover)) && !TooSteep();
 
         if (_glideBoostTimer > 0f)
@@ -821,6 +845,22 @@ public partial class AdventurePlayerController : MonoBehaviour
             _grounded = false;
             _airborneTime = Mathf.Max(_airborneTime, glideEnterDelay);
             return;
+        }
+
+        // タイムアタック飛行中：スタートからゴールアプローチ前までSpaceキー押しっぱなし不要で自動滑空を維持
+        var ta = AdventureGlidingTimeAttackManager.Instance;
+        if (ta != null && ta.isRunning)
+        {
+            Vector3 pos = transform.position;
+            bool onGoalApproach = (pos.x <= 195f && pos.z <= 285f && pos.y <= 16f)
+                || (Vector3.Distance(pos, new Vector3(150f, 6.35f, 235f)) <= 35f);
+            if (!onGoalApproach)
+            {
+                _gliding = true;
+                _grounded = false;
+                _airborneTime = Mathf.Max(_airborneTime, 1.0f);
+                return;
+            }
         }
 
         if (_glideBoostTimer > 0f)
@@ -1093,9 +1133,11 @@ public partial class AdventurePlayerController : MonoBehaviour
         float diveT  = Mathf.Clamp01(gIn.y);
         float flareT = Mathf.Clamp01(-gIn.y);
 
-        float cruiseSpeed = (isBoosted ? 11.0f : 7.4f) * moveSpeedMultiplier;
-        float diveSpeed   = (isBoosted ? 15.0f : 11.5f) * moveSpeedMultiplier;
-        float flareSpeed  = (isBoosted ? 8.5f : 4.6f) * moveSpeedMultiplier;
+        float boostMult = isBoosted ? Mathf.Clamp(_glideBoostMultiplier, 1.0f, 1.45f) : 1.0f;
+        // 落ち着いた制御しやすい快適な速度設計（通常巡航 9.0m/s、ブースト時 11.8m/s、ダイブ時 14.2m/s）
+        float cruiseSpeed = (isBoosted ? 11.8f : 9.0f) * moveSpeedMultiplier;
+        float diveSpeed   = (isBoosted ? 14.2f : 12.0f) * moveSpeedMultiplier;
+        float flareSpeed  = (isBoosted ? 8.5f : 5.5f) * moveSpeedMultiplier;
         float targetSpeed = cruiseSpeed;
         targetSpeed = Mathf.Lerp(targetSpeed, diveSpeed, diveT);
         targetSpeed = Mathf.Lerp(targetSpeed, flareSpeed, flareT);
@@ -1105,9 +1147,10 @@ public partial class AdventurePlayerController : MonoBehaviour
             AdventureGlideAcrobaticsJuice.Instance?.TriggerFlareAirBrake(flareT, transform.position);
         }
 
-        float cruiseFall = isBoosted ? 0.2f : -1.15f;
-        float diveFall   = isBoosted ? -0.8f : -2.8f;
-        float flareFall  = isBoosted ? 0.3f : -0.28f;
+        // 通常滑空時の滑空比を大幅向上（沈み込みをわずか -0.35m/s に抑制）。ブースト時は心地よい微小揚力（+0.25m/s）で失速を根絶
+        float cruiseFall = isBoosted ? 0.25f : -0.35f;
+        float diveFall   = isBoosted ? -0.45f : -1.45f;
+        float flareFall  = isBoosted ? 0.50f : -0.05f;
         float targetFall = cruiseFall;
         targetFall = Mathf.Lerp(targetFall, diveFall, diveT);
         targetFall = Mathf.Lerp(targetFall, flareFall, flareT);
@@ -1198,6 +1241,20 @@ public partial class AdventurePlayerController : MonoBehaviour
         }
 
         _hop = Mathf.MoveTowards(_hop, _glideFallCurrent, GlidePitchRateDive * dt);
+
+        // 地面効果（Ground Effect）クッション：
+        // 山岳・丘陵エリア（Y > 14m）で地面に接近した際、自然な気流反発でふわりと揚力を与えて接地停止を防止
+        // ★西ビーチの着地エリア（Y <= 14m）では地面効果を解除し、砂浜へのスムーズなソフトランディングを保証
+        if (_gliding && transform.position.y > 14.0f)
+        {
+            float groundY = GroundY(transform.position);
+            float clearance = transform.position.y - groundY;
+            if (clearance > 0.05f && clearance < 1.8f)
+            {
+                float groundCushion = Mathf.Lerp(1.8f, 0.1f, Mathf.Clamp01(clearance / 1.8f));
+                _hop = Mathf.MoveTowards(_hop, Mathf.Max(_hop, groundCushion), 14f * dt);
+            }
+        }
 
         // 案1：水面スキミング＆白波航跡ブースト（海面・湖面の表面張力反発＆加速）
         var skim = AdventureWaterSkimmingJuice.Instance;
@@ -1318,6 +1375,13 @@ public partial class AdventurePlayerController : MonoBehaviour
             float stickSpeed = AdventureSceneContext.IsRustFloat
                 ? AdventureRustFloatFeel.GroundStickSpeed(moving)
                 : (moving ? 3.2f : 2.0f);
+
+            // フライトデッキや白亜テラスなど平坦な人口足場の上では過剰な下向き押し付けを緩和し、軽快な助走・飛び出しを保証
+            if (AdventureGlidingTimeAttackManager.GetFlightDeckSurfaceY(transform.position) > float.NegativeInfinity
+                || AdventureSanctuaryTowerManager.GetTerraceSurfaceY(transform.position) > float.NegativeInfinity)
+            {
+                stickSpeed = moving ? 0.6f : 0.3f;
+            }
 
             float vertY = (motion.y > 0.001f)
                 ? Mathf.Max(motion.y, -stickSpeed * Time.deltaTime * 0.2f)
@@ -1646,6 +1710,45 @@ public partial class AdventurePlayerController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 滑空中に空中の障害物（樹木・巨岩・木道板等）のコライダーに触れているかを判定（誤着地・急停止を防止）
+    /// </summary>
+    bool IsTouchingAirborneObstacle()
+    {
+        Vector3 pos = transform.position;
+        var cols = Physics.OverlapSphere(pos + Vector3.up * 0.4f, 0.75f, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < cols.Length; i++)
+        {
+            var c = cols[i];
+            if (c == null || c is TerrainCollider || c.isTrigger) continue;
+            if (c.CompareTag("Player") || c.name.Contains("Niko") || c.name.Contains("Rust")) continue;
+
+            // 地形表面から十分に高い空中（足元がTerrain+1.2m以上）にある障害物であれば空中物体と判定
+            float landY = GroundY(pos);
+            if (pos.y > landY + 1.0f)
+            {
+                return true;
+            }
+
+            Transform t = c.transform;
+            while (t != null)
+            {
+                string n = t.name.ToLower();
+                if (n.Contains("tree") || n.Contains("branch") || n.Contains("foliage")
+                    || n.Contains("leaves") || n.Contains("willow") || n.Contains("broadleaf")
+                    || n.Contains("fir") || n.Contains("pine") || n.Contains("blossom")
+                    || n.Contains("stone") || n.Contains("rock") || n.Contains("boulder")
+                    || n.Contains("plank") || n.Contains("ramp") || n.Contains("bridge")
+                    || n.Contains("fence") || n.Contains("stair") || n.Contains("capyta"))
+                {
+                    return true;
+                }
+                t = t.parent;
+            }
+        }
+        return false;
+    }
+
     /// <summary>段差・テラス縁の「レッジグラブ＆クライム（崖縁フッパッよじ登りアシスト）」</summary>
     void CheckAndApplyLedgeClimb()
     {
@@ -1766,7 +1869,8 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (dir.sqrMagnitude < 0.001f) dir = transform.forward;
         dir.Normalize();
 
-        _airMomentum       = dir * (10.5f * moveSpeedMultiplier);
+        float initialBoostSpeed = Mathf.Clamp(11.8f * boostMultiplier, 11.5f, 13.5f);
+        _airMomentum       = dir * (initialBoostSpeed * moveSpeedMultiplier);
         _glideSpeedCurrent = _airMomentum.magnitude;
         _airMomVel         = Vector3.zero;
         transform.rotation = Quaternion.LookRotation(dir);
@@ -1790,10 +1894,10 @@ public partial class AdventurePlayerController : MonoBehaviour
         if (dir.sqrMagnitude < 0.001f) dir = transform.forward;
         dir.Normalize();
 
-        float cruise = Mathf.Max(_glideSpeedCurrent, 11f * moveSpeedMultiplier);
-        Vector3 boostMom = dir * (cruise * 1.12f);
+        float targetBoostSpeed = Mathf.Max(_glideSpeedCurrent, 14.5f * boostMultiplier * moveSpeedMultiplier);
+        Vector3 boostMom = dir * targetBoostSpeed;
         if (_airMomentum.sqrMagnitude > 0.5f)
-            _airMomentum = Vector3.Lerp(_airMomentum, boostMom, 0.62f);
+            _airMomentum = Vector3.Lerp(_airMomentum, boostMom, 0.72f);
         else
             _airMomentum = boostMom;
 

@@ -47,8 +47,8 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
     private bool _isNewRecord = false;
 
     // スタート台の位置と向き（北の最高峰絶壁エッジ・南西方向を見下ろす大パノラマ絶景）
-    // 木製床天面(96.525m)に対し、安全に着地・助走できる滑走路中央位置
-    public static readonly Vector3 START_POS = new Vector3(506.52f, 96.65f, 654.83f);
+    // 木製床天面(96.525m)に対し、安全に着地・助走できる滑走路中央位置（足元の埋まり・引っかかりを防ぐ安全高度96.75m）
+    public static readonly Vector3 START_POS = new Vector3(506.52f, 96.75f, 654.83f);
     public static readonly Quaternion START_ROT = Quaternion.Euler(0f, 205f, 0f); // 南西向き（西ビーチ方向）
 
     /// <summary>
@@ -106,6 +106,14 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
         if (_startWhistleClip == null) _startWhistleClip = SynthesizeStartWhistle();
         if (_ringDingClip == null) _ringDingClip = SynthesizeRingDing();
         if (_goalFanfareClip == null) _goalFanfareClip = SynthesizeGoalFanfare();
+
+        // 起動時にコース周辺の障害物コライダーを確実に掃除
+        ClearCorridorObstacles();
+    }
+
+    void Start()
+    {
+        ClearCorridorObstacles();
     }
 
     void OnEnable()
@@ -136,6 +144,12 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
 
     void Update()
     {
+        // リザルトモーダル表示中の入力処理（マウスクリック＆キーボード[Space]/[Enter]/[R]の直接検知）
+        if (_showResult)
+        {
+            TickResultModalInput();
+        }
+
         // [R]キーまたは[T]キーでいつでもスタート地点へ即時リトライ（新旧InputSystem両対応）
         if (AdventureInputReader.ResetDown || AdventureInputReader.TDown)
         {
@@ -156,6 +170,9 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
     /// </summary>
     public void RetryAtStart()
     {
+        // タイムアタック開始・リトライ時は確実にゲーム開始状態として入力を完全開放
+        AdventureRustFloatOpening.IsGameStarted = true;
+
         var player = AdventurePlayerController.Resolve();
         if (player != null)
         {
@@ -190,6 +207,9 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
             AdventureGameplayInputGate.TryRestoreExplorationLookIfReady();
         }
 
+        // コース空路周辺の樹木コライダーを確実に非干渉化
+        ClearCorridorObstacles();
+
         ResetTrial();
 
         AdventureNotificationToast.Show("🪂 スタート台へ帰還！風を切って飛び出そう！ [Space]で滑空", 2.8f);
@@ -214,6 +234,9 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
     public void StartTrial()
     {
         if (isRunning) return;
+
+        // 空路上の障害物を確実にクリアして離陸
+        ClearCorridorObstacles();
 
         isRunning = true;
         currentTimer = 0f;
@@ -283,15 +306,15 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
         Vector3 pPos = player.transform.position;
         float distToGoal = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(GOAL_POS.x, GOAL_POS.z));
 
-        // 1. ゴール地点（光のサークル・ビーコン）周辺（半径22m以内、高度20m以下）
-        bool nearGoal = distToGoal <= 22f && pPos.y <= 20f;
+        // 1. ゴール地点（着地サークル・ビーコン）周辺（半径32m以内、高度22m以下）
+        bool nearGoal = distToGoal <= 32f && pPos.y <= 22f;
 
-        // 2. 西ビーチエリア（X: 120〜220, Z: 200〜300）への進入・着地
-        bool inBeachArea = (pPos.x >= 120f && pPos.x <= 220f && pPos.z >= 200f && pPos.z <= 300f);
-        bool landedInBeach = inBeachArea && (!player.IsGliding || player.IsGrounded || pPos.y <= 12f);
+        // 2. 西ビーチエリア（X: 120〜210, Z: 200〜295）への進入・着地
+        bool inBeachArea = (pPos.x >= 120f && pPos.x <= 210f && pPos.z >= 200f && pPos.z <= 295f);
+        bool landedInBeach = inBeachArea && (!player.IsGliding || player.IsGrounded || pPos.y <= 14f);
 
-        // 3. リングを後半（10個以上）くぐり抜けた後、西ビーチ側で着地または低空滑空した瞬間
-        bool finishedFlightLanding = (ringsPassedCount >= 8) && (distToGoal <= 50f || inBeachArea) && (!player.IsGliding || player.IsGrounded);
+        // 3. 後半リング通過後、ビーチ側へ到達した瞬間
+        bool finishedFlightLanding = (ringsPassedCount >= 6) && (distToGoal <= 45f || (inBeachArea && pPos.y <= 16f));
 
         if (nearGoal || landedInBeach || finishedFlightLanding)
         {
@@ -306,6 +329,13 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
         isRunning = false;
         _showResult = true;
         _resultTimer = currentTimer;
+
+        // ゴール到達時にプレイヤーを確実に地上へソフトランディング着地
+        var player = AdventurePlayerController.Resolve();
+        if (player != null)
+        {
+            player.ForceGroundReset();
+        }
 
         // 厳格なインディー最高峰基準によるランク計算
         // SS (神風アルティメット 👑): 29.5秒以内 かつ リング全通過 (全10個パーフェクト)
@@ -786,49 +816,98 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
     }
 
     /// <summary>
-    /// タイムアタック航路（リング近辺）にある樹木や障害物のコライダーを掃除し、空中での突然のスタック・引っ掛かりを防止
+    /// タイムアタック航路（リング近辺およびリング間コリドー）にある樹木・巨岩・木道板等の障害物コライダーを掃除し、空中での突然のスタック・引っ掛かりを防止
     /// </summary>
-    private void ClearCorridorObstacles()
+    public void ClearCorridorObstacles()
     {
-        if (courseRings == null) return;
+        if (courseRings == null || courseRings.Count == 0) return;
         var allCols = Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude);
+
+        // スタートデッキから各リング、ゴールまでの航路ウェイポイント列を構築
+        var pts = new List<Vector3>(courseRings.Count + 2);
+        pts.Add(START_POS);
         for (int r = 0; r < courseRings.Count; r++)
         {
-            var ring = courseRings[r];
-            if (ring == null) continue;
-            Vector3 ringPos = ring.transform.position;
+            if (courseRings[r] != null) pts.Add(courseRings[r].transform.position);
+        }
+        pts.Add(GOAL_POS);
 
-            for (int i = 0; i < allCols.Length; i++)
+        for (int i = 0; i < allCols.Length; i++)
+        {
+            var col = allCols[i];
+            if (col == null || col.isTrigger) continue;
+            if (col is TerrainCollider) continue;
+
+            // プレイヤー自身・相棒・スタートデッキの足場床・ゴールターゲット本体は絶対に無効化しない
+            string colName = col.name;
+            if (col.CompareTag("Player") || colName.Contains("Niko") || colName.Contains("Rust")
+                || colName == "DeckPlanks" || colName == "FinishTarget" || colName.Contains("Gate"))
+                continue;
+
+            Transform pTr = col.transform;
+            bool isObstacle = false;
+            while (pTr != null)
             {
-                var col = allCols[i];
-                if (col == null || col.isTrigger) continue;
-                if (col is TerrainCollider) continue;
-
-                string colName = col.name.ToLower();
-                Transform pTr = col.transform;
-                bool isTreeLike = false;
-                while (pTr != null)
+                string n = pTr.name.ToLower();
+                if (n.Contains("tree") || n.Contains("branch") || n.Contains("foliage")
+                    || n.Contains("leaves") || n.Contains("willow") || n.Contains("broadleaf")
+                    || n.Contains("fir") || n.Contains("pine") || n.Contains("blossom")
+                    || n.Contains("stone") || n.Contains("rock") || n.Contains("boulder")
+                    || n.Contains("plank") || n.Contains("ramp") || n.Contains("bridge")
+                    || n.Contains("fence") || n.Contains("stair") || n.Contains("capyta"))
                 {
-                    string n = pTr.name.ToLower();
-                    if (n.Contains("tree") || n.Contains("branch") || n.Contains("foliage") || n.Contains("leaves"))
-                    {
-                        isTreeLike = true;
-                        break;
-                    }
-                    pTr = pTr.parent;
+                    isObstacle = true;
+                    break;
                 }
+                pTr = pTr.parent;
+            }
 
-                if (isTreeLike)
+            if (!isObstacle) continue;
+
+            Vector3 center = col.bounds.center;
+
+            // 1. 各リング中心から半径22m以内であれば無効化
+            bool shouldDisable = false;
+            for (int p = 0; p < pts.Count; p++)
+            {
+                if (Vector3.Distance(center, pts[p]) <= 22.0f)
                 {
-                    // リング中心から半径8.5m以内にある樹木コライダーを無効化（景観メッシュはそのまま残し、すり抜け可能に）
-                    float d = Vector3.Distance(col.bounds.center, ringPos);
-                    if (d <= 8.5f)
+                    shouldDisable = true;
+                    break;
+                }
+            }
+
+            // 2. リング間の飛行セグメント（空路コリドー幅18m・高度差22m）に近接していれば無効化
+            if (!shouldDisable)
+            {
+                for (int s = 0; s < pts.Count - 1; s++)
+                {
+                    Vector3 a = pts[s];
+                    Vector3 b = pts[s + 1];
+                    float dist = SqrDistanceToSegment(center, a, b);
+                    if (dist <= 18.0f * 18.0f && Mathf.Abs(center.y - Mathf.Lerp(a.y, b.y, 0.5f)) <= 22.0f)
                     {
-                        col.enabled = false;
+                        shouldDisable = true;
+                        break;
                     }
                 }
             }
+
+            if (shouldDisable)
+            {
+                col.enabled = false;
+            }
         }
+    }
+
+    private static float SqrDistanceToSegment(Vector3 point, Vector3 a, Vector3 b)
+    {
+        Vector3 ab = b - a;
+        float l2 = ab.sqrMagnitude;
+        if (l2 < 0.0001f) return (point - a).sqrMagnitude;
+        float t = Mathf.Clamp01(Vector3.Dot(point - a, ab) / l2);
+        Vector3 proj = a + t * ab;
+        return (point - proj).sqrMagnitude;
     }
 
     private static GameObject BuildStartPlatformRuntime(Transform parent)
@@ -852,6 +931,15 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
         {
             deckCol.size = new Vector3(1f, 1f, 1f);
             deckCol.center = Vector3.zero;
+            // 摩擦ゼロのマテリアルを適用し、助走・ダッシュ時の足元の引っかかりを完全排除
+            var smoothMat = new PhysicsMaterial("FlightDeckSmooth")
+            {
+                dynamicFriction = 0f,
+                staticFriction = 0f,
+                frictionCombine = PhysicsMaterialCombine.Minimum,
+                bounceCombine = PhysicsMaterialCombine.Minimum
+            };
+            deckCol.material = smoothMat;
         }
 
         var deckMat = new Material(shader);
@@ -994,8 +1082,8 @@ public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
             }
 
             var ringComp = ringGo.AddComponent<AdventureWindRing>();
-            ringComp.boostMultiplier = 1.95f;
-            ringComp.boostDuration = 3.2f;
+            ringComp.boostMultiplier = 1.25f;
+            ringComp.boostDuration = 4.5f;
 
             float t = (float)i / (waypoints.Length - 1);
             ringComp.ringColor = Color.Lerp(
