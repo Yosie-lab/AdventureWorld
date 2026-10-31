@@ -1649,7 +1649,8 @@ public partial class AdventurePlayerController : MonoBehaviour
     /// <summary>段差・テラス縁の「レッジグラブ＆クライム（崖縁フッパッよじ登りアシスト）」</summary>
     void CheckAndApplyLedgeClimb()
     {
-        if (_skybreakPillarLock || _autoGlide) return;
+        // ★空中滑空（IsGliding）中や高速空中推進中はレッジクライム（登坂停止）を誤爆させない！
+        if (_skybreakPillarLock || _autoGlide || _gliding || !_grounded && _glideBoostTimer > 0f) return;
 
         Vector3 p = transform.position;
         Vector3 fwd = transform.forward;

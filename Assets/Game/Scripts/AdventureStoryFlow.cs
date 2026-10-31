@@ -339,6 +339,11 @@ public static class AdventureStoryFlow
             if (AdventurePrologueDrama.Instance != null && AdventurePrologueDrama.Instance.IsShowingDashBoard)
                 return true;
 
+            // タイムアタックのリザルト画面表示中
+            var ta = AdventureGlidingTimeAttackManager.Instance;
+            if (ta != null && ta.IsShowingResult)
+                return true;
+
             return false;
         }
     }

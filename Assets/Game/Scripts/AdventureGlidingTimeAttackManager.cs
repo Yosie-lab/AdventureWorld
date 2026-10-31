@@ -7,7 +7,7 @@ using System.Collections.Generic;
 /// 北の絶壁から西のビーチまで、10個の光る気流リングをくぐり抜ける爽快滑空コース。
 /// [R]キーによる即時リトライで極上のリプレイ中毒性を実現。
 /// </summary>
-public class AdventureGlidingTimeAttackManager : MonoBehaviour
+public partial class AdventureGlidingTimeAttackManager : MonoBehaviour
 {
     private static AdventureGlidingTimeAttackManager _instance;
     public static AdventureGlidingTimeAttackManager Instance
@@ -41,6 +41,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
 
     [Header("リザルト表示")]
     private bool _showResult = false;
+    public bool IsShowingResult => _showResult;
     private float _resultTimer = 0f;
     private string _currentResultRank = "";
     private bool _isNewRecord = false;
@@ -73,6 +74,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
     private GUIStyle _retryStyle;
     private GUIStyle _resultTitleStyle;
     private GUIStyle _resultBodyStyle;
+    private GUIStyle _resultBtnStyle;
     private Texture2D _panelBg;
 
     private AudioSource _audioSource;
@@ -206,6 +208,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         ringsPassedCount = 0;
         _passedRings.Clear();
         _showResult = false;
+        HideResultModalUI();
     }
 
     public void StartTrial()
@@ -217,6 +220,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         ringsPassedCount = 0;
         _passedRings.Clear();
         _showResult = false;
+        HideResultModalUI();
 
         if (_audioSource != null && _startWhistleClip != null)
             _audioSource.PlayOneShot(_startWhistleClip, 0.85f);
@@ -279,11 +283,17 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         Vector3 pPos = player.transform.position;
         float distToGoal = Vector2.Distance(new Vector2(pPos.x, pPos.z), new Vector2(GOAL_POS.x, GOAL_POS.z));
 
-        // ゴール地点半径14m以内かつ高度低め、または西ビーチに着地した瞬間
-        bool nearGoal = distToGoal <= 14f && pPos.y <= 12f;
-        bool landedNearBeach = distToGoal <= 35f && !player.IsGliding && pPos.y <= 8.5f;
+        // 1. ゴール地点（光のサークル・ビーコン）周辺（半径22m以内、高度20m以下）
+        bool nearGoal = distToGoal <= 22f && pPos.y <= 20f;
 
-        if (nearGoal || landedNearBeach)
+        // 2. 西ビーチエリア（X: 120〜220, Z: 200〜300）への進入・着地
+        bool inBeachArea = (pPos.x >= 120f && pPos.x <= 220f && pPos.z >= 200f && pPos.z <= 300f);
+        bool landedInBeach = inBeachArea && (!player.IsGliding || player.IsGrounded || pPos.y <= 12f);
+
+        // 3. リングを後半（10個以上）くぐり抜けた後、西ビーチ側で着地または低空滑空した瞬間
+        bool finishedFlightLanding = (ringsPassedCount >= 8) && (distToGoal <= 50f || inBeachArea) && (!player.IsGliding || player.IsGrounded);
+
+        if (nearGoal || landedInBeach || finishedFlightLanding)
         {
             FinishTrial();
         }
@@ -360,6 +370,15 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         var drone = AdventureRustDrone.Instance;
         if (drone != null)
         {
+            if (_isNewRecord)
+            {
+                drone.SetExpression(AdventureRustDrone.FaceExpressionType.Joyful, 6.0f);
+            }
+            else if (isSS || isS || isA)
+            {
+                drone.SetExpression(AdventureRustDrone.FaceExpressionType.Smiling, 5.0f);
+            }
+
             if (isSS)
             {
                 drone.TriggerCelebrate();
@@ -377,9 +396,18 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
             }
             else
             {
+                if (_isNewRecord)
+                {
+                    drone.TriggerAffectionJoy();
+                }
                 drone.SetSpeech(AdventureLocalizationManager.GetFormat("ta_clear_generic", _resultTimer), 5.0f);
             }
         }
+
+        // uGUI高精細リザルトモーダルの表示（マウスカーソル自動解放対応）
+        EnsureResultModalUI();
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     void OnGUI()
@@ -416,7 +444,12 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
             float sec = currentTimer % 60f;
             string timeStr = string.Format("{0:00}:{1:00.00}", min, sec);
 
-            GUI.Label(new Rect(panelRect.x, panelRect.y + 4, panelW, 36), $"⏱  {timeStr}", _timeStyle);
+            // ベストタイム表示（記録がある場合）
+            string bestDisplay = (bestTime < 900f)
+                ? $"  <size=16><color=#FFE066>(BEST: {bestTime:F2}s)</color></size>"
+                : "";
+
+            GUI.Label(new Rect(panelRect.x, panelRect.y + 4, panelW, 36), $"⏱  {timeStr}{bestDisplay}", _timeStyle);
 
             // リング数
             int total = courseRings.Count > 0 ? courseRings.Count : 10;
@@ -438,73 +471,79 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
             GUI.Label(new Rect(panelRect.x, panelRect.y + panelH + 5, panelW, 22), retryText, _retryStyle);
         }
 
-        // リザルト画面
-        if (_showResult)
-        {
-            float screenW = Screen.width;
-            float screenH = Screen.height;
-            float resW = 480f;
-            float resH = 270f;
-            Rect resRect = new Rect((screenW - resW) * 0.5f, (screenH - resH) * 0.4f, resW, resH);
-
-            GUI.color = new Color(0.02f, 0.06f, 0.14f, 0.94f);
-            GUI.DrawTexture(resRect, _panelBg);
-            GUI.color = Color.white;
-
-            // 枠線アクセント
-            GUI.color = new Color(0.2f, 0.9f, 1.0f, 0.8f);
-            GUI.DrawTexture(new Rect(resRect.x, resRect.y, resW, 4), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(resRect.x, resRect.y + resH - 4, resW, 4), Texture2D.whiteTexture);
-            GUI.color = Color.white;
-
-            string title = _isNewRecord
-                ? AdventureLocalizationManager.Get("ta_result_new_record")
-                : AdventureLocalizationManager.Get("ta_result_finish");
-            GUI.Label(new Rect(resRect.x, resRect.y + 14, resW, 36), title, _resultTitleStyle);
-
-            int total = courseRings.Count > 0 ? courseRings.Count : 10;
-            string details = AdventureLocalizationManager.GetFormat("ta_result_details", _resultTimer, ringsPassedCount, total, _currentResultRank, bestTime, bestRank);
-
-            GUI.Label(new Rect(resRect.x + 30, resRect.y + 60, resW - 60, 140), details, _resultBodyStyle);
-
-            // リトライボタン
-            string flyAgain = AdventureLocalizationManager.Get("ta_btn_fly_again");
-            if (GUI.Button(new Rect(resRect.x + 80, resRect.y + 210, resW - 160, 42), flyAgain))
-            {
-                RetryAtStart();
-            }
-        }
+        // リザルト画面は uGUI モーダル（AdventureGlidingTimeAttackManager.UI.cs）で美しく描画
     }
 
     static Font _cachedTaFont;
     static Font ResolveTaFont()
     {
+        if (_cachedTaFont != null)
+        {
+            try
+            {
+                CharacterInfo info;
+                _cachedTaFont.RequestCharactersInTexture("あA", 24, FontStyle.Normal);
+                if (!_cachedTaFont.GetCharacterInfo('あ', out info, 24, FontStyle.Normal) &&
+                    !_cachedTaFont.GetCharacterInfo('A', out info, 24, FontStyle.Normal))
+                {
+                    _cachedTaFont = null;
+                }
+            }
+            catch { _cachedTaFont = null; }
+        }
         if (_cachedTaFont != null) return _cachedTaFont;
-        string[] fonts = {
+
+        string[] candidates = {
             "PingFang SC",
             "Hiragino Sans GB",
             "Heiti SC",
-            "Hiragino Sans",
+            "HiraginoSans-W3",
+            "HiraginoSans-W6",
             "Hiragino Kaku Gothic ProN",
-            "Microsoft YaHei",
-            "Arial Unicode MS",
+            "Hiragino Kaku Gothic ProN W3",
             "YuGothic",
+            "Yu Gothic",
+            "YuGothic-Medium",
             "Apple SD Gothic Neo",
+            "Microsoft YaHei",
+            "SimHei",
+            "Arial Unicode MS",
+            "Helvetica Neue",
             "Arial"
         };
+
         try
         {
-            _cachedTaFont = Font.CreateDynamicFontFromOSFont(fonts, 20);
-            if (_cachedTaFont != null) return _cachedTaFont;
+            Font multiFont = Font.CreateDynamicFontFromOSFont(candidates, 24);
+            if (multiFont != null)
+            {
+                _cachedTaFont = multiFont;
+                return multiFont;
+            }
         }
         catch { }
-        foreach (var name in fonts)
+
+        for (int i = 0; i < candidates.Length; i++)
         {
-            var f = Font.CreateDynamicFontFromOSFont(name, 20);
-            if (f != null) { _cachedTaFont = f; return f; }
+            try
+            {
+                Font font = Font.CreateDynamicFontFromOSFont(candidates[i], 24);
+                if (font == null) continue;
+                font.RequestCharactersInTexture("あA", 24, FontStyle.Normal);
+                CharacterInfo info;
+                if (font.GetCharacterInfo('あ', out info, 24, FontStyle.Normal) ||
+                    font.GetCharacterInfo('A', out info, 24, FontStyle.Normal))
+                {
+                    _cachedTaFont = font;
+                    return font;
+                }
+            }
+            catch { }
         }
-        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
-               ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+        _cachedTaFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+                        ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        return _cachedTaFont;
     }
 
     void EnsureStyles()
@@ -526,6 +565,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
             _timeStyle.fontStyle = FontStyle.Bold;
             _timeStyle.alignment = TextAnchor.MiddleCenter;
             _timeStyle.normal.textColor = new Color(0.3f, 0.95f, 1.0f);
+            _timeStyle.richText = true;
         }
 
         if (_ringStyle == null)
@@ -550,19 +590,31 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         {
             _resultTitleStyle = new GUIStyle();
             _resultTitleStyle.font = sharedFont;
-            _resultTitleStyle.fontSize = 22;
+            _resultTitleStyle.fontSize = 24;
             _resultTitleStyle.fontStyle = FontStyle.Bold;
             _resultTitleStyle.alignment = TextAnchor.MiddleCenter;
-            _resultTitleStyle.normal.textColor = new Color(1.0f, 0.9f, 0.2f);
+            _resultTitleStyle.normal.textColor = new Color(1.0f, 0.90f, 0.25f);
         }
 
         if (_resultBodyStyle == null)
         {
             _resultBodyStyle = new GUIStyle();
             _resultBodyStyle.font = sharedFont;
-            _resultBodyStyle.fontSize = 16;
+            _resultBodyStyle.fontSize = 18;
+            _resultBodyStyle.fontStyle = FontStyle.Bold;
             _resultBodyStyle.alignment = TextAnchor.UpperLeft;
-            _resultBodyStyle.normal.textColor = Color.white;
+            _resultBodyStyle.normal.textColor = new Color(0.95f, 0.98f, 1.0f);
+            _resultBodyStyle.richText = true;
+        }
+
+        if (_resultBtnStyle == null)
+        {
+            _resultBtnStyle = new GUIStyle(GUI.skin.button);
+            _resultBtnStyle.font = sharedFont;
+            _resultBtnStyle.fontSize = 18;
+            _resultBtnStyle.fontStyle = FontStyle.Bold;
+            _resultBtnStyle.alignment = TextAnchor.MiddleCenter;
+            _resultBtnStyle.normal.textColor = Color.white;
         }
     }
 
@@ -727,6 +779,55 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
         {
             var f = transform.Find("FinishTarget");
             finishTarget = f != null ? f : BuildFinishTargetRuntime(transform).transform;
+        }
+
+        // コース空路周辺（樹木の梢や枝コライダー）の干渉を掃除
+        ClearCorridorObstacles();
+    }
+
+    /// <summary>
+    /// タイムアタック航路（リング近辺）にある樹木や障害物のコライダーを掃除し、空中での突然のスタック・引っ掛かりを防止
+    /// </summary>
+    private void ClearCorridorObstacles()
+    {
+        if (courseRings == null) return;
+        var allCols = Object.FindObjectsByType<Collider>(FindObjectsInactive.Exclude);
+        for (int r = 0; r < courseRings.Count; r++)
+        {
+            var ring = courseRings[r];
+            if (ring == null) continue;
+            Vector3 ringPos = ring.transform.position;
+
+            for (int i = 0; i < allCols.Length; i++)
+            {
+                var col = allCols[i];
+                if (col == null || col.isTrigger) continue;
+                if (col is TerrainCollider) continue;
+
+                string colName = col.name.ToLower();
+                Transform pTr = col.transform;
+                bool isTreeLike = false;
+                while (pTr != null)
+                {
+                    string n = pTr.name.ToLower();
+                    if (n.Contains("tree") || n.Contains("branch") || n.Contains("foliage") || n.Contains("leaves"))
+                    {
+                        isTreeLike = true;
+                        break;
+                    }
+                    pTr = pTr.parent;
+                }
+
+                if (isTreeLike)
+                {
+                    // リング中心から半径8.5m以内にある樹木コライダーを無効化（景観メッシュはそのまま残し、すり抜け可能に）
+                    float d = Vector3.Distance(col.bounds.center, ringPos);
+                    if (d <= 8.5f)
+                    {
+                        col.enabled = false;
+                    }
+                }
+            }
         }
     }
 
@@ -976,7 +1077,7 @@ public class AdventureGlidingTimeAttackManager : MonoBehaviour
 
         var trigger = targetRoot.AddComponent<SphereCollider>();
         trigger.isTrigger = true;
-        trigger.radius = 9.0f;
+        trigger.radius = 20.0f;
 
         targetRoot.AddComponent<GlidingGoalTriggerHelper>();
 

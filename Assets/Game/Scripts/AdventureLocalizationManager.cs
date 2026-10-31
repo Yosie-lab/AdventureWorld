@@ -2104,6 +2104,7 @@ public static class AdventureLocalizationManager
         // タイムアタック＆スカイダイブ（Gliding Time Attack）
         // ==========================================
         { "ta_btn_warp", new[] { "🪂 [R] スカイダイブ台", "🪂 [R] Skydive Platform", "🪂 [R] 高空跳伞台", "🪂 [R] Plataforma de salto" } },
+        { "ta_btn_fly_again", new[] { "🔄 もう一度飛ぶ [R]", "🔄 Fly Again [R]", "🔄 再飞一次 [R]", "🔄 Volar de nuevo [R]" } },
         { "ta_hud_rings", new[] { "リング: {0}/{1}  {2}", "Rings: {0}/{1}  {2}", "风环: {0}/{1}  {2}", "Aros: {0}/{1}  {2}" } },
         { "ta_hud_retry", new[] { "🔄 [R]キーでいつでもスタート台へ即時リトライ", "🔄 Press [R] anytime to retry from start", "🔄 按 [R] 键可随时重新返回起点", "🔄 Pulsa [R] en cualquier momento para reiniciar" } },
         { "ta_result_new_record", new[] { "🏆 NEW RECORD! 達成！", "🏆 NEW RECORD ACHIEVED!", "🏆 新纪录达成！", "🏆 ¡NUEVO RÉCORD CONSEGUIDO!" } },
